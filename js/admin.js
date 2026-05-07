@@ -58,14 +58,16 @@ function admTab(name, el) {
     overview:'⚙️ Admin Panel', company:'🏢 Company Settings', team:'👥 Team Members',
     offices:'🏢 Offices & Branches',
     settings:'⚙️ Settings', logins:'🔑 Team Logins', cloudsync:'☁️ Cloud Sync',
-    activity:'📋 Activity Log', backup:'💾 Backup & Restore'
+    activity:'📋 Activity Log', backup:'💾 Backup & Restore',
+    integrations:'🔗 Integrations'
   };
   var subs = {
     overview:'Overview & quick actions', company:'Company info, bank details, GST',
     team:'Manage staff and roles', offices:'Manage all office locations and view performance',
     settings:'Brand, PIN and preferences',
     logins:'Team login credentials', cloudsync:'Firebase Firestore sync',
-    activity:'Recent system activity', backup:'Backup and restore data'
+    activity:'Recent system activity', backup:'Backup and restore data',
+    integrations:'Meta Ads · WhatsApp Business · Gmail — API credentials'
   };
   var t = document.getElementById('adm-page-title');
   var s = document.getElementById('adm-page-sub');
@@ -79,7 +81,8 @@ function admTab(name, el) {
   if (name === 'company')    { loadCompanySettings(); }
   if (name === 'settings')   { loadAllSettings(); }
   if (name === 'logins')     { renderTeamLogins(); }
-  if (name === 'cloudsync')  { renderCloudSync(); }
+  if (name === 'cloudsync')      { renderCloudSync(); }
+  if (name === 'integrations')  { loadIntegrations(); }
 }
 
 // Keep old function as alias
@@ -846,5 +849,271 @@ window.backupFullDB=backupFullDB;window.restoreDB=restoreDB;window.exportAllData
 window.addLeadSource=addLeadSource;window.removeLeadSource=removeLeadSource;
 window.toggleBhDay=toggleBhDay;window.toggleAutoAssign=toggleAutoAssign;
 window.syncDepositPct=syncDepositPct;window.syncDepositRange=syncDepositRange;
+
+
+// ══════════════════════════════════════════════════════════
+//  INTEGRATIONS  — Meta Ads · WhatsApp Business · Gmail
+// ══════════════════════════════════════════════════════════
+
+function loadIntegrations() {
+  var integ = (DB.settings && DB.settings.integrations) || {};
+  var meta = integ.meta      || {};
+  var wa   = integ.whatsapp  || {};
+  var gml  = integ.gmail     || {};
+  var gs   = (DB.settings && DB.settings.googleSheets) || {};
+
+  var sv = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+  sv('integ-meta-token',     meta.accessToken || '');
+  sv('integ-meta-account',   meta.adAccountId || '');
+  sv('integ-meta-page',      meta.pageId      || '');
+  sv('integ-wa-phoneid',     wa.phoneNumberId     || '');
+  sv('integ-wa-bizid',       wa.businessAccountId || '');
+  sv('integ-wa-token',       wa.accessToken       || '');
+  sv('integ-gmail-clientid', gml.clientId  || '');
+  sv('integ-gmail-fromname', gml.fromName  || '');
+  sv('integ-gs-url',         gs.webAppUrl  || '');
+
+  var autoEl = document.getElementById('integ-gs-autosync');
+  if (autoEl) autoEl.checked = gs.autoSync !== false;
+
+  var lastEl = document.getElementById('integ-gs-lastsync');
+  if (lastEl) lastEl.textContent = window.WanagoSheets ? window.WanagoSheets.getLastSync() : (gs.lastSync ? gs.lastSync.slice(0,16).replace('T',' ') : 'Never');
+
+  var eod = gs.eod || {};
+  var eodHour = document.getElementById('integ-gs-eod-hour');
+  if (eodHour) eodHour.value = String(eod.hour || 19);
+  var eodEn = document.getElementById('integ-gs-eod-enabled');
+  if (eodEn) eodEn.checked = eod.enabled !== false;
+
+  _updateIntegPills();
+}
+
+function _updateIntegPills() {
+  var integ = (DB.settings && DB.settings.integrations) || {};
+  var meta = integ.meta     || {};
+  var wa   = integ.whatsapp || {};
+  var gml  = integ.gmail    || {};
+
+  function setPill(id, on, onTxt, offTxt) {
+    var el = document.getElementById(id); if (!el) return;
+    if (on) {
+      el.style.background = 'var(--g50)'; el.style.color = 'var(--g700)';
+      el.style.border = '1px solid var(--g200)'; el.textContent = '● ' + (onTxt || 'Connected');
+    } else {
+      el.style.background = '#fee'; el.style.color = '#c0392b';
+      el.style.border = '1px solid rgba(192,57,43,.2)'; el.textContent = '● ' + (offTxt || 'Not Connected');
+    }
+  }
+
+  var gs = (DB.settings && DB.settings.googleSheets) || {};
+  setPill('meta-integ-pill',  !!(meta.accessToken && meta.adAccountId));
+  setPill('wa-integ-pill',    !!(wa.accessToken && wa.phoneNumberId));
+  setPill('gmail-integ-pill', !!(gml.accessToken), 'Authorized', 'Not Authorized');
+  setPill('gs-integ-pill',    !!(gs.webAppUrl), 'Active', 'Not Configured');
+
+  var gmlStat = document.getElementById('gmail-token-status');
+  if (gmlStat) {
+    if (gml.accessToken) {
+      gmlStat.textContent = '✅ Token active — Gmail ready to send';
+      gmlStat.style.color = 'var(--g700)';
+    } else {
+      gmlStat.textContent = 'Not authorized yet. Click "Authorize Gmail" to connect.';
+      gmlStat.style.color = 'var(--textd)';
+    }
+  }
+}
+
+function saveIntegration(key) {
+  if (!DB.settings.integrations) DB.settings.integrations = {};
+  var integ = DB.settings.integrations;
+  var g = function(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+
+  if (key === 'meta') {
+    integ.meta = { accessToken: g('integ-meta-token'), adAccountId: g('integ-meta-account'), pageId: g('integ-meta-page') };
+  } else if (key === 'whatsapp') {
+    integ.whatsapp = { phoneNumberId: g('integ-wa-phoneid'), businessAccountId: g('integ-wa-bizid'), accessToken: g('integ-wa-token') };
+  } else if (key === 'gmail') {
+    if (!integ.gmail) integ.gmail = {};
+    integ.gmail.clientId = g('integ-gmail-clientid');
+    integ.gmail.fromName = g('integ-gmail-fromname');
+  } else if (key === 'googlesheets') {
+    if (!DB.settings.googleSheets) DB.settings.googleSheets = {};
+    DB.settings.googleSheets.webAppUrl = g('integ-gs-url');
+    var autoEl = document.getElementById('integ-gs-autosync');
+    DB.settings.googleSheets.autoSync  = autoEl ? autoEl.checked : true;
+    var eodHourEl = document.getElementById('integ-gs-eod-hour');
+    var eodEnEl   = document.getElementById('integ-gs-eod-enabled');
+    DB.settings.googleSheets.eod = {
+      hour:    eodHourEl ? Number(eodHourEl.value) : 19,
+      enabled: eodEnEl   ? eodEnEl.checked : true,
+    };
+  }
+
+  saveDB();
+  _updateIntegPills();
+  var names = { meta: 'Meta Ads', whatsapp: 'WhatsApp', gmail: 'Gmail', googlesheets: 'Google Sheets' };
+  showToast('✅ ' + (names[key] || key) + ' settings saved!');
+}
+
+async function testIntegration(key) {
+  if (!window.WanagoIntegrations) { showToast('Integrations module not loaded', 'error'); return; }
+  var resultEl = document.getElementById(key + '-test-result');
+
+  function setResult(ok, msg) {
+    if (!resultEl) return;
+    resultEl.style.display = 'block';
+    if (ok) {
+      resultEl.style.background = 'var(--g50)'; resultEl.style.border = '1px solid var(--g200)'; resultEl.style.color = 'var(--g700)';
+    } else {
+      resultEl.style.background = '#fee8e6'; resultEl.style.border = '1px solid rgba(192,57,43,.2)'; resultEl.style.color = '#c0392b';
+    }
+    resultEl.textContent = msg;
+  }
+
+  setResult(true, 'Testing connection…');
+
+  try {
+    if (key === 'meta') {
+      saveIntegration('meta');
+      var d = await window.WanagoIntegrations.Meta.verifyToken();
+      setResult(true, '✅ Connected! Token valid for: ' + (d.name || 'your account'));
+      showToast('Meta Ads connected: ' + (d.name || 'OK'));
+
+    } else if (key === 'whatsapp') {
+      saveIntegration('whatsapp');
+      var d2 = await window.WanagoIntegrations.WhatsApp.getProfile();
+      var phone = d2.display_phone_number || 'Unknown';
+      var vname = d2.verified_name ? ' (' + d2.verified_name + ')' : '';
+      setResult(true, '✅ Connected! Phone: ' + phone + vname);
+      showToast('WhatsApp connected: ' + phone);
+
+    } else if (key === 'gmail') {
+      if (!window.WanagoIntegrations.Gmail.token) throw new Error('No access token. Authorize Gmail first.');
+      setResult(true, '✅ Gmail token is active and ready to send.');
+      showToast('Gmail token active');
+
+    } else if (key === 'googlesheets') {
+      saveIntegration('googlesheets');
+      if (!window.WanagoSheets) throw new Error('Google Sheets module not loaded — reload the page.');
+      var r = await window.WanagoSheets.testConnection();
+      if (r.ok) {
+        setResult(true, '✅ ' + (r.msg || 'Connected to Google Sheets!'));
+        showToast('Google Sheets connected!');
+      } else {
+        throw new Error(r.msg || 'Cannot reach the Web App URL');
+      }
+    }
+  } catch (e) {
+    setResult(false, '❌ ' + e.message);
+    showToast(e.message, 'error');
+  }
+}
+
+function revokeIntegration(key) {
+  var names = { meta: 'Meta Ads', whatsapp: 'WhatsApp', gmail: 'Gmail', googlesheets: 'Google Sheets' };
+  var label = names[key] || key;
+  if (!confirm('Clear ' + label + ' credentials? This cannot be undone.')) return;
+  if (key === 'googlesheets') {
+    if (!DB.settings.googleSheets) DB.settings.googleSheets = {};
+    DB.settings.googleSheets.webAppUrl = '';
+    DB.settings.googleSheets.autoSync  = false;
+  } else {
+    if (!DB.settings.integrations) DB.settings.integrations = {};
+    DB.settings.integrations[key] = {};
+  }
+  saveDB();
+  loadIntegrations();
+  showToast(label + ' credentials cleared');
+}
+
+function toggleIntegCred(inputId, btn) {
+  var inp = document.getElementById(inputId); if (!inp) return;
+  if (inp.type === 'password') { inp.type = 'text'; if (btn) btn.textContent = '🙈'; }
+  else                         { inp.type = 'password'; if (btn) btn.textContent = '👁'; }
+}
+
+async function integGmailAuthorize() {
+  if (!window.WanagoIntegrations) { showToast('Integrations module not loaded', 'error'); return; }
+  saveIntegration('gmail');
+  try {
+    var token = await window.WanagoIntegrations.Gmail.authorize();
+    if (token) { showToast('✅ Gmail authorized!'); _updateIntegPills(); }
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function sheetsManualSync() {
+  if (!window.WanagoSheets) { showToast('Google Sheets module not loaded', 'error'); return; }
+  var btn = document.getElementById('sheets-sync-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing…'; }
+  await window.WanagoSheets.syncNow(false);
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Now'; }
+  var lastEl = document.getElementById('integ-gs-lastsync');
+  if (lastEl && window.WanagoSheets) lastEl.textContent = window.WanagoSheets.getLastSync();
+}
+
+async function sheetsSetupTrigger() {
+  if (!window.WanagoSheets) { showToast('Google Sheets module not loaded', 'error'); return; }
+  saveIntegration('googlesheets');
+  var btn = document.getElementById('eodr-trigger-btn');
+  var res = document.getElementById('eodr-action-result');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Setting up…'; }
+  if (res) { res.style.display = 'none'; }
+
+  var hour = Number((document.getElementById('integ-gs-eod-hour')||{}).value || 19);
+  var r = await window.WanagoSheets.sendAction('setupTrigger', { hour: hour });
+
+  if (btn) { btn.disabled = false; btn.textContent = '⏰ Setup Daily Trigger'; }
+  if (res) {
+    res.style.display = 'block';
+    if (r.ok) {
+      res.style.background = 'var(--g50)'; res.style.color = 'var(--g700)'; res.style.border = '1px solid var(--g200)';
+      res.textContent = '✅ ' + (r.msg || 'Daily EODR trigger set up successfully!');
+      showToast('✅ Daily EODR trigger active!');
+    } else {
+      res.style.background = '#fee8e6'; res.style.color = '#c0392b'; res.style.border = '1px solid rgba(192,57,43,.2)';
+      res.textContent = '❌ ' + (r.error || r.msg || 'Failed to set up trigger');
+      showToast(r.error || 'Trigger setup failed', 'error');
+    }
+  }
+}
+
+async function sheetsSendEODRNow() {
+  if (!window.WanagoSheets) { showToast('Google Sheets module not loaded', 'error'); return; }
+  var btn = document.getElementById('eodr-send-btn');
+  var res = document.getElementById('eodr-action-result');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sending…'; }
+  if (res) { res.style.display = 'none'; }
+
+  // First sync the latest data, then send EODR
+  await window.WanagoSheets.syncNow(true);
+  var r = await window.WanagoSheets.sendAction('sendEODR');
+
+  if (btn) { btn.disabled = false; btn.textContent = '📬 Send EODR Now'; }
+  if (res) {
+    res.style.display = 'block';
+    if (r.ok) {
+      res.style.background = 'var(--g50)'; res.style.color = 'var(--g700)'; res.style.border = '1px solid var(--g200)';
+      res.textContent = '✅ ' + (r.msg || 'EODR sent successfully!');
+      showToast('✅ EODR reports sent!');
+    } else {
+      res.style.background = '#fee8e6'; res.style.color = '#c0392b'; res.style.border = '1px solid rgba(192,57,43,.2)';
+      res.textContent = '❌ ' + (r.error || r.msg || 'Send failed');
+      showToast(r.error || 'EODR send failed', 'error');
+    }
+  }
+}
+
+window.loadIntegrations    = loadIntegrations;
+window.saveIntegration     = saveIntegration;
+window.testIntegration     = testIntegration;
+window.revokeIntegration   = revokeIntegration;
+window.toggleIntegCred     = toggleIntegCred;
+window.integGmailAuthorize = integGmailAuthorize;
+window.sheetsManualSync    = sheetsManualSync;
+window.sheetsSetupTrigger  = sheetsSetupTrigger;
+window.sheetsSendEODRNow   = sheetsSendEODRNow;
+
 
 initPage(renderAdminPage);

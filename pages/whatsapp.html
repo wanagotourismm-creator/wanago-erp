@@ -142,39 +142,38 @@
 
 <div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
 
-<script src="../js/sidebar.js"></script>
 <script src="../js/utils.js"></script>
 <script src="../js/firestore.js"></script>
 <script src="../js/db.js"></script>
+<script src="../js/sidebar.js"></script>
 <script src="../js/whatsapp.js"></script>
-<script type="module">
-import { auth } from '../firebase/firebase-config.js';
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-onAuthStateChanged(auth, (user) => {
-  if (!user) { window.location.href = '../index.html'; return; }
-  document.getElementById('user-name').textContent = user.email.split('@')[0];
-  document.getElementById('user-avatar').textContent = user.email[0].toUpperCase();
-  document.getElementById('topbar-user').textContent = user.email;
-  window.handleLogout = async () => { await signOut(auth); window.location.href = '../index.html'; };
-
-  // Initialize page
-  try { initWAPage(); } catch(e) { console.error(e); }
-
-  // Fade in
-  setTimeout(() => {
-    const l = document.getElementById('page-loader');
-    const a = document.querySelector('.app');
-    const p = document.getElementById('wa-page-content');
-    if (l) l.classList.add('fade-out');
+<script>
+// ── Auth guard (session-based, same as all other pages) ──
+function initPage(renderFn) {
+  var session = sessionStorage.getItem('wanago_session');
+  if (!session) { window.location.href = '../index.html'; return; }
+  try {
+    var s = JSON.parse(session);
+    var tu = document.getElementById('topbar-user');
+    if (tu) tu.textContent = s.email || '';
+    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
+  } catch(ex) {}
+  function fadeLoader() {
+    var l = document.getElementById('page-loader');
+    var a = document.querySelector('.app');
+    var p = document.getElementById('wa-page-content');
+    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
     if (a) a.classList.add('loaded');
     if (p) p.style.opacity = '1';
-    setTimeout(() => { if(l) l.remove(); }, 300);
-  }, 50);
-});
+  }
+  setTimeout(function() {
+    try { if (renderFn) renderFn(); } catch(e) { console.error('WA page render error:', e); }
+    fadeLoader();
+  }, 20);
+}
 
 function initWAPage() {
-  buildSalesChatPanel();
+  try { buildSalesChatPanel(); } catch(e) {}
 
   // Birthdays
   const bdays = getBirthdaysToday();
@@ -305,6 +304,9 @@ window.saveWASettings = function() {
 
 window.renderSendTemplates = function() {};
 window.goTo = function(page) { window.location.href = page + '.html'; };
+window.handleLogout = function() { sessionStorage.removeItem('wanago_session'); window.location.href = '../index.html'; };
+
+initPage(initWAPage);
 </script>
 
 <script src="../js/wanago-space.js"></script>

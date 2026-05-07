@@ -72,7 +72,7 @@ function tryFirebaseLogin(email, password, member, btn) {
   Promise.all([
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
-    import('./firebase/firebase-config.js')
+    import('../firebase/firebase-config.js')
   ]).then(function(modules) {
     var signIn = modules[1].signInWithEmailAndPassword;
     var auth   = modules[2].auth;
@@ -115,15 +115,41 @@ function doLogin(member, email, btn) {
 function handleForgotPassword() {
   var email = (document.getElementById('login-email')?.value || '').trim();
   if (!email) { showMsg('Enter your email first.', false); return; }
-  import('./firebase/firebase-config.js').then(function(cfg) {
-    return import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js').then(function(fbAuth) {
-      return fbAuth.sendPasswordResetEmail(cfg.auth, email);
-    });
+  Promise.all([
+    import('../firebase/firebase-config.js'),
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
+  ]).then(function(modules) {
+    var cfg    = modules[0];
+    var fbAuth = modules[1];
+    if (!cfg.auth) throw new Error('not_configured');
+    return fbAuth.sendPasswordResetEmail(cfg.auth, email);
   }).then(function() {
-    showMsg('✅ Password reset email sent to ' + email, true);
-  }).catch(function() {
-    showMsg('Contact your admin to reset your password.', true);
+    showMsg('✅ Password reset email sent to ' + email + '. Check your inbox.', true);
+  }).catch(function(e) {
+    if (e.code === 'auth/user-not-found') {
+      showMsg('No Firebase account found for this email. Ask your admin to reset your PIN in the Admin Panel → Team.', false);
+    } else if (e.code === 'auth/invalid-email') {
+      showMsg('Invalid email address.', false);
+    } else if (e.message === 'not_configured') {
+      showMsg('Firebase not configured. Ask your admin to reset your PIN via Admin Panel → Team → Edit Member.', false);
+    } else {
+      showMsg('Could not send reset email. Ask your admin to reset your PIN via Admin Panel → Team.', false);
+    }
   });
+}
+
+// ── Toggle password visibility ──
+function togglePassword() {
+  var input  = document.getElementById('login-password');
+  var btn    = document.querySelector('.toggle-pw');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (btn) btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    if (btn) btn.textContent = '👁';
+  }
 }
 
 // ── Show message ──
@@ -145,4 +171,5 @@ function onKeyDown(e) { if (e.key === 'Enter') handleLogin(); }
 
 window.handleLogin = handleLogin;
 window.handleForgotPassword = handleForgotPassword;
+window.togglePassword = togglePassword;
 window.onKeyDown = onKeyDown;

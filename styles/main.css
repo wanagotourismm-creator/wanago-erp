@@ -805,3 +805,234 @@ tbody tr:hover{background:var(--g50)}
 /* ── Faster page loading ── */
 #page-loader{transition:opacity .25s ease,visibility .25s ease}
 .app{transition:opacity .2s ease}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — works on mobile · tablet · iPad · laptop · desktop
+   Breakpoints: 1280 | 1024 | 768 | 480
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Hamburger toggle (hidden on desktop) ── */
+#menu-toggle{
+  display:none;width:36px;height:36px;padding:0;
+  background:none;border:none;cursor:pointer;
+  flex-direction:column;gap:5px;
+  align-items:center;justify-content:center;
+  border-radius:9px;transition:background .15s;flex-shrink:0;
+}
+#menu-toggle:hover{background:var(--g50)}
+#menu-toggle span{display:block;width:20px;height:2px;background:var(--text);border-radius:2px;transition:.25s}
+#menu-toggle.open span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+#menu-toggle.open span:nth-child(2){opacity:0}
+#menu-toggle.open span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+
+/* Sidebar overlay backdrop for mobile */
+#sidebar-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.5);z-index:199;
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+}
+#sidebar-overlay.open{display:block}
+
+/* ══ LAPTOP / LARGE TABLET (≤1280px) ══ */
+@media(max-width:1280px){
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .admin-kpi-strip{grid-template-columns:repeat(4,1fr)}
+  .mkt-kpi-bar{grid-template-columns:repeat(4,1fr)}
+  .two-col{grid-template-columns:1fr 300px}
+}
+
+/* ══ TABLET (≤1024px) ══ */
+@media(max-width:1024px){
+  #sidebar{width:190px;min-width:190px}
+  #content{padding:16px}
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(2,1fr)}
+  .two-col{grid-template-columns:1fr}
+  .two-col-eq{grid-template-columns:1fr}
+  .kanban{grid-template-columns:repeat(3,1fr)}
+  .tasks-board{grid-template-columns:repeat(2,1fr)}
+  .hrms-kpi-strip{grid-template-columns:repeat(2,1fr)}
+  .admin-kpi-strip{grid-template-columns:repeat(3,1fr)}
+  .mkt-kpi-bar{grid-template-columns:repeat(3,1fr)}
+  .meta-creds-grid{grid-template-columns:repeat(2,1fr)}
+  .meta-audience-grid{grid-template-columns:1fr 1fr}
+  .adm-quick-actions{grid-template-columns:repeat(3,1fr)}
+  .settings-layout{grid-template-columns:160px 1fr}
+  .search-inp{width:160px}
+  .search-inp:focus{width:200px}
+  .hrms-header-bar{flex-wrap:wrap}
+  .hrms-header-kpis{flex-wrap:wrap;gap:12px}
+  .admin-header-stats{flex-wrap:wrap;gap:12px}
+}
+
+/* ══ MOBILE + TABLET PORTRAIT (≤768px) ══ */
+@media(max-width:768px){
+  /* Allow scroll on mobile */
+  html,body{overflow:auto}
+  .app{height:auto;min-height:100vh;overflow:visible}
+  #main{width:100%;height:auto;min-height:100vh;overflow:visible}
+  #content{overflow-y:visible;height:auto;padding:12px}
+
+  /* Sidebar becomes slide-in drawer */
+  #sidebar{
+    position:fixed;left:0;top:0;bottom:0;z-index:200;
+    width:250px!important;min-width:250px!important;
+    height:100vh!important;
+    transform:translateX(-100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow:none;
+  }
+  #sidebar.open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.25)}
+
+  /* Show hamburger, adjust topbar */
+  #menu-toggle{display:flex}
+  .topbar{padding:0 12px;height:52px;gap:8px}
+  .topbar-title{font-size:16px}
+  .search-wrap{display:none}
+  #topbar-user{display:none}
+
+  /* All grids → 2 columns */
+  .g4,.g3{grid-template-columns:repeat(2,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .two-col,.two-col-eq{grid-template-columns:1fr}
+  .kanban{grid-template-columns:repeat(2,1fr)}
+  .tasks-board{grid-template-columns:1fr}
+  .hrms-kpi-strip{grid-template-columns:repeat(2,1fr)}
+  .admin-kpi-strip{grid-template-columns:repeat(2,1fr)}
+  .mkt-kpi-bar{grid-template-columns:repeat(2,1fr)}
+  .meta-creds-grid,.meta-audience-grid{grid-template-columns:1fr}
+  .adm-quick-actions{grid-template-columns:repeat(2,1fr)}
+  .settings-layout{grid-template-columns:1fr;gap:10px}
+  .settings-sidebar{position:static;display:flex;flex-wrap:wrap;gap:6px;padding:10px}
+  .settings-sidebar-title{display:none}
+  .form-grid{grid-template-columns:1fr}
+  .hrms-emp-card-meta{grid-template-columns:1fr}
+  .inv-meta{grid-template-columns:1fr}
+
+  /* Tables scroll horizontally */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:520px}
+
+  /* Modals slide up from bottom */
+  .modal-overlay{align-items:flex-end}
+  .modal{
+    width:100%!important;max-width:100%!important;
+    border-radius:18px 18px 0 0;max-height:92vh;
+    margin:0;padding:20px 16px 24px;
+  }
+  .modal-lg{width:100%!important}
+
+  /* Cards */
+  .card{padding:14px}
+  .stat-val{font-size:22px}
+  .seg-card-count{font-size:22px}
+
+  /* Header bars stack */
+  .hrms-header-bar,.admin-header-bar,.ws-header{flex-direction:column;align-items:flex-start;gap:12px}
+  .ws-header-kpis,.hrms-header-kpis,.admin-header-stats{flex-wrap:wrap;gap:10px}
+
+  /* Notification panel full width */
+  #notif-wrap{position:static}
+  #notif-panel{
+    position:fixed;left:8px;right:8px;
+    top:60px;width:auto;
+    border-radius:14px;
+  }
+
+  /* Toast full width */
+  #toast{left:12px;right:12px;bottom:12px;max-width:none}
+
+  /* Command palette */
+  #cp-dialog{top:8px;border-radius:14px}
+
+  /* Tab bar scrollable */
+  .tab-bar{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;gap:0;padding-bottom:1px}
+  .tab-bar::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;padding:10px 12px;font-size:12px}
+
+  /* Invoice preview */
+  .invoice-preview{padding:20px}
+  .inv-header{flex-direction:column;gap:12px}
+  .inv-totals{width:100%;margin-left:0}
+
+  /* Filter bar wraps */
+  .filter-bar{gap:5px}
+  .chip{font-size:11px;padding:4px 10px}
+
+  /* Page-specific header banners */
+  .mkt-header-banner,.bk-header-banner{padding:14px!important}
+  .meta-banner{flex-direction:column;align-items:flex-start}
+
+  /* Kanban labels */
+  .kanban-col{padding:8px}
+
+  /* Payslip */
+  .payslip{padding:16px}
+  .payslip-head{flex-direction:column;gap:10px}
+}
+
+/* ══ SMALL PHONE (≤480px) ══ */
+@media(max-width:480px){
+  #content{padding:8px}
+  .topbar{height:48px}
+  .topbar-title{font-size:14px}
+
+  /* Single column for most grids */
+  .g4,.g3{grid-template-columns:1fr}
+  .g2{grid-template-columns:1fr}
+  .mkt-kpi-bar{grid-template-columns:1fr}
+  .admin-kpi-strip{grid-template-columns:repeat(2,1fr)}
+  .kanban{grid-template-columns:1fr}
+  .hrms-kpi-strip{grid-template-columns:1fr}
+
+  /* Stats */
+  .stat-val{font-size:20px}
+  .stat-label{font-size:9px}
+
+  /* Cards */
+  .card{padding:12px}
+
+  /* Table toolbar stacks */
+  .table-toolbar{flex-direction:column;align-items:stretch}
+  .table-toolbar .btn{width:100%;justify-content:center}
+
+  /* Camp stats 2-col */
+  .camp-stats{grid-template-columns:repeat(2,1fr)}
+
+  /* Modal */
+  .modal{padding:16px 12px 20px}
+  .modal-title{font-size:18px}
+
+  /* Form */
+  .modal-footer{flex-direction:column}
+  .modal-footer .btn{width:100%;justify-content:center}
+
+  /* Topbar only shows hamburger + title + bell */
+  .topbar-actions > *:not(#notif-wrap){display:none}
+  #notif-wrap{display:flex}
+}
+
+/* ══ LANDSCAPE PHONE ══ */
+@media(max-width:768px) and (orientation:landscape){
+  .modal-overlay{align-items:center}
+  .modal{border-radius:14px;max-height:90vh;width:min(480px,95vw)!important;max-width:min(480px,95vw)!important}
+}
+
+/* ══ iPad PORTRAIT (768px) ══ */
+@media(min-width:641px) and (max-width:1024px) and (orientation:portrait){
+  #sidebar{width:200px;min-width:200px}
+  .g4{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ── Ensure all images scale ── */
+img{max-width:100%;height:auto}
+
+/* ── Prevent text overflow ── */
+.topbar-title,.user-name,.hrms-emp-card-name,.kc-name,.camp-name,.bk-card-cust{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Touch-friendly tap targets ── */
+@media(hover:none){
+  .btn,.nav-item,.row-btn,.chip,.tab,.cp-item,.np-item{min-height:40px}
+  .nav-item{min-height:42px;padding:11px 10px}
+  .btn{padding:10px 16px}
+}

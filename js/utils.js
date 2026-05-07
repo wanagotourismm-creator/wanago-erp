@@ -4,13 +4,11 @@
 // ═══════════════════════════════════════════════════════════════
 
 // ── DATA LAYER ──
-const STORE_KEY = 'wanago_erp_v3';
-const SHEETS_KEY = 'wanago_sheets_url';
+// Firestore is the sole persistent store. DB is an in-memory cache populated
+// by real-time listeners in firestore.js. localStorage is no longer used.
+const STORE_KEY = 'wanago_erp_v3'; // kept only for one-time migration in firestore.js
 
-function loadDB() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultDB(); }
-  catch { return defaultDB(); }
-}
+function loadDB() { return defaultDB(); }
 
 function defaultDB() {
   return {
@@ -38,7 +36,8 @@ function defaultDB() {
 }
 
 function saveDB() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  // Firestore handles persistence. _fsPushDB is defined in firestore.js (debounced 2s).
+  if (typeof window._fsPushDB === 'function') window._fsPushDB();
 }
 
 let DB = loadDB();
@@ -340,7 +339,7 @@ function assertAuth(allowedRoles, record, ownerField) {
   return true;
 }
 
-function getSheetsURL() { return localStorage.getItem('wanago_sheets_url') || ''; }
+function getSheetsURL() { return (DB.settings && DB.settings.googleSheets && DB.settings.googleSheets.webAppUrl) || ''; }
 async function syncAppendCustomer() {} // stub
 
 window.initials = initials;
@@ -702,12 +701,8 @@ function resolveUserFromFirebase(firebaseUser) {
   // Try by email
   if (!member) member = team.find(m => m.email === firebaseUser.email);
 
-  // Try UID map in localStorage
-  if (!member) {
-    const uidMap = JSON.parse(localStorage.getItem('wanago_uid_map') || '{}');
-    const mapping = uidMap[firebaseUser.uid];
-    if (mapping) member = team.find(m => m.id === mapping.memberId);
-  }
+  // Try by stored firebaseUid on team member
+  if (!member) member = team.find(m => m.firebaseUid === firebaseUser.uid);
 
   if (member) {
     // Determine system role

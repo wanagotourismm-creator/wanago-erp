@@ -117,8 +117,16 @@
 </div>
 
 <script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
 <script src="../js/whatsapp.js"></script>
 <script>
+// ── Session guard ──
+(function() {
+  var session = sessionStorage.getItem('wanago_session');
+  if (!session) { window.location.href = '../index.html'; }
+})();
+
 // ── State ──
 let allContacts = [];
 let currentContact = null;
@@ -348,7 +356,11 @@ function useTemplate(idx) {
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', () => {
-  const agentName = currentUser?.name || 'Agent';
+  var agentName = 'Agent';
+  try {
+    var s = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+    agentName = (window.currentUser && window.currentUser.name) || s.name || s.email || 'Agent';
+  } catch(e) {}
   document.getElementById('sc-agent-label').textContent = '👤 ' + agentName;
   loadContacts();
   // Auto-select contact if opened from lead/customer row

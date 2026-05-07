@@ -91,6 +91,9 @@
       <div class="adm-nav-item" onclick="admTab('settings',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings
       </div>
+      <div class="adm-nav-item" onclick="admTab('integrations',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Integrations
+      </div>
       <div class="adm-nav-item" onclick="admTab('logins',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Team Logins
       </div>
@@ -145,6 +148,7 @@
           <button class="adm-quick-btn" onclick="admTab('backup',document.querySelector('[onclick*=backup]'))"><span>💾</span><div>Backup Data</div></button>
           <button class="adm-quick-btn" onclick="admTab('logins',document.querySelector('[onclick*=logins]'))"><span>🔑</span><div>Team Logins</div></button>
           <button class="adm-quick-btn" onclick="admTab('settings',document.querySelector('[onclick*=settings]'))"><span>⚙️</span><div>Settings</div></button>
+          <button class="adm-quick-btn" onclick="admTab('integrations',document.querySelector('[onclick*=integrations]'))"><span>🔗</span><div>Integrations</div></button>
           <button class="adm-quick-btn" onclick="admTab('activity',document.querySelector('[onclick*=activity]'))"><span>📋</span><div>Activity Log</div></button>
           <button class="adm-quick-btn" onclick="openChangePinModal()"><span>🔑</span><div>Change PIN</div></button>
         </div>
@@ -388,6 +392,240 @@
         </div>
       </div>
 
+      <!-- ═══ INTEGRATIONS ═══ -->
+      <div class="adm-tab" id="adm-tab-integrations">
+
+        <div style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:1px solid #a5d6a7;border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start">
+          <div style="font-size:24px;flex-shrink:0">🔐</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--g800);margin-bottom:4px">API Keys &amp; Credentials — Admin Only</div>
+            <div style="font-size:12px;color:var(--textm);line-height:1.7">These credentials are stored locally in your browser. Used by Marketing Hub for Meta Ads data, WhatsApp blasts, and Gmail campaigns. Keys are sent directly to Meta/Google APIs — never through any third-party server.</div>
+          </div>
+        </div>
+
+        <!-- Meta Ads -->
+        <div class="sett-card" style="margin-bottom:16px">
+          <div class="sett-card-hd">
+            <span class="sett-card-icon">📊</span>
+            <div style="flex:1">
+              <div class="sett-card-title">Meta Business Suite — Ads API</div>
+              <div class="sett-card-sub">Live Facebook/Instagram campaign data, spend and ROI in Marketing Hub</div>
+            </div>
+            <span id="meta-integ-pill" style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#fee;color:#c0392b;border:1px solid rgba(192,57,43,.2);flex-shrink:0">● Not Connected</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Access Token <span style="color:var(--textd);font-weight:400;text-transform:none">(Meta User or System User token with ads_read permission)</span></label>
+              <div class="password-wrap">
+                <input type="password" class="form-input" id="integ-meta-token" placeholder="EAAxxxxxxxxxxxxxxx…" autocomplete="off">
+                <button type="button" class="toggle-pw" onclick="toggleIntegCred('integ-meta-token',this)">👁</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ad Account ID <span style="color:var(--textd);font-weight:400;text-transform:none">(with or without act_ prefix)</span></label>
+              <input class="form-input" id="integ-meta-account" placeholder="act_1234567890">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Page ID <span style="color:var(--textd);font-weight:400;text-transform:none">(optional)</span></label>
+              <input class="form-input" id="integ-meta-page" placeholder="123456789">
+            </div>
+          </div>
+          <div id="meta-test-result" style="display:none;margin-top:10px;font-size:12px;padding:9px 12px;border-radius:8px"></div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveIntegration('meta')">💾 Save</button>
+            <button class="btn btn-outline" onclick="testIntegration('meta')">🧪 Test Connection</button>
+            <button class="btn btn-outline" style="color:var(--red);border-color:rgba(192,57,43,.3)" onclick="revokeIntegration('meta')">🗑 Clear</button>
+          </div>
+        </div>
+
+        <!-- WhatsApp Business -->
+        <div class="sett-card" style="margin-bottom:16px">
+          <div class="sett-card-hd">
+            <span class="sett-card-icon">💬</span>
+            <div style="flex:1">
+              <div class="sett-card-title">WhatsApp Business API</div>
+              <div class="sett-card-sub">Send individual &amp; bulk WhatsApp messages directly from the CRM</div>
+            </div>
+            <span id="wa-integ-pill" style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#fee;color:#c0392b;border:1px solid rgba(192,57,43,.2);flex-shrink:0">● Not Connected</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Phone Number ID</label>
+              <input class="form-input" id="integ-wa-phoneid" placeholder="From Meta → WhatsApp → API Setup">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Business Account ID <span style="color:var(--textd);font-weight:400;text-transform:none">(optional — needed for templates)</span></label>
+              <input class="form-input" id="integ-wa-bizid" placeholder="WABA ID from Meta Business Manager">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Access Token <span style="color:var(--textd);font-weight:400;text-transform:none">(System user token with whatsapp_business_messaging permission)</span></label>
+              <div class="password-wrap">
+                <input type="password" class="form-input" id="integ-wa-token" placeholder="EAAxxxxxxxxxxxxxxx…" autocomplete="off">
+                <button type="button" class="toggle-pw" onclick="toggleIntegCred('integ-wa-token',this)">👁</button>
+              </div>
+            </div>
+          </div>
+          <div id="wa-test-result" style="display:none;margin-top:10px;font-size:12px;padding:9px 12px;border-radius:8px"></div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveIntegration('whatsapp')">💾 Save</button>
+            <button class="btn btn-outline" onclick="testIntegration('whatsapp')">🧪 Test Connection</button>
+            <button class="btn btn-outline" style="color:var(--red);border-color:rgba(192,57,43,.3)" onclick="revokeIntegration('whatsapp')">🗑 Clear</button>
+          </div>
+        </div>
+
+        <!-- Gmail -->
+        <div class="sett-card" style="margin-bottom:16px">
+          <div class="sett-card-hd">
+            <span class="sett-card-icon">📧</span>
+            <div style="flex:1">
+              <div class="sett-card-title">Gmail — Google OAuth2</div>
+              <div class="sett-card-sub">Send personalized email campaigns from your company Gmail account</div>
+            </div>
+            <span id="gmail-integ-pill" style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#fee;color:#c0392b;border:1px solid rgba(192,57,43,.2);flex-shrink:0">● Not Authorized</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Google OAuth2 Client ID <span style="color:var(--textd);font-weight:400;text-transform:none">(Google Cloud Console → Credentials → OAuth 2.0 Client IDs)</span></label>
+              <input class="form-input" id="integ-gmail-clientid" placeholder="123456789-xxxxxxxxxxxx.apps.googleusercontent.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">From Name <span style="color:var(--textd);font-weight:400;text-transform:none">(shown as email sender name)</span></label>
+              <input class="form-input" id="integ-gmail-fromname" placeholder="Wanago Tourism">
+            </div>
+            <div class="form-group" style="display:flex;flex-direction:column;justify-content:flex-end">
+              <label class="form-label">Token Status</label>
+              <div id="gmail-token-status" style="padding:9px 12px;background:var(--cream);border:1px solid var(--border);border-radius:8px;font-size:12.5px;color:var(--textd);font-weight:500">Not authorized yet</div>
+            </div>
+          </div>
+          <div id="gmail-test-result" style="display:none;margin-top:10px;font-size:12px;padding:9px 12px;border-radius:8px"></div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveIntegration('gmail')">💾 Save Client ID</button>
+            <button class="btn btn-outline" onclick="integGmailAuthorize()">🔑 Authorize Gmail</button>
+            <button class="btn btn-outline" style="color:var(--red);border-color:rgba(192,57,43,.3)" onclick="revokeIntegration('gmail')">🗑 Revoke Access</button>
+          </div>
+        </div>
+
+        <!-- Google Sheets -->
+        <div class="sett-card" style="margin-bottom:16px">
+          <div class="sett-card-hd">
+            <span class="sett-card-icon">📊</span>
+            <div style="flex:1">
+              <div class="sett-card-title">Google Sheets — Live Sync</div>
+              <div class="sett-card-sub">All ERP data auto-pushes to your Google Sheet on every save (5-second debounce)</div>
+            </div>
+            <span id="gs-integ-pill" style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#fee;color:#c0392b;border:1px solid rgba(192,57,43,.2);flex-shrink:0">● Not Configured</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Google Apps Script Web App URL <span style="color:var(--textd);font-weight:400;text-transform:none">(deploy Code.gs as a Web App — Execute as: Me, Access: Anyone)</span></label>
+              <input class="form-input" id="integ-gs-url" placeholder="https://script.google.com/macros/s/AKfy…/exec">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Auto-sync on every save</label>
+              <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--cream);border:1px solid var(--border);border-radius:8px;cursor:pointer">
+                <input type="checkbox" id="integ-gs-autosync" checked style="width:15px;height:15px;cursor:pointer">
+                <span style="font-size:12.5px;color:var(--textm)">Enable (5-second debounce)</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Last Synced</label>
+              <div id="integ-gs-lastsync" style="padding:9px 12px;background:var(--cream);border:1px solid var(--border);border-radius:8px;font-size:12.5px;color:var(--textd);font-weight:500">Never</div>
+            </div>
+          </div>
+          <div id="googlesheets-test-result" style="display:none;margin-top:10px;font-size:12px;padding:9px 12px;border-radius:8px"></div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveIntegration('googlesheets')">💾 Save</button>
+            <button class="btn btn-outline" onclick="testIntegration('googlesheets')">🧪 Test Connection</button>
+            <button class="btn btn-outline" id="sheets-sync-btn" onclick="sheetsManualSync()">🔄 Sync Now</button>
+            <button class="btn btn-outline" style="color:var(--red);border-color:rgba(192,57,43,.3)" onclick="revokeIntegration('googlesheets')">🗑 Clear</button>
+          </div>
+
+          <!-- EODR Settings -->
+          <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px">
+            <div style="font-size:13px;font-weight:700;color:var(--textd);margin-bottom:12px">📬 End of Day Report (EODR) — Auto Email + WhatsApp</div>
+            <div style="background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--textm);margin-bottom:14px;line-height:1.8">
+              Sends a <strong>full report</strong> to Admin &amp; Branch Managers, and a <strong>personal report</strong> (their own data only) to each team member — every day at the chosen time, via <strong>Gmail + WhatsApp</strong>.<br>
+              Requires: Gmail connected • WhatsApp API configured • Team members added with email/phone • Apps Script trigger set up (click below).
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Send Time</label>
+                <select class="form-select" id="integ-gs-eod-hour">
+                  <option value="17">5:00 PM</option>
+                  <option value="18">6:00 PM</option>
+                  <option value="19" selected>7:00 PM</option>
+                  <option value="20">8:00 PM</option>
+                  <option value="21">9:00 PM</option>
+                  <option value="22">10:00 PM</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Auto EODR</label>
+                <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--cream);border:1px solid var(--border);border-radius:8px;cursor:pointer">
+                  <input type="checkbox" id="integ-gs-eod-enabled" checked style="width:15px;height:15px;cursor:pointer">
+                  <span style="font-size:12.5px;color:var(--textm)">Enable daily auto-send</span>
+                </label>
+              </div>
+            </div>
+            <div id="eodr-action-result" style="display:none;margin-bottom:10px;font-size:12px;padding:9px 12px;border-radius:8px"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" id="eodr-trigger-btn" onclick="sheetsSetupTrigger()">⏰ Setup Daily Trigger</button>
+              <button class="btn btn-outline" id="eodr-send-btn" onclick="sheetsSendEODRNow()">📬 Send EODR Now</button>
+            </div>
+            <div style="font-size:11px;color:var(--textd);margin-top:8px">After clicking "Setup Daily Trigger", the Apps Script will automatically send reports every day at the selected time — even when your browser is closed.</div>
+          </div>
+        </div>
+
+        <!-- Setup guide -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">📖</span><div><div class="sett-card-title">Quick Setup Guide</div><div class="sett-card-sub">Step-by-step for each integration</div></div></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+            <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:14px">
+              <div style="font-size:13px;font-weight:700;margin-bottom:8px">📊 Meta Ads</div>
+              <ol style="font-size:11.5px;color:var(--textm);line-height:2.1;padding-left:16px;margin:0">
+                <li>Open Meta Business Suite</li>
+                <li>Go to System Users → Create Admin user</li>
+                <li>Generate token with <code>ads_read</code></li>
+                <li>Copy Ad Account ID (act_…)</li>
+                <li>Paste above → Save → Test</li>
+              </ol>
+            </div>
+            <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:14px">
+              <div style="font-size:13px;font-weight:700;margin-bottom:8px">💬 WhatsApp API</div>
+              <ol style="font-size:11.5px;color:var(--textm);line-height:2.1;padding-left:16px;margin:0">
+                <li>Go to Meta for Developers</li>
+                <li>Create a WhatsApp Business App</li>
+                <li>Copy Phone Number ID</li>
+                <li>Generate System User token</li>
+                <li>Add Business Account ID → Test</li>
+              </ol>
+            </div>
+            <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:14px">
+              <div style="font-size:13px;font-weight:700;margin-bottom:8px">📧 Gmail OAuth2</div>
+              <ol style="font-size:11.5px;color:var(--textm);line-height:2.1;padding-left:16px;margin:0">
+                <li>Go to Google Cloud Console</li>
+                <li>Enable Gmail API</li>
+                <li>Create OAuth 2.0 Client ID</li>
+                <li>Add your domain as authorized origin</li>
+                <li>Paste Client ID → Save → Authorize</li>
+              </ol>
+            </div>
+            <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:14px">
+              <div style="font-size:13px;font-weight:700;margin-bottom:8px">📊 Google Sheets</div>
+              <ol style="font-size:11.5px;color:var(--textm);line-height:2.1;padding-left:16px;margin:0">
+                <li>Create a new Google Sheet</li>
+                <li>Extensions → Apps Script</li>
+                <li>Paste the Code.gs provided below</li>
+                <li>Deploy → New deployment → Web App</li>
+                <li>Execute as: <strong>Me</strong> · Access: <strong>Anyone</strong></li>
+                <li>Copy URL → Paste above → Save → Test</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end integrations tab -->
+
     </div><!-- end adm-content -->
   </div><!-- end adm-main -->
 </div><!-- end adm-layout -->
@@ -463,6 +701,8 @@
 <script src="../js/utils.js"></script>
 <script src="../js/firestore.js"></script>
 <script src="../js/db.js"></script>
+<script src="../js/integrations.js"></script>
+<script src="../js/google-sheets.js"></script>
 <script src="../js/admin.js"></script>
 <script src="../js/wanago-space.js"></script>
 </body>

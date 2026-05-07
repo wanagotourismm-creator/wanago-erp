@@ -1,35 +1,51 @@
 // ═══════════════════════════════════════════════════════════════
 //  WANAGO ERP — Marketing Hub
+//  Meta Ads · WhatsApp Blast · Email Blast · Occasions · Analytics
 // ═══════════════════════════════════════════════════════════════
 'use strict';
 
+// ── Auth guard (same pattern as every other page) ──
+function initPage(renderFn) {
+  var session = sessionStorage.getItem('wanago_session');
+  if (!session) { window.location.href = '../index.html'; return; }
+  try {
+    var s = JSON.parse(session);
+    var name = (window.currentUser && window.currentUser.name) || s.name || 'User';
+    var tu = document.getElementById('topbar-user');
+    if (tu) tu.textContent = s.email || '';
+    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
+  } catch(ex) {}
+  function fadeLoader() {
+    var l = document.getElementById('page-loader');
+    var a = document.querySelector('.app');
+    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
+    if (a) a.classList.add('loaded');
+  }
+  setTimeout(function() {
+    try { if (renderFn) renderFn(); } catch(e) { console.error('Marketing render error:', e); }
+    fadeLoader();
+  }, 20);
+}
+
 function goTo(page) { window.location.href = page + '.html'; }
-function handleLogout() { sessionStorage.removeItem('wanago_session'); window.location.href = 'login.html'; }
-window.goTo = goTo;
-window.handleLogout = handleLogout;
+function handleLogout() { sessionStorage.removeItem('wanago_session'); window.location.href = '../index.html'; }
+window.goTo = goTo; window.handleLogout = handleLogout;
 
-// ── State ──
 let _mktCampaignFilter = 'all';
-let _mktCalYear, _mktCalMonth;
 let _editCampaignId = null, _editSegmentId = null, _editTemplateId = null;
+let _waContacts = [], _emailContacts = [];
 
-const CAMPAIGN_TYPES = {
-  whatsapp: { label:'WhatsApp', icon:'💬', color:'#25d366' },
-  email:    { label:'Email',    icon:'📧', color:'#ea4335' },
-  sms:      { label:'SMS',      icon:'📱', color:'#1565c0' },
-  social:   { label:'Social',   icon:'📢', color:'#7b1fa2' },
-};
-
+// ── Default templates ──
 const DEFAULT_TEMPLATES = [
-  { id:'tpl_bd',    name:'Birthday Wish',         type:'whatsapp', category:'personal',      body:'🎂 Happy Birthday *{{name}}*! Wishing you a wonderful day. We hope to plan a special trip for you soon! 🌟\n— Team Wanago',                                                                                                variables:['name'] },
-  { id:'tpl_bk',    name:'Booking Confirmation',  type:'whatsapp', category:'transactional', body:'✅ *Booking Confirmed!*\n\nHi *{{name}}*, your trip to *{{destination}}* is confirmed!\n📅 Travel Date: {{date}}\n💰 Amount Paid: ₹{{amount}}\n\nNeed help? Call us anytime.\n— Team Wanago',                          variables:['name','destination','date','amount'] },
-  { id:'tpl_py',    name:'Payment Reminder',       type:'whatsapp', category:'transactional', body:'💰 *Payment Reminder*\n\nHi *{{name}}*, your balance of ₹{{amount}} for your *{{destination}}* trip is due on *{{dueDate}}*.\n\nPay now to confirm your booking.\n— Team Wanago',                                      variables:['name','amount','destination','dueDate'] },
-  { id:'tpl_qt',    name:'Quotation Sent',         type:'whatsapp', category:'sales',         body:'📋 Hi *{{name}}*! Your custom quote for *{{destination}}* ({{pax}} pax) is ready!\n\n💰 ₹{{amount}}/person | Includes: Flights, Hotel, Transfers & Sightseeing\n\nReply to book.\n— Team Wanago',                      variables:['name','destination','pax','amount'] },
-  { id:'tpl_fl',    name:'Follow-up Nudge',        type:'whatsapp', category:'sales',         body:'👋 Hi *{{name}}*, just checking in! Have you had a chance to look at the *{{destination}}* package?\n\nDates are filling up fast 🔥\n— Team Wanago',                                                                    variables:['name','destination'] },
-  { id:'tpl_promo', name:'Promo Campaign',         type:'whatsapp', category:'promotional',   body:'🏖️ *Special Offer!*\n\nHi {{name}}, save up to *{{discount}}%* on {{destination}} packages!\n📅 Offer valid till {{validTill}}. Limited seats!\n\n— Team Wanago',                                                       variables:['name','discount','destination','validTill'] },
-  { id:'tpl_ann',   name:'Anniversary Wish',       type:'whatsapp', category:'personal',      body:'💕 Happy Anniversary *{{name}}*! Wishing you many more beautiful years together. How about celebrating with a dream vacation? ✈️\n— Team Wanago',                                                                        variables:['name'] },
-  { id:'tpl_em',    name:'Email Newsletter',       type:'email',    category:'promotional',   subject:'Exclusive Travel Deals — {{month}} Edition 🌟', body:'Dear {{name}},\n\nWe have curated the best travel packages this {{month}} just for you!\n\n🌴 Top Destinations:\n• Maldives from ₹45,000\n• Goa from ₹8,500\n• Bali from ₹38,000\n\nBook before {{validTill}} to avail special rates.\n\nWarm regards,\nTeam Wanago', variables:['name','month','validTill'] },
-  { id:'tpl_sms',   name:'SMS Flash Sale',         type:'sms',      category:'promotional',   body:'WANAGO: Hi {{name}}, FLASH SALE! {{destination}} tour at ₹{{amount}}. Book today only. Call: {{phone}} or reply BOOK. T&C apply.',                                                                                         variables:['name','destination','amount','phone'] },
+  { id:'tpl_bd',    name:'Birthday Wish',         type:'whatsapp', category:'personal',      body:'🎂 Happy Birthday *{{name}}*! Wishing you a wonderful day. We hope to plan a special trip for you soon! 🌟\n— Team Wanago', variables:['name'] },
+  { id:'tpl_bk',    name:'Booking Confirmation',  type:'whatsapp', category:'transactional', body:'✅ *Booking Confirmed!*\n\nHi *{{name}}*, your trip to *{{destination}}* is confirmed!\n📅 Travel Date: {{date}}\n💰 Amount: ₹{{amount}}\n\nNeed help? Call us anytime.\n— Team Wanago', variables:['name','destination','date','amount'] },
+  { id:'tpl_py',    name:'Payment Reminder',       type:'whatsapp', category:'transactional', body:'💰 *Payment Reminder*\n\nHi *{{name}}*, your balance of ₹{{amount}} for *{{destination}}* is due on *{{date}}*.\n\nPay now to confirm your booking.\n— Team Wanago', variables:['name','amount','destination','date'] },
+  { id:'tpl_qt',    name:'Quotation Sent',         type:'whatsapp', category:'sales',         body:'📋 Hi *{{name}}*! Your quote for *{{destination}}* is ready.\n\n💰 ₹{{amount}}/person\nIncludes: Flights, Hotel, Transfers & Sightseeing\n\nReply to book! 🌟\n— Team Wanago', variables:['name','destination','amount'] },
+  { id:'tpl_fl',    name:'Follow-up Nudge',        type:'whatsapp', category:'sales',         body:'👋 Hi *{{name}}*, just checking in! Have you had a chance to look at the *{{destination}}* package?\n\nDates are filling up fast 🔥\n— Team Wanago', variables:['name','destination'] },
+  { id:'tpl_promo', name:'Promo Campaign',         type:'whatsapp', category:'promotional',   body:'🏖️ *Special Offer!*\n\nHi {{name}}, save up to *{{amount}}%* on {{destination}} packages!\n📅 Limited time offer!\n\n— Team Wanago', variables:['name','amount','destination'] },
+  { id:'tpl_ann',   name:'Anniversary Wish',       type:'whatsapp', category:'personal',      body:'💕 Happy Anniversary *{{name}}*! Wishing you many more beautiful years together. How about celebrating with a dream vacation? ✈️\n— Team Wanago', variables:['name'] },
+  { id:'tpl_em',    name:'Email Newsletter',       type:'email',    category:'promotional',   subject:'Exclusive Travel Deals 🌟', body:'<p>Dear {{name}},</p><p>We have curated the best travel packages for you!</p><p>🌴 <strong>Top Destinations:</strong><br>• Maldives from ₹45,000<br>• Goa from ₹8,500<br>• Bali from ₹38,000</p><p>Warm regards,<br>Team Wanago</p>', variables:['name'] },
+  { id:'tpl_sms',   name:'SMS Flash Sale',         type:'sms',      category:'promotional',   body:'WANAGO: Hi {{name}}, FLASH SALE! {{destination}} tour at ₹{{amount}}. Book today. Call: {{phone}}. T&C apply.', variables:['name','destination','amount','phone'] },
 ];
 
 // ── Init ──
@@ -41,726 +57,896 @@ function mktInit() {
     saveDB();
   }
 
-  const now = new Date();
-  _mktCalYear  = now.getFullYear();
-  _mktCalMonth = now.getMonth();
-
-  const topbarUser = document.getElementById('topbar-user');
-  if (topbarUser) topbarUser.textContent = currentUser?.name || '';
-
+  _updateIntegrationPills();
   mktRenderOverview();
-  document.getElementById('mkt-page-content').style.opacity = '1';
-  document.getElementById('page-loader').style.display = 'none';
+  const content = document.getElementById('mkt-page-content');
+  if (content) content.style.opacity = '1';
 }
 
-// ══════════════════════════════════════
-//  OVERVIEW
-// ══════════════════════════════════════
+// ── Integration status pills ──
+function _updateIntegrationPills() {
+  const creds = WanagoIntegrations.getCreds();
+  const wa = creds.whatsapp || {};
+  const meta = creds.meta || {};
+  const gmail = creds.gmail || {};
+
+  const waPill = document.getElementById('wa-status-pill');
+  const metaPill = document.getElementById('meta-status-pill');
+  const gmailPill = document.getElementById('gmail-status-pill');
+
+  if (waPill) { const on = !!(wa.accessToken && wa.phoneNumberId); waPill.className = 'int-pill ' + (on?'on':'off'); waPill.textContent = '💬 WA'; }
+  if (metaPill) { const on = !!(meta.accessToken && meta.adAccountId); metaPill.className = 'int-pill ' + (on?'on':'off'); metaPill.textContent = '📘 Meta'; }
+  if (gmailPill) { const on = !!(gmail.accessToken || gmail.clientId); gmailPill.className = 'int-pill ' + (on?'on':'off'); gmailPill.textContent = '📧 Gmail'; }
+}
+
+// ── Helpers ──
+function _e(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+function _fmtNum(n) { return Number(n||0).toLocaleString('en-IN'); }
+function _daysUntil(month, day) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const next = new Date(today.getFullYear(), month, day);
+  if (next < today) next.setFullYear(today.getFullYear() + 1);
+  return Math.ceil((next - today) / 86400000);
+}
+
+// ── Overview ──
 function mktRenderOverview() {
   const campaigns = hScoped('campaigns');
-  const sent      = campaigns.filter(c => c.status === 'sent');
-  const totalReach     = sent.reduce((s,c) => s + (c.stats?.sent      || 0), 0);
+  const sent = campaigns.filter(c => c.status === 'sent');
+  const totalReach = sent.reduce((s,c) => s + (c.stats?.sent || 0), 0);
   const totalConverted = sent.reduce((s,c) => s + (c.stats?.converted || 0), 0);
-  const leads    = hScoped('leads');
-  const mktSrcs  = ['instagram','facebook','google','youtube','website','referral','whatsapp'];
+  const leads = hScoped('leads');
+  const mktSrcs = ['instagram','facebook','google','youtube','website','referral','whatsapp','meta'];
   const mktLeads = leads.filter(l => mktSrcs.includes((l.source||'').toLowerCase()));
 
   _setText('mkt-kpi-campaigns', campaigns.length);
-  _setText('mkt-kpi-reach',     totalReach.toLocaleString('en-IN'));
+  _setText('mkt-kpi-reach', totalReach > 999 ? (totalReach/1000).toFixed(1)+'K' : totalReach);
   _setText('mkt-kpi-mkt-leads', mktLeads.length);
   _setText('mkt-kpi-converted', totalConverted);
-  _setText('mkt-kpi-scheduled', campaigns.filter(c => c.status === 'scheduled').length);
+
+  // Meta spend from cache
+  const metaCache = _getMetaCache();
+  if (metaCache?.totalSpend) {
+    _setText('mkt-kpi-meta-spend', '₹' + _fmtNum(Math.round(Number(metaCache.totalSpend))));
+  }
 
   // Recent campaigns
-  const tbody  = document.getElementById('mkt-recent-tbody');
+  const tbody = document.getElementById('mkt-recent-tbody');
   const recent = [...campaigns].sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0)).slice(0,8);
+  const TYPE_ICONS = { whatsapp:'💬', email:'📧', meta:'📘', sms:'📱', social:'📢' };
   tbody.innerHTML = recent.length
-    ? recent.map(c => {
-        const ti = CAMPAIGN_TYPES[c.type] || { icon:'📣', label:c.type };
-        return `<tr>
-          <td><span style="margin-right:5px">${ti.icon}</span><strong>${esc(c.name)}</strong>
-            ${c.description ? `<div style="font-size:10px;color:var(--textd)">${esc(c.description)}</div>` : ''}
-          </td>
-          <td>${stagePill(c.status)}</td>
-          <td style="font-size:12px">${esc(c.audienceLabel||'—')}</td>
-          <td style="text-align:right">${(c.stats?.sent||0).toLocaleString('en-IN')}</td>
-          <td style="text-align:right;color:var(--g500);font-weight:600">${c.stats?.converted||0}</td>
-          <td>${formatDate(c.sentAt||c.scheduledAt||c.createdAt)}</td>
-          <td>
-            <div style="display:flex;gap:4px">
-              ${c.status==='draft'||c.status==='scheduled' ? `<button class="btn btn-sm btn-green" onclick="launchCampaign('${c.id}')">🚀 Send</button>` : ''}
-              <button class="btn btn-sm btn-outline" onclick="openCampaignModal('${c.id}')">Edit</button>
-            </div>
-          </td>
-        </tr>`;
-      }).join('')
-    : emptyRow(7, 'No campaigns yet — click "+ New Campaign" to get started');
+    ? recent.map(c => `<tr>
+        <td style="font-weight:600">${_e(c.name)}</td>
+        <td>${TYPE_ICONS[c.type]||'📣'} ${c.type||''}</td>
+        <td>${_pillStatus(c.status)}</td>
+        <td>${c.stats?.sent || 0}</td>
+        <td style="font-size:11px;color:var(--textd)">${c.scheduledAt ? formatDate(c.scheduledAt) : formatDate(c.createdAt)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--textd)">No campaigns yet — create one above</td></tr>';
 
-  mktRenderSourceChart('mkt-source-chart');
+  // Today's action list
+  const todayEl = document.getElementById('mkt-today-actions');
+  const actions = _buildTodayActions();
+  todayEl.innerHTML = actions.length
+    ? actions.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:16px">${a.icon}</span>
+        <div style="flex:1"><div style="font-size:12.5px;font-weight:600">${_e(a.title)}</div><div style="font-size:11px;color:var(--textd)">${_e(a.sub)}</div></div>
+        ${a.action ? `<button class="btn btn-sm btn-green" onclick="${a.action}" style="font-size:11px">${a.btn}</button>` : ''}
+      </div>`).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">Nothing urgent today! 🎉</div>';
 }
 
-function mktRenderSourceChart(elId) {
-  const el = document.getElementById(elId);
+function _buildTodayActions() {
+  const db = DB; const today = new Date(); const actions = [];
+  const allPeople = [...(hScoped('customers')||[]), ...(hScoped('leads')||[])];
+  allPeople.forEach(p => {
+    const dob = p.dob || p.birthday;
+    if (dob) {
+      const bd = new Date(dob);
+      const diff = _daysUntil(bd.getMonth(), bd.getDate());
+      if (diff === 0) actions.push({ icon:'🎂', title:'Birthday: ' + p.name, sub:'Send a birthday wish today!', btn:'Send WA', action:`mktQuickWish('${p.id||''}','birthday','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
+      else if (diff <= 3) actions.push({ icon:'🎉', title:'Upcoming: ' + p.name, sub:`Birthday in ${diff} day${diff===1?'':'s'}`, btn:'Prep Msg', action:`mktQuickWish('${p.id||''}','birthday','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
+    }
+    const ann = p.anniversary;
+    if (ann) {
+      const ad = new Date(ann);
+      const diff = _daysUntil(ad.getMonth(), ad.getDate());
+      if (diff === 0) actions.push({ icon:'💕', title:'Anniversary: ' + p.name, sub:'Send an anniversary wish!', btn:'Send WA', action:`mktQuickWish('${p.id||''}','anniversary','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
+    }
+  });
+  // Overdue invoices
+  (hScoped('invoices')||[]).filter(i => i.status === 'unpaid' || i.status === 'overdue').slice(0,3).forEach(inv => {
+    actions.push({ icon:'💰', title:'Payment Due: ' + (inv.customerName||'—'), sub:'₹' + _fmtNum(inv.total||inv.amount||0), btn:'Remind', action:`goTo('invoices')` });
+  });
+  return actions.slice(0, 8);
+}
+
+// ── Quick occasion wish ──
+function mktQuickWish(id, type, phone, name) {
+  const tplId = type === 'birthday' ? 'tpl_bd' : 'tpl_ann';
+  const tpl = (DB.settings.mktTemplates || []).find(t => t.id === tplId) || DEFAULT_TEMPLATES.find(t => t.id === tplId);
+  const msg = (tpl?.body || 'Happy ' + type + ' ' + name + '!').replace(/{{name}}/g, name);
+  if (phone) {
+    window.open('https://wa.me/' + phone.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(msg), '_blank');
+  }
+}
+window.mktQuickWish = mktQuickWish;
+
+// ── Status pill ──
+function _pillStatus(s) {
+  const map = { sent:'pill-green', draft:'pill-gray', scheduled:'pill-blue', failed:'pill-red', paused:'pill-amber' };
+  return `<span class="pill ${map[s]||'pill-gray'}">${s||'—'}</span>`;
+}
+
+/* ══════════════════════════════════════════════════════
+   META ADS
+══════════════════════════════════════════════════════ */
+function _getMetaCache() { try { return JSON.parse(localStorage.getItem('wg_meta_cache')||'null'); } catch(e){ return null; } }
+function _setMetaCache(d) { localStorage.setItem('wg_meta_cache', JSON.stringify({ ...d, _ts: Date.now() })); }
+
+async function mktLoadMeta() {
+  const M = WanagoIntegrations.Meta;
+  const notConf = document.getElementById('meta-not-configured');
+  const conf    = document.getElementById('meta-configured');
+  const loading = document.getElementById('meta-loading');
+
+  if (!M.isConfigured()) {
+    notConf.style.display = 'block'; conf.style.display = 'none'; return;
+  }
+  notConf.style.display = 'none'; conf.style.display = 'block';
+
+  const preset = document.getElementById('meta-date-preset')?.value || 'last_30d';
+  loading.style.display = 'inline';
+
+  try {
+    const [accountInsights, campaignInsights] = await Promise.all([
+      M.getAccountInsights(preset),
+      M.getCampaignInsights(preset)
+    ]);
+
+    // Account KPIs
+    const d = accountInsights.data?.[0] || {};
+    const spend = parseFloat(d.spend || 0);
+    const spendINR = spend * 83; // approx USD→INR if needed; Meta returns in account currency
+    _setText('meta-total-spend', '₹' + _fmtNum(Math.round(spendINR || spend)));
+    _setText('meta-period-note', preset.replace(/_/g,' '));
+    _setText('meta-total-reach', _fmtNum(d.reach));
+    _setText('meta-freq-note', d.frequency ? 'Freq: ' + parseFloat(d.frequency).toFixed(2) : '—');
+    _setText('meta-total-clicks', _fmtNum(d.clicks));
+    _setText('meta-ctr-note', d.ctr ? 'CTR: ' + parseFloat(d.ctr).toFixed(2) + '%' : '—');
+    _setText('meta-cpm', d.cpm ? '₹' + parseFloat(d.cpm).toFixed(0) : '—');
+    _setText('meta-cpc-note', d.cpc ? 'CPC ₹' + parseFloat(d.cpc).toFixed(0) : '—');
+    _setText('meta-last-updated', 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}));
+
+    // Actions grid
+    if (d.actions && d.actions.length) {
+      const actGrid = document.getElementById('meta-actions-grid');
+      actGrid.innerHTML = d.actions.map(a => `
+        <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:var(--g700)">${_fmtNum(parseInt(a.value||0))}</div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--textd);margin-top:3px">${a.action_type.replace(/_/g,' ')}</div>
+        </div>`).join('');
+    }
+
+    // Cache for overview KPI
+    _setMetaCache({ totalSpend: spendINR || spend });
+    _setText('mkt-kpi-meta-spend', '₹' + _fmtNum(Math.round(spendINR || spend)));
+
+    // Campaign table
+    const rows = campaignInsights.data || [];
+    const tbody = document.getElementById('meta-camps-tbody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--textd)">No campaign data for this period</td></tr>';
+    } else {
+      const maxSpend = Math.max(...rows.map(r => parseFloat(r.spend||0)));
+      tbody.innerHTML = rows.map(r => {
+        const sp = parseFloat(r.spend||0);
+        const barW = maxSpend > 0 ? Math.round(sp/maxSpend*100) : 0;
+        const conv = (r.actions||[]).reduce((s,a)=>s+parseInt(a.value||0),0);
+        const statusCamp = r.campaign_name ? '' : '';
+        return `<tr>
+          <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_e(r.campaign_name||'—')}</td>
+          <td><span class="pill pill-green" style="font-size:9px">Active</span></td>
+          <td><span style="font-weight:700;color:#1877f2">₹${_fmtNum(Math.round(sp))}</span>
+              <div class="meta-bar" style="width:60px;margin-left:4px"><div class="meta-bar-fill" style="width:${barW}%"></div></div></td>
+          <td>${_fmtNum(r.reach)}</td>
+          <td>${_fmtNum(r.impressions)}</td>
+          <td>${_fmtNum(r.clicks)}</td>
+          <td>${parseFloat(r.ctr||0).toFixed(2)}%</td>
+          <td>₹${parseFloat(r.cpc||0).toFixed(0)}</td>
+          <td style="font-weight:700;color:var(--g600)">${_fmtNum(conv)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+  } catch(e) {
+    showToast('Meta Ads: ' + e.message, 'error');
+    const tbody = document.getElementById('meta-camps-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--red)">${_e(e.message)}</td></tr>`;
+  } finally {
+    loading.style.display = 'none';
+  }
+}
+window.mktLoadMeta = mktLoadMeta;
+
+/* ══════════════════════════════════════════════════════
+   WHATSAPP BLAST
+══════════════════════════════════════════════════════ */
+function mktLoadBlastContacts(channel) {
+  const audienceId = channel === 'whatsapp'
+    ? (document.getElementById('wa-blast-audience')?.value || 'all_customers')
+    : (document.getElementById('email-blast-audience')?.value || 'all_customers');
+
+  const contacts = _resolveAudience(audienceId);
+
+  if (channel === 'whatsapp') {
+    _waContacts = contacts.filter(c => c.phone || c.mobile);
+    _renderContactList('wa-contact-list', 'wa', _waContacts, 'phone');
+    _setText('wa-contacts-count', _waContacts.length + ' contacts');
+    _populateWATemplates();
+    _renderWAApiInfo();
+  } else {
+    _emailContacts = contacts.filter(c => c.email);
+    _renderContactList('email-contact-list', 'email', _emailContacts, 'email');
+    _setText('email-contacts-count', _emailContacts.length + ' contacts');
+    _renderGmailInfo();
+  }
+}
+window.mktLoadBlastContacts = mktLoadBlastContacts;
+
+function _resolveAudience(id) {
+  const custs = hScoped('customers') || [];
+  const leads = hScoped('leads') || [];
+  const all = [...custs.map(c=>({...c,_src:'customer'})), ...leads.map(l=>({...l,_src:'lead'}))];
+  const today = new Date(); today.setHours(0,0,0,0);
+  switch(id) {
+    case 'all_customers': return custs;
+    case 'all_leads':     return leads;
+    case 'birthday_week': return all.filter(p => { const d = new Date(p.dob||p.birthday||''); if (isNaN(d)) return false; const diff = _daysUntil(d.getMonth(), d.getDate()); return diff <= 7; });
+    case 'anniversary_week': return all.filter(p => { const d = new Date(p.anniversary||''); if (isNaN(d)) return false; const diff = _daysUntil(d.getMonth(), d.getDate()); return diff <= 7; });
+    case 'pending_payment': return (hScoped('bookings')||[]).filter(b => (b.balanceAmount||b.balance||0) > 0).map(b => ({ name: b.customerName, phone: b.customerPhone || b.phone, email: b.customerEmail || b.email, amount: b.balanceAmount || b.balance }));
+    case 'inactive_90': {
+      const cut = Date.now() - 90 * 86400000;
+      return custs.filter(c => !c.lastContactDate || new Date(c.lastContactDate) < new Date(cut));
+    }
+    case 'recent_leads': {
+      const cut = Date.now() - 30 * 86400000;
+      return leads.filter(l => new Date(l.createdAt||0) >= new Date(cut));
+    }
+    default: return custs;
+  }
+}
+
+function _renderContactList(containerId, prefix, contacts, infoField) {
+  const el = document.getElementById(containerId);
   if (!el) return;
-  const leads = hScoped('leads');
-  const map   = {};
-  leads.forEach(l => { const s = l.source||'Unknown'; map[s] = (map[s]||0)+1; });
-  const total  = leads.length || 1;
-  const sorted = Object.entries(map).sort((a,b) => b[1]-a[1]).slice(0,8);
-  const COLS   = ['#134a32','#2da065','#52c285','#c9a84c','#2563eb','#c0392b','#d68910','#7b1fa2'];
-
-  el.innerHTML = sorted.length
-    ? sorted.map(([src,cnt],i) => {
-        const pct = Math.round((cnt/total)*100);
-        return `<div style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-            <span style="font-size:12px;font-weight:500">${esc(src)}</span>
-            <span style="font-size:11px;color:var(--textd)">${cnt} · ${pct}%</span>
-          </div>
-          <div style="background:var(--cream2);border-radius:20px;height:8px;overflow:hidden">
-            <div style="background:${COLS[i%COLS.length]};height:100%;width:${pct}%;border-radius:20px"></div>
-          </div>
-        </div>`;
-      }).join('')
-    : '<div style="padding:20px;text-align:center;color:var(--textd);font-size:12px">Add leads to see source data</div>';
+  if (!contacts.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No contacts in this segment</div>'; return; }
+  el.innerHTML = contacts.map((c, i) => {
+    const info = infoField === 'phone' ? (c.phone||c.mobile||'—') : (c.email||'—');
+    const av = (c.name||'?')[0].toUpperCase();
+    return `<div class="bc-row">
+      <input type="checkbox" class="bc-check" id="${prefix}-chk-${i}" checked data-idx="${i}"/>
+      <div class="bc-av">${av}</div>
+      <div class="bc-name">${_e(c.name||'Unknown')}</div>
+      <div class="bc-phone">${_e(info)}</div>
+    </div>`;
+  }).join('');
 }
 
-// ══════════════════════════════════════
-//  CAMPAIGNS TAB
-// ══════════════════════════════════════
+function mktSelectAll(prefix, checked) {
+  document.querySelectorAll(`#${prefix === 'wa' ? 'wa-contact-list' : 'email-contact-list'} .bc-check`).forEach(c => c.checked = checked);
+}
+window.mktSelectAll = mktSelectAll;
+
+function _getSelectedContacts(prefix, contacts) {
+  const checks = document.querySelectorAll(`#${prefix === 'wa' ? 'wa-contact-list' : 'email-contact-list'} .bc-check`);
+  return contacts.filter((_, i) => checks[i]?.checked);
+}
+
+function _populateWATemplates() {
+  const sel = document.getElementById('wa-blast-tpl');
+  if (!sel) return;
+  const tpls = (DB.settings.mktTemplates || DEFAULT_TEMPLATES).filter(t => t.type === 'whatsapp');
+  sel.innerHTML = '<option value="">Custom message…</option>' + tpls.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+function mktWABlastPreview() {
+  const tplId = document.getElementById('wa-blast-tpl')?.value;
+  let body = document.getElementById('wa-blast-body')?.value || '';
+  if (tplId) {
+    const tpl = (DB.settings.mktTemplates||DEFAULT_TEMPLATES).find(t => t.id === tplId);
+    if (tpl) { body = tpl.body; if (document.getElementById('wa-blast-body')) document.getElementById('wa-blast-body').value = body; }
+  }
+  const sample = body.replace(/{{name}}/g,'Rahul').replace(/{{destination}}/g,'Maldives').replace(/{{amount}}/g,'25,000').replace(/{{date}}/g,'15 Jun').replace(/{{phone}}/g,'+91 9999 000 000').replace(/{{company}}/g,'Wanago');
+  const bubble = document.getElementById('wa-blast-preview-bubble');
+  if (bubble) bubble.textContent = sample || 'Your message preview…';
+}
+window.mktWABlastPreview = mktWABlastPreview;
+
+async function mktWASendBlast() {
+  const W = WanagoIntegrations.WhatsApp;
+  const selected = _getSelectedContacts('wa', _waContacts);
+  if (!selected.length) { showToast('No contacts selected', 'error'); return; }
+
+  const body = document.getElementById('wa-blast-body')?.value?.trim();
+  if (!body) { showToast('Write a message first', 'error'); return; }
+
+  if (!W.isConfigured()) {
+    // Fallback: open wa.me links manually
+    const first = selected[0];
+    const phone = (first.phone||first.mobile||'').replace(/[^0-9]/g,'');
+    const msg = body.replace(/{{name}}/g, first.name||'').replace(/{{destination}}/g,'').replace(/{{amount}}/g,'');
+    window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
+    showToast('WhatsApp API not configured — opening wa.me link. Set up Business API in Admin → Integrations for bulk sending.', 'error');
+    return;
+  }
+
+  const prog = document.getElementById('wa-blast-progress');
+  const fill = document.getElementById('wa-blast-fill');
+  const status = document.getElementById('wa-blast-status');
+  const result = document.getElementById('wa-blast-result');
+
+  prog.style.display = 'block'; fill.style.width = '0%';
+  status.textContent = 'Sending…';
+
+  const results = await W.bulkSend(selected, (c) => {
+    return body.replace(/{{name}}/g, c.name||'').replace(/{{destination}}/g, c.destination||'').replace(/{{amount}}/g, c.amount||'').replace(/{{date}}/g, c.date||'');
+  }, (done, total, r) => {
+    fill.style.width = Math.round(done/total*100) + '%';
+    status.textContent = `${done}/${total} sent…`;
+  });
+
+  prog.style.display = 'none';
+  status.textContent = '';
+  result.innerHTML = `<span style="color:var(--g600)">✅ Sent: ${results.sent}</span> &nbsp; <span style="color:var(--red)">❌ Failed: ${results.failed}</span>`;
+
+  // Log campaign
+  const camp = { id: uid(), name: 'WA Blast ' + new Date().toLocaleDateString('en-IN'), type:'whatsapp', status:'sent', officeId: officeIdForNewRecord(), createdAt: new Date().toISOString(), stats: { sent: results.sent, failed: results.failed } };
+  DB.campaigns.push(camp);
+  logActivity('WhatsApp blast sent — ' + results.sent + ' messages', 'campaign');
+  saveDB();
+  showToast(`WhatsApp blast done: ${results.sent} sent, ${results.failed} failed`);
+}
+window.mktWASendBlast = mktWASendBlast;
+
+function _renderWAApiInfo() {
+  const el = document.getElementById('wa-api-info');
+  if (!el) return;
+  const W = WanagoIntegrations.WhatsApp;
+  const c = W.creds;
+  if (W.isConfigured()) {
+    el.innerHTML = `<div style="color:var(--g600);font-weight:600;margin-bottom:6px">✅ Connected</div>
+      <div>Phone ID: <code style="background:var(--cream);padding:1px 5px;border-radius:4px;font-size:11px">${c.phoneNumberId?.slice(0,8)}…</code></div>
+      <div style="margin-top:4px;color:var(--textd);font-size:11px">Messages sent via Meta Cloud API</div>`;
+  } else {
+    el.innerHTML = `<div style="color:var(--amb);font-weight:600;margin-bottom:6px">⚠️ Not Connected</div>
+      <div style="font-size:11px;line-height:1.7;color:var(--textd)">Set up in <b>Admin Panel → Integrations → WhatsApp Business</b>.<br>Without API: wa.me links open manually (free).</div>`;
+  }
+}
+
+async function mktTestWA() {
+  try {
+    const profile = await WanagoIntegrations.WhatsApp.getProfile();
+    showToast('✅ WhatsApp Connected: ' + (profile.verified_name || profile.display_phone_number));
+  } catch(e) {
+    showToast('WhatsApp: ' + e.message, 'error');
+  }
+}
+window.mktTestWA = mktTestWA;
+
+/* ══════════════════════════════════════════════════════
+   EMAIL BLAST
+══════════════════════════════════════════════════════ */
+function mktEmailPreview() {
+  const subject = document.getElementById('email-blast-subject')?.value || '';
+  const body    = document.getElementById('email-blast-body')?.value   || '';
+  const preview = document.getElementById('email-preview-pane');
+  if (!preview) return;
+  const sample = body.replace(/{{name}}/g,'Priya').replace(/{{email}}/g,'priya@example.com');
+  preview.innerHTML = `<div style="font-size:11px;color:var(--textd);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px"><b>Subject:</b> ${_e(subject.replace(/{{name}}/g,'Priya'))}</div>${sample || 'Your email body…'}`;
+}
+window.mktEmailPreview = mktEmailPreview;
+
+function _renderGmailInfo() {
+  const el = document.getElementById('gmail-api-info');
+  if (!el) return;
+  const G = WanagoIntegrations.Gmail;
+  if (G.token) {
+    el.innerHTML = `<div style="color:var(--g600);font-weight:600;margin-bottom:6px">✅ Gmail Authorized</div>
+      <div style="font-size:11px;color:var(--textd)">Ready to send emails. Token valid.</div>`;
+  } else if (G.clientId) {
+    el.innerHTML = `<div style="color:var(--amb);font-weight:600;margin-bottom:6px">⚡ Client ID Set</div>
+      <div style="font-size:11px;color:var(--textd)">Click "Connect Gmail" to authorize sending.</div>`;
+  } else {
+    el.innerHTML = `<div style="color:var(--textd);margin-bottom:6px">🔴 Not Configured</div>
+      <div style="font-size:11px;color:var(--textd)">Add Google Client ID in <b>Admin → Integrations → Gmail</b>, then authorize here.</div>`;
+  }
+}
+
+async function mktGmailAuthorize() {
+  try {
+    await WanagoIntegrations.Gmail.authorize();
+    _renderGmailInfo();
+    showToast('✅ Gmail authorized successfully!');
+    _updateIntegrationPills();
+  } catch(e) {
+    showToast('Gmail: ' + e.message, 'error');
+  }
+}
+window.mktGmailAuthorize = mktGmailAuthorize;
+
+async function mktSendEmailBlast() {
+  const G = WanagoIntegrations.Gmail;
+  const selected = _getSelectedContacts('email', _emailContacts);
+  if (!selected.length) { showToast('No contacts selected', 'error'); return; }
+
+  const subject = document.getElementById('email-blast-subject')?.value?.trim();
+  const body    = document.getElementById('email-blast-body')?.value?.trim();
+  if (!subject || !body) { showToast('Enter subject and body', 'error'); return; }
+
+  if (!G.isConfigured()) { showToast('Gmail not configured. Set up in Admin → Integrations.', 'error'); return; }
+
+  const prog   = document.getElementById('email-blast-progress');
+  const fill   = document.getElementById('email-blast-fill');
+  const status = document.getElementById('email-blast-status');
+  const result = document.getElementById('email-blast-result');
+
+  prog.style.display = 'block'; fill.style.width = '0%';
+  status.textContent = 'Sending…';
+
+  const results = await G.bulkSend(selected, subject, (c) => {
+    const personal = body.replace(/{{name}}/g, c.name||'').replace(/{{email}}/g, c.email||'');
+    return personal.includes('<') ? personal : personal.replace(/\n/g, '<br/>');
+  }, (done, total) => {
+    fill.style.width = Math.round(done/total*100) + '%';
+    status.textContent = `${done}/${total} sent…`;
+  });
+
+  prog.style.display = 'none'; status.textContent = '';
+  result.innerHTML = `<span style="color:var(--g600)">✅ Sent: ${results.sent}</span> &nbsp; <span style="color:var(--red)">❌ Failed: ${results.failed}</span>`;
+
+  const camp = { id: uid(), name: 'Email Blast ' + new Date().toLocaleDateString('en-IN'), type:'email', status:'sent', officeId: officeIdForNewRecord(), createdAt: new Date().toISOString(), stats: { sent: results.sent } };
+  DB.campaigns.push(camp);
+  logActivity('Email blast sent — ' + results.sent + ' emails', 'campaign');
+  saveDB();
+  showToast(`Email blast done: ${results.sent} sent`);
+}
+window.mktSendEmailBlast = mktSendEmailBlast;
+
+/* ══════════════════════════════════════════════════════
+   OCCASIONS ENGINE
+══════════════════════════════════════════════════════ */
+function mktRenderOccasions() {
+  const all = [...(hScoped('customers')||[]), ...(hScoped('leads')||[])];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Birthdays
+  const bdays = all.map(p => {
+    const dob = p.dob || p.birthday; if (!dob) return null;
+    const bd = new Date(dob); if (isNaN(bd)) return null;
+    const diff = _daysUntil(bd.getMonth(), bd.getDate());
+    if (diff > 30) return null;
+    return { ...p, _diff: diff, _type: 'birthday' };
+  }).filter(Boolean).sort((a,b) => a._diff - b._diff);
+
+  // Anniversaries
+  const anns = all.map(p => {
+    const ann = p.anniversary; if (!ann) return null;
+    const ad = new Date(ann); if (isNaN(ad)) return null;
+    const diff = _daysUntil(ad.getMonth(), ad.getDate());
+    if (diff > 30) return null;
+    return { ...p, _diff: diff, _type: 'anniversary' };
+  }).filter(Boolean).sort((a,b) => a._diff - b._diff);
+
+  // Pending payments
+  const payments = (hScoped('bookings')||[]).filter(b => (b.balanceAmount||b.balance||0) > 0);
+
+  // Overdue follow-ups
+  const followups = (hScoped('leads')||[]).filter(l => l.followUpDate && new Date(l.followUpDate) < today);
+
+  _renderOccasionList('occ-birthday-list', bdays, 'birthday');
+  _renderOccasionList('occ-anniversary-list', anns, 'anniversary');
+  _renderPaymentList('occ-payments-list', payments);
+  _renderFollowupList('occ-followup-list', followups);
+}
+window.mktRenderOccasions = mktRenderOccasions;
+
+function _renderOccasionList(id, list, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">None in next 30 days 🎉</div>'; return; }
+  el.innerHTML = list.map(p => {
+    const icon = type === 'birthday' ? '🎂' : '💕';
+    const bg   = type === 'birthday' ? '#fce4ec' : '#f3e5f5';
+    const dayLabel = p._diff === 0 ? 'Today!' : p._diff === 1 ? 'Tomorrow' : `In ${p._diff}d`;
+    const dayClass = p._diff === 0 ? 'today' : p._diff <= 3 ? 'soon' : 'week';
+    const phone = p.phone || p.mobile || '';
+    const tplId = type === 'birthday' ? 'tpl_bd' : 'tpl_ann';
+    const tpl = (DB.settings.mktTemplates||DEFAULT_TEMPLATES).find(t=>t.id===tplId)||DEFAULT_TEMPLATES.find(t=>t.id===tplId);
+    const msg = encodeURIComponent((tpl?.body||'Hi {{name}}!').replace(/{{name}}/g, p.name||'').replace(/\*/g,''));
+    const waLink = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${msg}" target="_blank" class="btn btn-sm btn-green" style="font-size:11px;margin-left:4px">💬 WA</a>` : '';
+    return `<div class="occ-row">
+      <div class="occ-icon" style="background:${bg}">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_e(p.name||'—')}</div>
+        <div style="font-size:11px;color:var(--textd)">${phone || (p.email||'No contact')}</div>
+      </div>
+      <span class="occ-days ${dayClass}">${dayLabel}</span>
+      ${waLink}
+    </div>`;
+  }).join('');
+}
+
+function _renderPaymentList(id, list) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No pending payments 🎉</div>'; return; }
+  el.innerHTML = list.slice(0,15).map(b => {
+    const phone = b.customerPhone || b.phone || '';
+    const amount = _fmtNum(b.balanceAmount||b.balance||0);
+    const msg = encodeURIComponent(`Hi ${b.customerName||''}, your balance of ₹${amount} is pending for your upcoming trip. Please pay at your earliest convenience. — Team Wanago`);
+    const wa = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${msg}" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px">💬 Remind</a>` : '';
+    return `<div class="occ-row">
+      <div class="occ-icon" style="background:#fff3e0">💰</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${_e(b.customerName||'—')}</div><div style="font-size:11px;color:var(--textd)">${b.ref||''}</div></div>
+      <span style="font-weight:700;color:var(--amb);font-size:13px;flex-shrink:0">₹${amount}</span>
+      ${wa}
+    </div>`;
+  }).join('');
+}
+
+function _renderFollowupList(id, list) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No overdue follow-ups 🎉</div>'; return; }
+  el.innerHTML = list.slice(0,15).map(l => {
+    const phone = l.phone || l.mobile || '';
+    const due = new Date(l.followUpDate);
+    const daysOverdue = Math.floor((Date.now() - due) / 86400000);
+    const wa = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi ${l.name||''}, just checking in! — Team Wanago`)}" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px">💬</a>` : '';
+    return `<div class="occ-row">
+      <div class="occ-icon" style="background:#fce4ec">📞</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${_e(l.name||'—')}</div><div style="font-size:11px;color:var(--textd)">${l.stage||''} · ${phone}</div></div>
+      <span class="occ-days" style="background:var(--red2);color:var(--red)">${daysOverdue}d overdue</span>
+      ${wa}
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════
+   CAMPAIGNS TABLE
+══════════════════════════════════════════════════════ */
 function mktRenderCampaigns() {
-  const all      = hScoped('campaigns');
-  const filtered = _mktCampaignFilter === 'all'
-    ? all
-    : all.filter(c => c.status === _mktCampaignFilter || c.type === _mktCampaignFilter);
-
-  const tbody = document.getElementById('mkt-camp-tbody');
+  const all = hScoped('campaigns') || [];
+  const filtered = _mktCampaignFilter === 'all' ? all : all.filter(c => c.type === _mktCampaignFilter);
+  const TYPE_ICONS = { whatsapp:'💬', email:'📧', meta:'📘', sms:'📱', social:'📢' };
+  const tbody = document.getElementById('mkt-camps-tbody');
   tbody.innerHTML = filtered.length
-    ? filtered.map(c => {
-        const ti   = CAMPAIGN_TYPES[c.type] || { icon:'📣', label:c.type };
-        const s    = c.stats || {};
-        const openR = s.sent ? Math.round((s.opened||0)/s.sent*100) : 0;
-        const cvrR  = s.sent ? Math.round((s.converted||0)/s.sent*100) : 0;
-        return `<tr>
-          <td>
-            <div style="font-weight:600">${esc(c.name)}</div>
-            ${c.description ? `<div style="font-size:10px;color:var(--textd)">${esc(c.description)}</div>` : ''}
-          </td>
-          <td><span style="margin-right:4px">${ti.icon}</span>${ti.label}</td>
-          <td>${stagePill(c.status)}</td>
-          <td style="font-size:12px">${esc(c.audienceLabel||'All Customers')}</td>
-          <td style="text-align:right">${(s.sent||0).toLocaleString()}</td>
-          <td style="text-align:right">${openR}%</td>
-          <td style="text-align:right;color:var(--g500);font-weight:600">${s.converted||0} <span style="font-size:10px;color:var(--textd)">(${cvrR}%)</span></td>
-          <td>${formatDate(c.sentAt||c.scheduledAt||c.createdAt)}</td>
-          <td>
-            <div style="display:flex;gap:4px">
-              ${c.status==='draft'||c.status==='scheduled' ? `<button class="btn btn-sm btn-green" onclick="launchCampaign('${c.id}')">🚀 Send</button>` : ''}
-              <button class="btn btn-sm btn-outline" onclick="openCampaignModal('${c.id}')">Edit</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteCampaign('${c.id}')">Del</button>
-            </div>
-          </td>
-        </tr>`;
-      }).join('')
-    : emptyRow(9, 'No campaigns found');
+    ? filtered.map(c => `<tr>
+        <td style="font-weight:600">${_e(c.name)}</td>
+        <td>${TYPE_ICONS[c.type]||'📣'} ${c.type||'—'}</td>
+        <td style="font-size:11px;color:var(--textd)">${_e(c.audience||'—')}</td>
+        <td>${_pillStatus(c.status)}</td>
+        <td>${c.stats?.sent||0}</td>
+        <td>${c.stats?.opened||0}</td>
+        <td>${c.stats?.converted||0}</td>
+        <td style="font-size:11px;color:var(--textd)">${c.scheduledAt ? formatDate(c.scheduledAt) : formatDate(c.createdAt)}</td>
+        <td>
+          <button class="row-btn" onclick="openCampaignModal('${c.id}')">Edit</button>
+          <button class="row-btn btn-danger" onclick="deleteCampaign('${c.id}')" style="margin-left:4px">Del</button>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--textd)">No campaigns match this filter</td></tr>';
 }
+window.mktRenderCampaigns = mktRenderCampaigns;
 
-function mktFilterCampaigns(f, el) {
-  _mktCampaignFilter = f;
-  document.querySelectorAll('#mkt-camp-filter-bar .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+function mktFilterCampaigns(type, el) {
+  _mktCampaignFilter = type;
+  document.querySelectorAll('#mkt-campaigns .chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
   mktRenderCampaigns();
 }
+window.mktFilterCampaigns = mktFilterCampaigns;
 
-// ── Campaign Modal ──
 function openCampaignModal(id) {
-  _editCampaignId = id || null;
+  _editCampaignId = id;
+  document.getElementById('camp-modal-title').textContent = id ? 'Edit Campaign' : 'New Campaign';
   const c = id ? (DB.campaigns||[]).find(x => x.id === id) : null;
-
-  document.getElementById('mkt-camp-modal-title').textContent = c ? 'Edit Campaign' : 'New Campaign';
-  document.getElementById('mkt-camp-id').value          = c?.id           || '';
-  document.getElementById('mkt-camp-name').value        = c?.name         || '';
-  document.getElementById('mkt-camp-type').value        = c?.type         || 'whatsapp';
-  document.getElementById('mkt-camp-status').value      = c?.status       || 'draft';
-  document.getElementById('mkt-camp-audience').value    = c?.audience     || 'all_customers';
-  document.getElementById('mkt-camp-message').value     = c?.message      || '';
-  document.getElementById('mkt-camp-subject').value     = c?.subject      || '';
-  document.getElementById('mkt-camp-scheduled').value   = c?.scheduledAt  ? c.scheduledAt.slice(0,16) : '';
-  document.getElementById('mkt-camp-description').value = c?.description  || '';
-
-  mktUpdateCampTypeUI();
+  document.getElementById('camp-name').value     = c?.name || '';
+  document.getElementById('camp-type').value     = c?.type || 'whatsapp';
+  document.getElementById('camp-audience').value = c?.audience || '';
+  document.getElementById('camp-status').value   = c?.status || 'draft';
+  document.getElementById('camp-date').value     = c?.scheduledAt ? c.scheduledAt.slice(0,16) : '';
+  document.getElementById('camp-budget').value   = c?.budget || '';
+  document.getElementById('camp-message').value  = c?.message || '';
   openModal('mkt-camp-modal');
 }
-
-function mktUpdateCampTypeUI() {
-  const type = document.getElementById('mkt-camp-type').value;
-  document.getElementById('mkt-camp-subject-row').style.display = type === 'email' ? '' : 'none';
-  const ph = { whatsapp:'WhatsApp message text...', email:'Email body...', sms:'SMS text (160 chars)...', social:'Social media caption...' };
-  document.getElementById('mkt-camp-message').placeholder = ph[type] || 'Message...';
-  _populateTplSelect('mkt-camp-tpl', type);
-}
-
-function _populateTplSelect(selId, type) {
-  const sel = document.getElementById(selId);
-  if (!sel) return;
-  const tpls = (DB.settings.mktTemplates||[]).filter(t => t.type === type);
-  sel.innerHTML = '<option value="">— Pick a template —</option>'
-    + tpls.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
-}
-
-function mktApplyTemplate() {
-  const val = document.getElementById('mkt-camp-tpl').value;
-  const tpl = (DB.settings.mktTemplates||[]).find(t => t.id === val);
-  if (!tpl) return;
-  document.getElementById('mkt-camp-message').value = tpl.body;
-  if (tpl.subject) document.getElementById('mkt-camp-subject').value = tpl.subject;
-}
+window.openCampaignModal = openCampaignModal;
 
 function saveCampaign() {
-  const name = document.getElementById('mkt-camp-name').value.trim();
-  if (!name) { showToast('Enter campaign name', 'error'); return; }
-
-  const AUDIENCE_LABELS = {
-    all_customers:'All Customers', all_leads:'All Leads', won_leads:'Won Leads',
-    new_leads:'New Leads', hot_leads:'Hot Leads 🔥', all_contacts:'All Contacts',
-    follow_up_leads:'Follow-up Leads',
-  };
-  const audience      = document.getElementById('mkt-camp-audience').value;
-  const audienceLabel = AUDIENCE_LABELS[audience] || audience;
-  const existing      = _editCampaignId ? (DB.campaigns||[]).find(x=>x.id===_editCampaignId) : null;
-
-  const camp = {
-    id:           existing?.id    || uid(),
-    name,
-    type:         document.getElementById('mkt-camp-type').value,
-    status:       document.getElementById('mkt-camp-status').value,
-    audience,
-    audienceLabel,
-    message:      document.getElementById('mkt-camp-message').value.trim(),
-    subject:      document.getElementById('mkt-camp-subject').value.trim(),
-    scheduledAt:  document.getElementById('mkt-camp-scheduled').value || null,
-    description:  document.getElementById('mkt-camp-description').value.trim(),
-    officeId:     existing?.officeId || officeIdForNewRecord(),
-    createdAt:    existing?.createdAt || new Date().toISOString(),
-    stats:        existing?.stats || { sent:0, delivered:0, opened:0, clicked:0, converted:0 },
-  };
-
+  const name = document.getElementById('camp-name').value.trim();
+  if (!name) { showToast('Campaign name required', 'error'); return; }
   if (!DB.campaigns) DB.campaigns = [];
+  const obj = {
+    id: _editCampaignId || uid(), name,
+    type:       document.getElementById('camp-type').value,
+    audience:   document.getElementById('camp-audience').value,
+    status:     document.getElementById('camp-status').value,
+    scheduledAt:document.getElementById('camp-date').value,
+    budget:     parseFloat(document.getElementById('camp-budget').value)||0,
+    message:    document.getElementById('camp-message').value,
+    officeId:   officeIdForNewRecord(),
+    createdAt:  _editCampaignId ? ((DB.campaigns||[]).find(c=>c.id===_editCampaignId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+    stats:      _editCampaignId ? ((DB.campaigns||[]).find(c=>c.id===_editCampaignId)?.stats || {}) : {}
+  };
   if (_editCampaignId) {
-    const idx = DB.campaigns.findIndex(x => x.id === _editCampaignId);
-    if (idx >= 0) DB.campaigns[idx] = camp; else DB.campaigns.push(camp);
-  } else {
-    DB.counters.campaigns = (DB.counters.campaigns||0) + 1;
-    DB.campaigns.push(camp);
-  }
-  saveDB();
-  closeModal('mkt-camp-modal');
-  mktRenderCampaigns();
-  mktRenderOverview();
-  showToast(_editCampaignId ? 'Campaign updated' : 'Campaign created ✓');
-  logActivity(`Campaign "${name}" ${_editCampaignId?'updated':'created'}`, 'info');
+    const idx = DB.campaigns.findIndex(c => c.id === _editCampaignId);
+    if (idx > -1) DB.campaigns[idx] = obj;
+  } else { DB.campaigns.push(obj); }
+  saveDB(); logActivity(`Campaign "${name}" saved`, 'campaign');
+  closeModal('mkt-camp-modal'); mktRenderCampaigns(); mktRenderOverview();
+  showToast('Campaign saved!');
 }
-
-function launchCampaign(id) {
-  const camp = (DB.campaigns||[]).find(c => c.id === id);
-  if (!camp) return;
-  if (!confirm(`Send "${camp.name}" now?\n\nThis will simulate sending to all targeted contacts.`)) return;
-  const reach = _audienceCount(camp.audience);
-  camp.status    = 'sent';
-  camp.sentAt    = new Date().toISOString();
-  camp.stats     = {
-    sent:      reach,
-    delivered: Math.round(reach * .96),
-    opened:    Math.round(reach * .44),
-    clicked:   Math.round(reach * .11),
-    converted: Math.round(reach * .04),
-  };
-  saveDB();
-  mktRenderCampaigns();
-  mktRenderOverview();
-  showToast(`Campaign launched to ~${reach.toLocaleString()} contacts! 🚀`);
-  logActivity(`Campaign "${camp.name}" launched (${reach} contacts)`, 'info');
-}
-
-function _audienceCount(audience) {
-  const leads     = hScoped('leads');
-  const customers = hScoped('customers');
-  const map = {
-    all_customers:    () => customers.length,
-    all_leads:        () => leads.length,
-    won_leads:        () => leads.filter(l=>l.stage==='won').length,
-    new_leads:        () => leads.filter(l=>l.stage==='new').length,
-    hot_leads:        () => leads.filter(l=>l.priority==='hot').length,
-    all_contacts:     () => leads.length + customers.length,
-    follow_up_leads:  () => leads.filter(l=>l.stage==='follow_up').length,
-  };
-  if (map[audience]) return map[audience]();
-  const seg = (DB.segments||[]).find(s => s.id === audience);
-  return seg?.count || 0;
-}
+window.saveCampaign = saveCampaign;
 
 function deleteCampaign(id) {
-  if (!confirm('Delete this campaign? This cannot be undone.')) return;
+  if (!confirm('Delete this campaign?')) return;
   DB.campaigns = (DB.campaigns||[]).filter(c => c.id !== id);
-  saveDB();
-  mktRenderCampaigns();
-  mktRenderOverview();
+  saveDB(); mktRenderCampaigns(); mktRenderOverview();
   showToast('Campaign deleted');
 }
+window.deleteCampaign = deleteCampaign;
 
-// ══════════════════════════════════════
-//  CONTENT CALENDAR
-// ══════════════════════════════════════
-function mktRenderCalendar() {
-  const el     = document.getElementById('mkt-calendar-wrap');
-  const year   = _mktCalYear, month = _mktCalMonth;
-  _setText('mkt-cal-title', new Date(year, month, 1).toLocaleDateString('en-IN', { month:'long', year:'numeric' }));
+/* ══════════════════════════════════════════════════════
+   SEGMENTS
+══════════════════════════════════════════════════════ */
+const BUILT_IN_SEGMENTS = [
+  { id:'seg_all_cust',  name:'All Customers',       icon:'👤', desc:'Every customer in the system',              filter:() => hScoped('customers')||[] },
+  { id:'seg_all_leads', name:'All Leads',            icon:'👥', desc:'Every lead in the pipeline',               filter:() => hScoped('leads')||[] },
+  { id:'seg_hot',       name:'Hot Leads',            icon:'🔥', desc:'Leads in Hot or Negotiation stage',        filter:() => (hScoped('leads')||[]).filter(l=>['hot','negotiation'].includes((l.stage||'').toLowerCase())) },
+  { id:'seg_bday_30',   name:'Birthdays in 30d',     icon:'🎂', desc:'Customers/leads with birthday in 30 days', filter:() => { const all=[...(hScoped('customers')||[]),...(hScoped('leads')||[])]; return all.filter(p=>{const d=new Date(p.dob||p.birthday||'');if(isNaN(d))return false;return _daysUntil(d.getMonth(),d.getDate())<=30;}); } },
+  { id:'seg_ann_30',    name:'Anniversaries in 30d', icon:'💕', desc:'Upcoming anniversaries this month',        filter:() => { const all=[...(hScoped('customers')||[]),...(hScoped('leads')||[])]; return all.filter(p=>{const d=new Date(p.anniversary||'');if(isNaN(d))return false;return _daysUntil(d.getMonth(),d.getDate())<=30;}); } },
+  { id:'seg_inactive',  name:'Inactive 90d',         icon:'💤', desc:'Customers not contacted in 90 days',       filter:() => { const cut=Date.now()-90*86400000; return (hScoped('customers')||[]).filter(c=>!c.lastContactDate||new Date(c.lastContactDate)<new Date(cut)); } },
+  { id:'seg_premium',   name:'Premium (₹50K+)',      icon:'⭐', desc:'Customers with total spend over ₹50,000',   filter:() => (hScoped('customers')||[]).filter(c=>(c.totalSpend||0)>=50000) },
+  { id:'seg_instagram', name:'Instagram Leads',      icon:'📸', desc:'Leads sourced from Instagram',             filter:() => (hScoped('leads')||[]).filter(l=>(l.source||'').toLowerCase()==='instagram') },
+];
 
-  const firstDay    = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const todayKey    = new Date().toISOString().slice(0,10);
-  const campaigns   = hScoped('campaigns');
-
-  const byDate = {};
-  campaigns.forEach(c => {
-    const k = (c.scheduledAt || c.sentAt || c.createdAt || '').slice(0,10);
-    if (k) (byDate[k] = byDate[k]||[]).push(c);
-  });
-
-  const HEADS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  let html = `<div class="mkt-calendar-grid">
-    ${HEADS.map(h=>`<div class="mkt-cal-day-head">${h}</div>`).join('')}`;
-
-  for (let i = 0; i < firstDay; i++) html += '<div class="mkt-cal-day other-month"></div>';
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key   = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const camps = byDate[key] || [];
-    html += `<div class="mkt-cal-day${key===todayKey?' today':''}">
-      <div class="mkt-cal-date">${d}</div>
-      ${camps.slice(0,3).map(c => {
-        const ti  = CAMPAIGN_TYPES[c.type] || { icon:'📣' };
-        const cls = c.type + (c.status==='sent'?' published':c.status==='draft'?' draft':'');
-        return `<div class="mkt-cal-post ${cls}" title="${esc(c.name)}" onclick="openCampaignModal('${c.id}')">${ti.icon} ${esc(c.name)}</div>`;
-      }).join('')}
-      ${camps.length > 3 ? `<div style="font-size:9px;color:var(--textd)">+${camps.length-3} more</div>` : ''}
-      <div style="position:absolute;bottom:3px;right:5px;font-size:13px;color:var(--textd);cursor:pointer;opacity:0;transition:.15s" class="cal-add-btn" onclick="mktAddFromCalendar('${key}')" title="Add campaign">+</div>
-    </div>`;
-  }
-  html += '</div>';
-  el.innerHTML = html;
-
-  // Show add btn on hover via CSS
-  el.querySelectorAll('.mkt-cal-day').forEach(d => {
-    d.addEventListener('mouseenter', () => { const b = d.querySelector('.cal-add-btn'); if(b) b.style.opacity='1'; });
-    d.addEventListener('mouseleave', () => { const b = d.querySelector('.cal-add-btn'); if(b) b.style.opacity='0'; });
-  });
-}
-
-function mktCalPrev() {
-  _mktCalMonth--;
-  if (_mktCalMonth < 0) { _mktCalMonth = 11; _mktCalYear--; }
-  mktRenderCalendar();
-}
-function mktCalNext() {
-  _mktCalMonth++;
-  if (_mktCalMonth > 11) { _mktCalMonth = 0; _mktCalYear++; }
-  mktRenderCalendar();
-}
-function mktAddFromCalendar(dateKey) {
-  openCampaignModal(null);
-  setTimeout(() => { document.getElementById('mkt-camp-scheduled').value = dateKey + 'T09:00'; }, 100);
-}
-
-// ══════════════════════════════════════
-//  AUDIENCE SEGMENTS
-// ══════════════════════════════════════
 function mktRenderSegments() {
-  const el   = document.getElementById('mkt-segments-grid');
-  const segs = DB.segments || [];
-  const leads = hScoped('leads'), customers = hScoped('customers');
-  const now  = new Date().toISOString().slice(0,7);
-
-  const smart = [
-    { id:'__all_leads',        name:'All Leads',          description:'Everyone in your leads pipeline',   icon:'👥', color:'#134a32', count:leads.length,                                                                builtin:true },
-    { id:'__hot_leads',        name:'Hot Leads',          description:'High-priority leads',               icon:'🔥', color:'#c0392b', count:leads.filter(l=>l.priority==='hot').length,                                   builtin:true },
-    { id:'__won',              name:'Converted Customers',description:'Leads won / bookings made',         icon:'✅', color:'#2da065', count:leads.filter(l=>l.stage==='won').length,                                       builtin:true },
-    { id:'__customers',        name:'All Customers',      description:'Your customer database',            icon:'🏆', color:'#c9a84c', count:customers.length,                                                              builtin:true },
-    { id:'__overdue_fu',       name:'Overdue Follow-ups', description:'Leads past their follow-up date',   icon:'⚠️', color:'#d68910', count:leads.filter(l=>l.followup && new Date(l.followup)<new Date()).length,          builtin:true },
-    { id:'__new_month',        name:'New This Month',     description:'Leads acquired this month',         icon:'🆕', color:'#2563eb', count:leads.filter(l=>(l.createdAt||'').slice(0,7)===now).length,                     builtin:true },
-    { id:'__insta_leads',      name:'Instagram Leads',    description:'Leads from Instagram',              icon:'📸', color:'#7b1fa2', count:leads.filter(l=>(l.source||'').toLowerCase()==='instagram').length,            builtin:true },
-    { id:'__quoted',           name:'Quoted Leads',       description:'Leads who received a quote',        icon:'📋', color:'#1565c0', count:leads.filter(l=>l.stage==='quoted'||l.stage==='negotiation').length,            builtin:true },
-  ];
-
-  let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">';
-
-  [...smart, ...segs].forEach(s => {
-    html += `<div class="seg-card">
-      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
-        <div style="width:38px;height:38px;border-radius:10px;background:${s.color||'#134a32'}22;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${s.icon||'👥'}</div>
-        <div style="flex:1;min-width:0">
-          <div class="seg-card-name">${esc(s.name)}</div>
-          <div class="seg-card-desc">${esc(s.description||'')}</div>
+  const customSegs = DB.segments || [];
+  const grid = document.getElementById('mkt-seg-grid');
+  const all = [...BUILT_IN_SEGMENTS, ...customSegs];
+  grid.innerHTML = all.map(s => {
+    const count = s.filter ? s.filter().length : (s._count || 0);
+    const isCustom = !s.filter;
+    return `<div class="seg-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:38px;height:38px;border-radius:10px;background:var(--g50);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${s.icon||'👥'}</div>
+        <div style="flex:1;min-width:0"><div class="seg-card-name">${_e(s.name)}</div><div class="seg-card-desc">${_e(s.desc||s.description||'')}</div></div>
+      </div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between">
+        <div><div class="seg-card-count">${count}</div><div class="seg-card-label">Contacts</div></div>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-green" onclick="mktBlastSegment('${s.id}')">💬 Blast</button>
+          ${isCustom ? `<button class="btn btn-sm btn-danger" onclick="deleteSegment('${s.id}')">✕</button>` : ''}
         </div>
-        ${!s.builtin ? `<button class="btn btn-sm btn-outline" onclick="openSegmentModal('${s.id}')">Edit</button>` : ''}
-      </div>
-      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px">
-        <span class="seg-card-count" style="color:${s.color||'var(--g700)'}">${(s.count||0).toLocaleString()}</span>
-        <span class="seg-card-label">contacts</span>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-sm btn-primary" onclick="mktNewCampForSeg('${s.id}','${esc(s.name)}')">📣 Campaign</button>
-        ${!s.builtin ? `<button class="btn btn-sm btn-danger" onclick="deleteSegment('${s.id}')">Del</button>` : ''}
       </div>
     </div>`;
-  });
-
-  html += `<div class="seg-card" style="border:2px dashed var(--border2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:140px;background:var(--cream)" onclick="openSegmentModal(null)">
-    <div style="font-size:30px;margin-bottom:8px;opacity:.3">+</div>
-    <div style="font-size:13px;font-weight:600;color:var(--textm)">Create Segment</div>
-    <div style="font-size:11px;color:var(--textd);margin-top:4px">Define custom audience filters</div>
-  </div></div>`;
-
-  el.innerHTML = html;
+  }).join('');
 }
+window.mktRenderSegments = mktRenderSegments;
 
-function mktNewCampForSeg(segId, segName) {
-  // Switch to campaigns tab and pre-fill audience
-  const campTab = document.querySelector('#mkt-tab-bar .tab:nth-child(2)');
-  switchTab(campTab, 'mkt-tab-campaigns');
-  mktRenderCampaigns();
-  setTimeout(() => {
-    openCampaignModal(null);
-    const audEl = document.getElementById('mkt-camp-audience');
-    // Map smart segment ids to audience values
-    const builtinMap = { '__all_leads':'all_leads', '__hot_leads':'hot_leads', '__won':'won_leads', '__customers':'all_customers', '__overdue_fu':'follow_up_leads', '__new_month':'all_leads', '__insta_leads':'all_leads', '__quoted':'all_leads' };
-    audEl.value = builtinMap[segId] || segId;
-  }, 120);
+function mktBlastSegment(id) {
+  const seg = BUILT_IN_SEGMENTS.find(s=>s.id===id) || (DB.segments||[]).find(s=>s.id===id);
+  if (!seg) return;
+  // Switch to WA Blast tab and set audience
+  switchTab(document.querySelectorAll('.tab')[2], 'mkt-wa-blast');
+  const audSel = document.getElementById('wa-blast-audience');
+  if (audSel) { /* just load all contacts from the segment */ }
+  if (seg.filter) { _waContacts = seg.filter(); _renderContactList('wa-contact-list','wa',_waContacts,'phone'); _setText('wa-contacts-count', _waContacts.length + ' contacts'); }
 }
+window.mktBlastSegment = mktBlastSegment;
 
 function openSegmentModal(id) {
-  _editSegmentId = id || null;
-  const s = id ? (DB.segments||[]).find(x => x.id === id) : null;
-  document.getElementById('mkt-seg-modal-title').textContent = s ? 'Edit Segment' : 'New Segment';
-  document.getElementById('mkt-seg-id').value          = s?.id          || '';
-  document.getElementById('mkt-seg-name').value        = s?.name        || '';
-  document.getElementById('mkt-seg-desc').value        = s?.description || '';
-  document.getElementById('mkt-seg-icon').value        = s?.icon        || '👥';
-  document.getElementById('mkt-seg-f-source').value    = (s?.filters?.sources    ||[]).join(', ');
-  document.getElementById('mkt-seg-f-stage').value     = (s?.filters?.stages     ||[]).join(', ');
-  document.getElementById('mkt-seg-f-priority').value  = (s?.filters?.priorities ||[]).join(', ');
-  document.getElementById('mkt-seg-f-dest').value      = (s?.filters?.destinations||[]).join(', ');
-  mktPreviewSegment();
+  _editSegmentId = id;
+  const s = id ? (DB.segments||[]).find(x=>x.id===id) : null;
+  document.getElementById('seg-name').value         = s?.name || '';
+  document.getElementById('seg-filter-type').value  = s?.filterType || 'all';
+  document.getElementById('seg-filter-val').value   = s?.filterVal || '';
+  document.getElementById('seg-source').value       = s?.source || 'both';
+  document.getElementById('seg-desc').value         = s?.description || '';
+  document.getElementById('seg-preview-count').textContent = 'Preview: — contacts';
   openModal('mkt-seg-modal');
 }
+window.openSegmentModal = openSegmentModal;
 
 function mktPreviewSegment() {
-  const split = v => v.split(',').map(x=>x.trim()).filter(Boolean);
-  const sources      = split(document.getElementById('mkt-seg-f-source').value);
-  const stages       = split(document.getElementById('mkt-seg-f-stage').value);
-  const priorities   = split(document.getElementById('mkt-seg-f-priority').value);
-  const destinations = split(document.getElementById('mkt-seg-f-dest').value);
+  const count = _resolveCustomSegment().length;
+  document.getElementById('seg-preview-count').textContent = `Preview: ${count} contact${count===1?'':'s'}`;
+}
+window.mktPreviewSegment = mktPreviewSegment;
 
-  let leads = hScoped('leads');
-  if (sources.length)      leads = leads.filter(l => sources.includes(l.source));
-  if (stages.length)       leads = leads.filter(l => stages.includes(l.stage));
-  if (priorities.length)   leads = leads.filter(l => priorities.includes(l.priority));
-  if (destinations.length) leads = leads.filter(l => destinations.some(d => (l.destination||'').toLowerCase().includes(d.toLowerCase())));
-
-  const el = document.getElementById('mkt-seg-preview');
-  if (el) el.textContent = leads.length + ' contacts matched';
+function _resolveCustomSegment() {
+  const ft = document.getElementById('seg-filter-type')?.value;
+  const fv = (document.getElementById('seg-filter-val')?.value||'').toLowerCase();
+  const src = document.getElementById('seg-source')?.value;
+  let pool = [];
+  if (src === 'customers' || src === 'both') pool = pool.concat(hScoped('customers')||[]);
+  if (src === 'leads'     || src === 'both') pool = pool.concat(hScoped('leads')||[]);
+  if (ft === 'all') return pool;
+  if (ft === 'source') return pool.filter(c => (c.source||'').toLowerCase().includes(fv));
+  if (ft === 'stage')  return pool.filter(c => (c.stage||'').toLowerCase().includes(fv));
+  if (ft === 'city')   return pool.filter(c => (c.city||'').toLowerCase().includes(fv));
+  if (ft === 'spend')  return pool.filter(c => (c.totalSpend||0) >= parseFloat(fv||0));
+  return pool;
 }
 
 function saveSegment() {
-  const name = document.getElementById('mkt-seg-name').value.trim();
-  if (!name) { showToast('Enter segment name', 'error'); return; }
-
-  const split = v => v.split(',').map(x=>x.trim()).filter(Boolean);
-  const filters = {
-    sources:      split(document.getElementById('mkt-seg-f-source').value),
-    stages:       split(document.getElementById('mkt-seg-f-stage').value),
-    priorities:   split(document.getElementById('mkt-seg-f-priority').value),
-    destinations: split(document.getElementById('mkt-seg-f-dest').value),
-  };
-  let leads = hScoped('leads');
-  if (filters.sources.length)      leads = leads.filter(l => filters.sources.includes(l.source));
-  if (filters.stages.length)       leads = leads.filter(l => filters.stages.includes(l.stage));
-  if (filters.priorities.length)   leads = leads.filter(l => filters.priorities.includes(l.priority));
-  if (filters.destinations.length) leads = leads.filter(l => filters.destinations.some(d => (l.destination||'').toLowerCase().includes(d.toLowerCase())));
-
-  const seg = {
-    id:          document.getElementById('mkt-seg-id').value || uid(),
-    name,
-    description: document.getElementById('mkt-seg-desc').value.trim(),
-    icon:        document.getElementById('mkt-seg-icon').value || '👥',
-    color:       '#134a32',
-    filters,
-    count:       leads.length,
-    createdAt:   _editSegmentId ? ((DB.segments||[]).find(x=>x.id===_editSegmentId)?.createdAt||new Date().toISOString()) : new Date().toISOString(),
-  };
-
+  const name = document.getElementById('seg-name').value.trim();
+  if (!name) { showToast('Segment name required', 'error'); return; }
   if (!DB.segments) DB.segments = [];
+  const count = _resolveCustomSegment().length;
+  const obj = {
+    id: _editSegmentId || uid(), name, icon:'👥',
+    filterType:  document.getElementById('seg-filter-type').value,
+    filterVal:   document.getElementById('seg-filter-val').value,
+    source:      document.getElementById('seg-source').value,
+    description: document.getElementById('seg-desc').value,
+    _count: count
+  };
   if (_editSegmentId) {
-    const idx = DB.segments.findIndex(x => x.id === _editSegmentId);
-    if (idx >= 0) DB.segments[idx] = seg; else DB.segments.push(seg);
-  } else {
-    DB.segments.push(seg);
-  }
-  saveDB();
-  closeModal('mkt-seg-modal');
-  mktRenderSegments();
-  showToast(`"${name}" — ${leads.length} contacts`);
+    const idx = DB.segments.findIndex(s=>s.id===_editSegmentId);
+    if (idx > -1) DB.segments[idx] = obj;
+  } else { DB.segments.push(obj); }
+  saveDB(); closeModal('mkt-seg-modal'); mktRenderSegments();
+  showToast('Segment saved!');
 }
+window.saveSegment = saveSegment;
 
 function deleteSegment(id) {
   if (!confirm('Delete this segment?')) return;
-  DB.segments = (DB.segments||[]).filter(s => s.id !== id);
-  saveDB();
-  mktRenderSegments();
+  DB.segments = (DB.segments||[]).filter(s=>s.id!==id);
+  saveDB(); mktRenderSegments();
   showToast('Segment deleted');
 }
+window.deleteSegment = deleteSegment;
 
-// ══════════════════════════════════════
-//  TEMPLATES
-// ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════
+   TEMPLATES
+══════════════════════════════════════════════════════ */
 function mktRenderTemplates() {
-  const el       = document.getElementById('mkt-templates-grid');
-  const filter   = document.getElementById('mkt-tpl-filter')?.value || '';
-  const templates = (DB.settings.mktTemplates||[]).filter(t => !filter || t.type === filter);
-
-  const CATCOLS = { personal:'#25d366', transactional:'#2563eb', sales:'#c9a84c', promotional:'#c0392b' };
-
-  let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">';
-  templates.forEach(t => {
-    const ti  = CAMPAIGN_TYPES[t.type] || { icon:'📣', label:t.type };
-    const col = CATCOLS[t.category] || '#888';
-    const isBuiltin = t.id.startsWith('tpl_bd')||t.id.startsWith('tpl_bk')||t.id.startsWith('tpl_py')||t.id.startsWith('tpl_qt')||t.id.startsWith('tpl_fl')||t.id.startsWith('tpl_promo')||t.id.startsWith('tpl_ann')||t.id.startsWith('tpl_em')||t.id.startsWith('tpl_sms');
-    html += `<div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.boxShadow='var(--sh2)'" onmouseleave="this.style.boxShadow='var(--sh)'">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13.5px;font-weight:700;margin-bottom:5px">${esc(t.name)}</div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap">
-            <span style="font-size:10px;padding:2px 8px;background:${col}18;color:${col};border-radius:20px;font-weight:600;text-transform:capitalize;border:1px solid ${col}30">${t.category||'general'}</span>
-            <span style="font-size:10px;padding:2px 8px;background:var(--cream2);color:var(--textm);border-radius:20px;border:1px solid var(--border)">${ti.icon} ${ti.label}</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:4px;flex-shrink:0">
-          <button class="btn btn-sm btn-outline" onclick="openTemplateModal('${t.id}')">Edit</button>
-          <button class="btn btn-sm btn-green" onclick="mktUseTpl('${t.id}')">Use</button>
-          ${!isBuiltin ? `<button class="btn btn-sm btn-danger" onclick="deleteTemplate('${t.id}')">Del</button>` : ''}
-        </div>
+  const filter = document.getElementById('tpl-type-filter')?.value || '';
+  const tpls = DB.settings.mktTemplates || DEFAULT_TEMPLATES;
+  const filtered = filter ? tpls.filter(t => t.type === filter) : tpls;
+  const TYPE_COLORS = { whatsapp:'#e8f5e9:#2e7d32', email:'#fce4ec:#c62828', sms:'#e3f2fd:#1565c0' };
+  const grid = document.getElementById('mkt-tpl-grid');
+  grid.innerHTML = filtered.map(t => {
+    const [bg, color] = (TYPE_COLORS[t.type]||'#f5f5f5:#333').split(':');
+    const isDefault = DEFAULT_TEMPLATES.some(d => d.id === t.id);
+    return `<div class="tpl-card">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="background:${bg};color:${color};padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">${t.type?.toUpperCase()}</span>
+        <span style="font-size:10px;color:var(--textd)">${t.category||''}</span>
       </div>
-      ${t.subject ? `<div style="font-size:11px;color:var(--textd);margin-bottom:6px">Subject: <em>${esc(t.subject)}</em></div>` : ''}
-      <div style="font-size:12px;color:var(--textm);line-height:1.6;background:var(--cream);border-radius:8px;padding:9px 12px;white-space:pre-line;max-height:80px;overflow:hidden">${esc(t.body).slice(0,200)}${(t.body||'').length>200?'…':''}</div>
-      ${t.variables?.length ? `<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${t.variables.map(v=>`<span style="font-size:9.5px;background:var(--blue2);color:var(--blue);padding:1px 7px;border-radius:20px;border:1px solid rgba(37,99,235,.15)">{{${v}}}</span>`).join('')}</div>` : ''}
+      <div style="font-size:13.5px;font-weight:700;margin-bottom:6px">${_e(t.name)}</div>
+      <div style="font-size:11.5px;color:var(--textd);line-height:1.5;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical">${_e((t.body||'').slice(0,120))}</div>
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button class="btn btn-sm btn-green" onclick="mktUseTpl('${t.id}')" style="flex:1">Use</button>
+        <button class="btn btn-sm btn-outline" onclick="openTemplateModal('${t.id}')">Edit</button>
+        ${!isDefault ? `<button class="btn btn-sm btn-danger" onclick="deleteTemplate('${t.id}')">✕</button>` : ''}
+      </div>
     </div>`;
-  });
-
-  html += `<div class="card" style="border:2px dashed var(--border2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:180px;background:var(--cream)" onclick="openTemplateModal(null)">
-    <div style="font-size:30px;margin-bottom:8px;opacity:.3">+</div>
-    <div style="font-size:13px;font-weight:600;color:var(--textm)">New Template</div>
-    <div style="font-size:11px;color:var(--textd);margin-top:4px">Create a reusable message</div>
-  </div></div>`;
-
-  el.innerHTML = html;
+  }).join('') || '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--textd)">No templates found</div>';
 }
+window.mktRenderTemplates = mktRenderTemplates;
 
 function mktUseTpl(id) {
-  // Switch to campaigns and pre-fill message
-  const campTab = document.querySelector('#mkt-tab-bar .tab:nth-child(2)');
-  switchTab(campTab, 'mkt-tab-campaigns');
-  mktRenderCampaigns();
-  setTimeout(() => {
-    const tpl = (DB.settings.mktTemplates||[]).find(t => t.id === id);
-    if (!tpl) return;
-    openCampaignModal(null);
-    document.getElementById('mkt-camp-type').value = tpl.type;
-    mktUpdateCampTypeUI();
-    document.getElementById('mkt-camp-message').value = tpl.body;
-    if (tpl.subject) document.getElementById('mkt-camp-subject').value = tpl.subject;
-    document.getElementById('mkt-camp-name').value = tpl.name + ' Campaign';
-  }, 120);
+  const tpl = (DB.settings.mktTemplates||DEFAULT_TEMPLATES).find(t=>t.id===id);
+  if (!tpl) return;
+  // Switch to WA blast or email blast based on type
+  if (tpl.type === 'email') {
+    switchTab(document.querySelectorAll('.tab')[3], 'mkt-email-blast');
+    mktLoadBlastContacts('email');
+    if (tpl.subject) document.getElementById('email-blast-subject').value = tpl.subject;
+    document.getElementById('email-blast-body').value = tpl.body || '';
+    mktEmailPreview();
+  } else {
+    switchTab(document.querySelectorAll('.tab')[2], 'mkt-wa-blast');
+    mktLoadBlastContacts('whatsapp');
+    document.getElementById('wa-blast-body').value = tpl.body || '';
+    mktWABlastPreview();
+  }
 }
+window.mktUseTpl = mktUseTpl;
 
 function openTemplateModal(id) {
-  _editTemplateId = id || null;
-  const t = id ? (DB.settings.mktTemplates||[]).find(x => x.id === id) : null;
-  document.getElementById('mkt-tpl-modal-title').textContent = t ? 'Edit Template' : 'New Template';
-  document.getElementById('mkt-tpl-id').value       = t?.id       || '';
-  document.getElementById('mkt-tpl-name').value     = t?.name     || '';
-  document.getElementById('mkt-tpl-type').value     = t?.type     || 'whatsapp';
-  document.getElementById('mkt-tpl-category').value = t?.category || 'promotional';
-  document.getElementById('mkt-tpl-subject').value  = t?.subject  || '';
-  document.getElementById('mkt-tpl-body').value     = t?.body     || '';
-  document.getElementById('mkt-tpl-vars').value     = (t?.variables||[]).join(', ');
-  mktUpdateTplTypeUI();
+  _editTemplateId = id;
+  document.getElementById('tpl-modal-title').textContent = id ? 'Edit Template' : 'New Template';
+  const t = id ? (DB.settings.mktTemplates||DEFAULT_TEMPLATES).find(x=>x.id===id) : null;
+  document.getElementById('tpl-name').value     = t?.name || '';
+  document.getElementById('tpl-type').value     = t?.type || 'whatsapp';
+  document.getElementById('tpl-category').value = t?.category || 'promotional';
+  document.getElementById('tpl-subject').value  = t?.subject || '';
+  document.getElementById('tpl-body').value     = t?.body || '';
   openModal('mkt-tpl-modal');
 }
-
-function mktUpdateTplTypeUI() {
-  const type = document.getElementById('mkt-tpl-type').value;
-  document.getElementById('mkt-tpl-subject-row').style.display = type === 'email' ? '' : 'none';
-}
+window.openTemplateModal = openTemplateModal;
 
 function saveTemplate() {
-  const name = document.getElementById('mkt-tpl-name').value.trim();
-  const body = document.getElementById('mkt-tpl-body').value.trim();
-  if (!name) { showToast('Enter template name', 'error'); return; }
-  if (!body) { showToast('Enter template body', 'error'); return; }
-
-  const tpl = {
-    id:        document.getElementById('mkt-tpl-id').value || 'ctpl_' + uid(),
-    name,
-    type:      document.getElementById('mkt-tpl-type').value,
-    category:  document.getElementById('mkt-tpl-category').value,
-    subject:   document.getElementById('mkt-tpl-subject').value.trim(),
-    body,
-    variables: document.getElementById('mkt-tpl-vars').value.split(',').map(v=>v.trim()).filter(Boolean),
-    createdAt: _editTemplateId ? ((DB.settings.mktTemplates||[]).find(x=>x.id===_editTemplateId)?.createdAt||new Date().toISOString()) : new Date().toISOString(),
+  const name = document.getElementById('tpl-name').value.trim();
+  if (!name) { showToast('Template name required', 'error'); return; }
+  if (!DB.settings.mktTemplates) DB.settings.mktTemplates = [...DEFAULT_TEMPLATES];
+  const obj = {
+    id: _editTemplateId || uid(), name,
+    type:     document.getElementById('tpl-type').value,
+    category: document.getElementById('tpl-category').value,
+    subject:  document.getElementById('tpl-subject').value,
+    body:     document.getElementById('tpl-body').value,
   };
-
-  if (!DB.settings.mktTemplates) DB.settings.mktTemplates = [];
-  if (_editTemplateId) {
-    const idx = DB.settings.mktTemplates.findIndex(x => x.id === _editTemplateId);
-    if (idx >= 0) DB.settings.mktTemplates[idx] = tpl; else DB.settings.mktTemplates.push(tpl);
-  } else {
-    DB.settings.mktTemplates.push(tpl);
-  }
-  saveDB();
-  closeModal('mkt-tpl-modal');
-  mktRenderTemplates();
-  showToast('Template saved ✓');
+  const idx = DB.settings.mktTemplates.findIndex(t => t.id === obj.id);
+  if (idx > -1) DB.settings.mktTemplates[idx] = obj;
+  else DB.settings.mktTemplates.push(obj);
+  saveDB(); closeModal('mkt-tpl-modal'); mktRenderTemplates();
+  showToast('Template saved!');
 }
+window.saveTemplate = saveTemplate;
 
 function deleteTemplate(id) {
   if (!confirm('Delete this template?')) return;
-  DB.settings.mktTemplates = (DB.settings.mktTemplates||[]).filter(t => t.id !== id);
-  saveDB();
-  mktRenderTemplates();
+  DB.settings.mktTemplates = (DB.settings.mktTemplates||[]).filter(t=>t.id!==id);
+  saveDB(); mktRenderTemplates();
   showToast('Template deleted');
 }
+window.deleteTemplate = deleteTemplate;
 
-// ══════════════════════════════════════
-//  ANALYTICS
-// ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════
+   ANALYTICS
+══════════════════════════════════════════════════════ */
 function mktRenderAnalytics() {
-  const campaigns = hScoped('campaigns');
-  const sent      = campaigns.filter(c => c.status === 'sent');
+  const campaigns = hScoped('campaigns') || [];
+  const sent = campaigns.filter(c => c.status === 'sent');
+  const totalReach     = sent.reduce((s,c) => s+(c.stats?.sent||0), 0);
+  const totalConverted = sent.reduce((s,c) => s+(c.stats?.converted||0), 0);
+  const cvr = totalReach > 0 ? ((totalConverted/totalReach)*100).toFixed(1) : 0;
 
-  const total   = { sent:0, delivered:0, opened:0, clicked:0, converted:0 };
-  sent.forEach(c => {
-    total.sent      += c.stats?.sent      || 0;
-    total.delivered += c.stats?.delivered || 0;
-    total.opened    += c.stats?.opened    || 0;
-    total.clicked   += c.stats?.clicked   || 0;
-    total.converted += c.stats?.converted || 0;
-  });
+  _setText('ana-campaigns', campaigns.length);
+  _setText('ana-reach', _fmtNum(totalReach));
+  _setText('ana-reach-delta', sent.length + ' sent campaigns');
+  _setText('ana-converted', totalConverted);
+  _setText('ana-cvr', 'CVR: ' + cvr + '%');
 
-  const pct = (n, d) => d ? Math.round((n/d)*100)+'%' : '0%';
-
-  _setText('ana-total-sent',  total.sent.toLocaleString('en-IN'));
-  _setText('ana-delivered',   total.delivered.toLocaleString('en-IN'));
-  _setText('ana-open-rate',   pct(total.opened,   total.sent));
-  _setText('ana-click-rate',  pct(total.clicked,  total.sent));
-  _setText('ana-conversions', total.converted.toLocaleString('en-IN'));
-  _setText('ana-cvr',         pct(total.converted, total.sent));
-
-  // Funnel bar chart
-  const funnelEl = document.getElementById('ana-funnel');
-  if (funnelEl && total.sent) {
-    const steps = [
-      { label:'Sent',      n:total.sent,      color:'#134a32' },
-      { label:'Delivered', n:total.delivered, color:'#2da065' },
-      { label:'Opened',    n:total.opened,    color:'#c9a84c' },
-      { label:'Clicked',   n:total.clicked,   color:'#2563eb' },
-      { label:'Converted', n:total.converted, color:'#c0392b' },
-    ];
-    funnelEl.innerHTML = steps.map(st => {
-      const w = Math.round((st.n/total.sent)*100);
-      return `<div style="margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-          <span style="font-size:12px;font-weight:600">${st.label}</span>
-          <span style="font-size:11px;color:var(--textd)">${st.n.toLocaleString()} · ${w}%</span>
-        </div>
-        <div style="background:var(--cream2);border-radius:20px;height:10px">
-          <div style="background:${st.color};height:100%;width:${w}%;border-radius:20px;transition:.5s"></div>
-        </div>
-      </div>`;
-    }).join('');
-  }
+  // Rough revenue estimate
+  const avgBookingVal = (hScoped('bookings')||[]).filter(b=>b.totalAmount>0).reduce((s,b,_,a)=>s+(b.totalAmount||0)/a.length, 0) || 25000;
+  _setText('ana-revenue', '₹' + _fmtNum(Math.round(totalConverted * avgBookingVal)));
 
   // Campaign table
   const tbody = document.getElementById('ana-camp-tbody');
-  tbody.innerHTML = sent.length
-    ? sent.map(c => {
-        const s    = c.stats || {};
-        const ti   = CAMPAIGN_TYPES[c.type] || { icon:'📣', label:c.type };
-        const openR = s.sent ? Math.round((s.opened||0)/s.sent*100) : 0;
-        const clkR  = s.sent ? Math.round((s.clicked||0)/s.sent*100) : 0;
-        const cvrR  = s.sent ? Math.round((s.converted||0)/s.sent*100) : 0;
-        return `<tr>
-          <td><strong>${esc(c.name)}</strong></td>
-          <td>${ti.icon} ${ti.label}</td>
-          <td style="text-align:right">${(s.sent||0).toLocaleString()}</td>
-          <td style="text-align:right">${(s.delivered||0).toLocaleString()}</td>
-          <td style="text-align:right">${openR}%</td>
-          <td style="text-align:right">${clkR}%</td>
-          <td style="text-align:right;color:var(--g500);font-weight:600">${s.converted||0}</td>
-          <td style="text-align:right;font-weight:700">${cvrR}%</td>
-        </tr>`;
-      }).join('')
-    : emptyRow(8, 'No sent campaigns to analyze yet');
+  tbody.innerHTML = sent.map(c => {
+    const r = c.stats || {};
+    const cv = r.sent > 0 ? ((r.converted||0)/r.sent*100).toFixed(1) : '0';
+    return `<tr>
+      <td style="font-weight:600">${_e(c.name)}</td>
+      <td>${r.sent||0}</td>
+      <td>${r.opened||0}</td>
+      <td style="font-weight:700;color:var(--g600)">${r.converted||0}</td>
+      <td>${cv}%</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--textd)">No sent campaigns yet</td></tr>';
 
-  // Source chart
-  mktRenderSourceChart('ana-source-chart');
+  // Lead source bars
+  const leads = hScoped('leads') || [];
+  const srcMap = {};
+  leads.forEach(l => { const s = l.source||'unknown'; srcMap[s] = (srcMap[s]||0)+1; });
+  const maxSrc = Math.max(...Object.values(srcMap), 1);
+  const barsEl = document.getElementById('ana-source-bars');
+  barsEl.innerHTML = Object.entries(srcMap).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([src,n]) =>
+    `<div class="funnel-row">
+      <div class="funnel-label" style="text-transform:capitalize">${src}</div>
+      <div class="funnel-track"><div class="funnel-fill" style="width:${Math.round(n/maxSrc*100)}%;background:var(--g500)">${n}</div></div>
+      <div class="funnel-count">${n}</div>
+    </div>`).join('') || '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No lead source data</div>';
 }
-
-// ══════════════════════════════════════
-//  LEAD CAPTURE OVERVIEW
-// ══════════════════════════════════════
-function mktRenderLeadCapture() {
-  const leads = hScoped('leads');
-  const el    = document.getElementById('mkt-capture-wrap');
-  if (!el) return;
-
-  const map = {};
-  leads.forEach(l => { const s = l.source||'Unknown'; map[s]=(map[s]||0)+1; });
-  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]);
-  const COLS = ['#134a32','#2da065','#52c285','#c9a84c','#2563eb','#c0392b','#d68910','#7b1fa2','#00897b','#e65100'];
-
-  const wonBySource = {};
-  leads.filter(l=>l.stage==='won').forEach(l => { const s=l.source||'Unknown'; wonBySource[s]=(wonBySource[s]||0)+1; });
-
-  el.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Source</th><th>Total Leads</th><th>Won</th><th>CVR</th><th>Share</th></tr></thead>
-    <tbody>${sorted.map(([src,cnt],i)=>{
-      const won = wonBySource[src]||0;
-      const cvr = cnt ? Math.round((won/cnt)*100) : 0;
-      const share = leads.length ? Math.round((cnt/leads.length)*100) : 0;
-      return `<tr>
-        <td><span style="width:10px;height:10px;border-radius:50%;background:${COLS[i%COLS.length]};display:inline-block;margin-right:6px"></span>${i+1}</td>
-        <td><strong>${esc(src)}</strong></td>
-        <td>${cnt}</td>
-        <td style="color:var(--g500);font-weight:600">${won}</td>
-        <td>${cvr}%</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div style="flex:1;background:var(--cream2);border-radius:10px;height:6px;width:80px">
-              <div style="background:${COLS[i%COLS.length]};height:100%;width:${share}%;border-radius:10px"></div>
-            </div>
-            <span style="font-size:10.5px;color:var(--textd)">${share}%</span>
-          </div>
-        </td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table></div>`;
-}
-
-// ── Utility ──
-function esc(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function _setText(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+window.mktRenderAnalytics = mktRenderAnalytics;
 
 // ── Boot ──
-document.addEventListener('DOMContentLoaded', mktInit);
+initPage(mktInit);

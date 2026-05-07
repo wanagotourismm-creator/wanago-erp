@@ -18,10 +18,6 @@ async function createTeamAccount(name, email, password, role, memberId) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
 
-    const uidMap = JSON.parse(localStorage.getItem('wanago_uid_map') || '{}');
-    uidMap[cred.user.uid] = { memberId, name, email, role };
-    localStorage.setItem('wanago_uid_map', JSON.stringify(uidMap));
-
     const member = DB.settings.team.find(m => m.id === memberId);
     if (member) {
       member.firebaseUid = cred.user.uid;
@@ -49,10 +45,7 @@ async function sendPasswordReset(email) {
 
 // ── Get team member from Firebase UID ──
 function getMemberByUid(uid) {
-  const uidMap = JSON.parse(localStorage.getItem('wanago_uid_map') || '{}');
-  const mapping = uidMap[uid];
-  if (!mapping) return null;
-  return DB.settings.team.find(m => m.id === mapping.memberId) || null;
+  return (DB.settings.team || []).find(m => m.firebaseUid === uid) || null;
 }
 
 // ── Determine role from team member ──

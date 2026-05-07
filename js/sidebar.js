@@ -113,15 +113,97 @@
       </div>`;
   }
 
+  // ── Mobile sidebar ──
+  function setupMobileNav() {
+    // Overlay backdrop
+    if (!document.getElementById('sidebar-overlay')) {
+      var ov = document.createElement('div');
+      ov.id = 'sidebar-overlay';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', closeMobileSidebar);
+    }
+
+    // Hamburger button inside topbar
+    if (!document.getElementById('menu-toggle')) {
+      var btn = document.createElement('button');
+      btn.id = 'menu-toggle';
+      btn.setAttribute('aria-label', 'Open menu');
+      btn.innerHTML = '<span></span><span></span><span></span>';
+      btn.addEventListener('click', toggleMobileSidebar);
+
+      var topbar = document.querySelector('.topbar');
+      if (topbar) topbar.insertBefore(btn, topbar.firstChild);
+    }
+
+    // Close sidebar when a nav item is clicked on mobile
+    document.querySelectorAll('.nav-item').forEach(function(el) {
+      el.addEventListener('click', function() {
+        if (window.innerWidth <= 768) closeMobileSidebar();
+      });
+    });
+
+    // Close on resize back to desktop
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 768) closeMobileSidebar();
+    });
+  }
+
+  function toggleMobileSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    var btn     = document.getElementById('menu-toggle');
+    if (!sidebar) return;
+    var isOpen = sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('open', isOpen);
+    if (btn)     btn.classList.toggle('open', isOpen);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  }
+
+  function closeMobileSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    var btn     = document.getElementById('menu-toggle');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    if (btn)     btn.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  window.closeMobileSidebar  = closeMobileSidebar;
+  window.toggleMobileSidebar = toggleMobileSidebar;
+
+  // ── Load advanced UI components ──
+  function loadComponents() {
+    if (window._componentsLoaded) return;
+    window._componentsLoaded = true;
+    var isPages = window.location.pathname.replace(/\\/g, '/').includes('/pages/');
+    var base   = isPages ? '../components/' : 'components/';
+    var jsBase = isPages ? '../js/' : 'js/';
+    ['command-palette', 'notifications', 'keyboard-shortcuts'].forEach(function(name) {
+      var s = document.createElement('script');
+      s.src = base + name + '.js';
+      s.defer = true;
+      document.head.appendChild(s);
+    });
+    // Inject Google Sheets sync on every page (hooks into saveDB)
+    if (!window.WanagoSheets) {
+      var gs = document.createElement('script');
+      gs.src = jsBase + 'google-sheets.js';
+      document.head.appendChild(gs);
+    }
+  }
+
   // Build sidebar when DOM is ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', buildSidebar);
+    document.addEventListener('DOMContentLoaded', function() { buildSidebar(); loadComponents(); setupMobileNav(); });
   } else {
     buildSidebar();
+    loadComponents();
+    setupMobileNav();
   }
 
   // Also rebuild after page loads (to update user name from session)
-  window.addEventListener('load', buildSidebar);
+  window.addEventListener('load', function() { buildSidebar(); setupMobileNav(); });
 
   // Expose rebuild for auth systems to call after login
   window.rebuildSidebar = buildSidebar;
