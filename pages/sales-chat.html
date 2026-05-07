@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wanago™ — Sales Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Top bar */
+    .sc-topbar { background: #075e54; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .sc-logo { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center; }
+    .sc-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .sc-agent { font-size: 11px; color: rgba(255,255,255,.6); margin-left: auto; }
+    .sc-back-btn { background: rgba(255,255,255,.15); border: none; color: #fff; border-radius: 8px; padding: 5px 12px; font-size: 11.5px; cursor: pointer; font-family: inherit; }
+
+    /* Layout */
+    .sc-layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* Left: contact list */
+    .sc-contacts { width: 340px; border-right: 1px solid #ddd; background: #fff; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sc-contacts-header { padding: 12px 14px; background: #f0f2f5; border-bottom: 1px solid #ddd; }
+    .sc-search { width: 100%; padding: 8px 12px; border: none; border-radius: 20px; background: #fff; font-size: 13px; outline: none; }
+    .sc-contact-list { overflow-y: auto; flex: 1; }
+    .sc-contact { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: .15s; }
+    .sc-contact:hover { background: #f5f5f5; }
+    .sc-contact.active { background: #ebebeb; }
+    .sc-contact-av { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .sc-contact-info { flex: 1; min-width: 0; }
+    .sc-contact-name { font-size: 13.5px; font-weight: 600; color: #111; }
+    .sc-contact-preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .sc-contact-meta { font-size: 10px; color: #aaa; text-align: right; }
+    .sc-contact-tag { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; display: inline-block; margin-top: 2px; }
+    .tag-lead { background: #fff3e0; color: #e65100; }
+    .tag-booking { background: #e8f5e9; color: #2e7d32; }
+    .tag-customer { background: #e3f2fd; color: #1565c0; }
+
+    /* Right: chat area */
+    .sc-chat { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; }
+    .sc-chat-header { background: #075e54; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .sc-chat-av { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; background: rgba(255,255,255,.2); flex-shrink: 0; }
+    .sc-chat-name { font-size: 14px; font-weight: 700; color: #fff; }
+    .sc-chat-number { font-size: 11px; color: rgba(255,255,255,.7); }
+    .sc-chat-actions { margin-left: auto; display: flex; gap: 8px; }
+    .sc-chat-btn { background: rgba(255,255,255,.15); border: none; color: #fff; border-radius: 8px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; }
+
+    /* Messages area */
+    .sc-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .sc-msg { max-width: 70%; padding: 8px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; position: relative; }
+    .sc-msg.out { background: #dcf8c6; border-radius: 8px 8px 2px 8px; align-self: flex-end; }
+    .sc-msg.in { background: #fff; border-radius: 8px 8px 8px 2px; align-self: flex-start; }
+    .sc-msg-time { font-size: 10px; color: #aaa; text-align: right; margin-top: 3px; }
+    .sc-msg-template { font-size: 10px; color: #888; font-style: italic; margin-top: 2px; }
+
+    /* Input area */
+    .sc-input-area { background: #f0f2f5; padding: 10px 14px; display: flex; align-items: flex-end; gap: 10px; flex-shrink: 0; border-top: 1px solid #ddd; }
+    .sc-templates-btn { background: #075e54; border: none; color: #fff; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .sc-msg-input { flex: 1; border: none; border-radius: 20px; padding: 9px 16px; font-size: 13px; font-family: inherit; resize: none; outline: none; max-height: 120px; min-height: 38px; }
+    .sc-send-btn { background: #075e54; border: none; color: #fff; border-radius: 50%; width: 38px; height: 38px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* Templates popup */
+    .sc-templates-popup { position: absolute; bottom: 70px; left: 14px; right: 14px; background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.15); padding: 12px; display: none; max-height: 300px; overflow-y: auto; z-index: 100; }
+    .sc-tpl { padding: 10px 12px; border-radius: 8px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+    .sc-tpl:hover { background: #f5f5f5; }
+    .sc-tpl-label { font-size: 12px; font-weight: 700; color: #075e54; margin-bottom: 3px; }
+    .sc-tpl-preview { font-size: 11.5px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Empty state */
+    .sc-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e5ddd5; }
+
+    /* WA connect prompt */
+    .sc-wa-connect { background: #fff; border-radius: 16px; padding: 28px; text-align: center; max-width: 360px; box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="sc-topbar">
+  <div class="sc-logo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
+  <div class="sc-title">Sales Chat</div>
+  <div id="sc-agent-label" class="sc-agent">Loading...</div>
+  <button class="sc-back-btn" onclick="window.opener ? window.close() : window.location.href='leads.html'">← Back to ERP</button>
+</div>
+
+<!-- Layout -->
+<div class="sc-layout">
+
+  <!-- Contact List -->
+  <div class="sc-contacts">
+    <div class="sc-contacts-header">
+      <input class="sc-search" id="sc-search" placeholder="🔍 Search contacts..." oninput="filterContacts(this.value)">
+    </div>
+    <div class="sc-contact-list" id="sc-contact-list"></div>
+  </div>
+
+  <!-- Chat Area -->
+  <div class="sc-chat" id="sc-chat-area">
+    <!-- Empty state initially -->
+    <div class="sc-empty" id="sc-empty-state">
+      <div class="sc-wa-connect">
+        <div style="font-size:48px;margin-bottom:12px">💬</div>
+        <div style="font-size:18px;font-weight:700;color:#075e54;margin-bottom:8px">Wanago Sales Chat</div>
+        <div style="font-size:13px;color:#666;line-height:1.6;margin-bottom:20px">Select a contact from the left to start chatting.<br>Messages will open in your WhatsApp.</div>
+        <div style="background:#e8f5e9;border-radius:10px;padding:12px 16px;font-size:12px;color:#2e7d32;text-align:left;line-height:1.8">
+          ✅ All leads and customers loaded automatically<br>
+          ✅ Smart message templates per context<br>
+          ✅ Message history saved in ERP<br>
+          ✅ Click send → opens your WhatsApp
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../js/utils.js"></script>
+<script src="../js/whatsapp.js"></script>
+<script>
+// ── State ──
+let allContacts = [];
+let currentContact = null;
+let showTemplates = false;
+
+// ── Load contacts from ERP data ──
+function loadContacts() {
+  allContacts = [];
+
+  // Add leads (active ones first)
+  const leads = (DB.leads||[]).filter(l => l.phone && !['won','lost'].includes(l.stage));
+  leads.forEach(l => allContacts.push({
+    id: l.id, name: l.name, phone: l.phone, type: 'lead',
+    tag: l.stage, destination: l.destination, amount: l.budget,
+    color: '#e65100', lastMsg: 'Lead · ' + (l.stage||'new') + ' · ' + (l.destination||''),
+    leadId: l.id,
+  }));
+
+  // Add bookings with pending payments
+  const bookings = (DB.bookings||[]).filter(b => b.customerPhone && b.status !== 'cancelled');
+  bookings.forEach(b => allContacts.push({
+    id: 'bk_'+b.id, name: b.customerName, phone: b.customerPhone, type: 'booking',
+    tag: b.status, destination: b.destination, amount: b.totalAmount,
+    color: '#2e7d32', lastMsg: b.ref + ' · ' + (b.destination||'') + ' · ' + b.status,
+    bookingId: b.id, ref: b.ref,
+  }));
+
+  // Add customers not already in leads
+  const leadPhones = new Set(leads.map(l=>l.phone));
+  const bkPhones = new Set(bookings.map(b=>b.customerPhone));
+  (DB.customers||[]).filter(c => c.phone && !leadPhones.has(c.phone) && !bkPhones.has(c.phone)).forEach(c => allContacts.push({
+    id: 'cust_'+c.id, name: c.name, phone: c.phone, type: 'customer',
+    color: '#1565c0', lastMsg: 'Customer' + (c.travelType?' · '+c.travelType:''),
+    customerId: c.id,
+  }));
+
+  renderContactList(allContacts);
+}
+
+function renderContactList(contacts) {
+  const el = document.getElementById('sc-contact-list');
+  if (!contacts.length) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:13px">No contacts found</div>'; return; }
+  el.innerHTML = contacts.map(c => {
+    const initials = (c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+    const tagClass = {lead:'tag-lead',booking:'tag-booking',customer:'tag-customer'}[c.type]||'';
+    const tagLabel = {lead:'🎯 Lead',booking:'📅 Booking',customer:'👤 Customer'}[c.type]||c.type;
+    const msgs = getContactMessages(c.phone);
+    const lastMsg = msgs.length ? msgs[msgs.length-1].text.slice(0,40)+'...' : c.lastMsg;
+    return `<div class="sc-contact ${currentContact?.id===c.id?'active':''}" onclick="selectContact('${c.id}')">
+      <div class="sc-contact-av" style="background:${c.color}">${initials}</div>
+      <div class="sc-contact-info">
+        <div class="sc-contact-name">${c.name}</div>
+        <div class="sc-contact-preview">${lastMsg||'—'}</div>
+        <span class="sc-contact-tag ${tagClass}">${tagLabel}</span>
+      </div>
+      <div class="sc-contact-meta">${msgs.length?'<div style="background:#25d366;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px">'+msgs.length+'</div>':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterContacts(q) {
+  const filtered = q ? allContacts.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || (c.phone||'').includes(q) || (c.destination||'').toLowerCase().includes(q.toLowerCase())) : allContacts;
+  renderContactList(filtered);
+}
+
+function selectContact(id) {
+  currentContact = allContacts.find(c => c.id === id);
+  if (!currentContact) return;
+  renderContactList(allContacts); // re-render to show active
+  renderChatArea();
+}
+
+// ── Message Storage ──
+function getContactMessages(phone) {
+  const key = 'sc_msgs_' + phone.replace(/\D/g,'');
+  return JSON.parse(localStorage.getItem(key) || '[]');
+}
+
+function saveContactMessage(phone, msg) {
+  const key = 'sc_msgs_' + phone.replace(/\D/g,'');
+  const msgs = getContactMessages(phone);
+  msgs.push(msg);
+  localStorage.setItem(key, JSON.stringify(msgs.slice(-100)));
+}
+
+// ── Render Chat ──
+function renderChatArea() {
+  const c = currentContact; if (!c) return;
+  const initials = c.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+  const msgs = getContactMessages(c.phone);
+  const destInfo = c.destination ? `📍 ${c.destination}${c.amount?' · ₹'+Number(c.amount).toLocaleString('en-IN'):''}` : '';
+
+  document.getElementById('sc-empty-state').style.display = 'none';
+
+  const chatHtml = `
+    <div class="sc-chat-header">
+      <div class="sc-chat-av" style="background:${c.color}">${initials}</div>
+      <div>
+        <div class="sc-chat-name">${c.name}</div>
+        <div class="sc-chat-number">${c.phone} ${destInfo?'· '+destInfo:''}</div>
+      </div>
+      <div class="sc-chat-actions">
+        <button class="sc-chat-btn" onclick="openInWhatsApp()" title="Open in WhatsApp">📱 Open WA</button>
+        <button class="sc-chat-btn" onclick="clearChat()" title="Clear history">🗑</button>
+      </div>
+    </div>
+    <div class="sc-messages" id="sc-messages">
+      ${msgs.length ? msgs.map(m => `
+        <div class="sc-msg ${m.dir||'out'}">
+          ${m.text.replace(/\n/g,'<br>')}
+          <div class="sc-msg-time">${m.time} ${m.dir==='out'?'✓✓':''}</div>
+          ${m.template ? '<div class="sc-msg-template">via '+m.template+'</div>' : ''}
+        </div>
+      `).join('') : '<div style="text-align:center;padding:20px;color:#aaa;font-size:12px">No message history. Send your first message below.</div>'}
+    </div>
+    <div style="position:relative">
+      <div class="sc-templates-popup" id="sc-templates-popup"></div>
+      <div class="sc-input-area">
+        <button class="sc-templates-btn" onclick="toggleTemplates()" title="Templates">📋</button>
+        <textarea class="sc-msg-input" id="sc-msg-input" placeholder="Type a message..." rows="1" onkeydown="onMsgKeydown(event)" oninput="autoResize(this)"></textarea>
+        <button class="sc-send-btn" onclick="sendMsg()">➤</button>
+      </div>
+    </div>
+  `;
+
+  // Replace or create chat area content
+  const chatArea = document.getElementById('sc-chat-area');
+  chatArea.innerHTML = chatHtml;
+  scrollToBottom();
+  loadTemplatesPopup();
+  document.getElementById('sc-msg-input')?.focus();
+}
+
+function scrollToBottom() { const el = document.getElementById('sc-messages'); if (el) el.scrollTop = el.scrollHeight; }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+function onMsgKeydown(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} }
+
+function sendMsg() {
+  const c = currentContact; if (!c) return;
+  const input = document.getElementById('sc-msg-input');
+  const msg = input?.value.trim(); if (!msg) return;
+
+  // Save to history
+  const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  saveContactMessage(c.phone, { text: msg, dir: 'out', time: now });
+  logActivity('Sales chat to '+c.name+': '+msg.slice(0,50), 'whatsapp');
+
+  // Open in WhatsApp
+  const num = formatWANumber(c.phone);
+  const url = 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg);
+  window.open(url, 'whatsapp_'+num, 'width=600,height=700,left=200,top=50');
+
+  input.value = ''; input.style.height = 'auto';
+  renderChatArea();
+  renderContactList(allContacts);
+}
+
+function openInWhatsApp() {
+  const c = currentContact; if (!c) return;
+  const num = formatWANumber(c.phone);
+  window.open('https://wa.me/'+num, 'whatsapp_'+num, 'width=600,height=700,left=200,top=50');
+}
+
+function clearChat() {
+  if (!currentContact) return;
+  if (!confirm('Clear message history for ' + currentContact.name + '?')) return;
+  const key = 'sc_msgs_' + currentContact.phone.replace(/\D/g,'');
+  localStorage.removeItem(key);
+  renderChatArea();
+  showToast('Chat cleared');
+}
+
+// ── Templates ──
+function loadTemplatesPopup() {
+  const c = currentContact; if (!c) return;
+  const popup = document.getElementById('sc-templates-popup'); if (!popup) return;
+
+  const templates = getContextTemplates(c);
+  popup.innerHTML = templates.map((t,i) => `
+    <div class="sc-tpl" onclick="useTemplate(${i})">
+      <div class="sc-tpl-label">${t.label}</div>
+      <div class="sc-tpl-preview">${t.text.slice(0,60)}...</div>
+    </div>
+  `).join('');
+  window._scTemplates = templates;
+}
+
+function getContextTemplates(c) {
+  const s = DB.settings;
+  const sig = `\n\n_${s.companyName||'Wanago Travel'}_\n📞 ${s.phone||''}`;
+  const tpls = [];
+
+  if (c.type === 'lead') {
+    tpls.push({ label: '👋 First Contact', text: `Hi *${c.name}*! 👋\n\nThank you for your interest in travelling to *${c.destination||''}* with us! ✈️\n\nI'm your dedicated travel consultant at ${s.companyName||'Wanago'}. Could you share your travel dates and group size?${sig}` });
+    tpls.push({ label: '📋 Follow Up', text: `Hi *${c.name}*! 😊\n\nJust following up on your travel enquiry for *${c.destination||''}*. Did you get a chance to review the details?\n\nHappy to answer any questions! 🌟${sig}` });
+    if (c.amount) tpls.push({ label: '💰 Share Pricing', text: `Hi *${c.name}*! ✈️\n\nHere's the pricing for your *${c.destination||''}* trip:\n\n💰 *Package Amount:* ₹${Number(c.amount).toLocaleString('en-IN')}\n\nShall I send the detailed quotation? 📋${sig}` });
+    tpls.push({ label: '📞 Schedule Call', text: `Hi *${c.name}*! 😊\n\nWould you be available for a quick call to discuss your ${c.destination||'travel'} plans?\n\nPlease share a convenient time! 📞${sig}` });
+  } else if (c.type === 'booking') {
+    const bk = DB.bookings.find(b=>b.id===c.bookingId);
+    if (bk) {
+      tpls.push({ label: '✅ Booking Confirmed', text: `Dear *${c.name}*,\n\n🎉 Your booking is *CONFIRMED!*\n\n📋 Ref: *${bk.ref}*\n✈️ Destination: *${bk.destination}*\n📅 Date: *${bk.travelDate||'—'}*\n💰 Total: ₹${Number(bk.totalAmount||0).toLocaleString('en-IN')}\n\nHave a wonderful trip! 🌟${sig}` });
+      if (Number(bk.pendingAmount||0) > 0) tpls.push({ label: '💰 Payment Reminder', text: `Dear *${c.name}*,\n\n⚠️ Friendly reminder — your booking *${bk.ref}* has a pending balance of *₹${Number(bk.pendingAmount).toLocaleString('en-IN')}*.\n\nPlease complete payment at your earliest.\n${s.upi?`📱 UPI: ${s.upi}\n`:''}${s.accountNo?`🏦 ${s.bankName}: ${s.accountNo}`:''}${sig}` });
+      tpls.push({ label: '✈️ Trip Reminder', text: `Hi *${c.name}*! ✈️\n\nYour trip to *${bk.destination}* is coming up! 🌟\n\nPlease ensure:\n✅ Valid ID/Passport ready\n✅ All documents packed\n✅ Report time confirmed\n\nHave an amazing trip! 🙏${sig}` });
+    }
+  } else {
+    tpls.push({ label: '👋 Hi There', text: `Hi *${c.name}*! 👋\n\nGreetings from *${s.companyName||'Wanago Travel'}*! 🌏\n\nWe have some exciting travel deals this season. Would you like to know more? ✈️${sig}` });
+    tpls.push({ label: '🎁 Special Offer', text: `Hi *${c.name}*! 🎁\n\nExclusive travel offer just for you! Amazing packages with great deals.\n\nInterested? Let's plan your next adventure! 🌍${sig}` });
+  }
+
+  tpls.push({ label: '⭐ Request Review', text: `Hi *${c.name}*! 😊\n\nHope you had an amazing experience with us! 🌟\n\nWe'd love your feedback — it means a lot to us and helps us serve you better! 🙏${sig}` });
+  return tpls;
+}
+
+function toggleTemplates() {
+  const popup = document.getElementById('sc-templates-popup'); if (!popup) return;
+  showTemplates = !showTemplates;
+  popup.style.display = showTemplates ? 'block' : 'none';
+}
+
+function useTemplate(idx) {
+  const t = window._scTemplates?.[idx]; if (!t) return;
+  const input = document.getElementById('sc-msg-input');
+  if (input) { input.value = t.text; autoResize(input); input.focus(); }
+  document.getElementById('sc-templates-popup').style.display = 'none';
+  showTemplates = false;
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  const agentName = currentUser?.name || 'Agent';
+  document.getElementById('sc-agent-label').textContent = '👤 ' + agentName;
+  loadContacts();
+  // Auto-select contact if opened from lead/customer row
+  try {
+    const saved = localStorage.getItem('sc_open_contact');
+    if (saved) {
+      const target = JSON.parse(saved);
+      localStorage.removeItem('sc_open_contact');
+      if (target.phone) {
+        setTimeout(() => {
+          const match = allContacts.find(c => c.phone === target.phone || c.name === target.name);
+          if (match) selectContact(match.id);
+        }, 200);
+      }
+    }
+  } catch(e) {}
+});
+
+// Close templates on outside click
+document.addEventListener('click', (e) => {
+  if (showTemplates && !e.target.closest('.sc-templates-popup') && !e.target.closest('.sc-templates-btn')) {
+    document.getElementById('sc-templates-popup').style.display = 'none';
+    showTemplates = false;
+  }
+});
+</script>
+</body>
+</html>

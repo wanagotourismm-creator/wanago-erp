@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wanago™ ERP — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="page-loader">
+  <div class="loader-spinner"></div>
+  <div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div>
+  <div class="loader-text">Loading…</div>
+</div>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div class="topbar">
+      <div class="topbar-title">Dashboard</div>
+      <div class="topbar-actions">
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-inp" type="text" placeholder="Search..."/>
+        </div>
+        <div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div>
+      </div>
+    </div>
+
+    <div id="content">
+
+      <!-- GREETING -->
+      <div id="dash-greeting" style="margin-bottom:16px;padding:16px 20px;background:linear-gradient(135deg,var(--g700),var(--g500));border-radius:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <div id="dash-greet-text" style="font-size:20px;font-weight:700;font-family:'DM Serif Display',serif"></div>
+          <div id="dash-greet-quote" style="font-size:12px;opacity:.85;margin-top:4px;max-width:520px;line-height:1.5"></div>
+        </div>
+        <div id="dash-greet-time" style="font-size:28px;font-family:'JetBrains Mono',monospace;font-weight:700;opacity:.9"></div>
+      </div>
+
+      <!-- STATS — all clickable -->
+      <div class="stats-grid g4" id="dash-stats" style="margin-bottom:20px"></div>
+
+      <!-- CHARTS -->
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Revenue Overview</div><div class="card-sub">Monthly collected payments</div></div></div>
+          <div class="bar-chart" id="revenue-chart"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Lead Pipeline</div></div>
+          <div id="pipeline-funnel"></div>
+        </div>
+      </div>
+
+      <!-- BOTTOM -->
+      <div class="two-col-eq" style="margin-top:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">✈️ Departing This Week</div></div>
+          <div id="departing-list"><div class="empty-state"><div class="empty-icon">✈️</div><div class="empty-title">No departures this week</div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📋 Recent Activity</div></div>
+          <div id="activity-feed"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No recent activity</div></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+<script src="../js/sidebar.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
+<script type="module" src="../js/dashboard.js"></script>
+
+<script src="../js/wanago-space.js"></script>
+</body>
+</html>

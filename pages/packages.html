@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wanago™ ERP — Packages</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>.mono{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--textm)}</style>
+</head>
+<body>
+<div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div><div class="loader-text">Loading…</div></div>
+<div class="app">
+  <aside id="sidebar"></aside>
+  <div id="main">
+    <div class="topbar"><div class="topbar-title">Package Management</div><div class="topbar-actions"><div class="search-wrap"><svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="pkg-search" type="text" placeholder="Search packages..." oninput="renderPackages()"/></div><button class="btn btn-primary" onclick="openNewPkgModal()">+ New Package</button><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
+    <div id="content"><div class="page active">
+      <div class="stats-grid g4" id="pkg-stats-strip" style="margin-bottom:18px"></div>
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--sh)">
+        <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
+          <div class="chip active" onclick="filterPackages('all',this)">All</div>
+          <div class="chip" onclick="filterPackages('international',this)">✈️ International</div>
+          <div class="chip" onclick="filterPackages('domestic',this)">🇮🇳 Domestic</div>
+          <div class="chip" onclick="filterPackages('honeymoon',this)">💑 Honeymoon</div>
+          <div class="chip" onclick="filterPackages('adventure',this)">🏔️ Adventure</div>
+          <div class="chip" onclick="filterPackages('cultural',this)">🏛️ Cultural</div>
+          <div class="chip" onclick="filterPackages('corporate',this)">💼 Corporate</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;gap:2px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:3px">
+            <button id="pkg-view-card" onclick="setPkgView('card')" style="background:var(--g700);color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px">⊞ Cards</button>
+            <button id="pkg-view-table" onclick="setPkgView('table')" style="background:transparent;color:var(--textd);border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px">☰ Table</button>
+          </div>
+          <select id="pkg-sort" onchange="renderPackages()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);background:var(--cream);font-family:inherit;cursor:pointer;outline:none">
+            <option value="newest">Newest First</option><option value="price-asc">Price ↑</option><option value="price-desc">Price ↓</option><option value="bookings">Most Booked</option><option value="name">A–Z</option>
+          </select>
+        </div>
+      </div>
+      <div id="pkg-cards-view"><div id="pkg-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px"></div><div id="pkg-cards-empty" style="display:none"></div></div>
+      <div id="pkg-table-view" style="display:none"><div class="table-wrap"><table><thead><tr><th>Code</th><th>Package Name</th><th>Destination</th><th>Category</th><th>Duration</th><th>Price/Person</th><th>Incl. GST</th><th>Bookings</th><th>Revenue</th><th>Status</th><th>Actions</th></tr></thead><tbody id="packages-tbody"></tbody></table></div></div>
+      <div id="pkg-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:900;backdrop-filter:blur(2px)" onclick="closePkgDrawer()"></div>
+      <div id="pkg-drawer" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:var(--white);box-shadow:-4px 0 32px rgba(0,0,0,.15);z-index:901;overflow-y:auto;padding:28px 24px"></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ADD/EDIT PACKAGE MODAL -->
+<div class="modal-overlay" id="modal-add-package">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-title" id="pkg-modal-title">Create New Package</div>
+    <input type="hidden" id="pkg-edit-id">
+    <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--cream);border-radius:9px;padding:4px">
+      <button onclick="switchPkgTab('basic')" id="pkg-tab-basic" style="flex:1;padding:7px;border:none;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;background:var(--g700);color:#fff;font-family:inherit">📋 Basic Info</button>
+      <button onclick="switchPkgTab('pricing')" id="pkg-tab-pricing" style="flex:1;padding:7px;border:none;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;background:transparent;color:var(--textd);font-family:inherit">💰 Pricing</button>
+      <button onclick="switchPkgTab('details')" id="pkg-tab-details" style="flex:1;padding:7px;border:none;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;background:transparent;color:var(--textd);font-family:inherit">✨ Details</button>
+    </div>
+    <div id="pkg-tab-basic-content"><div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Package Name *</label><input class="form-input" id="pkg-name" placeholder="e.g. Maldives Premium Escape 4N/5D"></div>
+      <div class="form-group"><label class="form-label">Destination *</label><input class="form-input" id="pkg-dest" placeholder="Maldives"></div>
+      <div class="form-group"><label class="form-label">Country</label><input class="form-input" id="pkg-country" placeholder="Maldives"></div>
+      <div class="form-group"><label class="form-label">Category *</label><select class="form-select" id="pkg-cat"><option value="">Select</option><option value="international">✈️ International</option><option value="domestic">🇮🇳 Domestic</option><option value="honeymoon">💑 Honeymoon</option><option value="adventure">🏔️ Adventure</option><option value="cultural">🏛️ Cultural</option><option value="corporate">💼 Corporate</option></select></div>
+      <div class="form-group"><label class="form-label">Nights</label><input class="form-input" id="pkg-nights" type="number" placeholder="4" oninput="autofillDays()"></div>
+      <div class="form-group"><label class="form-label">Days</label><input class="form-input" id="pkg-days" type="number" placeholder="5"></div>
+      <div class="form-group"><label class="form-label">Max Pax (0=unlimited)</label><input class="form-input" id="pkg-maxpax" type="number" value="0"></div>
+      <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="pkg-status"><option value="active">Active</option><option value="inactive">Inactive</option><option value="draft">Draft</option></select></div>
+    </div></div>
+    <div id="pkg-tab-pricing-content" style="display:none"><div class="form-grid">
+      <div class="form-group"><label class="form-label">Price per Person (₹) *</label><input class="form-input" id="pkg-price" type="number" placeholder="89999" oninput="updatePkgPricePreview()"></div>
+      <div class="form-group"><label class="form-label">GST Rate (%)</label><select class="form-select" id="pkg-gst" onchange="updatePkgPricePreview()"><option value="0">0%</option><option value="5" selected>5%</option><option value="12">12%</option><option value="18">18%</option></select></div>
+      <div class="form-group"><label class="form-label">Child Price (₹)</label><input class="form-input" id="pkg-child-price" type="number" placeholder="45000"></div>
+      <div class="form-group"><label class="form-label">Double Occupancy (₹)</label><input class="form-input" id="pkg-double-price" type="number" placeholder="75000"></div>
+      <div class="form-group"><label class="form-label">MRP (₹) <span style="font-size:10px;color:var(--textd)">(for discount)</span></label><input class="form-input" id="pkg-mrp" type="number" placeholder="110000" oninput="updatePkgPricePreview()"></div>
+      <div class="form-group"><label class="form-label">Agent Commission %</label><input class="form-input" id="pkg-commission" type="number" value="10"></div>
+    </div>
+    <div id="pkg-price-preview" style="background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:14px;margin-top:8px;display:none"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--g700);font-weight:600;margin-bottom:8px">💡 Price Preview</div><div style="display:flex;gap:20px;flex-wrap:wrap"><div><div style="font-size:10px;color:var(--textd)">Base</div><div id="pp-base" style="font-size:16px;font-weight:700;color:var(--g800)">—</div></div><div><div style="font-size:10px;color:var(--textd)">+ GST</div><div id="pp-gst" style="font-size:16px;font-weight:700;color:var(--amb)">—</div></div><div><div style="font-size:10px;color:var(--textd)">Total</div><div id="pp-total" style="font-size:18px;font-weight:800;color:var(--g700)">—</div></div><div id="pp-discount-wrap" style="display:none"><div style="font-size:10px;color:var(--textd)">Discount</div><div id="pp-discount" style="font-size:16px;font-weight:700;color:var(--red)">—</div></div></div></div>
+    </div>
+    <div id="pkg-tab-details-content" style="display:none"><div class="form-grid" style="margin-bottom:12px">
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Highlights <span style="font-size:10px;color:var(--textd)">(one per line)</span></label><textarea class="form-textarea" id="pkg-highlights" rows="3" placeholder="Luxury beach villa&#10;Private snorkeling&#10;All-inclusive meals"></textarea></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Inclusions <span style="font-size:10px;color:var(--textd)">(comma separated)</span></label><textarea class="form-textarea" id="pkg-inclusions" rows="2" placeholder="Hotel, Transfers, Breakfast, Sightseeing"></textarea></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Exclusions</label><textarea class="form-textarea" id="pkg-exclusions" rows="2" placeholder="Flights, Visa, Personal expenses"></textarea></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Tags <span style="font-size:10px;color:var(--textd)">(comma separated)</span></label><input class="form-input" id="pkg-tags" placeholder="beach, luxury, couples"></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Internal Notes</label><textarea class="form-textarea" id="pkg-notes" rows="2" placeholder="Supplier info, booking portal..."></textarea></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px;background:var(--gold2);border-radius:9px;border:1px solid rgba(201,168,76,.3)"><input type="checkbox" id="pkg-featured" style="width:15px;height:15px;accent-color:var(--gold)"><span style="font-size:12px;font-weight:600;color:#7a5800">⭐ Mark as Featured Package</span></label>
+    </div>
+    <div id="pkg-error" style="color:var(--red);font-size:12px;margin-top:10px;display:none"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-add-package')">Cancel</button><button class="btn btn-primary" id="pkg-save-btn" onclick="savePackage()">Create Package</button></div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+<script src="../js/sidebar.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
+<script type="module" src="../js/packages.js"></script>
+<script src="../js/wanago-space.js"></script>
+</body>
+</html>

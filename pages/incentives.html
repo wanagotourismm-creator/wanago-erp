@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wanago™ ERP — Sales Incentives</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+</head>
+<body>
+<div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div><div class="loader-text">Loading…</div></div>
+<div class="app">
+  <aside id="sidebar"></aside>
+  <div id="main">
+    <div class="topbar"><div class="topbar-title">🏆 Sales Incentive System</div><div class="topbar-actions"><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
+    <div id="content"><div class="page active">
+
+      <!-- TABS -->
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab(this,'inc-tab-dashboard')">📊 Incentive Dashboard</div>
+        <div class="tab" id="inc-settings-tab" onclick="switchTab(this,'inc-tab-settings');renderIncentiveSettings()">⚙️ Settings & Targets</div>
+        <div class="tab" onclick="switchTab(this,'inc-tab-structure')">📋 Incentive Structure</div>
+      </div>
+
+      <!-- ═══ TAB 1: DASHBOARD ═══ -->
+      <div class="tab-content active" id="inc-tab-dashboard">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <label style="font-size:12px;font-weight:600;color:var(--textm)">Month:</label>
+          <input type="month" id="inc-month" class="form-input" style="width:180px" onchange="renderIncentiveDashboard()">
+        </div>
+
+        <!-- LIVE COUNTDOWN BAR -->
+        <div id="inc-live-bar" style="background:linear-gradient(135deg,var(--g800),#0a3520);border-radius:14px;padding:16px 20px;margin-bottom:16px;box-shadow:0 4px 20px rgba(7,28,18,.3)"></div>
+        <style>@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}</style>
+
+        <!-- AGENT PERSONAL HEADER (only shown to agents) -->
+        <div id="inc-agent-header" style="display:none"></div>
+
+        <!-- Team Stats (hidden for agents) -->
+        <div id="inc-team-stats">
+          <div class="stats-grid g4" style="margin-bottom:18px">
+            <div class="stat-card" style="cursor:pointer"><div class="stat-label">💰 Team Profit</div><div class="stat-val" id="inc-team-profit">₹0</div></div>
+            <div class="stat-card" style="cursor:pointer"><div class="stat-label">🎯 Team Target</div><div class="stat-val" id="inc-team-target">Not Set</div></div>
+            <div class="stat-card" style="cursor:pointer"><div class="stat-label">📈 Achievement</div><div class="stat-val" id="inc-team-pct">0%</div></div>
+            <div class="stat-card" style="cursor:pointer"><div class="stat-label">👥 Team Bonus</div><div class="stat-val" id="inc-team-bonus" style="font-size:14px">❌ Not Yet</div></div>
+          </div>
+        </div>
+        <!-- Agent Cards -->
+        <div style="font-size:13px;font-weight:700;color:var(--textm);margin-bottom:10px">Agent Performance & Earnings</div>
+        <div id="inc-agents-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px"></div>
+      </div>
+
+      <!-- ═══ TAB 2: SETTINGS ═══ -->
+      <div class="tab-content" id="inc-tab-settings">
+        <div class="two-col-eq" style="margin-bottom:18px">
+          <!-- Slabs -->
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">📊 Incentive Slabs (Profit-Based)</div><div class="card-sub">Edit incentive % for each performance level</div></div></div>
+            <table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:8px;font-size:10px;color:var(--textd)">ACHIEVEMENT</th><th style="text-align:left;padding:8px;font-size:10px;color:var(--textd)">LEVEL NAME</th><th style="padding:8px;font-size:10px;color:var(--textd)">INCENTIVE</th></tr></thead><tbody id="inc-slabs-list"></tbody></table>
+          </div>
+          <!-- Bonuses -->
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">⚡ Performance Boosters</div><div class="card-sub">Bonus amounts for special achievements</div></div></div>
+            <div class="form-section">Fast Closure Bonus</div>
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Within 24 Hours (₹)</label><input class="form-input" type="number" id="inc-fc-24"></div>
+              <div class="form-group"><label class="form-label">Within 48 Hours (₹)</label><input class="form-input" type="number" id="inc-fc-48"></div>
+            </div>
+            <div class="form-section">High-Value Booking Bonus</div>
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Profit Threshold (₹)</label><input class="form-input" type="number" id="inc-hv-threshold"></div>
+              <div class="form-group"><label class="form-label">Bonus Amount (₹)</label><input class="form-input" type="number" id="inc-hv-bonus"></div>
+            </div>
+            <div class="form-section">Self-Generated Lead Bonus</div>
+            <div class="form-group"><label class="form-label">Additional % on Profit</label><input class="form-input" type="number" id="inc-self-pct" style="width:100px"></div>
+            <div class="form-section">Team Bonus</div>
+            <div class="form-group"><label class="form-label">Team Target Achieved → Additional %</label><input class="form-input" type="number" id="inc-team-bonus-pct" style="width:100px"></div>
+            <div class="form-section">Monthly Rewards</div>
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">🥇 Top Performer (₹)</label><input class="form-input" type="number" id="inc-reward-1"></div>
+              <div class="form-group"><label class="form-label">🥈 2nd Place (₹)</label><input class="form-input" type="number" id="inc-reward-2"></div>
+              <div class="form-group"><label class="form-label">🥉 3rd Place (₹)</label><input class="form-input" type="number" id="inc-reward-3"></div>
+              <div class="form-group"><label class="form-label">🏆 Quarterly Reward (₹)</label><input class="form-input" type="number" id="inc-quarterly-amt"></div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:16px" onclick="saveIncentiveSettings()">💾 Save All Settings</button>
+          </div>
+        </div>
+        <!-- Agent Targets -->
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">🎯 Monthly Agent Targets</div><div class="card-sub">Set profit targets for each agent</div></div>
+            <input type="month" id="inc-target-month" class="form-input" style="width:160px" onchange="renderAgentTargets()">
+          </div>
+          <table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:10px;font-size:10px;color:var(--textd)">AGENT</th><th style="padding:10px;font-size:10px;color:var(--textd)">DEPT</th><th style="padding:10px;font-size:10px;color:var(--textd)">TARGET (₹)</th><th style="padding:10px;font-size:10px;color:var(--textd)">ACHIEVED</th></tr></thead><tbody id="inc-targets-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ═══ TAB 3: STRUCTURE REFERENCE ═══ -->
+      <div class="tab-content" id="inc-tab-structure">
+        <div class="card" style="max-width:800px">
+          <div class="card-header"><div><div class="card-title">📋 Incentive Structure Reference</div><div class="card-sub">As per Wanago Sales Incentive Policy</div></div></div>
+          <div class="form-section">Incentive Slabs (Profit-Based)</div>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+            <thead><tr style="background:var(--cream)"><th style="padding:10px 14px;text-align:left;font-size:11px">Target Achievement</th><th style="padding:10px 14px;text-align:left;font-size:11px">Performance Level</th><th style="padding:10px 14px;text-align:left;font-size:11px">Incentive</th></tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">Upto 50%</td><td>Below Minimum Level</td><td style="color:var(--red);font-weight:600">No Incentive</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">50% – 70%</td><td>Level 1 – Achiever</td><td style="color:var(--g600);font-weight:600">4% of Profit</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">70% – 90%</td><td>Level 2 – Strong Performer</td><td style="color:var(--g600);font-weight:600">6% of Profit</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">90% – 100%</td><td>Level 3 – High Performer</td><td style="color:var(--g600);font-weight:600">8% of Profit</td></tr>
+              <tr><td style="padding:10px 14px">100% & Above</td><td>Level 4 – Top Performer</td><td style="color:var(--g700);font-weight:700">10% of Profit</td></tr>
+            </tbody>
+          </table>
+          <div class="form-section">Performance Boosters</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--amb);margin-bottom:8px">⚡ Fast Closure Bonus</div><div style="font-size:12px;line-height:2">Within 24 Hours → <strong>₹300</strong><br>Within 48 Hours → <strong>₹150</strong></div></div>
+            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">💎 High-Value Booking</div><div style="font-size:12px;line-height:2">Profit above ₹15,000 → <strong>₹500 Bonus</strong></div></div>
+            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px">🔥 Self-Generated Lead</div><div style="font-size:12px;line-height:2">+2% Additional on Profit</div></div>
+            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">👥 Team Bonus</div><div style="font-size:12px;line-height:2">Team hits target → +2% for everyone</div></div>
+          </div>
+          <div class="form-section">Monthly & Quarterly Rewards</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--g700);margin-bottom:8px">🏆 Monthly Rewards</div><div style="font-size:12px;line-height:2">🥇 Top Performer → <strong>₹3,000</strong><br>🥈 2nd Place → <strong>₹2,000</strong><br>🥉 3rd Place → <strong>₹1,000</strong></div></div>
+            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">🌟 Quarterly Reward</div><div style="font-size:12px;line-height:2">Top Performer (3 months) → <strong>₹10,000 / Sponsored Trip</strong></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+<script src="../js/sidebar.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
+<script type="module" src="../js/incentives.js"></script>
+<script>
+  // Set default month to current
+  document.addEventListener('DOMContentLoaded', () => {
+    const m = new Date().toISOString().slice(0,7);
+    const el1 = document.getElementById('inc-month'); if(el1) el1.value = m;
+    const el2 = document.getElementById('inc-target-month'); if(el2) el2.value = m;
+  });
+</script>
+<script src="../js/wanago-space.js"></script>
+</body>
+</html>

@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Wanago Space</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;overflow:hidden;font-family:'Inter','Segoe UI',sans-serif}
+    :root{
+      --bg-sidebar:#1a1d21;--bg-sidebar-hover:rgba(255,255,255,.07);--bg-sidebar-active:rgba(255,255,255,.13);
+      --bg-main:#1f2226;--bg-chat:#fff;--bg-input:#f0f2f5;--bg-msg-me:#1164a3;
+      --text-sidebar:#ccc;--text-sidebar-title:#fff;--text-muted:#888;
+      --border:#e0e0e0;--green:#2bac76;--blue:#1264a3;--red:#e01e5a;
+      --ws-purple:#4a154b;
+    }
+    /* ── LAYOUT ── */
+    .ws-app{display:flex;height:100vh;background:var(--bg-sidebar)}
+    /* workspace switcher */
+    .ws-workspaces{width:56px;background:#1a1d21;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:8px;flex-shrink:0}
+    .ws-ws-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#4a154b,#1164a3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:.15s;flex-shrink:0}
+    .ws-ws-icon:hover{border-radius:12px}
+    .ws-ws-icon.active{border-radius:12px;outline:2px solid #fff;outline-offset:2px}
+    .ws-ws-add{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#ccc;font-size:22px;cursor:pointer;margin-top:auto}
+    /* sidebar */
+    .ws-sidebar{width:240px;background:var(--bg-sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+    .ws-sidebar-header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer}
+    .ws-sidebar-workspace{font-size:15px;font-weight:700;color:var(--text-sidebar-title);display:flex;align-items:center;justify-content:space-between}
+    .ws-sidebar-status{font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px;margin-top:2px}
+    .ws-sidebar-status::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block}
+    .ws-sidebar-actions{padding:8px 8px 4px;display:flex;gap:4px}
+    .ws-sidebar-search{flex:1;background:rgba(255,255,255,.1);border:none;border-radius:6px;padding:6px 10px;font-size:12.5px;color:#fff;outline:none;font-family:inherit}
+    .ws-sidebar-search::placeholder{color:rgba(255,255,255,.4)}
+    .ws-sidebar-new{background:rgba(255,255,255,.1);border:none;border-radius:6px;padding:6px 8px;color:#ccc;cursor:pointer;font-size:15px;flex-shrink:0}
+    .ws-sidebar-body{flex:1;overflow-y:auto;padding:4px 0}
+    .ws-sidebar-body::-webkit-scrollbar{width:4px}
+    .ws-sidebar-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+    .ws-section-header{display:flex;align-items:center;gap:4px;padding:8px 12px 2px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.4);cursor:pointer}
+    .ws-section-header:hover{color:rgba(255,255,255,.7)}
+    .ws-ch-item{display:flex;align-items:center;gap:8px;padding:5px 12px;cursor:pointer;border-radius:4px;margin:0 6px;transition:.1s;color:var(--text-sidebar);font-size:13.5px}
+    .ws-ch-item:hover{background:var(--bg-sidebar-hover);color:#fff}
+    .ws-ch-item.active{background:var(--bg-sidebar-active);color:#fff;font-weight:500}
+    .ws-ch-item-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+    .ws-ch-item-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+    .ws-ch-badge{background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:auto;flex-shrink:0}
+    .ws-ch-dot{width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:auto;flex-shrink:0}
+    .ws-sidebar-footer{padding:10px 12px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0}
+    .ws-my-av{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;position:relative}
+    .ws-my-av::after{content:'';position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--green);border:2px solid var(--bg-sidebar)}
+    .ws-my-name{font-size:13px;font-weight:600;color:#fff}
+    .ws-my-status{font-size:10.5px;color:var(--text-muted)}
+    /* main area */
+    .ws-main{flex:1;display:flex;flex-direction:column;background:var(--bg-chat);overflow:hidden}
+    /* chat header */
+    .ws-chat-header{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:#fff}
+    .ws-chat-icon{font-size:16px}
+    .ws-chat-title{font-size:15px;font-weight:700;color:#1d1c1d;flex:1}
+    .ws-chat-desc{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+    .ws-header-actions{display:flex;gap:6px}
+    .ws-header-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;color:#555;font-family:inherit}
+    .ws-header-btn:hover{background:#f0f0f0}
+    /* messages */
+    .ws-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:0;background:#fff}
+    .ws-messages::-webkit-scrollbar{width:6px}
+    .ws-messages::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}
+    .ws-date-div{text-align:center;font-size:11.5px;color:var(--text-muted);padding:12px 0;position:relative;display:flex;align-items:center;gap:10px}
+    .ws-date-div::before,.ws-date-div::after{content:'';flex:1;height:1px;background:var(--border)}
+    .ws-msg-group{display:flex;gap:10px;padding:2px 0;align-items:flex-start}
+    .ws-msg-group:hover{background:#f8f8f8;margin:0 -20px;padding:2px 20px;border-radius:0}
+    .ws-msg-av{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;margin-top:2px}
+    .ws-msg-av.small{width:36px;height:0;visibility:hidden}
+    .ws-msg-right{flex:1;min-width:0}
+    .ws-msg-header{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+    .ws-msg-name{font-size:14px;font-weight:700;color:#1d1c1d}
+    .ws-msg-time{font-size:11px;color:var(--text-muted)}
+    .ws-msg-text{font-size:14px;line-height:1.6;color:#1d1c1d;word-break:break-word}
+    .ws-msg-text strong{font-weight:600}
+    .ws-msg-text code{background:#f0f0f0;border:1px solid #ddd;border-radius:4px;padding:1px 5px;font-size:12px;font-family:monospace}
+    .ws-msg-reactions{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+    .ws-reaction{background:#f0f0f0;border:1px solid #ddd;border-radius:12px;padding:2px 8px;font-size:12px;cursor:pointer;transition:.1s}
+    .ws-reaction:hover{background:#e0e0e0}
+    .ws-reaction.mine{background:#e8f0fb;border-color:#c0d0f0}
+    /* system msg */
+    .ws-system-msg{text-align:center;font-size:12px;color:var(--text-muted);padding:8px 0;font-style:italic}
+    /* thread/pin info */
+    .ws-msg-thread{font-size:11.5px;color:var(--blue);cursor:pointer;margin-top:2px;display:flex;align-items:center;gap:4px}
+    /* DM typing area */
+    .ws-empty-dm{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:40px;text-align:center}
+    .ws-empty-av{width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;margin-bottom:16px}
+    /* Input area */
+    .ws-input-wrap{padding:0 20px 16px;flex-shrink:0}
+    .ws-input-box{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    .ws-input-toolbar{display:flex;gap:2px;padding:8px 10px 4px;border-bottom:1px solid #f0f0f0}
+    .ws-tb-btn{background:none;border:none;border-radius:4px;padding:4px 6px;cursor:pointer;font-size:14px;color:#888;transition:.1s}
+    .ws-tb-btn:hover{background:#f0f0f0;color:#555}
+    .ws-tb-sep{width:1px;background:#ddd;margin:2px 4px;align-self:stretch}
+    .ws-input-row{display:flex;align-items:flex-end;gap:8px;padding:6px 8px 8px}
+    .ws-input{flex:1;border:none;background:transparent;font-size:14px;font-family:inherit;resize:none;outline:none;max-height:160px;min-height:24px;line-height:1.5;color:#1d1c1d}
+    .ws-input::placeholder{color:#aaa}
+    .ws-send-btn{background:var(--blue);border:none;color:#fff;border-radius:6px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:.15s;flex-shrink:0}
+    .ws-send-btn:hover{background:#0f4f8c}
+    .ws-send-btn:disabled{background:#ccc;cursor:not-allowed}
+    /* Thread panel */
+    .ws-thread{width:360px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:#fff;flex-shrink:0}
+    .ws-thread-header{padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+    .ws-thread-close{background:none;border:none;font-size:18px;cursor:pointer;color:#888;padding:2px 6px}
+    .ws-thread-msgs{flex:1;overflow-y:auto;padding:12px 14px}
+    /* Modal */
+    .ws-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center}
+    .ws-modal{background:#fff;border-radius:12px;width:480px;max-width:90vw;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+    .ws-modal-title{font-size:17px;font-weight:700;margin-bottom:16px;color:#1d1c1d}
+    .ws-modal-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px}
+    .ws-modal-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(18,100,163,.1)}
+    .ws-modal-btns{display:flex;justify-content:flex-end;gap:8px}
+    .ws-btn-cancel{background:none;border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:13.5px;cursor:pointer;font-family:inherit}
+    .ws-btn-create{background:var(--blue);border:none;color:#fff;border-radius:8px;padding:8px 16px;font-size:13.5px;cursor:pointer;font-family:inherit}
+    /* Emoji picker */
+    .ws-emoji-picker{position:absolute;bottom:100%;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;padding:8px;display:flex;flex-wrap:wrap;gap:2px;width:200px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:10}
+    .ws-ep-emoji{font-size:18px;cursor:pointer;padding:3px;border-radius:4px}
+    .ws-ep-emoji:hover{background:#f0f0f0}
+    /* Mention */
+    .ws-mention{background:#e8f0fb;color:var(--blue);border-radius:4px;padding:0 3px;font-weight:500}
+    /* Notification popup */
+    .ws-notif{position:fixed;bottom:80px;right:24px;background:var(--bg-sidebar);color:#fff;border-radius:10px;padding:12px 16px;font-size:13px;z-index:9999;animation:slide-in .3s ease;max-width:280px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+    @keyframes slide-in{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+    /* Unread line */
+    .ws-unread-line{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--red);margin:6px 0;font-weight:600}
+    .ws-unread-line::before,.ws-unread-line::after{content:'';flex:1;height:1px;background:var(--red);opacity:.4}
+  </style>
+</head>
+<body>
+<div class="ws-app">
+
+  <!-- Workspace switcher -->
+  <div class="ws-workspaces">
+    <div class="ws-ws-icon active" title="Wanago">W</div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="ws-sidebar">
+    <div class="ws-sidebar-header">
+      <div class="ws-sidebar-workspace">
+        <span id="ws-workspace-name">Wanago Space</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.5)">▾</span>
+      </div>
+      <div class="ws-sidebar-status" id="ws-my-status">Active</div>
+    </div>
+    <div class="ws-sidebar-actions">
+      <input class="ws-sidebar-search" id="ws-search" placeholder="🔍 Search..." oninput="wsSearch(this.value)">
+      <button class="ws-sidebar-new" onclick="wsNewMessage()" title="New message">✏</button>
+    </div>
+    <div class="ws-sidebar-body" id="ws-sidebar-body"></div>
+    <div class="ws-sidebar-footer" onclick="wsOpenProfile()">
+      <div class="ws-my-av" id="ws-my-av" style="background:#4a154b">A</div>
+      <div><div class="ws-my-name" id="ws-my-name">Loading...</div><div class="ws-my-status" id="ws-my-status-text">● Active</div></div>
+      <div style="margin-left:auto;font-size:18px;cursor:pointer" onclick="event.stopPropagation();goBack()" title="Back to ERP">🏠</div>
+    </div>
+  </div>
+
+  <!-- Main chat -->
+  <div class="ws-main" id="ws-main">
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#888;font-size:14px">
+      Select a channel or person to start
+    </div>
+  </div>
+
+</div>
+
+<!-- Modals -->
+<div id="ws-modal-bg" class="ws-modal-bg" style="display:none" onclick="wsCloseModal(event)">
+  <div class="ws-modal" onclick="event.stopPropagation()">
+    <div class="ws-modal-title" id="ws-modal-title">Create Channel</div>
+    <div id="ws-modal-body"></div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+<script src="../js/utils.js"></script>
+<script>
+
+// ═══════════════════════════════════
+//  STATE
+// ═══════════════════════════════════
+const WS = {
+  me: null,
+  currentId: null,
+  currentType: null, // 'channel' | 'dm' | 'group'
+  channels: [],
+  dms: [],
+  groups: [],
+  members: [],
+  unread: {},
+  threadOpen: null,
+  showEmojiFor: null,
+};
+
+// ═══════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════
+function wsKey(id) { return 'ws_msgs_v3_' + id; }
+function wsMsgs(id) { try { return JSON.parse(localStorage.getItem(wsKey(id))||'[]'); } catch(e) { return []; } }
+function wsSaveMsgs(id, msgs) { localStorage.setItem(wsKey(id), JSON.stringify(msgs.slice(-500))); }
+function wsAddMsg(id, msg) {
+  const msgs = wsMsgs(id);
+  msgs.push(msg);
+  wsSaveMsgs(id, msgs);
+  if (id !== WS.currentId) {
+    WS.unread[id] = (WS.unread[id]||0) + 1;
+    wsRenderSidebar();
+    wsShowNotif(msg);
+  }
+  if (id === WS.currentId) wsRenderChat();
+}
+
+function wsStoreGet(k, def) { try { return JSON.parse(localStorage.getItem('ws_store_'+k))||def; } catch(e){ return def; } }
+function wsStoreSet(k, v) { localStorage.setItem('ws_store_'+k, JSON.stringify(v)); }
+
+// ═══════════════════════════════════
+//  INIT
+// ═══════════════════════════════════
+function wsInit() {
+  // Me
+  const u = currentUser || {};
+  WS.me = { id: u.id||'me', name: u.name||'You', color: u.color||'#4a154b', role: u.role||'member', dept: u.dept||'' };
+
+  // Members from team settings
+  const team = DB.settings?.team || [];
+  WS.members = team.map(m => ({ id:m.id, name:m.name, color:m.color||'#4a154b', role:m.role, dept:m.dept||'', phone:m.phone||'' }));
+  if (!WS.members.find(m=>m.id===WS.me.id)) WS.members.unshift(WS.me);
+
+  // Default channels
+  const defChannels = [
+    {id:'general',name:'general',emoji:'💬',desc:'Company-wide announcements',readonly:false},
+    {id:'sales',name:'sales',emoji:'🎯',desc:'Sales team updates & leads',readonly:false},
+    {id:'operations',name:'operations',emoji:'✈️',desc:'Bookings & trip operations',readonly:false},
+    {id:'finance',name:'finance',emoji:'💰',desc:'Payments & finance',readonly:false},
+    {id:'hr',name:'hr',emoji:'👥',desc:'HR & team matters',readonly:false},
+    {id:'marketing',name:'marketing',emoji:'📢',desc:'Campaigns & promotions',readonly:false},
+    {id:'announcements',name:'announcements',emoji:'📣',desc:'Important company announcements',readonly:true},
+  ];
+  const savedChannels = wsStoreGet('channels', defChannels);
+  WS.channels = savedChannels;
+  WS.groups = wsStoreGet('groups', []);
+
+  // Build DM list
+  WS.dms = WS.members.filter(m=>m.id!==WS.me.id);
+
+  // Update my display
+  document.getElementById('ws-my-av').textContent = (WS.me.name||'?')[0].toUpperCase();
+  document.getElementById('ws-my-av').style.background = WS.me.color;
+  document.getElementById('ws-my-name').textContent = WS.me.name;
+
+  wsRenderSidebar();
+  wsSelectChannel('general');
+
+  // Poll every 2 seconds for new messages (from other browser tabs / local changes)
+  setInterval(wsPoll, 2000);
+}
+
+let _lastCounts = {};
+function wsPoll() {
+  const ids = [...WS.channels.map(c=>c.id), ...WS.dms.map(d=>'dm_'+WS.me.id+'_'+d.id), ...WS.groups.map(g=>g.id)];
+  ids.forEach(id => {
+    const msgs = wsMsgs(id);
+    const prev = _lastCounts[id] || 0;
+    if (msgs.length > prev && id !== WS.currentId) {
+      const newCount = msgs.length - prev;
+      WS.unread[id] = (WS.unread[id]||0) + newCount;
+      wsRenderSidebar();
+    }
+    if (msgs.length !== prev && id === WS.currentId) wsRenderChat();
+    _lastCounts[id] = msgs.length;
+  });
+}
+
+// ═══════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════
+function wsRenderSidebar() {
+  const el = document.getElementById('ws-sidebar-body');
+  let html = '';
+
+  // Channels
+  html += `<div class="ws-section-header" onclick="wsToggleSection('channels')">
+    <span id="ws-sec-channels-arrow">▾</span> Channels
+    <span style="margin-left:auto;cursor:pointer;font-size:15px;opacity:.7" onclick="event.stopPropagation();wsCreateChannel()" title="Add channel">+</span>
+  </div>`;
+  WS.channels.forEach(c => {
+    const u = WS.unread[c.id]||0;
+    const active = WS.currentId===c.id;
+    html += `<div class="ws-ch-item ${active?'active':''}" onclick="wsSelectChannel('${c.id}')">
+      <div class="ws-ch-item-icon">${c.emoji||'#'}</div>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</span>
+      ${u?`<span class="ws-ch-badge">${u>99?'99+':u}</span>`:(active?'':'<span style="width:8px"></span>')}
+    </div>`;
+  });
+
+  // Groups
+  if (WS.groups.length) {
+    html += `<div class="ws-section-header" style="margin-top:6px">
+      <span>▾</span> Group DMs
+      <span style="margin-left:auto;cursor:pointer;font-size:15px;opacity:.7" onclick="event.stopPropagation();wsCreateGroup()" title="New group">+</span>
+    </div>`;
+    WS.groups.forEach(g => {
+      const u = WS.unread[g.id]||0;
+      const active = WS.currentId===g.id;
+      html += `<div class="ws-ch-item ${active?'active':''}" onclick="wsSelectGroup('${g.id}')">
+        <div class="ws-ch-item-icon">👥</div>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.name}</span>
+        ${u?`<span class="ws-ch-badge">${u}</span>`:''}
+      </div>`;
+    });
+  }
+
+  // DMs
+  html += `<div class="ws-section-header" style="margin-top:6px">
+    <span>▾</span> Direct Messages
+    <span style="margin-left:auto;cursor:pointer;font-size:15px;opacity:.7" onclick="event.stopPropagation();wsNewDM()" title="New DM">+</span>
+  </div>`;
+  WS.dms.forEach(m => {
+    const dmId = wsDmId(m.id);
+    const u = WS.unread[dmId]||0;
+    const active = WS.currentId===dmId;
+    const ini = (m.name||'?')[0].toUpperCase();
+    html += `<div class="ws-ch-item ${active?'active':''}" onclick="wsSelectDM('${m.id}')">
+      <div class="ws-ch-item-av" style="background:${m.color||'#4a154b'}">${ini}</div>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name}</span>
+      ${u?`<span class="ws-ch-badge">${u}</span>`:'<span style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></span>'}
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function wsDmId(memberId) {
+  const ids = [WS.me.id, memberId].sort();
+  return 'dm_' + ids[0] + '_' + ids[1];
+}
+
+// ═══════════════════════════════════
+//  SELECT CHANNEL / DM / GROUP
+// ═══════════════════════════════════
+function wsSelectChannel(id) {
+  WS.currentId = id; WS.currentType = 'channel';
+  WS.unread[id] = 0;
+  wsRenderSidebar();
+  wsRenderMain();
+  _lastCounts[id] = wsMsgs(id).length;
+}
+
+function wsSelectDM(memberId) {
+  const dmId = wsDmId(memberId);
+  WS.currentId = dmId; WS.currentType = 'dm'; WS.currentDMMember = memberId;
+  WS.unread[dmId] = 0;
+  wsRenderSidebar();
+  wsRenderMain();
+  _lastCounts[dmId] = wsMsgs(dmId).length;
+}
+
+function wsSelectGroup(id) {
+  WS.currentId = id; WS.currentType = 'group';
+  WS.unread[id] = 0;
+  wsRenderSidebar();
+  wsRenderMain();
+  _lastCounts[id] = wsMsgs(id).length;
+}
+
+// ═══════════════════════════════════
+//  MAIN AREA
+// ═══════════════════════════════════
+function wsRenderMain() {
+  const main = document.getElementById('ws-main');
+  let info = { icon:'💬', title:'', desc:'', readonly:false };
+
+  if (WS.currentType==='channel') {
+    const c = WS.channels.find(x=>x.id===WS.currentId);
+    if (c) info = { icon:c.emoji||'#', title:'# '+c.name, desc:c.desc||'', readonly:c.readonly };
+  } else if (WS.currentType==='dm') {
+    const m = WS.members.find(x=>x.id===WS.currentDMMember);
+    if (m) info = { icon:'', title:m.name, desc:(m.dept||m.role||'Team member'), readonly:false, member:m };
+  } else if (WS.currentType==='group') {
+    const g = WS.groups.find(x=>x.id===WS.currentId);
+    if (g) info = { icon:'👥', title:g.name, desc:(g.members||[]).length+' members', readonly:false };
+  }
+
+  main.innerHTML = `
+    <div class="ws-chat-header">
+      ${info.member
+        ? `<div style="width:32px;height:32px;border-radius:6px;background:${info.member.color||'#4a154b'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${info.member.name[0].toUpperCase()}</div>`
+        : `<span class="ws-chat-icon">${info.icon}</span>`
+      }
+      <div class="ws-chat-info" style="flex:1">
+        <div class="ws-chat-title">${info.title}</div>
+        ${info.desc?`<div class="ws-chat-desc">${info.desc}</div>`:''}
+      </div>
+      <div class="ws-header-actions">
+        ${WS.currentType==='channel'?`<button class="ws-header-btn" onclick="wsPinBoard()">📌 Pins</button>`:''}
+        <button class="ws-header-btn" onclick="wsAddReaction()">😊 Emoji</button>
+        <button class="ws-header-btn" style="background:none;border:none;font-size:18px;cursor:pointer" onclick="goBack()" title="Back to ERP">🏠</button>
+      </div>
+    </div>
+    <div class="ws-messages" id="ws-msgs-list"></div>
+    <div class="ws-input-wrap">
+      ${info.readonly
+        ? `<div style="background:#f8f8f8;border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;color:#888;text-align:center">📣 This is a read-only channel. Only admins can post.</div>`
+        : `<div class="ws-input-box">
+            <div class="ws-input-toolbar">
+              <button class="ws-tb-btn" onclick="wsFormat('bold')" title="Bold">𝐁</button>
+              <button class="ws-tb-btn" onclick="wsFormat('italic')" title="Italic">𝐼</button>
+              <button class="ws-tb-btn" onclick="wsFormat('code')" title="Code">&lt;/&gt;</button>
+              <div class="ws-tb-sep"></div>
+              <button class="ws-tb-btn" onclick="wsShowEmojiPicker()" title="Emoji">😊</button>
+              <div style="position:relative" id="ws-emoji-container"></div>
+              <div class="ws-tb-sep"></div>
+              <button class="ws-tb-btn" onclick="wsAttachFile()" title="Attach">📎</button>
+              <button class="ws-tb-btn" onclick="wsMention()" title="Mention">@</button>
+            </div>
+            <div class="ws-input-row">
+              <textarea class="ws-input" id="ws-msg-input" placeholder="Message ${info.title}" rows="1" onkeydown="wsOnKey(event)" oninput="wsResize(this)"></textarea>
+              <button class="ws-send-btn" id="ws-send-btn" onclick="wsSend()">➤</button>
+            </div>
+          </div>`
+      }
+    </div>
+  `;
+  wsRenderChat();
+  document.getElementById('ws-msg-input')?.focus();
+}
+
+// ═══════════════════════════════════
+//  CHAT RENDERING
+// ═══════════════════════════════════
+function wsRenderChat() {
+  const el = document.getElementById('ws-msgs-list'); if (!el) return;
+  const msgs = wsMsgs(WS.currentId);
+
+  // Empty state
+  if (!msgs.length) {
+    let emptyHtml = '';
+    if (WS.currentType==='channel') {
+      const c = WS.channels.find(x=>x.id===WS.currentId);
+      emptyHtml = `<div style="padding:40px 20px;text-align:center"><div style="font-size:48px;margin-bottom:12px">${c?.emoji||'💬'}</div><div style="font-size:20px;font-weight:700;margin-bottom:6px">Welcome to #${c?.name||''}</div><div style="font-size:14px;color:#888">${c?.desc||'Start the conversation!'}</div></div>`;
+    } else if (WS.currentType==='dm') {
+      const m = WS.members.find(x=>x.id===WS.currentDMMember);
+      emptyHtml = `<div class="ws-empty-dm"><div class="ws-empty-av" style="background:${m?.color||'#4a154b'}">${m?.name?.[0]?.toUpperCase()||'?'}</div><div style="font-size:18px;font-weight:700;margin-bottom:6px">${m?.name||''}</div><div style="font-size:13px;color:#888;margin-bottom:4px">${m?.role||''} ${m?.dept?'· '+m.dept:''}</div><div style="font-size:13px;color:#888">This is the start of your direct message history with ${m?.name||'this person'}</div></div>`;
+    }
+    el.innerHTML = emptyHtml;
+    return;
+  }
+
+  let html = '';
+  let lastDate = '', lastSender = '', lastTime = 0;
+  msgs.forEach((msg, idx) => {
+    const d = msg.ts ? new Date(msg.ts) : new Date();
+    const dateStr = d.toISOString().slice(0,10);
+    const today = new Date().toISOString().slice(0,10);
+    const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+
+    if (dateStr !== lastDate) {
+      const label = dateStr===today ? 'Today' : dateStr===yesterday ? 'Yesterday' : d.toLocaleDateString('en-IN',{weekday:'long',month:'long',day:'numeric'});
+      html += `<div class="ws-date-div">${label}</div>`;
+      lastDate = dateStr; lastSender = ''; lastTime = 0;
+    }
+
+    if (msg.type==='system') { html += `<div class="ws-system-msg">${msg.text}</div>`; lastSender=''; return; }
+
+    const timeMs = d.getTime();
+    const isSameSender = msg.sender===lastSender && (timeMs-lastTime) < 300000;
+    lastSender = msg.sender; lastTime = timeMs;
+
+    const ini = (msg.sender||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+    const color = msg.senderColor || '#4a154b';
+    const timeStr = d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    const isMe = msg.senderId === WS.me.id;
+    const reactions = msg.reactions || {};
+    const formatted = wsFormatText(msg.text||'');
+
+    html += `<div class="ws-msg-group" id="msg-${msg.id}" onmouseenter="wsShowMsgActions('${msg.id}')" onmouseleave="wsHideMsgActions('${msg.id}')">
+      ${!isSameSender
+        ? `<div class="ws-msg-av" style="background:${color}">${ini}</div>`
+        : `<div class="ws-msg-av small"></div>`
+      }
+      <div class="ws-msg-right">
+        ${!isSameSender ? `<div class="ws-msg-header"><span class="ws-msg-name" style="color:${color}">${msg.sender}</span><span class="ws-msg-time">${timeStr}</span></div>` : ''}
+        <div class="ws-msg-text">${formatted}</div>
+        ${Object.keys(reactions).length ? `<div class="ws-msg-reactions">${Object.entries(reactions).map(([emoji,users])=>`<span class="ws-reaction ${users.includes(WS.me.id)?'mine':''}" onclick="wsToggleReaction('${msg.id}','${emoji}')">${emoji} ${users.length}</span>`).join('')}</div>` : ''}
+        <div id="msg-actions-${msg.id}" style="display:none;margin-top:2px">
+          <div style="display:inline-flex;gap:2px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:2px 4px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+            ${['👍','❤️','😂','🎉','🔥'].map(e=>`<span style="font-size:14px;cursor:pointer;padding:2px 4px;border-radius:4px" onclick="wsToggleReaction('${msg.id}','${e}')" onmouseenter="this.style.background='#f0f0f0'" onmouseleave="this.style.background=''">${e}</span>`).join('')}
+            ${isMe?`<span style="font-size:11px;padding:3px 6px;cursor:pointer;color:#888;border-left:1px solid var(--border)" onclick="wsEditMsg('${msg.id}')">Edit</span><span style="font-size:11px;padding:3px 6px;cursor:pointer;color:var(--red)" onclick="wsDeleteMsg('${msg.id}')">Del</span>`:''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+
+function wsFormatText(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\n/g,'<br>')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<strong>$1</strong>')
+    .replace(/_(.*?)_/g,'<em>$1</em>')
+    .replace(/`(.*?)`/g,'<code>$1</code>')
+    .replace(/@(\w+)/g,'<span class="ws-mention">@$1</span>');
+}
+
+function wsShowMsgActions(id) { const el=document.getElementById('msg-actions-'+id); if(el)el.style.display=''; }
+function wsHideMsgActions(id) { const el=document.getElementById('msg-actions-'+id); if(el)el.style.display='none'; }
+
+// ═══════════════════════════════════
+//  SEND MESSAGE
+// ═══════════════════════════════════
+function wsSend() {
+  const input = document.getElementById('ws-msg-input');
+  const text = input?.value.trim(); if(!text) return;
+  const msg = {
+    id: Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    senderId: WS.me.id,
+    sender: WS.me.name,
+    senderColor: WS.me.color,
+    text, ts: new Date().toISOString(),
+    reactions: {}
+  };
+  wsAddMsg(WS.currentId, msg);
+  input.value=''; input.style.height='auto';
+  wsRenderChat();
+}
+
+function wsOnKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();wsSend();} }
+function wsResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,160)+'px'; }
+
+// ═══════════════════════════════════
+//  REACTIONS
+// ═══════════════════════════════════
+function wsToggleReaction(msgId, emoji) {
+  const msgs = wsMsgs(WS.currentId);
+  const msg = msgs.find(m=>m.id===msgId); if(!msg) return;
+  if (!msg.reactions) msg.reactions = {};
+  if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
+  const idx = msg.reactions[emoji].indexOf(WS.me.id);
+  if (idx>=0) msg.reactions[emoji].splice(idx,1); else msg.reactions[emoji].push(WS.me.id);
+  if (!msg.reactions[emoji].length) delete msg.reactions[emoji];
+  wsSaveMsgs(WS.currentId, msgs);
+  wsRenderChat();
+}
+
+// ═══════════════════════════════════
+//  EDIT / DELETE
+// ═══════════════════════════════════
+function wsDeleteMsg(msgId) {
+  if(!confirm('Delete this message?')) return;
+  const msgs = wsMsgs(WS.currentId).filter(m=>m.id!==msgId);
+  wsSaveMsgs(WS.currentId, msgs);
+  wsRenderChat();
+}
+
+function wsEditMsg(msgId) {
+  const msgs = wsMsgs(WS.currentId);
+  const msg = msgs.find(m=>m.id===msgId); if(!msg) return;
+  const newText = prompt('Edit message:', msg.text);
+  if (newText===null) return;
+  msg.text = newText; msg.edited = true;
+  wsSaveMsgs(WS.currentId, msgs);
+  wsRenderChat();
+}
+
+// ═══════════════════════════════════
+//  CREATE CHANNEL
+// ═══════════════════════════════════
+function wsCreateChannel() {
+  document.getElementById('ws-modal-title').textContent = 'Create a channel';
+  document.getElementById('ws-modal-body').innerHTML = `
+    <div style="font-size:13px;color:#555;margin-bottom:12px">Channels are where your team communicates. Best when organized around a topic.</div>
+    <input class="ws-modal-input" id="modal-ch-name" placeholder="e.g. project-x, support, random" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')">
+    <input class="ws-modal-input" id="modal-ch-desc" placeholder="What's this channel about? (optional)">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="modal-ch-private"> Make private</label>
+    <div class="ws-modal-btns">
+      <button class="ws-btn-cancel" onclick="wsCloseModal()">Cancel</button>
+      <button class="ws-btn-create" onclick="wsDoCreateChannel()">Create Channel</button>
+    </div>`;
+  document.getElementById('ws-modal-bg').style.display='flex';
+  setTimeout(()=>document.getElementById('modal-ch-name')?.focus(), 100);
+}
+
+function wsDoCreateChannel() {
+  const name = document.getElementById('modal-ch-name').value.trim();
+  const desc = document.getElementById('modal-ch-desc').value.trim();
+  if (!name) { showToast('Enter a channel name','error'); return; }
+  if (WS.channels.find(c=>c.name===name)) { showToast('Channel already exists','error'); return; }
+  const emojis = ['💡','⚡','🌟','🎯','🚀','🔧','🎨','📊'];
+  const emoji = emojis[Math.floor(Math.random()*emojis.length)];
+  const ch = { id:'ch_'+Date.now(), name, desc, emoji, readonly:false };
+  WS.channels.push(ch);
+  wsStoreSet('channels', WS.channels);
+  wsCloseModal();
+  wsRenderSidebar();
+  wsSelectChannel(ch.id);
+  showToast('Channel #'+name+' created!');
+}
+
+// ═══════════════════════════════════
+//  CREATE GROUP DM
+// ═══════════════════════════════════
+function wsCreateGroup() {
+  const others = WS.members.filter(m=>m.id!==WS.me.id);
+  document.getElementById('ws-modal-title').textContent = 'New Group DM';
+  document.getElementById('ws-modal-body').innerHTML = `
+    <div style="font-size:13px;color:#555;margin-bottom:12px">Add people to create a group conversation.</div>
+    <input class="ws-modal-input" id="modal-grp-name" placeholder="Group name (optional)">
+    <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:12px">
+      ${others.map(m=>`<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0">
+        <input type="checkbox" value="${m.id}" id="grp-check-${m.id}">
+        <div style="width:28px;height:28px;border-radius:6px;background:${m.color||'#4a154b'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">${m.name[0].toUpperCase()}</div>
+        <span style="font-size:13px">${m.name}</span>
+        <span style="font-size:11px;color:#888;margin-left:auto">${m.role||''}</span>
+      </label>`).join('')}
+    </div>
+    <div class="ws-modal-btns">
+      <button class="ws-btn-cancel" onclick="wsCloseModal()">Cancel</button>
+      <button class="ws-btn-create" onclick="wsDoCreateGroup()">Create Group</button>
+    </div>`;
+  document.getElementById('ws-modal-bg').style.display='flex';
+}
+
+function wsDoCreateGroup() {
+  const checked = [...document.querySelectorAll('[id^=grp-check-]:checked')].map(el=>el.value);
+  if (!checked.length) { showToast('Select at least one person','error'); return; }
+  const members = [WS.me.id, ...checked];
+  const memberNames = members.map(id => WS.members.find(m=>m.id===id)?.name||id);
+  const name = document.getElementById('modal-grp-name').value.trim() || memberNames.join(', ');
+  const grp = { id:'grp_'+Date.now(), name, members, createdAt: new Date().toISOString() };
+  WS.groups.push(grp);
+  wsStoreSet('groups', WS.groups);
+  wsCloseModal();
+  wsRenderSidebar();
+  wsSelectGroup(grp.id);
+  showToast('Group "'+name+'" created!');
+}
+
+// ═══════════════════════════════════
+//  NEW DM
+// ═══════════════════════════════════
+function wsNewDM() {
+  const others = WS.members.filter(m=>m.id!==WS.me.id);
+  document.getElementById('ws-modal-title').textContent = 'New Direct Message';
+  document.getElementById('ws-modal-body').innerHTML = `
+    <div style="max-height:300px;overflow-y:auto">
+      ${others.map(m=>`<div onclick="wsDoNewDM('${m.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-radius:8px;transition:.1s" onmouseenter="this.style.background='#f0f0f0'" onmouseleave="this.style.background=''">
+        <div style="width:36px;height:36px;border-radius:8px;background:${m.color||'#4a154b'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff">${m.name[0].toUpperCase()}</div>
+        <div><div style="font-size:14px;font-weight:600">${m.name}</div><div style="font-size:12px;color:#888">${m.role||''} ${m.dept?'· '+m.dept:''}</div></div>
+      </div>`).join('')}
+    </div>
+    <div class="ws-modal-btns" style="margin-top:8px"><button class="ws-btn-cancel" onclick="wsCloseModal()">Cancel</button></div>`;
+  document.getElementById('ws-modal-bg').style.display='flex';
+}
+
+function wsDoNewDM(memberId) { wsCloseModal(); wsSelectDM(memberId); }
+
+// ═══════════════════════════════════
+//  NEW MESSAGE (search/compose)
+// ═══════════════════════════════════
+function wsNewMessage() { wsNewDM(); }
+
+// ═══════════════════════════════════
+//  FORMAT TOOLBAR
+// ═══════════════════════════════════
+function wsFormat(type) {
+  const input = document.getElementById('ws-msg-input'); if(!input) return;
+  const sel = input.value.substring(input.selectionStart, input.selectionEnd);
+  const map = { bold:`*${sel||'bold text'}*`, italic:`_${sel||'italic text'}_`, code:`\`${sel||'code'}\`` };
+  const ins = map[type]||'';
+  const before = input.value.substring(0,input.selectionStart);
+  const after = input.value.substring(input.selectionEnd);
+  input.value = before+ins+after;
+  input.focus();
+}
+
+function wsMention() {
+  const input = document.getElementById('ws-msg-input'); if(!input) return;
+  const pos = input.selectionStart;
+  input.value = input.value.slice(0,pos)+'@'+input.value.slice(pos);
+  input.focus();
+}
+
+function wsAttachFile() { showToast('File sharing coming soon!'); }
+
+const QUICK_EMOJIS = ['😊','👍','❤️','🎉','🔥','💪','✅','🚀','😂','🙏','👏','💯','🌟','😍','🤔','😅'];
+function wsShowEmojiPicker() {
+  const container = document.getElementById('ws-emoji-container'); if(!container) return;
+  if (container.children.length) { container.innerHTML=''; return; }
+  container.innerHTML = `<div class="ws-emoji-picker">${QUICK_EMOJIS.map(e=>`<span class="ws-ep-emoji" onclick="wsPickEmoji('${e}')">${e}</span>`).join('')}</div>`;
+}
+function wsPickEmoji(e) {
+  const input = document.getElementById('ws-msg-input'); if(!input) return;
+  const pos = input.selectionStart;
+  input.value = input.value.slice(0,pos)+e+input.value.slice(pos);
+  document.getElementById('ws-emoji-container').innerHTML='';
+  input.focus();
+}
+
+// ═══════════════════════════════════
+//  SEARCH
+// ═══════════════════════════════════
+function wsSearch(q) {
+  if (!q) { wsRenderSidebar(); return; }
+  q = q.toLowerCase();
+  const el = document.getElementById('ws-sidebar-body');
+  const allChannels = WS.channels.filter(c=>c.name.includes(q));
+  const allDMs = WS.dms.filter(m=>m.name.toLowerCase().includes(q));
+  let html = '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.3);padding:8px 12px 4px">Results</div>';
+  allChannels.forEach(c=>{html+=`<div class="ws-ch-item" onclick="wsSelectChannel('${c.id}')">${c.emoji||'#'} ${c.name}</div>`;});
+  allDMs.forEach(m=>{html+=`<div class="ws-ch-item" onclick="wsSelectDM('${m.id}')"><div class="ws-ch-item-av" style="background:${m.color||'#4a154b'}">${m.name[0].toUpperCase()}</div>${m.name}</div>`;});
+  if(!allChannels.length&&!allDMs.length) html+='<div style="padding:16px;color:rgba(255,255,255,.3);font-size:13px;text-align:center">No results</div>';
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════
+function wsShowNotif(msg) {
+  const notif = document.createElement('div');
+  notif.className='ws-notif';
+  notif.textContent = msg.sender+': '+msg.text.slice(0,50)+(msg.text.length>50?'...':'');
+  notif.onclick = () => { wsSelectChannel(WS.currentId); notif.remove(); };
+  document.body.appendChild(notif);
+  setTimeout(()=>notif.remove(),4000);
+}
+
+// ═══════════════════════════════════
+//  PIN BOARD
+// ═══════════════════════════════════
+function wsPinBoard() { showToast('Pin board — coming soon!'); }
+function wsAddReaction() { wsShowEmojiPicker(); }
+function wsOpenProfile() { showToast('Profile settings — coming soon!'); }
+function wsCloseModal(e) { if(!e||e.target===document.getElementById('ws-modal-bg')) document.getElementById('ws-modal-bg').style.display='none'; }
+function goBack() { window.location.href='dashboard.html'; }
+
+// ═══════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', wsInit);
+</script>
+</body>
+</html>

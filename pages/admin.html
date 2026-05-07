@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Wanago™ — Admin Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>
+    .adm-layout { display:flex; height:100vh; overflow:hidden; }
+    .adm-sidebar { width:220px; background:linear-gradient(180deg,#0a1a10 0%,#0d3223 100%); flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
+    .adm-sidebar-logo { padding:18px 16px; border-bottom:1px solid rgba(255,255,255,.08); }
+    .adm-sidebar-logo img { width:130px; height:auto; display:block; }
+    .adm-nav { flex:1; overflow-y:auto; padding:10px 0; }
+    .adm-nav-section { font-size:9.5px; font-weight:700; letter-spacing:1.2px; color:rgba(255,255,255,.35); padding:14px 16px 5px; text-transform:uppercase; }
+    .adm-nav-item { display:flex; align-items:center; gap:10px; padding:9px 16px; cursor:pointer; color:rgba(255,255,255,.65); font-size:13px; font-weight:500; border-radius:0; transition:.15s; margin:1px 8px; border-radius:8px; }
+    .adm-nav-item:hover { background:rgba(255,255,255,.08); color:#fff; }
+    .adm-nav-item.active { background:rgba(255,255,255,.12); color:#fff; font-weight:600; }
+    .adm-nav-item svg { width:16px; height:16px; flex-shrink:0; }
+    .adm-nav-badge { margin-left:auto; background:var(--amb); color:#fff; border-radius:10px; padding:1px 7px; font-size:10px; font-weight:700; }
+    .adm-user { padding:14px 16px; border-top:1px solid rgba(255,255,255,.08); display:flex; align-items:center; gap:10px; }
+    .adm-user-av { width:32px; height:32px; border-radius:8px; background:var(--g600); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+    .adm-user-name { font-size:12.5px; font-weight:600; color:#fff; }
+    .adm-user-email { font-size:10px; color:rgba(255,255,255,.45); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:130px; }
+    .adm-main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+    .adm-topbar { background:#fff; border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+    .adm-topbar-title { font-size:16px; font-weight:800; color:var(--text); }
+    .adm-topbar-sub { font-size:11.5px; color:var(--textd); margin-top:1px; }
+    .adm-content { flex:1; overflow-y:auto; padding:24px; }
+    .adm-tab { display:none; }
+    .adm-tab.active { display:block; }
+    .adm-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--textd); margin:20px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+    .adm-section-title:first-child { margin-top:0; }
+    .adm-kpi { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+    .adm-quick-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
+    .adm-quick-btn { background:#fff; border:1px solid var(--border); border-radius:12px; padding:16px 12px; cursor:pointer; text-align:center; font-family:inherit; transition:.15s; display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .adm-quick-btn:hover { border-color:var(--g400); background:var(--g50); }
+    .adm-quick-btn span { font-size:24px; }
+    .adm-quick-btn div { font-size:12px; font-weight:600; color:var(--textm); }
+    .perm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+    .perm-item { display:flex; align-items:center; gap:7px; padding:7px 10px; background:var(--cream); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:12px; }
+    .perm-item input { accent-color:var(--g600); }
+    .sync-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:10px; }
+    .sync-card-title { font-size:14px; font-weight:700; }
+    .sync-card-sub { font-size:12px; color:var(--textd); line-height:1.6; }
+  </style>
+</head>
+<body>
+<div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div><div class="loader-text">Loading…</div></div>
+
+<div class="adm-layout">
+
+  <!-- LEFT NAVIGATION -->
+  <div class="adm-sidebar">
+    <div class="adm-sidebar-logo">
+      <img src="../assets/logo-white.png" alt="Wanago" onerror="this.style.display='none'"/>
+      <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#fff;display:none">wana<span style="color:#c9a84c">go</span><sup style="font-size:11px">™</sup></div>
+    </div>
+    <div class="adm-nav">
+      <div class="adm-nav-section">Main</div>
+      <div class="adm-nav-item active" onclick="admTab('overview',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Overview
+      </div>
+      <div class="adm-nav-item" onclick="admTab('company',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Company
+      </div>
+      <div class="adm-nav-item" onclick="admTab('team',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Team Members
+      </div>
+      <div class="adm-nav-section">System</div>
+      <div class="adm-nav-item" onclick="admTab('settings',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings
+      </div>
+      <div class="adm-nav-item" onclick="admTab('logins',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Team Logins
+      </div>
+      <div class="adm-nav-item" onclick="admTab('cloudsync',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/><path d="M9 18H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg> Cloud Sync
+      </div>
+      <div class="adm-nav-section">Data</div>
+      <div class="adm-nav-item" onclick="admTab('activity',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Activity Log
+      </div>
+      <div class="adm-nav-item" onclick="admTab('backup',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Backup & Restore
+      </div>
+    </div>
+    <!-- User footer -->
+    <div class="adm-user">
+      <div class="adm-user-av" id="adm-avatar">A</div>
+      <div style="flex:1;min-width:0">
+        <div class="adm-user-name" id="adm-name">Admin</div>
+        <div class="adm-user-email" id="adm-email">admin@wanago.in</div>
+      </div>
+      <svg onclick="handleLogout()" style="width:15px;height:15px;color:rgba(255,255,255,.4);cursor:pointer;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="adm-main">
+    <!-- Topbar -->
+    <div class="adm-topbar">
+      <div>
+        <div class="adm-topbar-title" id="adm-page-title">⚙️ Admin Panel</div>
+        <div class="adm-topbar-sub" id="adm-page-sub">Overview & quick actions</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-sm btn-outline" onclick="goTo('dashboard')" style="font-size:12px">← Back to ERP</button>
+        <button class="btn btn-sm btn-outline" onclick="adminLockNow()" style="font-size:12px">🔒 Lock</button>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="adm-content">
+
+      <!-- ═══ OVERVIEW ═══ -->
+      <div class="adm-tab active" id="adm-tab-overview">
+        <div class="adm-kpi" id="admin-kpi-strip"></div>
+        <div class="adm-section-title">Quick Actions</div>
+        <div class="adm-quick-grid">
+          <button class="adm-quick-btn" onclick="admTab('team',document.querySelector('[onclick*=team]'))"><span>➕</span><div>Add Member</div></button>
+          <button class="adm-quick-btn" onclick="admTab('company',document.querySelector('[onclick*=company]'))"><span>🏢</span><div>Company Settings</div></button>
+          <button class="adm-quick-btn" onclick="admTab('cloudsync',document.querySelector('[onclick*=cloudsync]'))"><span>☁️</span><div>Cloud Sync</div></button>
+          <button class="adm-quick-btn" onclick="admTab('backup',document.querySelector('[onclick*=backup]'))"><span>💾</span><div>Backup Data</div></button>
+          <button class="adm-quick-btn" onclick="admTab('logins',document.querySelector('[onclick*=logins]'))"><span>🔑</span><div>Team Logins</div></button>
+          <button class="adm-quick-btn" onclick="admTab('settings',document.querySelector('[onclick*=settings]'))"><span>⚙️</span><div>Settings</div></button>
+          <button class="adm-quick-btn" onclick="admTab('activity',document.querySelector('[onclick*=activity]'))"><span>📋</span><div>Activity Log</div></button>
+          <button class="adm-quick-btn" onclick="openChangePinModal()"><span>🔑</span><div>Change PIN</div></button>
+        </div>
+        <div id="admin-setup-checklist" style="display:none;background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffd54f;border-radius:var(--radius);padding:16px 18px">
+          <div style="font-weight:700;font-size:13px;color:#f57f17;margin-bottom:10px">🚀 Complete Your Setup</div>
+          <div id="checklist-items" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+        </div>
+      </div>
+
+      <!-- ═══ COMPANY ═══ -->
+      <div class="adm-tab" id="adm-tab-company">
+        <div class="adm-section-title">🏢 Company Information</div>
+        <div class="form-grid" style="margin-bottom:20px">
+          <div class="form-group"><label class="form-label">Company Name</label><input class="form-input" id="s-company" placeholder="Wanago Tours & Travel"></div>
+          <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="s-phone" placeholder="+91 9447 000000"></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="s-email" type="email" placeholder="info@wanago.in"></div>
+          <div class="form-group"><label class="form-label">Website</label><input class="form-input" id="s-website" placeholder="www.wanago.in"></div>
+          <div class="form-group" style="grid-column:1/-1"><label class="form-label">Address</label><input class="form-input" id="s-address" placeholder="Building, Street, City, State, PIN"></div>
+        </div>
+        <div class="adm-section-title">🏦 Banking Details</div>
+        <div class="form-grid" style="margin-bottom:20px">
+          <div class="form-group"><label class="form-label">Bank Name</label><input class="form-input" id="s-bank" placeholder="State Bank of India"></div>
+          <div class="form-group"><label class="form-label">Account Number</label><input class="form-input" id="s-acc" placeholder="XXXXXXXXXX"></div>
+          <div class="form-group"><label class="form-label">IFSC Code</label><input class="form-input" id="s-ifsc" placeholder="SBIN0001234"></div>
+          <div class="form-group"><label class="form-label">UPI ID</label><input class="form-input" id="s-upi" placeholder="wanago@upi"></div>
+        </div>
+        <div class="adm-section-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>🧾 GST Configuration</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--textd)" id="gst-status-label">Disabled</span>
+            <div onclick="toggleGST()" id="gst-toggle-btn" style="width:40px;height:22px;background:var(--border2);border-radius:11px;cursor:pointer;position:relative;transition:.25s">
+              <div id="gst-toggle-knob" style="width:18px;height:18px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:.25s;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>
+            </div>
+          </div>
+        </div>
+        <div id="gst-fields" style="display:none;margin-bottom:20px;margin-top:12px">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">GSTIN</label><input class="form-input" id="s-gstin" placeholder="29AAAAA0000A1Z5"></div>
+            <div class="form-group"><label class="form-label">GST Rate</label><select class="form-select" id="s-gstrate"><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option></select></div>
+            <div class="form-group"><label class="form-label">GST Type</label><select class="form-select" id="s-gsttype"><option value="cgst_sgst">CGST + SGST</option><option value="igst">IGST</option></select></div>
+            <div class="form-group"><label class="form-label">State</label><input class="form-input" id="s-state" placeholder="Kerala"></div>
+          </div>
+        </div>
+        <div class="adm-section-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>🏢 Offices / Branches</span>
+          <button class="btn btn-sm btn-primary" onclick="openAddOfficeModal()">+ Add Office</button>
+        </div>
+        <div id="offices-list" style="margin-bottom:16px"></div>
+        <button class="btn btn-primary" onclick="saveSettings()">💾 Save Company Settings</button>
+      </div>
+
+      <!-- ═══ TEAM ═══ -->
+      <div class="adm-tab" id="adm-tab-team">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="filter-bar" style="margin:0">
+            <div class="chip active" onclick="filterTeam('all',this)">All</div>
+            <div class="chip" onclick="filterTeam('leadership',this)">Leadership</div>
+            <div class="chip" onclick="filterTeam('sales',this)">Sales</div>
+            <div class="chip" onclick="filterTeam('operations',this)">Operations</div>
+            <div class="chip" onclick="filterTeam('finance',this)">Finance</div>
+          </div>
+          <button class="btn btn-primary" onclick="openAddMemberModal()">+ Add Member</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Member</th><th>Department</th><th>Role</th><th>Phone</th><th>Email</th><th>Office</th><th>Actions</th></tr></thead>
+          <tbody id="team-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ═══ SETTINGS ═══ -->
+      <div class="adm-tab" id="adm-tab-settings">
+        <div class="adm-section-title">🎨 Brand & Display</div>
+        <div class="form-grid" style="margin-bottom:20px">
+          <div class="form-group"><label class="form-label">Brand Colour</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="sett-brand-color" value="#134a32" style="width:42px;height:36px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer" oninput="syncColorHex()"><input class="form-input" id="sett-brand-hex" placeholder="#134a32" style="flex:1" oninput="syncHexColor()"></div></div>
+          <div class="form-group"><label class="form-label">Currency</label><select class="form-select" id="sett-currency"><option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="AED">AED</option><option value="EUR">€ EUR</option></select></div>
+          <div class="form-group"><label class="form-label">Date Format</label><select class="form-select" id="sett-dateformat"><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="YYYY-MM-DD">YYYY-MM-DD</option></select></div>
+        </div>
+        <div class="adm-section-title">🔔 Notifications</div>
+        <div class="form-grid" style="margin-bottom:20px">
+          <div class="form-group"><label class="form-label">Follow-up Reminder (days before)</label><input class="form-input" id="sett-fu-days" type="number" value="1" min="0" max="7"></div>
+          <div class="form-group"><label class="form-label">Invoice Due Reminder (days before)</label><input class="form-input" id="sett-inv-days" type="number" value="3" min="0" max="30"></div>
+        </div>
+        <div class="adm-section-title">🔑 Admin PIN</div>
+        <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px">
+          <div style="font-size:13px;color:var(--textm);margin-bottom:12px">Change the PIN required to access Admin, Settings, Team Logins and Cloud Sync.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="openChangePinModal()">🔑 Change Admin PIN</button>
+            <button class="btn btn-outline" onclick="adminLockNow()">🔒 Lock Now</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveAllSettings()">💾 Save Settings</button>
+      </div>
+
+      <!-- ═══ TEAM LOGINS ═══ -->
+      <div class="adm-tab" id="adm-tab-logins">
+        <div style="background:linear-gradient(135deg,#e8f5e9,#e3f2fd);border:1px solid #a5d6a7;border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;gap:14px;align-items:flex-start">
+          <div style="font-size:28px;flex-shrink:0">🔑</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--g800);margin-bottom:6px">Team Login System</div>
+            <div style="font-size:12.5px;color:var(--textm);line-height:1.7">Each team member logs in with their <strong>email + PIN</strong>.<br>
+            • <strong>Founder/Admin</strong> — full access to everything<br>
+            • <strong>Manager</strong> — sees all leads, edits team's leads<br>
+            • <strong>Agent</strong> — sees all leads, edits only their assigned leads</div>
+          </div>
+        </div>
+        <div class="stats-grid g4" style="margin-bottom:20px" id="login-stats"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700">Team Members</div>
+          <button class="btn btn-primary" onclick="openAddMemberModal()">+ Add Member</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Member</th><th>Role</th><th>Email</th><th>PIN</th><th>Access Level</th><th>Actions</th></tr></thead>
+          <tbody id="logins-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ═══ CLOUD SYNC ═══ -->
+      <div class="adm-tab" id="adm-tab-cloudsync">
+        <div id="fs-status-banner" style="margin-bottom:20px;padding:16px 20px;border-radius:var(--radius);display:flex;align-items:center;gap:12px;border:1px solid var(--border);background:var(--cream)">
+          <div style="font-size:28px" id="fs-status-icon">⏳</div>
+          <div><div style="font-size:14px;font-weight:700" id="fs-status-title">Checking connection...</div><div style="font-size:12px;color:var(--textd);margin-top:2px" id="fs-status-msg">Please wait</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+          <div class="sync-card"><div class="sync-card-title">⬇️ Download from Cloud</div><div class="sync-card-sub">Pull latest data from Firestore. Use when switching devices.</div><button class="btn btn-primary" onclick="doSyncDown()">⬇️ Sync Down</button></div>
+          <div class="sync-card"><div class="sync-card-title">⬆️ Upload to Cloud</div><div class="sync-card-sub">Push all local data to Firestore cloud database.</div><button class="btn btn-green" onclick="doSyncUp()">⬆️ Sync Up</button></div>
+          <div class="sync-card"><div class="sync-card-title">🔄 Full Sync</div><div class="sync-card-sub">Upload then download. Best for first-time setup.</div><button class="btn btn-primary" onclick="doFullSync()">🔄 Full Sync</button></div>
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <div class="card-header"><div class="card-title">📊 Local Data Summary</div></div>
+          <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)" id="fs-data-summary"></div>
+        </div>
+      </div>
+
+      <!-- ═══ ACTIVITY ═══ -->
+      <div class="adm-tab" id="adm-tab-activity">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">📋 Recent Activity Log</div>
+        <div id="activity-list"></div>
+      </div>
+
+      <!-- ═══ BACKUP ═══ -->
+      <div class="adm-tab" id="adm-tab-backup">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+            <div class="card-header"><div><div class="card-title">💾 Backup Database</div><div class="card-sub">Download complete backup as JSON</div></div></div>
+            <p style="font-size:12px;color:var(--textd);line-height:1.7;margin-bottom:14px">Creates a backup of all leads, customers, bookings, payments, team, settings and more.</p>
+            <button class="btn btn-primary" onclick="backupFullDB()">💾 Download Backup</button>
+          </div>
+          <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+            <div class="card-header"><div><div class="card-title">📥 Restore Database</div><div class="card-sub">Upload a previously saved backup</div></div></div>
+            <p style="font-size:12px;color:var(--textd);line-height:1.7;margin-bottom:14px">⚠️ This replaces all current data. Make sure you have a recent backup first.</p>
+            <button class="btn btn-outline" onclick="restoreDB()">📥 Restore from File</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;box-shadow:none;border:1px solid var(--border)">
+          <div class="card-header"><div><div class="card-title">📦 Export All Data (CSV)</div><div class="card-sub">Export leads, bookings, payments as spreadsheets</div></div></div>
+          <button class="btn btn-green" onclick="exportAllData()">📦 Export All Data</button>
+        </div>
+      </div>
+
+    </div><!-- end adm-content -->
+  </div><!-- end adm-main -->
+</div><!-- end adm-layout -->
+
+<!-- ADD MEMBER MODAL -->
+<div class="modal-overlay" id="modal-add-member">
+  <div class="modal modal-lg">
+    <div class="modal-title" id="tm-modal-title">Add Team Member</div>
+    <input type="hidden" id="tm-edit-id">
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Full Name *</label><input class="form-input" id="tm-name" placeholder="Rahul Menon"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="tm-phone" placeholder="+91 9447..."></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="tm-email" type="email"></div>
+      <div class="form-group"><label class="form-label">Employee ID</label><input class="form-input" id="tm-empid" placeholder="WGO-001"></div>
+      <div class="form-group"><label class="form-label">Department *</label>
+        <select class="form-select" id="tm-dept"><option value="">Select</option><option value="leadership">Leadership</option><option value="management">Management</option><option value="sales">Sales</option><option value="operations">Operations</option><option value="finance">Finance</option><option value="marketing">Marketing</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Role *</label>
+        <select class="form-select" id="tm-role"><option value="">Select</option><option value="founder">Founder</option><option value="ceo">CEO</option><option value="branch_manager">Branch Manager</option><option value="team_lead">Team Lead</option><option value="senior_manager">Senior Manager</option><option value="sales_manager">Sales Manager</option><option value="operations_manager">Operations Manager</option><option value="finance_manager">Finance Manager</option><option value="marketing_manager">Marketing Manager</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Office / Branch</label><select class="form-select" id="tm-office"><option value="*">All Offices</option></select></div>
+      <div class="form-group"><label class="form-label">Reports To</label><select class="form-select" id="tm-manager"><option value="">None (Top Level)</option></select></div>
+      <div class="form-group"><label class="form-label">Login PIN</label><input class="form-input" id="tm-pin" type="password" placeholder="4-digit PIN" maxlength="4"></div>
+      <div class="form-group"><label class="form-label">Joining Date</label><input class="form-input" id="tm-joindate" type="date"></div>
+    </div>
+    <div id="tm-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div><div style="font-size:13px;font-weight:700">🔒 Access Permissions</div><div style="font-size:11px;color:var(--textd);margin-top:2px">Choose what this member can access</div></div>
+        <div style="display:flex;gap:6px">
+          <button onclick="tmSetAllPermissions(true)" style="background:var(--g50);border:1px solid var(--g200);color:var(--g700);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✅ All</button>
+          <button onclick="tmSetAllPermissions(false)" style="background:var(--red2);border:1px solid rgba(192,57,43,.2);color:var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">❌ None</button>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:8px">Pages</div>
+      <div id="tm-page-permissions" class="perm-grid" style="margin-bottom:14px"></div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:8px">Features</div>
+      <div id="tm-feature-permissions" class="perm-grid"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-member')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMember()">Save Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD OFFICE MODAL -->
+<div class="modal-overlay" id="modal-add-office">
+  <div class="modal">
+    <div class="modal-title">Add Office / Branch</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Office Name *</label><input class="form-input" id="of-name" placeholder="Head Office"></div>
+      <div class="form-group"><label class="form-label">Code *</label><input class="form-input" id="of-code" placeholder="HO" maxlength="5"></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Address</label><input class="form-input" id="of-address" placeholder="Full address"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="of-phone" placeholder="+91..."></div>
+    </div>
+    <div id="of-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-office')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOffice()">Add Office</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+<script src="../js/admin-lock.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
+<script src="../js/admin.js"></script>
+<script src="../js/wanago-space.js"></script>
+</body>
+</html>

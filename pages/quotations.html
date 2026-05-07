@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wanago™ ERP — Quotations</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>.mono{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--textm)}</style>
+</head>
+<body>
+
+<div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div><div class="loader-text">Loading…</div></div>
+
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <div id="main">
+    <div class="topbar">
+      <div class="topbar-title">Quotations</div>
+      <div class="topbar-actions">
+        <div class="search-wrap"><svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="quot-search" type="text" placeholder="Search quotations..." oninput="renderQuotationsPage()"/></div>
+        <div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div>
+      </div>
+    </div>
+
+    <div id="content">
+      <div class="page active">
+
+        <!-- Stats -->
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('all',document.querySelector('.chip'))"><div class="stat-label">Total Quotations</div><div class="stat-val" id="qstat-total">0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('draft',this)"><div class="stat-label">📤 Sent</div><div class="stat-val" id="qstat-sent">0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('converted',this)"><div class="stat-label">✅ Accepted</div><div class="stat-val stat-up" id="qstat-accepted">0</div></div><div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('converted',this)"><div class="stat-label">🎉 Booked</div><div class="stat-val" id="qstat-converted">0</div></div>
+          <div class="stat-card" style="padding:12px 14px"><div class="stat-label">💰 Total Value</div><div class="stat-val" id="qstat-value" style="font-size:17px">₹0</div></div>
+        </div>
+
+        <!-- Toolbar -->
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--sh)">
+          <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
+            <div class="chip active" onclick="filterQuotations('all',this)">All</div>
+            
+            <div class="chip" onclick="filterQuotations('sent',this)">📤 Sent</div>
+            <div class="chip" onclick="filterQuotations('converted',this)">✅ Converted</div>
+            <div class="chip" onclick="filterQuotations('expired',this)">⏰ Expired</div>
+          </div>
+          <select id="quot-sort" onchange="renderQuotationsPage()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);background:var(--cream);font-family:inherit;cursor:pointer;outline:none">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="amount-desc">Amount ↓</option>
+            <option value="amount-asc">Amount ↑</option>
+          </select>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Quot. #</th><th>Customer</th><th>Destination</th><th>Pax</th>
+              <th>Amount</th><th>Issue Date</th><th>Valid Until</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="quotations-tbody"></tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW QUOTATION MODAL -->
+<div class="modal-overlay" id="modal-view-quotation">
+  <div class="modal modal-lg">
+    <div class="modal-title">Quotation Preview</div>
+    <div id="quotation-preview-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-view-quotation')">Close</button>
+      <button class="btn btn-green" onclick="printQuotation()">🖨 Print</button>
+      <button class="btn btn-blue" id="quot-accept-btn" onclick="acceptFromModal()" style="display:none">✅ Customer Accepted</button>
+      <button class="btn btn-primary" id="quot-convert-btn" onclick="convertFromModal()" style="display:none">🗓 Convert to Booking</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+<script src="../js/sidebar.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
+<script src="../js/whatsapp.js"></script>
+<script type="module" src="../js/quotations.js"></script>
+
+<script src="../js/wanago-space.js"></script>
+</body>
+</html>

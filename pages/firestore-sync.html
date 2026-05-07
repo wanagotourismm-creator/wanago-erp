@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Wanago™ — Firestore Sync</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+</head>
+<body>
+<div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div></div>
+<div class="app">
+  <aside id="sidebar"></aside>
+  <div id="main">
+    <div class="topbar"><div class="topbar-title">☁️ Firestore Sync</div><div class="topbar-actions"><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
+    <div id="content"><div class="page active" id="fs-page" style="opacity:0">
+
+      <!-- Status Banner -->
+      <div id="fs-status-banner" style="margin-bottom:20px;padding:16px 20px;border-radius:var(--radius);display:flex;align-items:center;gap:12px;border:1px solid var(--border)">
+        <div style="font-size:28px" id="fs-status-icon">⏳</div>
+        <div>
+          <div style="font-size:14px;font-weight:700" id="fs-status-title">Checking connection...</div>
+          <div style="font-size:12px;color:var(--textd);margin-top:2px" id="fs-status-msg">Please wait</div>
+        </div>
+      </div>
+
+      <!-- Sync Actions -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+        <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+          <div class="card-header"><div><div class="card-title">⬇️ Download from Cloud</div><div class="card-sub">Pull latest data from Firestore</div></div></div>
+          <p style="font-size:12.5px;color:var(--textd);line-height:1.6;margin-bottom:14px">Replaces your local data with the latest version from Firestore. Use this when switching devices.</p>
+          <button class="btn btn-primary" onclick="doSyncDown()">⬇️ Sync Down</button>
+        </div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+          <div class="card-header"><div><div class="card-title">⬆️ Upload to Cloud</div><div class="card-sub">Push local data to Firestore</div></div></div>
+          <p style="font-size:12.5px;color:var(--textd);line-height:1.6;margin-bottom:14px">Uploads all your local data to Firestore. Use this after importing data or to push changes.</p>
+          <button class="btn btn-green" onclick="doSyncUp()">⬆️ Sync Up</button>
+        </div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+          <div class="card-header"><div><div class="card-title">🔄 Full Sync</div><div class="card-sub">Upload then download</div></div></div>
+          <p style="font-size:12.5px;color:var(--textd);line-height:1.6;margin-bottom:14px">Uploads your local data then downloads the merged result. Best for first-time setup.</p>
+          <button class="btn btn-primary" onclick="doFullSync()">🔄 Full Sync</button>
+        </div>
+      </div>
+
+      <!-- Data Summary -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div><div class="card-title">📊 Local Data Summary</div><div class="card-sub">What will be synced to cloud</div></div></div>
+        <div id="fs-data-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div>
+      </div>
+
+      <!-- Instructions -->
+      <div style="background:linear-gradient(135deg,#e8f5e9,#e3f2fd);border:1px solid #a5d6a7;border-radius:var(--radius);padding:20px">
+        <div style="font-size:14px;font-weight:700;color:var(--g800);margin-bottom:12px">🔥 How Firestore Sync Works</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:var(--textm);line-height:1.8">
+          <div>
+            <div style="font-weight:600;color:var(--g700);margin-bottom:6px">✅ What syncs automatically:</div>
+            <div>• Every time you add a lead → saved to cloud</div>
+            <div>• Every booking, payment, customer → cloud</div>
+            <div>• Every setting change → cloud</div>
+            <div>• All team members see same data</div>
+          </div>
+          <div>
+            <div style="font-weight:600;color:var(--g700);margin-bottom:6px">📱 Cross-device access:</div>
+            <div>• Agent on mobile → sees their leads</div>
+            <div>• Manager on laptop → sees all</div>
+            <div>• Works offline → syncs when online</div>
+            <div>• No data loss even if browser clears</div>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+<script src="../js/sidebar.js"></script>
+<script src="../js/admin-lock.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
+<script>
+function initFSPage() {
+  // Auth check
+  var session = sessionStorage.getItem('wanago_session');
+  if (!session) { window.location.href = '../index.html'; return; }
+
+  // Set user info from session
+  var s = JSON.parse(session);
+  var name  = (window.currentUser && window.currentUser.name) || s.name || 'User';
+  var email = s.email || '';
+  var av = document.getElementById('user-avatar');
+  var un = document.getElementById('user-name');
+  var tu = document.getElementById('topbar-user');
+  if (av) av.textContent = name[0].toUpperCase();
+  if (un) un.textContent = name;
+  if (tu) tu.textContent = email;
+
+  window.handleLogout = function() {
+    sessionStorage.removeItem('wanago_session');
+    window.location.href = '../index.html';
+  };
+
+  // Fade loader
+  var l = document.getElementById('page-loader');
+  var a = document.querySelector('.app');
+  var p = document.getElementById('fs-page');
+  setTimeout(function() {
+    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
+    if (a) a.classList.add('loaded');
+    if (p) p.style.opacity = '1';
+  }, 50);
+
+  // Show connection status after short delay
+  setTimeout(function() {
+    var banner = document.getElementById('fs-status-banner');
+    var icon   = document.getElementById('fs-status-icon');
+    var title  = document.getElementById('fs-status-title');
+    var msg    = document.getElementById('fs-status-msg');
+    if (!banner) return;
+
+    if (window._fsReady) {
+      banner.style.background = 'linear-gradient(135deg,#e8f5e9,#f9fbe7)';
+      banner.style.border = '1px solid #a5d6a7';
+      icon.textContent = '✅';
+      title.textContent = 'Firestore Connected';
+      msg.textContent = 'Your data automatically syncs to the cloud on every save.';
+    } else {
+      banner.style.background = '#fff8e1';
+      banner.style.border = '1px solid #ffd54f';
+      icon.textContent = '⚠️';
+      title.textContent = 'Firebase Not Configured Yet';
+      msg.textContent = 'Open firebase/firebase-config.js and paste your Firebase keys to activate cloud sync.';
+    }
+    renderDataSummary();
+  }, 600);
+}
+
+function renderDataSummary() {
+  var items = [
+    { label:'Leads',      count:(DB.leads||[]).length,               icon:'🎯' },
+    { label:'Customers',  count:(DB.customers||[]).length,           icon:'👤' },
+    { label:'Quotations', count:(DB.quotations||[]).length,          icon:'📋' },
+    { label:'Bookings',   count:(DB.bookings||[]).length,            icon:'🗓️' },
+    { label:'Payments',   count:(DB.payments||[]).length,            icon:'💰' },
+    { label:'Invoices',   count:(DB.invoices||[]).length,            icon:'🧾' },
+    { label:'Packages',   count:(DB.packages||[]).length,            icon:'📦' },
+    { label:'Team',       count:((DB.settings&&DB.settings.team)||[]).length, icon:'👥' },
+  ];
+  var el = document.getElementById('fs-data-summary');
+  if (!el) return;
+  el.innerHTML = items.map(function(i) {
+    return '<div class="stat-card"><div class="stat-label">'+i.icon+' '+i.label+'</div><div class="stat-val">'+i.count+'</div><div class="stat-meta">records</div></div>';
+  }).join('');
+}
+
+window.doSyncDown = function() {
+  if (!window._fsReady) { showToast('Firebase not configured yet','error'); return; }
+  showToast('Downloading from cloud...');
+  fsSyncDown().then(function() { renderDataSummary(); showToast('✅ Sync complete!'); });
+};
+
+window.doSyncUp = function() {
+  if (!window._fsReady) { showToast('Firebase not configured yet','error'); return; }
+  if (!confirm('Upload all local data to Firestore?')) return;
+  showToast('Uploading to cloud...');
+  fsSyncUp().then(function() { showToast('✅ Upload complete!'); });
+};
+
+window.doFullSync = function() {
+  if (!window._fsReady) { showToast('Firebase not configured yet','error'); return; }
+  showToast('Syncing...');
+  fsSyncUp().then(function() {
+    return fsSyncDown();
+  }).then(function() {
+    renderDataSummary();
+    showToast('✅ Full sync complete!');
+  });
+};
+
+// Run on page load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initFSPage);
+} else {
+  initFSPage();
+}
+</script>
+</body>
+</html>
