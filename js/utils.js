@@ -651,13 +651,13 @@ const _FULL_ACCESS_ROLES = ['founder','ceo','co_founder','director','admin'];
 
 // Role-based default page access (mirrors admin.js ROLE_DEFAULT_PERMS, kept minimal)
 const _ROLE_PAGE_DEFAULTS = {
-  branch_manager:     ['dashboard','leads','customers','quotations','packages','bookings','invoices','payments','reports','hrms','whatsapp','incentives','settings'],
-  team_lead:          ['dashboard','leads','customers','quotations','packages','bookings','invoices','payments','reports','whatsapp','incentives'],
-  senior_manager:     ['dashboard','leads','customers','quotations','bookings','payments','reports','whatsapp'],
-  sales_manager:      ['dashboard','leads','customers','quotations','packages','bookings','whatsapp','incentives'],
+  branch_manager:     ['dashboard','leads','customers','quotations','packages','bookings','invoices','payments','reports','hrms','whatsapp','marketing','incentives','settings'],
+  team_lead:          ['dashboard','leads','customers','quotations','packages','bookings','invoices','payments','reports','whatsapp','marketing','incentives'],
+  senior_manager:     ['dashboard','leads','customers','quotations','bookings','payments','reports','whatsapp','marketing'],
+  sales_manager:      ['dashboard','leads','customers','quotations','packages','bookings','whatsapp','marketing','incentives'],
   operations_manager: ['dashboard','bookings','packages','customers','payments','invoices','reports'],
   finance_manager:    ['dashboard','payments','invoices','bookings','reports'],
-  marketing_manager:  ['dashboard','leads','customers','whatsapp','reports'],
+  marketing_manager:  ['dashboard','leads','customers','whatsapp','marketing','reports'],
 };
 const _AGENT_PAGES = ['dashboard','leads','customers','quotations','bookings','whatsapp'];
 

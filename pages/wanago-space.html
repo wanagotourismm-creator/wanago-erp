@@ -198,7 +198,7 @@ const WS = {
 // ═══════════════════════════════════
 //  STORAGE
 // ═══════════════════════════════════
-function wsKey(id) { return 'ws_msgs_v3_' + id; }
+function wsKey(id) { return 'ws5_' + id; }
 function wsMsgs(id) { try { return JSON.parse(localStorage.getItem(wsKey(id))||'[]'); } catch(e) { return []; } }
 function wsSaveMsgs(id, msgs) { localStorage.setItem(wsKey(id), JSON.stringify(msgs.slice(-500))); }
 function wsAddMsg(id, msg) {
@@ -260,7 +260,7 @@ function wsInit() {
 
 let _lastCounts = {};
 function wsPoll() {
-  const ids = [...WS.channels.map(c=>c.id), ...WS.dms.map(d=>'dm_'+WS.me.id+'_'+d.id), ...WS.groups.map(g=>g.id)];
+  const ids = [...WS.channels.map(c=>c.id), ...WS.dms.map(d=>wsDmId(d.id)), ...WS.groups.map(g=>g.id)];
   ids.forEach(id => {
     const msgs = wsMsgs(id);
     const prev = _lastCounts[id] || 0;

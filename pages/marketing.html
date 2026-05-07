@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Wanago™ ERP — Marketing Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--g800);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(7,28,18,.35);transition:.3s;opacity:0;z-index:9999}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    #toast.error{background:#c0392b}
+    #toast-icon{font-size:14px}
+
+    /* ── Header banner ── */
+    .mkt-header{background:linear-gradient(135deg,var(--g900) 0%,var(--g700) 60%,var(--g600) 100%);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:relative;overflow:hidden}
+    .mkt-header::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(201,168,76,.18) 0%,transparent 70%);pointer-events:none}
+    .mkt-header::after{content:'';position:absolute;bottom:-30px;left:100px;width:140px;height:140px;background:radial-gradient(circle,rgba(82,194,133,.14) 0%,transparent 70%);pointer-events:none}
+    .mkt-header-left{position:relative;z-index:1}
+    .mkt-header-title{font-family:'DM Serif Display',serif;font-size:22px;color:#fff;margin-bottom:3px}
+    .mkt-header-sub{font-size:12px;color:rgba(255,255,255,.6)}
+    .mkt-header-kpis{display:flex;gap:28px;position:relative;z-index:1}
+    .mkt-hdr-kpi{text-align:center}
+    .mkt-hdr-kpi-val{font-family:'DM Serif Display',serif;font-size:24px;color:#fff;line-height:1}
+    .mkt-hdr-kpi-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.5);margin-top:2px}
+    .mkt-header-actions{display:flex;gap:8px;position:relative;z-index:1}
+    .mkt-hdr-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:9px;padding:8px 15px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
+    .mkt-hdr-btn:hover{background:rgba(255,255,255,.22)}
+    .mkt-hdr-btn-primary{background:var(--g400);border-color:var(--g300)}
+    .mkt-hdr-btn-primary:hover{background:var(--g500)}
+
+    /* ── Campaign card ── */
+    .camp-type-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px}
+    .camp-type-wa{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+    .camp-type-email{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+    .camp-type-sms{background:var(--blue2);color:var(--blue);border:1px solid rgba(37,99,235,.2)}
+    .camp-type-social{background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8}
+
+    /* ── Analytics KPI strip ── */
+    .ana-kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+    .ana-kpi-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius2);padding:14px;box-shadow:var(--sh);text-align:center;position:relative;overflow:hidden}
+    .ana-kpi-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px}
+    .ana-kpi-card:nth-child(1)::after{background:var(--g400)}
+    .ana-kpi-card:nth-child(2)::after{background:#2da065}
+    .ana-kpi-card:nth-child(3)::after{background:#c9a84c}
+    .ana-kpi-card:nth-child(4)::after{background:#2563eb}
+    .ana-kpi-card:nth-child(5)::after{background:#c0392b}
+    .ana-kpi-card:nth-child(6)::after{background:#7b1fa2}
+    .ana-kpi-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.9px;color:var(--textd);font-weight:600;margin-bottom:4px}
+    .ana-kpi-val{font-family:'DM Serif Display',serif;font-size:22px;color:var(--text)}
+  </style>
+</head>
+<body>
+
+<div id="page-loader">
+  <div class="loader-spinner"></div>
+  <div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div>
+  <div class="loader-text">Loading…</div>
+</div>
+
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <div id="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-title">📢 Marketing Hub</div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline" onclick="switchTab(document.querySelector('#mkt-tab-bar .tab:nth-child(3)'),\x27mkt-tab-calendar\x27);mktRenderCalendar()">📅 Calendar</button>
+        <button class="btn btn-outline" onclick="switchTab(document.querySelector('#mkt-tab-bar .tab:nth-child(4)'),\x27mkt-tab-segments\x27);mktRenderSegments()">👥 Segments</button>
+        <button class="btn btn-primary" onclick="openCampaignModal(null)">+ New Campaign</button>
+        <div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div>
+      </div>
+    </div>
+
+    <div id="content"><div class="page active" id="mkt-page-content" style="opacity:0;transition:.3s">
+
+      <!-- ── HEADER BANNER ── -->
+      <div class="mkt-header">
+        <div class="mkt-header-left">
+          <div class="mkt-header-title">📢 Marketing Hub</div>
+          <div class="mkt-header-sub">Campaigns · Segments · Templates · Analytics</div>
+        </div>
+        <div class="mkt-header-kpis">
+          <div class="mkt-hdr-kpi"><div class="mkt-hdr-kpi-val" id="mkt-kpi-campaigns">0</div><div class="mkt-hdr-kpi-lbl">Campaigns</div></div>
+          <div class="mkt-hdr-kpi"><div class="mkt-hdr-kpi-val" id="mkt-kpi-reach">0</div><div class="mkt-hdr-kpi-lbl">Total Reach</div></div>
+          <div class="mkt-hdr-kpi"><div class="mkt-hdr-kpi-val" id="mkt-kpi-mkt-leads">0</div><div class="mkt-hdr-kpi-lbl">Mkt Leads</div></div>
+          <div class="mkt-hdr-kpi"><div class="mkt-hdr-kpi-val" id="mkt-kpi-converted">0</div><div class="mkt-hdr-kpi-lbl">Conversions</div></div>
+          <div class="mkt-hdr-kpi"><div class="mkt-hdr-kpi-val" id="mkt-kpi-scheduled">0</div><div class="mkt-hdr-kpi-lbl">Scheduled</div></div>
+        </div>
+        <div class="mkt-header-actions">
+          <button class="mkt-hdr-btn mkt-hdr-btn-primary" onclick="openCampaignModal(null)">+ New Campaign</button>
+          <button class="mkt-hdr-btn" onclick="switchTab(document.querySelector('#mkt-tab-bar .tab:nth-child(5)'),\x27mkt-tab-templates\x27);mktRenderTemplates()">📝 Templates</button>
+        </div>
+      </div>
+
+      <!-- ── TAB BAR ── -->
+      <div class="tab-bar" id="mkt-tab-bar">
+        <div class="tab active" onclick="switchTab(this,'mkt-tab-overview');mktRenderOverview()">📊 Overview</div>
+        <div class="tab" onclick="switchTab(this,'mkt-tab-campaigns');mktRenderCampaigns()">📣 Campaigns</div>
+        <div class="tab" onclick="switchTab(this,'mkt-tab-calendar');mktRenderCalendar()">📅 Calendar</div>
+        <div class="tab" onclick="switchTab(this,'mkt-tab-segments');mktRenderSegments()">👥 Segments</div>
+        <div class="tab" onclick="switchTab(this,'mkt-tab-templates');mktRenderTemplates()">📝 Templates</div>
+        <div class="tab" onclick="switchTab(this,'mkt-tab-analytics');mktRenderAnalytics()">📈 Analytics</div>
+        <div class="tab" onclick="switchTab(this,'mkt-tab-capture');mktRenderLeadCapture()">🎯 Lead Sources</div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           TAB 1 — OVERVIEW
+      ══════════════════════════════════════════════════ -->
+      <div class="tab-content active" id="mkt-tab-overview">
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
+
+          <!-- Recent campaigns -->
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Recent Campaigns</div><div class="card-sub">Your latest marketing activity</div></div>
+              <button class="btn btn-sm btn-primary" onclick="openCampaignModal(null)">+ New</button>
+            </div>
+            <div class="table-wrap" style="margin:0">
+              <table>
+                <thead><tr>
+                  <th>Campaign</th><th>Status</th><th>Audience</th>
+                  <th style="text-align:right">Reach</th>
+                  <th style="text-align:right">Converted</th>
+                  <th>Date</th><th>Actions</th>
+                </tr></thead>
+                <tbody id="mkt-recent-tbody"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--textd)">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Lead source chart -->
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Lead Sources</div><div class="card-sub">Where your leads come from</div></div>
+            </div>
+            <div id="mkt-source-chart"></div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div style="margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <div class="card" style="cursor:pointer;text-align:center;padding:20px" onclick="openCampaignModal(null)" onmouseenter="this.style.boxShadow='var(--sh2)'" onmouseleave="this.style.boxShadow='var(--sh)'">
+            <div style="font-size:28px;margin-bottom:8px">📣</div>
+            <div style="font-weight:700;font-size:13px">New Campaign</div>
+            <div style="font-size:11px;color:var(--textd);margin-top:3px">Send to any audience</div>
+          </div>
+          <div class="card" style="cursor:pointer;text-align:center;padding:20px" onclick="switchTab(document.querySelector('#mkt-tab-bar .tab:nth-child(5)'),\x27mkt-tab-templates\x27);mktRenderTemplates()" onmouseenter="this.style.boxShadow='var(--sh2)'" onmouseleave="this.style.boxShadow='var(--sh)'">
+            <div style="font-size:28px;margin-bottom:8px">📝</div>
+            <div style="font-weight:700;font-size:13px">Templates</div>
+            <div style="font-size:11px;color:var(--textd);margin-top:3px">Reusable messages</div>
+          </div>
+          <div class="card" style="cursor:pointer;text-align:center;padding:20px" onclick="switchTab(document.querySelector('#mkt-tab-bar .tab:nth-child(4)'),\x27mkt-tab-segments\x27);mktRenderSegments()" onmouseenter="this.style.boxShadow='var(--sh2)'" onmouseleave="this.style.boxShadow='var(--sh)'">
+            <div style="font-size:28px;margin-bottom:8px">👥</div>
+            <div style="font-weight:700;font-size:13px">Segments</div>
+            <div style="font-size:11px;color:var(--textd);margin-top:3px">Smart audience lists</div>
+          </div>
+          <div class="card" style="cursor:pointer;text-align:center;padding:20px" onclick="switchTab(document.querySelector('#mkt-tab-bar .tab:nth-child(6)'),\x27mkt-tab-analytics\x27);mktRenderAnalytics()" onmouseenter="this.style.boxShadow='var(--sh2)'" onmouseleave="this.style.boxShadow='var(--sh)'">
+            <div style="font-size:28px;margin-bottom:8px">📈</div>
+            <div style="font-weight:700;font-size:13px">Analytics</div>
+            <div style="font-size:11px;color:var(--textd);margin-top:3px">Campaign performance</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           TAB 2 — CAMPAIGNS
+      ══════════════════════════════════════════════════ -->
+      <div class="tab-content" id="mkt-tab-campaigns">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="filter-bar" id="mkt-camp-filter-bar" style="margin:0">
+            <div class="chip active" onclick="mktFilterCampaigns('all',this)">All</div>
+            <div class="chip" onclick="mktFilterCampaigns('draft',this)">📝 Draft</div>
+            <div class="chip" onclick="mktFilterCampaigns('scheduled',this)">🕐 Scheduled</div>
+            <div class="chip" onclick="mktFilterCampaigns('sent',this)">✅ Sent</div>
+            <div class="chip" onclick="mktFilterCampaigns('whatsapp',this)">💬 WhatsApp</div>
+            <div class="chip" onclick="mktFilterCampaigns('email',this)">📧 Email</div>
+            <div class="chip" onclick="mktFilterCampaigns('sms',this)">📱 SMS</div>
+            <div class="chip" onclick="mktFilterCampaigns('social',this)">📢 Social</div>
+          </div>
+          <button class="btn btn-primary" onclick="openCampaignModal(null)">+ New Campaign</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Campaign</th><th>Type</th><th>Status</th><th>Audience</th>
+              <th style="text-align:right">Sent</th>
+              <th style="text-align:right">Open Rate</th>
+              <th style="text-align:right">Conversions</th>
+              <th>Date</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="mkt-camp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           TAB 3 — CALENDAR
+      ══════════════════════════════════════════════════ -->
+      <div class="tab-content" id="mkt-tab-calendar">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <button class="btn btn-sm btn-outline" onclick="mktCalPrev()">‹ Prev</button>
+              <span id="mkt-cal-title" style="font-family:'DM Serif Display',serif;font-size:18px;min-width:180px;text-align:center"></span>
+              <button class="btn btn-sm btn-outline" onclick="mktCalNext()">Next ›</button>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <div style="display:flex;gap:8px;font-size:11px">
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:#e8f5e9;border:1px solid #a5d6a7;display:inline-block"></span>WhatsApp</span>
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:#ffebee;border:1px solid #ef9a9a;display:inline-block"></span>Email</span>
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:var(--blue2);border:1px solid rgba(37,99,235,.2);display:inline-block"></span>SMS</span>
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:#f3e5f5;border:1px solid #ce93d8;display:inline-block"></span>Social</span>
+              </div>
+              <button class="btn btn-sm btn-primary" onclick="openCampaignModal(null)">+ Add Campaign</button>
+            </div>
+          </div>
+          <div id="mkt-calendar-wrap"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           TAB 4 — SEGMENTS
+      ══════════════════════════════════════════════════ -->
+      <div class="tab-content" id="mkt-tab-segments">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <div style="font-size:14px;font-weight:700">Audience Segments</div>
+            <div style="font-size:11px;color:var(--textd);margin-top:2px">Smart lists to target the right people with the right message</div>
+          </div>
+          <button class="btn btn-primary" onclick="openSegmentModal(null)">+ New Segment</button>
+        </div>
+        <div id="mkt-segments-grid"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           TAB 5 — TEMPLATES
+      ══════════════════════════════════════════════════ -->
+      <div class="tab-content" id="mkt-tab-templates">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:14px;font-weight:700">Message Templates</div>
+            <div style="font-size:11px;color:var(--textd);margin-top:2px">Reusable templates for WhatsApp, Email and SMS campaigns</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="form-select" id="mkt-tpl-filter" onchange="mktRenderTemplates()" style="width:140px;padding:7px 10px;font-size:12px">
+              <option value="">All Types</option>
+              <option value="whatsapp">💬 WhatsApp</option>
+              <option value="email">📧 Email</option>
+              <option value="sms">📱 SMS</option>
+              <option value="social">📢 Social</option>
+            </select>
+            <button class="btn btn-primary" onclick="openTemplateModal(null)">+ New Template</button>
+          </div>
+        </div>
+        <div id="mkt-templates-grid"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           TAB 6 — ANALYTICS
+      ══════════════════════════════════════════════════ -->
+      <div class="tab-content" id="mkt-tab-analytics">
+        <!-- KPI strip -->
+        <div class="ana-kpi-strip">
+          <div class="ana-kpi-card"><div class="ana-kpi-lbl">Total Sent</div><div class="ana-kpi-val" id="ana-total-sent">0</div></div>
+          <div class="ana-kpi-card"><div class="ana-kpi-lbl">Delivered</div><div class="ana-kpi-val" id="ana-delivered">0</div></div>
+          <div class="ana-kpi-card"><div class="ana-kpi-lbl">Open Rate</div><div class="ana-kpi-val" id="ana-open-rate">0%</div></div>
+          <div class="ana-kpi-card"><div class="ana-kpi-lbl">Click Rate</div><div class="ana-kpi-val" id="ana-click-rate">0%</div></div>
+          <div class="ana-kpi-card"><div class="ana-kpi-lbl">Conversions</div><div class="ana-kpi-val" id="ana-conversions">0</div></div>
+          <div class="ana-kpi-card"><div class="ana-kpi-lbl">CVR</div><div class="ana-kpi-val" id="ana-cvr">0%</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;margin-bottom:16px">
+          <!-- Funnel -->
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Campaign Funnel</div><div class="card-sub">Aggregate performance across all sent campaigns</div></div></div>
+            <div id="ana-funnel" style="padding:4px 0"></div>
+          </div>
+          <!-- Source chart -->
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Lead Sources</div></div></div>
+            <div id="ana-source-chart"></div>
+          </div>
+        </div>
+
+        <!-- Campaign breakdown table -->
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Campaign Performance</div><div class="card-sub">Detailed stats per sent campaign</div></div></div>
+          <div class="table-wrap" style="margin:0">
+            <table>
+              <thead><tr>
+                <th>Campaign</th><th>Type</th>
+                <th style="text-align:right">Sent</th>
+                <th style="text-align:right">Delivered</th>
+                <th style="text-align:right">Open %</th>
+                <th style="text-align:right">Click %</th>
+                <th style="text-align:right">Converted</th>
+                <th style="text-align:right">CVR</th>
+              </tr></thead>
+              <tbody id="ana-camp-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           TAB 7 — LEAD SOURCES
+      ══════════════════════════════════════════════════ -->
+      <div class="tab-content" id="mkt-tab-capture">
+        <div style="margin-bottom:16px">
+          <div style="font-size:14px;font-weight:700">Lead Source Performance</div>
+          <div style="font-size:11px;color:var(--textd);margin-top:2px">Which channels are generating the most leads and conversions</div>
+        </div>
+        <div id="mkt-capture-wrap"></div>
+      </div>
+
+    </div></div><!-- /content /page -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══════════════════════════════════════════════════
+     MODAL — NEW / EDIT CAMPAIGN
+══════════════════════════════════════════════════ -->
+<div id="mkt-camp-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('mkt-camp-modal')">
+  <div class="modal modal-lg">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div class="modal-title" style="margin:0" id="mkt-camp-modal-title">New Campaign</div>
+      <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--textd);line-height:1" onclick="closeModal('mkt-camp-modal')">×</button>
+    </div>
+
+    <input type="hidden" id="mkt-camp-id"/>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Campaign Name *</label>
+        <input class="form-input" id="mkt-camp-name" placeholder="e.g. Diwali Offer 2025">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="mkt-camp-type" onchange="mktUpdateCampTypeUI()">
+          <option value="whatsapp">💬 WhatsApp</option>
+          <option value="email">📧 Email</option>
+          <option value="sms">📱 SMS</option>
+          <option value="social">📢 Social Post</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="mkt-camp-status">
+          <option value="draft">📝 Draft</option>
+          <option value="scheduled">🕐 Scheduled</option>
+          <option value="sent">✅ Sent</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Audience</label>
+        <select class="form-select" id="mkt-camp-audience">
+          <option value="all_customers">All Customers</option>
+          <option value="all_leads">All Leads</option>
+          <option value="hot_leads">🔥 Hot Leads</option>
+          <option value="won_leads">✅ Won Leads</option>
+          <option value="new_leads">🆕 New Leads</option>
+          <option value="follow_up_leads">🔄 Follow-up Leads</option>
+          <option value="all_contacts">All Contacts (Leads + Customers)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Use Template</label>
+        <div style="display:flex;gap:6px">
+          <select class="form-select" id="mkt-camp-tpl" style="flex:1"></select>
+          <button class="btn btn-outline" onclick="mktApplyTemplate()">Apply</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Schedule Date & Time</label>
+        <input class="form-input" type="datetime-local" id="mkt-camp-scheduled">
+      </div>
+    </div>
+
+    <div id="mkt-camp-subject-row" class="form-group" style="margin-bottom:14px;display:none">
+      <label class="form-label">Email Subject</label>
+      <input class="form-input" id="mkt-camp-subject" placeholder="Subject line...">
+    </div>
+
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Message</label>
+      <textarea class="form-textarea" id="mkt-camp-message" style="min-height:110px" placeholder="WhatsApp message text..."></textarea>
+      <div style="font-size:10.5px;color:var(--textd);margin-top:4px">Use *bold*, _italic_, {{variable}} for personalisation</div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:4px">
+      <label class="form-label">Internal Notes</label>
+      <input class="form-input" id="mkt-camp-description" placeholder="Optional notes visible only to your team">
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('mkt-camp-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCampaign()">Save Campaign</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODAL — NEW / EDIT SEGMENT
+══════════════════════════════════════════════════ -->
+<div id="mkt-seg-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('mkt-seg-modal')">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div class="modal-title" style="margin:0" id="mkt-seg-modal-title">New Segment</div>
+      <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--textd)" onclick="closeModal('mkt-seg-modal')">×</button>
+    </div>
+
+    <input type="hidden" id="mkt-seg-id"/>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Segment Name *</label>
+        <input class="form-input" id="mkt-seg-name" placeholder="e.g. Hot Instagram Leads">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icon (emoji)</label>
+        <input class="form-input" id="mkt-seg-icon" placeholder="👥" style="width:80px">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="mkt-seg-desc" placeholder="What is this segment for?">
+    </div>
+
+    <div style="font-size:10px;font-weight:700;color:var(--g700);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Filters — leave blank to include all</div>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Sources (comma-separated)</label>
+        <input class="form-input" id="mkt-seg-f-source" placeholder="Instagram, Facebook, Google" oninput="mktPreviewSegment()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lead Stages</label>
+        <input class="form-input" id="mkt-seg-f-stage" placeholder="new, follow_up, quoted" oninput="mktPreviewSegment()">
+      </div>
+    </div>
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Priorities</label>
+        <input class="form-input" id="mkt-seg-f-priority" placeholder="hot, warm, cold" oninput="mktPreviewSegment()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Destinations (partial match)</label>
+        <input class="form-input" id="mkt-seg-f-dest" placeholder="Goa, Maldives, Kerala" oninput="mktPreviewSegment()">
+      </div>
+    </div>
+
+    <div style="background:var(--g50);border:1px solid var(--g200);border-radius:9px;padding:10px 14px;font-size:12.5px;color:var(--g700);font-weight:600;margin-bottom:4px">
+      🎯 Match preview: <span id="mkt-seg-preview">—</span>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('mkt-seg-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSegment()">Save Segment</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODAL — NEW / EDIT TEMPLATE
+══════════════════════════════════════════════════ -->
+<div id="mkt-tpl-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('mkt-tpl-modal')">
+  <div class="modal modal-lg">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div class="modal-title" style="margin:0" id="mkt-tpl-modal-title">New Template</div>
+      <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--textd)" onclick="closeModal('mkt-tpl-modal')">×</button>
+    </div>
+
+    <input type="hidden" id="mkt-tpl-id"/>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Template Name *</label>
+        <input class="form-input" id="mkt-tpl-name" placeholder="e.g. Birthday Wish">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="mkt-tpl-type" onchange="mktUpdateTplTypeUI()">
+          <option value="whatsapp">💬 WhatsApp</option>
+          <option value="email">📧 Email</option>
+          <option value="sms">📱 SMS</option>
+          <option value="social">📢 Social Post</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Category</label>
+      <select class="form-select" id="mkt-tpl-category">
+        <option value="promotional">🎯 Promotional</option>
+        <option value="transactional">📋 Transactional</option>
+        <option value="sales">💼 Sales</option>
+        <option value="personal">🎂 Personal / Occasion</option>
+      </select>
+    </div>
+
+    <div id="mkt-tpl-subject-row" class="form-group" style="margin-bottom:14px;display:none">
+      <label class="form-label">Email Subject</label>
+      <input class="form-input" id="mkt-tpl-subject" placeholder="Subject line...">
+    </div>
+
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Message Body *</label>
+      <textarea class="form-textarea" id="mkt-tpl-body" style="min-height:130px" placeholder="Write your message here...&#10;&#10;Use *bold*, _italic_ for WhatsApp formatting.&#10;Use {{variable_name}} for personalisation."></textarea>
+      <div style="font-size:10.5px;color:var(--textd);margin-top:4px">Tip: Use *text* for bold, _text_ for italic, {{name}} for merge fields</div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:4px">
+      <label class="form-label">Variables (comma-separated)</label>
+      <input class="form-input" id="mkt-tpl-vars" placeholder="name, destination, amount, date">
+      <div style="font-size:10.5px;color:var(--textd);margin-top:3px">List the {{variable}} names used in your message</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('mkt-tpl-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+<script src="../js/utils.js"></script>
+<script src="../js/sidebar.js"></script>
+<script src="../js/wanago-space.js"></script>
+<script src="../js/marketing.js"></script>
+</body>
+</html>
