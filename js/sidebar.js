@@ -29,10 +29,7 @@
     { section: 'TEAM' },
     { id:'hrms',           label:'HRMS',           icon:'hrms',        page:'hrms'      },
     { section: 'SYSTEM' },
-    { id:'admin',          label:'Admin',          icon:'admin',       page:'admin'     },
-    { id:'team-accounts',  label:'Team Accounts',  icon:'team-accounts', page:'team-accounts' },
-    { id:'settings',       label:'Settings',       icon:'settings',    page:'settings'  },
-    { id:'firestore-sync', label:'Cloud Sync ☁️',  icon:'admin',       page:'firestore-sync' },
+    { id:'admin',          label:'Admin Panel',    icon:'admin',       page:'admin'     },
   ];
 
   const ICONS = {

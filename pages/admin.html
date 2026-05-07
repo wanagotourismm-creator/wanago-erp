@@ -30,12 +30,16 @@
     .adm-tab.active { display:block; }
     .adm-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--textd); margin:20px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
     .adm-section-title:first-child { margin-top:0; }
-    .adm-kpi { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
-    .adm-quick-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
-    .adm-quick-btn { background:#fff; border:1px solid var(--border); border-radius:12px; padding:16px 12px; cursor:pointer; text-align:center; font-family:inherit; transition:.15s; display:flex; flex-direction:column; align-items:center; gap:8px; }
-    .adm-quick-btn:hover { border-color:var(--g400); background:var(--g50); }
-    .adm-quick-btn span { font-size:24px; }
-    .adm-quick-btn div { font-size:12px; font-weight:600; color:var(--textm); }
+    .adm-kpi { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+    .admin-kpi-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:16px; text-align:left; }
+    .admin-kpi-card.kpi-green { border-bottom:3px solid var(--g500); }
+    .admin-kpi-card.kpi-blue  { border-bottom:3px solid var(--blue); }
+    .admin-kpi-card.kpi-amber { border-bottom:3px solid var(--amb); }
+    .adm-quick-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+    .adm-quick-btn { background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px 12px; cursor:pointer; text-align:center; font-family:inherit; transition:.15s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:90px; }
+    .adm-quick-btn:hover { border-color:var(--g400); background:var(--g50); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,.06); }
+    .adm-quick-btn span { font-size:26px; line-height:1; }
+    .adm-quick-btn div { font-size:12px; font-weight:600; color:var(--textm); line-height:1.3; }
     .perm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
     .perm-item { display:flex; align-items:center; gap:7px; padding:7px 10px; background:var(--cream); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:12px; }
     .perm-item input { accent-color:var(--g600); }
@@ -127,7 +131,13 @@
           <button class="adm-quick-btn" onclick="openChangePinModal()"><span>🔑</span><div>Change PIN</div></button>
         </div>
         <div id="admin-setup-checklist" style="display:none;background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffd54f;border-radius:var(--radius);padding:16px 18px">
-          <div style="font-weight:700;font-size:13px;color:#f57f17;margin-bottom:10px">🚀 Complete Your Setup</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-weight:700;font-size:13px;color:#f57f17">🚀 Complete Your Setup</div>
+            <span style="font-size:11px;font-weight:600;color:#f57f17" id="checklist-progress-text">0/6 complete</span>
+          </div>
+          <div style="height:5px;background:#ffe082;border-radius:3px;margin-bottom:12px;overflow:hidden">
+            <div id="checklist-progress-bar" style="height:100%;background:#f57f17;border-radius:3px;transition:width .4s;width:0%"></div>
+          </div>
           <div id="checklist-items" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
         </div>
       </div>
