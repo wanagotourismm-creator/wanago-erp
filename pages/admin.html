@@ -46,6 +46,19 @@
     .sync-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:10px; }
     .sync-card-title { font-size:14px; font-weight:700; }
     .sync-card-sub { font-size:12px; color:var(--textd); line-height:1.6; }
+    .sett-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-bottom:16px; }
+    .sett-card-hd { display:flex; align-items:flex-start; gap:14px; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+    .sett-card-icon { font-size:22px; line-height:1; flex-shrink:0; margin-top:1px; }
+    .sett-card-title { font-size:14px; font-weight:800; color:var(--text); }
+    .sett-card-sub { font-size:11.5px; color:var(--textd); margin-top:2px; }
+    .src-pill { display:inline-flex; align-items:center; gap:5px; background:var(--g50); border:1px solid var(--g200); color:var(--g700); border-radius:20px; padding:4px 10px 4px 13px; font-size:12px; font-weight:600; margin:3px; }
+    .src-pill-x { cursor:pointer; width:17px; height:17px; border-radius:50%; background:var(--g200); display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:var(--g700); flex-shrink:0; font-weight:700; transition:.1s; }
+    .src-pill-x:hover { background:var(--red2); color:var(--red); }
+    .bh-row { display:flex; align-items:center; gap:12px; padding:9px 14px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px; transition:background .15s,border-color .15s; }
+    .bh-row.open { background:#fff; border-color:var(--g200); }
+    .bh-row.closed { background:var(--cream); }
+    .bh-day-label { min-width:90px; font-size:13px; font-weight:600; }
+    .bh-time { border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:12px; font-family:inherit; color:var(--text); }
   </style>
 </head>
 <body>
@@ -222,26 +235,91 @@
 
       <!-- ═══ SETTINGS ═══ -->
       <div class="adm-tab" id="adm-tab-settings">
-        <div class="adm-section-title">🎨 Brand & Display</div>
-        <div class="form-grid" style="margin-bottom:20px">
-          <div class="form-group"><label class="form-label">Brand Colour</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="sett-brand-color" value="#134a32" style="width:42px;height:36px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer" oninput="syncColorHex()"><input class="form-input" id="sett-brand-hex" placeholder="#134a32" style="flex:1" oninput="syncHexColor()"></div></div>
-          <div class="form-group"><label class="form-label">Currency</label><select class="form-select" id="sett-currency"><option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="AED">AED</option><option value="EUR">€ EUR</option></select></div>
-          <div class="form-group"><label class="form-label">Date Format</label><select class="form-select" id="sett-dateformat"><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="YYYY-MM-DD">YYYY-MM-DD</option></select></div>
+
+        <!-- 1. Brand & Display -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">🎨</span><div><div class="sett-card-title">Brand &amp; Display</div><div class="sett-card-sub">Colors, currency and regional preferences</div></div></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Brand Colour</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="sett-brand-color" value="#134a32" style="width:42px;height:36px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer" oninput="syncColorHex()"><input class="form-input" id="sett-brand-hex" placeholder="#134a32" style="flex:1" oninput="syncHexColor()"></div></div>
+            <div class="form-group"><label class="form-label">Currency</label><select class="form-select" id="sett-currency"><option value="INR">₹ INR — Indian Rupee</option><option value="USD">$ USD — US Dollar</option><option value="AED">AED — UAE Dirham</option><option value="EUR">€ EUR — Euro</option><option value="GBP">£ GBP — British Pound</option><option value="SGD">SGD — Singapore Dollar</option></select></div>
+            <div class="form-group"><label class="form-label">Date Format</label><select class="form-select" id="sett-dateformat"><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="YYYY-MM-DD">YYYY-MM-DD</option></select></div>
+            <div class="form-group"><label class="form-label">Timezone</label><select class="form-select" id="sett-timezone"><option value="Asia/Kolkata">Asia/Kolkata (IST +5:30)</option><option value="Asia/Dubai">Asia/Dubai (GST +4:00)</option><option value="Asia/Singapore">Asia/Singapore (SGT +8:00)</option><option value="Europe/London">Europe/London (GMT +0)</option><option value="America/New_York">America/New_York (EST -5)</option></select></div>
+          </div>
         </div>
-        <div class="adm-section-title">🔔 Notifications</div>
-        <div class="form-grid" style="margin-bottom:20px">
-          <div class="form-group"><label class="form-label">Follow-up Reminder (days before)</label><input class="form-input" id="sett-fu-days" type="number" value="1" min="0" max="7"></div>
-          <div class="form-group"><label class="form-label">Invoice Due Reminder (days before)</label><input class="form-input" id="sett-inv-days" type="number" value="3" min="0" max="30"></div>
+
+        <!-- 2. Documents & Numbering -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">🧾</span><div><div class="sett-card-title">Documents &amp; Numbering</div><div class="sett-card-sub">Prefixes and start numbers for invoices, quotes and receipts</div></div></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Invoice Prefix</label><input class="form-input" id="sett-inv-prefix" placeholder="INV" style="text-transform:uppercase"></div>
+            <div class="form-group"><label class="form-label">Invoice Start Number</label><input class="form-input" id="sett-inv-startno" type="number" placeholder="1001" min="1"></div>
+            <div class="form-group"><label class="form-label">Quotation Prefix</label><input class="form-input" id="sett-qt-prefix" placeholder="QT" style="text-transform:uppercase"></div>
+            <div class="form-group"><label class="form-label">Receipt Prefix</label><input class="form-input" id="sett-rcp-prefix" placeholder="RCP" style="text-transform:uppercase"></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Invoice Footer Text</label><input class="form-input" id="sett-inv-footer" placeholder="Thank you for choosing Wanago! We look forward to serving you again."></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Terms &amp; Conditions (shown on invoices)</label><textarea class="form-input" id="sett-inv-terms" rows="3" placeholder="Payment is due within 7 days. Cancellations within 48 hours are non-refundable…" style="resize:vertical;min-height:70px"></textarea></div>
+          </div>
         </div>
-        <div class="adm-section-title">🔑 Admin PIN</div>
-        <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px">
-          <div style="font-size:13px;color:var(--textm);margin-bottom:12px">Change the PIN required to access Admin, Settings, Team Logins and Cloud Sync.</div>
+
+        <!-- 3. Sales & Booking Defaults -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">💼</span><div><div class="sett-card-title">Sales &amp; Booking Defaults</div><div class="sett-card-sub">Default values applied when creating bookings and incentives</div></div></div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Default Deposit % <span id="sett-deposit-preview" style="color:var(--g600);font-weight:700"></span></label>
+              <div style="display:flex;align-items:center;gap:10px">
+                <input type="range" id="sett-deposit-range" min="0" max="100" step="5" value="30" oninput="syncDepositPct()" style="flex:1;accent-color:var(--g600)">
+                <input class="form-input" id="sett-deposit-pct" type="number" min="0" max="100" value="30" oninput="syncDepositRange()" style="width:72px">
+              </div>
+            </div>
+            <div class="form-group"><label class="form-label">Default Agent Commission %</label><input class="form-input" id="sett-commission-pct" type="number" placeholder="5" min="0" max="50" step="0.5"></div>
+            <div class="form-group"><label class="form-label">Cancellation Policy</label><input class="form-input" id="sett-cancel-policy" placeholder="Full refund if cancelled 7+ days before departure"></div>
+            <div class="form-group">
+              <label class="form-label">Auto-assign New Leads</label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                <div id="sett-auto-assign-toggle" onclick="toggleAutoAssign()" style="width:44px;height:24px;background:var(--border2);border-radius:12px;cursor:pointer;position:relative;transition:.25s;flex-shrink:0">
+                  <div id="sett-auto-assign-knob" style="width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:.25s;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>
+                </div>
+                <span id="sett-auto-assign-label" style="font-size:12.5px;color:var(--textd)">Round-robin auto-assign disabled</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Lead Sources -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">🔖</span><div><div class="sett-card-title">Lead Sources</div><div class="sett-card-sub">Manage the source options shown in the lead form</div></div></div>
+          <div id="sett-lead-sources" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:44px;padding:4px 0"></div>
+        </div>
+
+        <!-- 5. Business Hours -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">🕐</span><div><div class="sett-card-title">Business Hours</div><div class="sett-card-sub">Set your working hours — used for follow-up scheduling</div></div></div>
+          <div id="sett-business-hours"></div>
+        </div>
+
+        <!-- 6. Notifications -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">🔔</span><div><div class="sett-card-title">Notification Rules</div><div class="sett-card-sub">When and who gets reminded</div></div></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Follow-up Reminder (days before)</label><input class="form-input" id="sett-fu-days" type="number" value="1" min="0" max="7"></div>
+            <div class="form-group"><label class="form-label">Invoice Due Reminder (days before)</label><input class="form-input" id="sett-inv-days" type="number" value="3" min="0" max="30"></div>
+            <div class="form-group"><label class="form-label">New Lead — notify</label><select class="form-select" id="sett-notify-lead"><option value="assigned">Assigned agent only</option><option value="manager">Manager + assigned agent</option><option value="all">Entire team</option><option value="none">Nobody</option></select></div>
+            <div class="form-group"><label class="form-label">Payment received — notify</label><select class="form-select" id="sett-notify-payment"><option value="finance">Finance team only</option><option value="all">All managers</option><option value="none">Nobody</option></select></div>
+          </div>
+        </div>
+
+        <!-- 7. Admin Security -->
+        <div class="sett-card">
+          <div class="sett-card-hd"><span class="sett-card-icon">🔑</span><div><div class="sett-card-title">Admin Security</div><div class="sett-card-sub">PIN required to access Admin, Settings, Team Logins and Cloud Sync</div></div></div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary" onclick="openChangePinModal()">🔑 Change Admin PIN</button>
             <button class="btn btn-outline" onclick="adminLockNow()">🔒 Lock Now</button>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="saveAllSettings()">💾 Save Settings</button>
+
+        <div style="display:flex;justify-content:flex-end;padding-bottom:8px">
+          <button class="btn btn-primary" style="padding:10px 28px;font-size:14px" onclick="saveAllSettings()">💾 Save All Settings</button>
+        </div>
       </div>
 
       <!-- ═══ TEAM LOGINS ═══ -->

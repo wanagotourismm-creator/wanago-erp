@@ -77,6 +77,7 @@ function admTab(name, el) {
   if (name === 'offices')    { renderOfficesTab(); }
   if (name === 'activity')   { renderActivityLog(); }
   if (name === 'company')    { loadCompanySettings(); }
+  if (name === 'settings')   { loadAllSettings(); }
   if (name === 'logins')     { renderTeamLogins(); }
   if (name === 'cloudsync')  { renderCloudSync(); }
 }
@@ -675,13 +676,162 @@ window.doFullSync = function() {
 };
 
 
+// ══════ SETTINGS — constants ══════
+const _DEFAULT_LEAD_SOURCES = ['Instagram','Facebook','WhatsApp','Walk-in','Referral','Website','Google','YouTube','TV Ad','Cold Call'];
+const _BH_DAYS  = ['mon','tue','wed','thu','fri','sat','sun'];
+const _BH_LABEL = { mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',fri:'Friday',sat:'Saturday',sun:'Sunday' };
+
+// ══════ SETTINGS — load ══════
+function loadAllSettings() {
+  const s = DB.settings;
+  const sv = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  // Brand
+  sv('sett-brand-color', s.brandColor||'#134a32');
+  sv('sett-brand-hex',   s.brandColor||'#134a32');
+  sv('sett-currency',    s.currency||'INR');
+  sv('sett-dateformat',  s.dateFormat||'DD/MM/YYYY');
+  sv('sett-timezone',    s.timezone||'Asia/Kolkata');
+  // Documents
+  sv('sett-inv-prefix',  s.invoicePrefix||'INV');
+  sv('sett-inv-startno', s.invoiceStartNo||1001);
+  sv('sett-qt-prefix',   s.quotePrefix||'QT');
+  sv('sett-rcp-prefix',  s.receiptPrefix||'RCP');
+  sv('sett-inv-footer',  s.invoiceFooter||'Thank you for choosing Wanago!');
+  sv('sett-inv-terms',   s.invoiceTerms||'');
+  // Sales defaults
+  const dep = s.depositPercent != null ? s.depositPercent : 30;
+  sv('sett-deposit-pct', dep); sv('sett-deposit-range', dep);
+  const prev = document.getElementById('sett-deposit-preview'); if (prev) prev.textContent = dep+'%';
+  sv('sett-commission-pct', s.commissionPercent||5);
+  sv('sett-cancel-policy', s.cancellationPolicy||'');
+  _syncAutoAssignUI(!!s.autoAssignLeads);
+  // Notifications
+  sv('sett-fu-days',         s.fuDays||1);
+  sv('sett-inv-days',        s.invDays||3);
+  sv('sett-notify-lead',     s.notifyLeadTo||'manager');
+  sv('sett-notify-payment',  s.notifyPaymentTo||'finance');
+  // Dynamic sections
+  renderLeadSources();
+  renderBusinessHours();
+}
+
+// ══════ LEAD SOURCES ══════
+function renderLeadSources() {
+  const sources = DB.settings.leadSources || _DEFAULT_LEAD_SOURCES;
+  const el = document.getElementById('sett-lead-sources'); if (!el) return;
+  el.innerHTML = sources.map(src =>
+    `<span class="src-pill">${src}<span class="src-pill-x" onclick="removeLeadSource('${src.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">×</span></span>`
+  ).join('') + `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px">
+    <input id="new-source-input" class="form-input" placeholder="Add source…" style="width:130px;height:32px;font-size:12px;border-radius:20px;padding:0 14px" onkeydown="if(event.key==='Enter'){event.preventDefault();addLeadSource();}">
+    <button class="btn btn-sm btn-outline" style="border-radius:20px" onclick="addLeadSource()">+ Add</button>
+  </span>`;
+}
+
+function addLeadSource() {
+  const inp = document.getElementById('new-source-input'); if (!inp) return;
+  const val = inp.value.trim(); if (!val) return;
+  if (!DB.settings.leadSources) DB.settings.leadSources = [..._DEFAULT_LEAD_SOURCES];
+  if (!DB.settings.leadSources.includes(val)) { DB.settings.leadSources.push(val); saveDB(); }
+  inp.value = '';
+  renderLeadSources();
+}
+
+function removeLeadSource(src) {
+  if (!DB.settings.leadSources) DB.settings.leadSources = [..._DEFAULT_LEAD_SOURCES];
+  DB.settings.leadSources = DB.settings.leadSources.filter(s => s !== src);
+  saveDB(); renderLeadSources();
+}
+
+// ══════ BUSINESS HOURS ══════
+function renderBusinessHours() {
+  const bh = DB.settings.businessHours || {};
+  const el = document.getElementById('sett-business-hours'); if (!el) return;
+  el.innerHTML = _BH_DAYS.map(day => {
+    const d = bh[day] || { open: day !== 'sun', start:'09:00', end:'18:00' };
+    return `<div class="bh-row ${d.open?'open':'closed'}">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:110px">
+        <input type="checkbox" id="bh-${day}-open" ${d.open?'checked':''} onchange="toggleBhDay('${day}')" style="width:15px;height:15px;accent-color:var(--g600);cursor:pointer">
+        <span class="bh-day-label" style="color:${d.open?'var(--text)':'var(--textd)'}">${_BH_LABEL[day]}</span>
+      </label>
+      ${d.open
+        ? `<span style="font-size:11px;color:var(--textd);font-weight:600">OPEN</span>
+           <input type="time" id="bh-${day}-start" value="${d.start||'09:00'}" class="bh-time">
+           <span style="font-size:12px;color:var(--textd)">→</span>
+           <input type="time" id="bh-${day}-end"   value="${d.end||'18:00'}"   class="bh-time">`
+        : `<span style="font-size:12px;color:var(--textd);font-style:italic">Closed</span>`}
+    </div>`;
+  }).join('');
+}
+
+function toggleBhDay(day) {
+  const cb = document.getElementById('bh-'+day+'-open');
+  const bh = DB.settings.businessHours || {};
+  bh[day] = { ...(bh[day]||{}), open: cb.checked, start: bh[day]?.start||'09:00', end: bh[day]?.end||'18:00' };
+  DB.settings.businessHours = bh;
+  saveDB(); renderBusinessHours();
+}
+
+// ══════ DEPOSIT SLIDER SYNC ══════
+function syncDepositPct() {
+  const r = document.getElementById('sett-deposit-range'); const p = document.getElementById('sett-deposit-pct'); const pr = document.getElementById('sett-deposit-preview');
+  if (r && p) p.value = r.value;
+  if (pr) pr.textContent = (r?.value||30)+'%';
+}
+function syncDepositRange() {
+  const r = document.getElementById('sett-deposit-range'); const p = document.getElementById('sett-deposit-pct'); const pr = document.getElementById('sett-deposit-preview');
+  if (r && p) r.value = p.value;
+  if (pr) pr.textContent = (p?.value||30)+'%';
+}
+
+// ══════ AUTO-ASSIGN TOGGLE ══════
+function _syncAutoAssignUI(on) {
+  const btn = document.getElementById('sett-auto-assign-toggle');
+  const knob = document.getElementById('sett-auto-assign-knob');
+  const lbl = document.getElementById('sett-auto-assign-label');
+  if (btn) btn.style.background = on ? 'var(--g500)' : 'var(--border2)';
+  if (knob) knob.style.left = on ? '22px' : '2px';
+  if (lbl) lbl.textContent = on ? 'Round-robin auto-assign enabled' : 'Round-robin auto-assign disabled';
+  if (lbl) lbl.style.color = on ? 'var(--g700)' : 'var(--textd)';
+}
+function toggleAutoAssign() {
+  DB.settings.autoAssignLeads = !DB.settings.autoAssignLeads;
+  _syncAutoAssignUI(DB.settings.autoAssignLeads);
+}
+
+// ══════ SAVE ALL SETTINGS ══════
 function saveAllSettings() {
-  var g = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
-  DB.settings.brandColor = g('sett-brand-color') || DB.settings.brandColor;
-  DB.settings.currency   = g('sett-currency')   || 'INR';
-  DB.settings.dateFormat = g('sett-dateformat')  || 'DD/MM/YYYY';
-  DB.settings.fuDays     = parseInt(g('sett-fu-days'))||1;
-  DB.settings.invDays    = parseInt(g('sett-inv-days'))||3;
+  const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const s = DB.settings;
+  // Brand
+  s.brandColor       = g('sett-brand-color') || s.brandColor;
+  s.currency         = g('sett-currency')    || 'INR';
+  s.dateFormat       = g('sett-dateformat')  || 'DD/MM/YYYY';
+  s.timezone         = g('sett-timezone')    || 'Asia/Kolkata';
+  // Documents
+  s.invoicePrefix    = (g('sett-inv-prefix') || 'INV').toUpperCase();
+  s.invoiceStartNo   = parseInt(g('sett-inv-startno'))  || 1001;
+  s.quotePrefix      = (g('sett-qt-prefix')  || 'QT').toUpperCase();
+  s.receiptPrefix    = (g('sett-rcp-prefix') || 'RCP').toUpperCase();
+  s.invoiceFooter    = g('sett-inv-footer');
+  s.invoiceTerms     = g('sett-inv-terms');
+  // Sales defaults
+  s.depositPercent   = parseInt(g('sett-deposit-pct'))   || 30;
+  s.commissionPercent= parseFloat(g('sett-commission-pct')) || 5;
+  s.cancellationPolicy = g('sett-cancel-policy');
+  // Notifications
+  s.fuDays           = parseInt(g('sett-fu-days'))  || 1;
+  s.invDays          = parseInt(g('sett-inv-days')) || 3;
+  s.notifyLeadTo     = g('sett-notify-lead')    || 'manager';
+  s.notifyPaymentTo  = g('sett-notify-payment') || 'finance';
+  // Business hours
+  const bh = {};
+  _BH_DAYS.forEach(day => {
+    const openEl  = document.getElementById('bh-'+day+'-open');
+    const startEl = document.getElementById('bh-'+day+'-start');
+    const endEl   = document.getElementById('bh-'+day+'-end');
+    if (openEl) bh[day] = { open: openEl.checked, start: startEl?.value||'09:00', end: endEl?.value||'18:00' };
+  });
+  if (Object.keys(bh).length) s.businessHours = bh;
   saveDB(); showToast('✅ Settings saved!');
 }
 function syncColorHex() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h) h.value=c.value; }
@@ -693,5 +843,8 @@ window.openAddMemberModal=openAddMemberModal;window.editMember=editMember;window
 window.openAddOfficeModal=openAddOfficeModal;window.saveOffice=saveOffice;
 window.renderOfficesTab=renderOfficesTab;window.editOffice=editOffice;window.toggleOfficeActive=toggleOfficeActive;
 window.backupFullDB=backupFullDB;window.restoreDB=restoreDB;window.exportAllData=exportAllData;
+window.addLeadSource=addLeadSource;window.removeLeadSource=removeLeadSource;
+window.toggleBhDay=toggleBhDay;window.toggleAutoAssign=toggleAutoAssign;
+window.syncDepositPct=syncDepositPct;window.syncDepositRange=syncDepositRange;
 
 initPage(renderAdminPage);

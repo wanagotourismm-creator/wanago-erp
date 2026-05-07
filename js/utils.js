@@ -23,6 +23,13 @@ function defaultDB() {
       companyName: '', address: '', phone: '', email: '', website: '',
       gstEnabled: false, gstin: '', gstRate: 5, gstType: 'cgst_sgst', state: '',
       bankName: '', accountNo: '', ifsc: '', upi: '',
+      brandColor: '#134a32', currency: 'INR', dateFormat: 'DD/MM/YYYY', timezone: 'Asia/Kolkata',
+      invoicePrefix: 'INV', invoiceStartNo: 1001, quotePrefix: 'QT', receiptPrefix: 'RCP',
+      invoiceFooter: 'Thank you for choosing Wanago!', invoiceTerms: '',
+      depositPercent: 30, commissionPercent: 5, cancellationPolicy: '', autoAssignLeads: false,
+      leadSources: ['Instagram','Facebook','WhatsApp','Walk-in','Referral','Website','Google','YouTube','TV Ad','Cold Call'],
+      businessHours: { mon:{open:true,start:'09:00',end:'18:00'}, tue:{open:true,start:'09:00',end:'18:00'}, wed:{open:true,start:'09:00',end:'18:00'}, thu:{open:true,start:'09:00',end:'18:00'}, fri:{open:true,start:'09:00',end:'18:00'}, sat:{open:true,start:'09:00',end:'14:00'}, sun:{open:false,start:'09:00',end:'18:00'} },
+      fuDays: 1, invDays: 3, notifyLeadTo: 'manager', notifyPaymentTo: 'finance',
       agents: [],
       offices: [{ id:'o1', name:'Head Office', code:'HO', address:'', phone:'', active:true, createdAt:new Date().toISOString() }],
       team: [{ id:'t1', name:'Admin', dept:'leadership', role:'founder', phone:'', email:'', empId:'WGO-000', pin:'0000', managerId:'', joinDate:'', color:'#134a32', officeId:'*' }]
