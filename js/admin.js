@@ -56,12 +56,14 @@ function admTab(name, el) {
   // Update topbar title
   var titles = {
     overview:'⚙️ Admin Panel', company:'🏢 Company Settings', team:'👥 Team Members',
+    offices:'🏢 Offices & Branches',
     settings:'⚙️ Settings', logins:'🔑 Team Logins', cloudsync:'☁️ Cloud Sync',
     activity:'📋 Activity Log', backup:'💾 Backup & Restore'
   };
   var subs = {
     overview:'Overview & quick actions', company:'Company info, bank details, GST',
-    team:'Manage staff and roles', settings:'Brand, PIN and preferences',
+    team:'Manage staff and roles', offices:'Manage all office locations and view performance',
+    settings:'Brand, PIN and preferences',
     logins:'Team login credentials', cloudsync:'Firebase Firestore sync',
     activity:'Recent system activity', backup:'Backup and restore data'
   };
@@ -72,6 +74,7 @@ function admTab(name, el) {
   // Render content
   if (name === 'overview')   { renderOverviewStats(); renderSetupChecklist(); }
   if (name === 'team')       { renderTeamMembers('all'); }
+  if (name === 'offices')    { renderOfficesTab(); }
   if (name === 'activity')   { renderActivityLog(); }
   if (name === 'company')    { loadCompanySettings(); }
   if (name === 'logins')     { renderTeamLogins(); }
@@ -113,6 +116,7 @@ function renderAdminPage() {
   loadCompanySettings();
   renderOverviewStats();
   renderSetupChecklist();
+  renderOffices(); // update nav badge
 }
 
 // ══════ COMPANY SETTINGS ══════
@@ -127,6 +131,7 @@ function loadCompanySettings() {
   const gr = document.getElementById('s-gstrate'); if(gr) gr.value = s.gstRate||5;
   const gt = document.getElementById('s-gsttype'); if(gt) gt.value = s.gstType||'cgst_sgst';
   syncGSTToggleUI(s.gstEnabled);
+  renderOffices();
 }
 
 function saveSettings() {
@@ -364,18 +369,165 @@ function saveMember() {
 }
 
 // ══════ OFFICES ══════
+
+const _OFFICE_COLORS = ['#134a32','#1976d2','#f57c00','#7b1fa2','#c9a84c','#d32f2f','#00796b','#00838f'];
+
+// Compact list shown in Company tab
 function renderOffices() {
-  const offices = DB.settings.offices||[]; const el=document.getElementById('offices-list'); if(!el) return;
-  el.innerHTML = offices.map(o => '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--cream);border:1px solid var(--border);border-radius:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:10px;background:var(--g600);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px">'+((o.code||'HO').slice(0,2))+'</div><div style="flex:1"><div style="font-weight:600;font-size:13px">'+o.name+'</div><div style="font-size:11px;color:var(--textd)">'+(o.address||'No address')+'</div></div><span class="pill '+(o.active!==false?'pill-green':'pill-red')+'">'+(o.active!==false?'Active':'Inactive')+'</span></div>').join('') || '<div style="text-align:center;padding:20px;color:var(--textd)">No offices yet</div>';
+  const offices = DB.settings.offices || [];
+  const el = document.getElementById('offices-list');
+  if (!el) return;
+  if (!offices.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd)">No offices yet. Use the + Add Office button above.</div>'; return; }
+  el.innerHTML = offices.map(o => {
+    const color = o.color || _OFFICE_COLORS[0];
+    const code = (o.code || 'OFC').slice(0,3).toUpperCase();
+    const isActive = o.active !== false;
+    const location = [o.city, o.state].filter(Boolean).join(', ') || o.address || '';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
+      <div style="width:38px;height:38px;border-radius:10px;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px;flex-shrink:0">${code}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px">${o.name}</div>
+        <div style="font-size:11px;color:var(--textd)">${location || o.phone || 'No details'}</div>
+      </div>
+      <span class="pill ${isActive?'pill-green':'pill-red'}">${isActive?'Active':'Inactive'}</span>
+      <button class="btn btn-sm btn-outline" onclick="editOffice('${o.id}')">Edit</button>
+    </div>`;
+  }).join('');
+  // Update nav badge
+  const badge = document.getElementById('offices-nav-badge');
+  if (badge) badge.textContent = offices.length > 0 ? offices.length : '';
 }
 
-function openAddOfficeModal() { ['of-name','of-code','of-address','of-phone'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); openModal('modal-add-office'); }
+// Full offices management tab
+function renderOfficesTab() {
+  const offices = DB.settings.offices || [];
+  const team = DB.settings.team || [];
+
+  // KPI strip
+  const kpiEl = document.getElementById('offices-kpi-strip');
+  if (kpiEl) {
+    const activeCount = offices.filter(o => o.active !== false).length;
+    kpiEl.innerHTML = [
+      { label:'Total Offices', val:offices.length,         icon:'🏢', cls:'kpi-green' },
+      { label:'Active',        val:activeCount,            icon:'✅', cls:'kpi-green' },
+      { label:'Inactive',      val:offices.length-activeCount, icon:'🔴', cls:'kpi-amber' },
+      { label:'Total Team',    val:team.length,            icon:'👥', cls:'kpi-blue'  },
+    ].map(k => `<div class="admin-kpi-card ${k.cls}"><div style="font-size:18px;margin-bottom:4px">${k.icon}</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--textd);font-weight:600;margin-bottom:6px">${k.label}</div><div style="font-size:20px;font-weight:800;color:var(--text);font-family:'DM Serif Display',serif">${k.val}</div></div>`).join('');
+  }
+
+  // Office cards grid
+  const gridEl = document.getElementById('offices-grid');
+  if (!gridEl) return;
+  if (!offices.length) {
+    gridEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:56px;color:var(--textd)"><div style="font-size:48px;margin-bottom:14px">🏢</div><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No offices added yet</div><div style="font-size:12.5px;margin-bottom:20px">Add your office locations to start assigning staff and tracking performance</div><button class="btn btn-primary" onclick="openAddOfficeModal()">+ Add First Office</button></div>`;
+    return;
+  }
+
+  gridEl.innerHTML = offices.map((o, idx) => {
+    const color = o.color || _OFFICE_COLORS[idx % _OFFICE_COLORS.length];
+    const code = (o.code || 'OFC').slice(0, 3).toUpperCase();
+    const isActive = o.active !== false;
+    const location = [o.city, o.state].filter(Boolean).join(', ');
+    const manager = team.find(m => m.id === o.managerId);
+    const officeTeam = team.filter(m => m.officeId === o.id);
+    const officeLeads = (DB.leads || []).filter(l => l.officeId === o.id).length;
+    const officeBk = (DB.bookings || []).filter(b => b.officeId === o.id).length;
+
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 6px 24px rgba(0,0,0,.10)'" onmouseout="this.style.boxShadow='none'">
+      <div style="background:${color};padding:18px 16px 14px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div style="width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;letter-spacing:.5px">${code}</div>
+          <span style="background:${isActive?'rgba(255,255,255,.22)':'rgba(0,0,0,.22)'};color:#fff;border-radius:20px;padding:3px 11px;font-size:10px;font-weight:700">${isActive?'● Active':'● Inactive'}</span>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:16px;font-weight:800;color:#fff">${o.name}</div>
+          <div style="font-size:11.5px;color:rgba(255,255,255,.72);margin-top:3px">${location || 'No location set'}</div>
+        </div>
+      </div>
+      <div style="padding:14px 16px">
+        ${o.address ? `<div style="font-size:11.5px;color:var(--textd);margin-bottom:6px;line-height:1.5">📍 ${o.address}</div>` : ''}
+        ${o.phone   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">📞 ${o.phone}</div>` : ''}
+        ${o.email   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">✉️ ${o.email}</div>` : ''}
+        ${manager   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">👤 ${manager.name}</div>` : ''}
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0;padding:10px 8px;background:var(--cream);border-radius:8px">
+          <div style="text-align:center"><div style="font-size:17px;font-weight:800;color:var(--text)">${officeTeam.length}</div><div style="font-size:9px;color:var(--textd);text-transform:uppercase;letter-spacing:.5px">Team</div></div>
+          <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)"><div style="font-size:17px;font-weight:800;color:var(--text)">${officeLeads}</div><div style="font-size:9px;color:var(--textd);text-transform:uppercase;letter-spacing:.5px">Leads</div></div>
+          <div style="text-align:center"><div style="font-size:17px;font-weight:800;color:var(--text)">${officeBk}</div><div style="font-size:9px;color:var(--textd);text-transform:uppercase;letter-spacing:.5px">Bookings</div></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" style="flex:1" onclick="editOffice('${o.id}')">✏️ Edit</button>
+          <button class="btn btn-sm" style="flex:1;background:${isActive?'var(--red2)':'var(--g50)'};color:${isActive?'var(--red)':'var(--g700)'};border:1px solid ${isActive?'rgba(192,57,43,.2)':'var(--g200)'};border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit" onclick="toggleOfficeActive('${o.id}')">${isActive?'🔴 Deactivate':'✅ Activate'}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Update nav badge
+  const badge = document.getElementById('offices-nav-badge');
+  if (badge) badge.textContent = offices.length > 0 ? offices.length : '';
+}
+
+function editOffice(id) {
+  const o = (DB.settings.offices || []).find(x => x.id === id);
+  if (o) openAddOfficeModal(o);
+}
+
+function toggleOfficeActive(id) {
+  const o = (DB.settings.offices || []).find(x => x.id === id);
+  if (!o) return;
+  o.active = !o.active;
+  saveDB(); renderOfficesTab(); renderOffices();
+  showToast(`"${o.name}" ${o.active ? 'activated' : 'deactivated'}`);
+}
+
+function openAddOfficeModal(office) {
+  const editId = office ? office.id : '';
+  const editEl = document.getElementById('of-edit-id'); if (editEl) editEl.value = editId;
+  const titleEl = document.getElementById('of-modal-title'); if (titleEl) titleEl.textContent = office ? 'Edit Office' : 'Add Office / Branch';
+  const saveBtn = document.getElementById('of-save-btn'); if (saveBtn) saveBtn.textContent = office ? 'Save Changes' : 'Add Office';
+  // Clear / fill fields
+  const s = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  s('of-name', office?.name); s('of-code', office?.code); s('of-city', office?.city);
+  s('of-state', office?.state); s('of-address', office?.address);
+  s('of-phone', office?.phone); s('of-email', office?.email);
+  // Populate manager dropdown
+  const mSel = document.getElementById('of-manager');
+  if (mSel) {
+    const mgrs = (DB.settings.team || []).filter(m => ['founder','ceo','branch_manager','team_lead','senior_manager','sales_manager','operations_manager'].includes(m.role));
+    mSel.innerHTML = '<option value="">No Manager</option>' + mgrs.map(m => `<option value="${m.id}"${office && office.managerId === m.id?' selected':''}>${m.name} — ${m.role}</option>`).join('');
+  }
+  const errEl = document.getElementById('of-error'); if (errEl) { errEl.style.display='none'; errEl.textContent=''; }
+  openModal('modal-add-office');
+}
 
 function saveOffice() {
-  const name=document.getElementById('of-name').value.trim(); const code=document.getElementById('of-code').value.trim();
-  if(!name||!code){showError('of-error','Name and code are required.');return;}
-  DB.settings.offices.push({id:uid(),name,code,address:document.getElementById('of-address').value,phone:document.getElementById('of-phone').value,active:true,createdAt:new Date().toISOString()});
-  saveDB(); closeModal('modal-add-office'); renderOffices(); renderSetupChecklist(); showToast('Office "'+name+'" added!');
+  const name = document.getElementById('of-name').value.trim();
+  const code = document.getElementById('of-code').value.trim().toUpperCase();
+  if (!name || !code) { showError('of-error', 'Office name and code are required.'); return; }
+  const g = id => document.getElementById(id)?.value.trim() || '';
+  const editId = g('of-edit-id');
+
+  if (editId) {
+    const o = (DB.settings.offices || []).find(x => x.id === editId);
+    if (o) {
+      o.name = name; o.code = code; o.city = g('of-city'); o.state = g('of-state');
+      o.address = g('of-address'); o.phone = g('of-phone'); o.email = g('of-email');
+      o.managerId = g('of-manager');
+    }
+    saveDB(); closeModal('modal-add-office'); renderOfficesTab(); renderOffices(); renderSetupChecklist();
+    showToast(`"${name}" updated!`);
+  } else {
+    const usedColors = (DB.settings.offices || []).map(o => o.color);
+    const nextColor = _OFFICE_COLORS.find(c => !usedColors.includes(c)) || _OFFICE_COLORS[(DB.settings.offices||[]).length % _OFFICE_COLORS.length];
+    DB.settings.offices.push({
+      id: uid(), name, code, city: g('of-city'), state: g('of-state'),
+      address: g('of-address'), phone: g('of-phone'), email: g('of-email'),
+      managerId: g('of-manager'), color: nextColor, active: true,
+      createdAt: new Date().toISOString()
+    });
+    saveDB(); closeModal('modal-add-office'); renderOfficesTab(); renderOffices(); renderSetupChecklist();
+    showToast(`Office "${name}" added!`);
+  }
 }
 
 // ══════ ACTIVITY LOG ══════
@@ -539,6 +691,7 @@ window.admTab=admTab;window.saveAllSettings=saveAllSettings;window.syncColorHex=
 window.saveSettings=saveSettings;window.toggleGST=toggleGST;window.filterTeam=filterTeam;
 window.openAddMemberModal=openAddMemberModal;window.editMember=editMember;window.saveMember=saveMember;
 window.openAddOfficeModal=openAddOfficeModal;window.saveOffice=saveOffice;
+window.renderOfficesTab=renderOfficesTab;window.editOffice=editOffice;window.toggleOfficeActive=toggleOfficeActive;
 window.backupFullDB=backupFullDB;window.restoreDB=restoreDB;window.exportAllData=exportAllData;
 
 initPage(renderAdminPage);
