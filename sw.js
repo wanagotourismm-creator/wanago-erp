@@ -45,7 +45,7 @@ self.addEventListener('notificationclick', function(event) {
   );
 });
 
-const CACHE_NAME   = 'wanago-v2';
+const CACHE_NAME   = 'wanago-v3';
 const OFFLINE_PAGE = '/index.html';
 
 // Static assets to pre-cache on install
@@ -140,8 +140,24 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets (JS, CSS, images): cache-first
-  if (['script','style','image','font'].includes(request.destination)) {
+  // JS/CSS: network-first so deployed fixes are picked up immediately.
+  if (['script','style'].includes(request.destination)) {
+    event.respondWith(
+      fetch(request)
+        .then(res => {
+          if (res && res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Images/fonts: cache-first is fine for heavy static assets.
+  if (['image','font'].includes(request.destination)) {
     event.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
