@@ -35,7 +35,7 @@ function mergeDefaults(base, saved) {
 function defaultDB() {
   return {
     leads: [], customers: [], quotations: [], packages: [], bookings: [],
-    invoices: [], payments: [], expenses: [], campaigns: [], segments: [], activities: [],
+    invoices: [], payments: [], expenses: [], campaigns: [], segments: [], activities: [], tickets: [],
     hrmsEmployees: [], hrmsAttendance: {}, hrmsLeaves: [], hrmsPayroll: [], hrmsCheckIns: [],
     policies: [], tasks: [], rewards: [], pointsLog: [],
     counters: { leads: 0, bookings: 2000, invoices: 0, payments: 0, campaigns: 0, packages: 0 },
@@ -57,15 +57,18 @@ function defaultDB() {
   };
 }
 
-function saveDB() {
+function saveDB(opts) {
+  // opts.silent = true → update localStorage cache only, no cloud push, no dirty flag.
+  // Used for initialization writes so every page load doesn't trigger a full _pushAll().
+  const silent = opts && opts.silent;
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(DB));
-    localStorage.setItem(STORE_DIRTY_KEY, '1');
+    if (!silent) localStorage.setItem(STORE_DIRTY_KEY, '1');
   } catch(e) {
     console.warn('[saveDB] local cache failed:', e.message);
   }
   // _fsPushDB is defined in firestore.js and pushes the local cache to Firestore.
-  if (typeof window._fsPushDB === 'function') window._fsPushDB();
+  if (!silent && typeof window._fsPushDB === 'function') window._fsPushDB();
 }
 
 let DB = loadDB();
@@ -146,14 +149,9 @@ function visibleMemberIds() {
 
 function hScoped(collection) {
   const officeData = scoped(collection);
-  if (!currentUser) return officeData;
-  if (isHierarchyUnrestricted(currentUser)) return officeData;
-  const ids = visibleMemberIds();
-  if (!ids) return officeData;
-  if (collection === 'hrmsEmployees') return officeData.filter(e => ids.has(e.id));
-  if (collection === 'hrmsLeaves') return officeData.filter(l => ids.has(l.empId));
-  if (collection === 'hrmsPayroll') return officeData.filter(p => ids.has(p.empId));
-  return officeData.filter(r => !r.createdBy || ids.has(r.createdBy));
+  // Wanago is used as a shared team workspace, so records should be visible to
+  // everyone in the selected office. Action permissions still control editing.
+  return officeData;
 }
 
 function createdByStamp() { return currentUser ? currentUser.id : null; }
@@ -170,7 +168,7 @@ function autoLoginAdmin() {
 // Ensure quotations array exists
 if (!Array.isArray(DB.quotations)) DB.quotations = [];
 ensureOfficeSchema();
-saveDB();
+saveDB({ silent: true });
 
 // ── SESSION LOGIN: Check sessionStorage first, then fall back to admin ──
 function loadSessionUser() {
@@ -378,7 +376,7 @@ window.getSR = getSR;
 window.getSheetsURL = getSheetsURL;
 
 // ── Ensure quotations array exists (migration) ──
-if (!Array.isArray(DB.quotations)) { DB.quotations = []; saveDB(); }
+if (!Array.isArray(DB.quotations)) { DB.quotations = []; saveDB({ silent: true }); }
 
 // ── Quotation helpers ──
 function createQuotationFromLead(leadId) {
@@ -533,17 +531,17 @@ if (!DB.incentiveSettings) {
     quarterlyRewardAmount: 10000,
     quarterlyRewardLabel: 'Sponsored Trip / ₹10,000 Cash',
   };
-  saveDB();
+  saveDB({ silent: true });
 }
 
 // Ensure incentive log exists
-if (!Array.isArray(DB.incentiveLogs)) { DB.incentiveLogs = []; saveDB(); }
+if (!Array.isArray(DB.incentiveLogs)) { DB.incentiveLogs = []; saveDB({ silent: true }); }
 
 // Ensure FCM tokens list exists
 if (!Array.isArray(DB.fcmTokens)) { DB.fcmTokens = []; }
 
 // Ensure agent targets exist
-if (!DB.agentTargets) { DB.agentTargets = {}; saveDB(); }
+if (!DB.agentTargets) { DB.agentTargets = {}; saveDB({ silent: true }); }
 
 // ── Calculate incentive for a single booking ──
 function calculateBookingIncentive(booking) {
@@ -723,7 +721,7 @@ window.canUserSeePage = canUserSeePage;
 window.canUserDoAction = canUserDoAction;
 
 // ── Agent personal WhatsApp numbers ──
-if (!DB.agentWhatsApp) { DB.agentWhatsApp = {}; saveDB(); }
+if (!DB.agentWhatsApp) { DB.agentWhatsApp = {}; saveDB({ silent: true }); }
 window.agentWhatsApp = DB.agentWhatsApp;
 
 // ═══════════════════════════════════════════════════════════════

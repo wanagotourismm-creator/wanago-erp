@@ -19,7 +19,7 @@ const FS_BASE = `https://www.gstatic.com/firebasejs/${FS_VER}`;
 
 const FS_COLLECTIONS = [
   'leads','customers','quotations','packages','bookings',
-  'invoices','payments','expenses','campaigns','segments','activities',
+  'invoices','payments','expenses','campaigns','segments','activities','tickets',
   'hrmsEmployees','hrmsLeaves','hrmsPayroll','hrmsCheckIns',
   'tasks','rewards','pointsLog',
 ];
@@ -59,13 +59,18 @@ async function fsInit() {
     _fsReady         = true;
     window._fsReady  = true;
 
+    // Push any dirty local data FIRST — before _loadAll() overwrites DB with cloud data.
+    // Without this, unsaved changes from the previous session are silently lost.
+    if (localStorage.getItem(FS_DIRTY_FLAG)) {
+      try { await _pushAll(); } catch(e) { console.warn('[fsInit] dirty-flush failed:', e.message); }
+    }
+
     // One-time migration from old localStorage data
     await _migrateFromLocalStorage();
 
     // Load all data once, then keep live via listeners
     await _loadAll();
     _attachListeners();
-    if (localStorage.getItem(FS_DIRTY_FLAG)) await _pushAll();
     _startPresence();
 
     console.log('✅ Firestore v3 ready:', _compId);
@@ -152,7 +157,7 @@ async function _loadAll() {
     await Promise.all(FS_COLLECTIONS.map(async col => {
       try {
         const snap = await getDocs(collection(_db, _path(col)));
-        if (!snap.empty) DB[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (!snap.empty) DB[col] = _sortRecords(snap.docs.map(d => _fromFirestoreDoc(d)));
       } catch(e) { /* collection doesn't exist yet */ }
     }));
 
@@ -199,7 +204,7 @@ function _attachListeners() {
   [
     'leads', 'customers', 'bookings', 'payments', 'expenses', 'activities',
     'quotations', 'invoices', 'hrmsEmployees', 'hrmsLeaves',
-    'campaigns', 'packages',
+    'campaigns', 'packages', 'tickets',
   ].forEach(col => {
     fsListen(col);
   });
@@ -208,10 +213,17 @@ function _attachListeners() {
 async function fsListen(collection, callback) {
   if (!_fsReady || !_db) return null;
   try {
-    const { collection: col, onSnapshot, query, orderBy, limit } = await import(`${FS_BASE}/firebase-firestore.js`);
-    const q   = query(col(_db, _path(collection)), orderBy('createdAt', 'desc'), limit(1000));
-    const off = onSnapshot(q, snap => {
-      DB[collection] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { collection: col, onSnapshot } = await import(`${FS_BASE}/firebase-firestore.js`);
+    const off = onSnapshot(col(_db, _path(collection)), snap => {
+      DB[collection] = _sortRecords(snap.docs.map(d => _fromFirestoreDoc(d)));
+      // Keep localStorage cache in sync so page reloads immediately have fresh data.
+      // We do NOT set the dirty flag here — cloud is authoritative for these updates.
+      try {
+        const raw = localStorage.getItem('wanago_erp_v3');
+        const cached = raw ? JSON.parse(raw) : {};
+        cached[collection] = DB[collection];
+        localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
+      } catch(e) { /* quota or parse error — non-critical */ }
       if (callback) callback(DB[collection]);
       _fsRefreshPage();
     }, err => console.warn(`[Listener:${collection}]`, err.message));
@@ -232,7 +244,7 @@ async function fsSave(collection, docId, data) {
   try {
     const { doc, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
     await setDoc(doc(_db, _path(collection), docId), {
-      ...data,
+      ..._cleanForFirestore(data),
       _updatedAt: serverTimestamp(),
       _updatedBy: window.currentUser?.id || 'system',
     }, { merge: true });
@@ -278,7 +290,7 @@ async function _pushAll() {
         const batch = writeBatch(_db);
         items.slice(i, i + 400).forEach(item => {
           if (!item.id) return;
-          batch.set(doc(_db, _path(col), item.id), { ...item, _updatedAt: ts, _updatedBy: uid }, { merge: true });
+          batch.set(doc(_db, _path(col), item.id), { ..._cleanForFirestore(item), _updatedAt: ts, _updatedBy: uid }, { merge: true });
         });
         await batch.commit();
       }
@@ -287,7 +299,7 @@ async function _pushAll() {
 
     // Save extras — non-collection DB fields missed by FS_COLLECTIONS
     try {
-      const extrasClean = JSON.parse(JSON.stringify({
+      const extrasClean = _cleanForFirestore({
         counters:          DB.counters          || {},
         incentiveSettings: DB.incentiveSettings || {},
         agentTargets:      DB.agentTargets      || {},
@@ -296,7 +308,7 @@ async function _pushAll() {
         hrmsAttendance:    DB.hrmsAttendance    || {},
         policies:          DB.policies          || [],
         fcmTokens:         (DB.fcmTokens        || []).slice(-200),
-      }));
+      });
       await setDoc(doc(_db, `companies/${_compId}`, 'extras'),
         { ...extrasClean, _updatedAt: ts, _updatedBy: uid }, { merge: false });
     } catch (e) { console.warn('[extras push]', e.message); }
@@ -320,11 +332,23 @@ async function fsLoadSettings() {
   } catch (e) { console.error('[fsLoadSettings]', e.message); }
 }
 
+async function fsLoadCollection(collectionName) {
+  if (!_db) return [];
+  try {
+    const { collection, getDocs } = await import(`${FS_BASE}/firebase-firestore.js`);
+    const snap = await getDocs(collection(_db, _path(collectionName)));
+    return _sortRecords(snap.docs.map(d => _fromFirestoreDoc(d)));
+  } catch (e) {
+    console.error('[fsLoadCollection]', e.message);
+    return [];
+  }
+}
+
 async function fsSaveSettings() {
   if (!_db) return false;
   try {
     const { doc, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
-    const clean = JSON.parse(JSON.stringify(DB.settings)); // strip non-serialisable values
+    const clean = _cleanForFirestore(DB.settings); // strip non-serialisable values
     await setDoc(doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC), {
       ...clean, _updatedAt: serverTimestamp(),
     }, { merge: true });
@@ -600,12 +624,45 @@ const _PAGE_RENDER_FNS = [
   'renderLeads','renderCustomers','renderBookings','renderPayments',
   'renderQuotationsPage','renderPackages','renderInvoices',
   'renderHRMSOverview','renderAllReports','renderDashboard','renderIncentiveDashboard',
-  'mktRenderOverview',
+  'mktRenderOverview','renderSupport',
 ];
 function _fsRefreshPage() {
   for (const fn of _PAGE_RENDER_FNS) {
     if (typeof window[fn] === 'function') { window[fn](); return; }
   }
+}
+
+function _cleanForFirestore(value) {
+  if (value === undefined || typeof value === 'function') return null;
+  if (value === null) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(_cleanForFirestore);
+  if (typeof value === 'object') {
+    const out = {};
+    Object.keys(value).forEach(key => {
+      if (value[key] !== undefined && typeof value[key] !== 'function') {
+        out[key] = _cleanForFirestore(value[key]);
+      }
+    });
+    return out;
+  }
+  return value;
+}
+
+function _fromFirestoreDoc(d) {
+  const data = d.data();
+  delete data._updatedAt;
+  delete data._updatedBy;
+  return { id: d.id, ...data };
+}
+
+function _sortRecords(records) {
+  return [...records].sort((a, b) => {
+    const ad = a.createdAt || a.date || a.tsStr || '';
+    const bd = b.createdAt || b.date || b.tsStr || '';
+    if (ad || bd) return String(bd).localeCompare(String(ad));
+    return String(b.id || '').localeCompare(String(a.id || ''));
+  });
 }
 
 /* ══════════════════════════════════════════════════
@@ -619,6 +676,7 @@ window.fsListen        = fsListen;
 window.fsSyncDown      = _loadAll;       // backward compat
 window.fsSyncUp        = _pushAll;       // backward compat
 window.fsLoadSettings  = fsLoadSettings;
+window.fsLoadCollection= fsLoadCollection;
 window.fsSaveSettings  = fsSaveSettings;
 window.fsUploadFile    = fsUploadFile;
 window.fsDeleteFile    = fsDeleteFile;
