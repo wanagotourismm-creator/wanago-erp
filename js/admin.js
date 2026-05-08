@@ -169,6 +169,124 @@ function renderOverviewStats() {
     {label:'Customers',val:customers.length,cls:'kpi-amber',icon:'👤'},
     {label:'Team Size',val:team.length,cls:'kpi-blue',icon:'👥'},
   ].map(k => '<div class="admin-kpi-card '+k.cls+'"><div style="font-size:18px;margin-bottom:4px">'+k.icon+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--textd);font-weight:600;margin-bottom:6px">'+k.label+'</div><div style="font-size:20px;font-weight:800;color:var(--text);font-family:DM Serif Display,serif">'+k.val+'</div></div>').join('');
+
+  renderDataHealth();
+}
+window.renderDataHealth = renderDataHealth;
+
+// ══════ DATA HEALTH DASHBOARD ══════
+function renderDataHealth() {
+  const el = document.getElementById('adm-data-health');
+  if (!el) return;
+
+  const leads     = hScoped('leads')     || [];
+  const bookings  = hScoped('bookings')  || [];
+  const customers = hScoped('customers') || [];
+  const quotations = DB.quotations       || [];
+  const invoices  = DB.invoices          || [];
+
+  // Per-module scoring
+  function pct(bad, total) { return total === 0 ? 100 : Math.max(0, Math.round((1 - bad/total) * 100)); }
+
+  const leadsIssues   = leads.filter(l => !l.phone && !l.email).length;
+  const leadsNoSrc    = leads.filter(l => !l.source).length;
+  const leadScore     = pct(leadsIssues + leadsNoSrc * 0.5, leads.length || 1);
+
+  const bkNoPhone     = bookings.filter(b => !b.customerPhone && b.status !== 'cancelled').length;
+  const bkNoDate      = bookings.filter(b => !b.travelDate && b.status !== 'cancelled').length;
+  const bkScore       = pct(bkNoPhone + bkNoDate * 0.5, bookings.length || 1);
+
+  const custNoPhone   = customers.filter(c => !c.phone).length;
+  const custNoEmail   = customers.filter(c => !c.email).length;
+  const custNoCity    = customers.filter(c => !c.city).length;
+  const custScore     = pct(custNoPhone + custNoEmail * 0.3 + custNoCity * 0.2, customers.length || 1);
+
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+  const quotExpired   = quotations.filter(q => {
+    if (q.status !== 'sent') return false;
+    const exp = new Date(q.createdAt); exp.setDate(exp.getDate() + (q.validDays||15));
+    return exp < todayDate;
+  }).length;
+  const quotScore     = pct(quotExpired, quotations.length || 1);
+
+  const invOverdue    = invoices.filter(i => i.status === 'overdue').length;
+  const invScore      = pct(invOverdue, invoices.length || 1);
+
+  const overall = typeof window.WanagoAI !== 'undefined'
+    ? WanagoAI.dataHealthScore().score
+    : Math.round((leadScore + bkScore + custScore + quotScore + invScore) / 5);
+
+  const scoreColor = overall >= 80 ? '#16a34a' : overall >= 60 ? '#f59e0b' : '#dc2626';
+  const scoreBg    = overall >= 80 ? '#f0fdf4' : overall >= 60 ? '#fffbeb' : '#fef2f2';
+  const scoreLabel = overall >= 80 ? 'Healthy' : overall >= 60 ? 'Needs Attention' : 'Critical';
+  const scoreIcon  = overall >= 80 ? '🟢' : overall >= 60 ? '🟡' : '🔴';
+
+  // Collect actionable issues
+  const issues = [];
+  if (leadsIssues)   issues.push({ icon:'🎯', msg: leadsIssues+' lead'+(leadsIssues>1?'s':'')+' missing phone & email', page:'leads', cta:'Fix Leads' });
+  if (leadsNoSrc)    issues.push({ icon:'🎯', msg: leadsNoSrc+' lead'+(leadsNoSrc>1?'s':'')+' without a source', page:'leads', cta:'Fix Leads' });
+  if (bkNoPhone)     issues.push({ icon:'🗓', msg: bkNoPhone+' booking'+(bkNoPhone>1?'s':'')+' missing customer phone', page:'bookings', cta:'Fix Bookings' });
+  if (bkNoDate)      issues.push({ icon:'🗓', msg: bkNoDate+' booking'+(bkNoDate>1?'s':'')+' missing travel date', page:'bookings', cta:'Fix Bookings' });
+  if (custNoPhone)   issues.push({ icon:'👤', msg: custNoPhone+' customer'+(custNoPhone>1?'s':'')+' have no phone on file', page:'customers', cta:'Fix Customers' });
+  if (custNoEmail)   issues.push({ icon:'👤', msg: custNoEmail+' customer'+(custNoEmail>1?'s':'')+' have no email address', page:'customers', cta:'Fix Customers' });
+  if (quotExpired)   issues.push({ icon:'📋', msg: quotExpired+' quotation'+(quotExpired>1?'s':'')+' expired without conversion', page:'quotations', cta:'Review Quotes' });
+  if (invOverdue)    issues.push({ icon:'🧾', msg: invOverdue+' invoice'+(invOverdue>1?'s':'')+' are overdue', page:'invoices', cta:'View Invoices' });
+
+  // Module bar
+  const modules = [
+    { label:'Leads', score:leadScore, count:leads.length },
+    { label:'Bookings', score:bkScore, count:bookings.length },
+    { label:'Customers', score:custScore, count:customers.length },
+    { label:'Quotations', score:quotScore, count:quotations.length },
+    { label:'Invoices', score:invScore, count:invoices.length },
+  ];
+
+  const modBars = modules.map(m => {
+    const c = m.score >= 80 ? '#16a34a' : m.score >= 60 ? '#f59e0b' : '#dc2626';
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">'+
+      '<div style="width:80px;font-size:11.5px;font-weight:600;color:var(--textm);flex-shrink:0">'+m.label+'</div>'+
+      '<div style="flex:1;height:7px;background:var(--border);border-radius:4px;overflow:hidden">'+
+        '<div style="width:'+m.score+'%;height:100%;background:'+c+';border-radius:4px;transition:.5s"></div>'+
+      '</div>'+
+      '<div style="width:36px;text-align:right;font-size:11.5px;font-weight:700;color:'+c+';flex-shrink:0">'+m.score+'%</div>'+
+      '<div style="width:32px;text-align:right;font-size:10px;color:var(--textd);flex-shrink:0">'+m.count+'</div>'+
+    '</div>';
+  }).join('');
+
+  const issueItems = issues.slice(0, 6).map(i =>
+    '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--cream);border:1px solid var(--border);border-radius:8px">'+
+      '<span style="font-size:14px">'+i.icon+'</span>'+
+      '<div style="flex:1;font-size:12px;color:var(--textm)">'+i.msg+'</div>'+
+      '<button onclick="goTo(\''+i.page+'\')" style="font-size:10.5px;font-weight:700;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--g700);cursor:pointer;font-family:inherit;white-space:nowrap">'+i.cta+' →</button>'+
+    '</div>'
+  ).join('');
+
+  el.innerHTML =
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--sh)">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text)">🏥 Data Health Dashboard</div>'+
+        '<button onclick="renderDataHealth()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--cream);cursor:pointer;font-family:inherit;color:var(--textm)">↺ Refresh</button>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:140px 1fr;gap:20px;margin-bottom:'+(issues.length?'16px':'0')+'">'+
+        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:'+scoreBg+';border:2px solid '+scoreColor+'33;border-radius:12px;padding:16px 8px;text-align:center">'+
+          '<div style="font-size:36px;font-weight:900;color:'+scoreColor+';font-family:DM Serif Display,serif;line-height:1">'+overall+'</div>'+
+          '<div style="font-size:11px;font-weight:600;color:'+scoreColor+';margin:4px 0">/ 100</div>'+
+          '<div style="font-size:12px;font-weight:700;color:'+scoreColor+'">'+scoreIcon+' '+scoreLabel+'</div>'+
+          '<div style="font-size:10px;color:var(--textd);margin-top:4px">'+issues.length+' issue'+(issues.length!==1?'s':'')+' found</div>'+
+        '</div>'+
+        '<div style="padding-top:4px">'+
+          '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--textd);margin-bottom:10px">Module Breakdown</div>'+
+          modBars+
+        '</div>'+
+      '</div>'+
+      (issues.length ?
+        '<div style="border-top:1px solid var(--border);padding-top:14px">'+
+          '<div style="font-size:11px;font-weight:700;color:var(--textd);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">'+
+            '⚠️ '+issues.length+' Issue'+(issues.length!==1?'s':'')+' Requiring Attention</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+issueItems+'</div>'+
+        '</div>'
+      : '<div style="border-top:1px solid var(--border);padding-top:12px;text-align:center;font-size:12px;color:var(--g600);font-weight:600">✅ All modules look healthy!</div>')+
+    '</div>';
 }
 
 // ══════ SETUP CHECKLIST ══════
@@ -583,6 +701,25 @@ function exportAllData() {
 
 
 
+function recalcCustomerStats() {
+  if (!confirm('Recalculate bookingsCount and totalSpent for all customers from live booking & payment data?')) return;
+  const custs = DB.customers || [];
+  custs.forEach(c => { c.bookingsCount = 0; c.totalSpent = 0; });
+  (DB.bookings||[]).filter(b => b.status === 'confirmed' || b.status === 'completed').forEach(b => {
+    const c = custs.find(x => x.id === b.customerId || (b.customerPhone && x.phone === b.customerPhone));
+    if (c) c.bookingsCount = (c.bookingsCount||0) + 1;
+  });
+  (DB.payments||[]).filter(p => p.status === 'completed').forEach(p => {
+    const b = (DB.bookings||[]).find(x => x.id === p.bookingId);
+    const cId = b ? b.customerId : null;
+    const c = custs.find(x => x.id === cId || x.name === p.customerName || (p.customerPhone && x.phone === p.customerPhone));
+    if (c) c.totalSpent = (c.totalSpent||0) + Number(p.amount||0);
+  });
+  saveDB();
+  showToast('Customer stats recalculated for '+custs.length+' customers ✅');
+}
+window.recalcCustomerStats = recalcCustomerStats;
+
 // ── Team Logins tab ──
 function renderTeamLogins() {
   var team = DB.settings.team || [];
@@ -872,6 +1009,7 @@ function loadIntegrations() {
   sv('integ-gmail-clientid', gml.clientId  || '');
   sv('integ-gmail-fromname', gml.fromName  || '');
   sv('integ-gs-url',         gs.webAppUrl  || '');
+  sv('integ-fcm-vapid',     (DB.settings.fcmVapidKey) || '');
 
   var autoEl = document.getElementById('integ-gs-autosync');
   if (autoEl) autoEl.checked = gs.autoSync !== false;
@@ -910,6 +1048,7 @@ function _updateIntegPills() {
   setPill('wa-integ-pill',    !!(wa.accessToken && wa.phoneNumberId));
   setPill('gmail-integ-pill', !!(gml.accessToken), 'Authorized', 'Not Authorized');
   setPill('gs-integ-pill',    !!(gs.webAppUrl), 'Active', 'Not Configured');
+  if (typeof window._syncAdminPushUI === 'function') window._syncAdminPushUI();
 
   var gmlStat = document.getElementById('gmail-token-status');
   if (gmlStat) {
@@ -949,9 +1088,13 @@ function saveIntegration(key) {
     };
   }
 
+  if (key === 'fcm') {
+    DB.settings.fcmVapidKey = g('integ-fcm-vapid');
+  }
+
   saveDB();
   _updateIntegPills();
-  var names = { meta: 'Meta Ads', whatsapp: 'WhatsApp', gmail: 'Gmail', googlesheets: 'Google Sheets' };
+  var names = { meta: 'Meta Ads', whatsapp: 'WhatsApp', gmail: 'Gmail', googlesheets: 'Google Sheets', fcm: 'Push Notifications' };
   showToast('✅ ' + (names[key] || key) + ' settings saved!');
 }
 
@@ -1105,6 +1248,17 @@ async function sheetsSendEODRNow() {
   }
 }
 
+function sendLocalTestNotif() {
+  var title = document.getElementById('push-bc-title')?.value.trim() || 'Wanago ERP Test';
+  var body  = document.getElementById('push-bc-body')?.value.trim()  || 'Push notifications are working!';
+  var url   = document.getElementById('push-bc-url')?.value.trim()   || '/pages/dashboard.html';
+  if (typeof window.showPushNotification === 'function') {
+    window.showPushNotification(title, body, url);
+  } else {
+    showToast('FCM module not loaded. Add <script type="module" src="../js/fcm.js"> to this page.');
+  }
+}
+
 window.loadIntegrations    = loadIntegrations;
 window.saveIntegration     = saveIntegration;
 window.testIntegration     = testIntegration;
@@ -1114,6 +1268,7 @@ window.integGmailAuthorize = integGmailAuthorize;
 window.sheetsManualSync    = sheetsManualSync;
 window.sheetsSetupTrigger  = sheetsSetupTrigger;
 window.sheetsSendEODRNow   = sheetsSendEODRNow;
+window.sendLocalTestNotif  = sendLocalTestNotif;
 
 
 initPage(renderAdminPage);

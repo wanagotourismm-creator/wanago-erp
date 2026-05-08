@@ -19,7 +19,7 @@ const FS_BASE = `https://www.gstatic.com/firebasejs/${FS_VER}`;
 
 const FS_COLLECTIONS = [
   'leads','customers','quotations','packages','bookings',
-  'invoices','payments','campaigns','segments','activities',
+  'invoices','payments','expenses','campaigns','segments','activities',
   'hrmsEmployees','hrmsLeaves','hrmsPayroll','hrmsCheckIns',
   'tasks','rewards','pointsLog',
 ];
@@ -154,6 +154,22 @@ async function _loadAll() {
       }
     } catch(e) {}
 
+    // Load extras (non-collection DB fields that live outside FS_COLLECTIONS)
+    try {
+      const extSnap = await getDoc(doc(_db, `companies/${_compId}`, 'extras'));
+      if (extSnap.exists()) {
+        const e = extSnap.data();
+        if (e.counters)          Object.assign(DB.counters, e.counters);
+        if (e.incentiveSettings) DB.incentiveSettings = e.incentiveSettings;
+        if (e.agentTargets)      DB.agentTargets = e.agentTargets;
+        if (e.incentiveLogs)     DB.incentiveLogs = e.incentiveLogs;
+        if (e.agentWhatsApp)     DB.agentWhatsApp = e.agentWhatsApp;
+        if (e.hrmsAttendance)    DB.hrmsAttendance = e.hrmsAttendance;
+        if (e.policies)          DB.policies = e.policies;
+        if (e.fcmTokens)         DB.fcmTokens = e.fcmTokens;
+      }
+    } catch(e) {}
+
     showFsSyncStatus('✅ Synced', true);
     _fsRefreshPage();
   } catch (e) {
@@ -167,8 +183,12 @@ async function _loadAll() {
 ══════════════════════════════════════════════════ */
 
 function _attachListeners() {
-  // Live listeners for the most critical collections
-  ['leads', 'customers', 'bookings', 'payments', 'activities'].forEach(col => {
+  // Live listeners for all actively-written collections
+  [
+    'leads', 'customers', 'bookings', 'payments', 'expenses', 'activities',
+    'quotations', 'invoices', 'hrmsEmployees', 'hrmsLeaves',
+    'campaigns', 'packages',
+  ].forEach(col => {
     fsListen(col);
   });
 }
@@ -229,7 +249,7 @@ window._fsPushDB = function() {
 async function _pushAll() {
   if (!_fsReady || !_db) return;
   try {
-    const { doc, writeBatch, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
+    const { doc, writeBatch, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
     const ts  = serverTimestamp();
     const uid = window.currentUser?.id || 'system';
 
@@ -247,6 +267,22 @@ async function _pushAll() {
       }
     }
     await fsSaveSettings();
+
+    // Save extras — non-collection DB fields missed by FS_COLLECTIONS
+    try {
+      const extrasClean = JSON.parse(JSON.stringify({
+        counters:          DB.counters          || {},
+        incentiveSettings: DB.incentiveSettings || {},
+        agentTargets:      DB.agentTargets      || {},
+        incentiveLogs:     (DB.incentiveLogs    || []).slice(-500),
+        agentWhatsApp:     DB.agentWhatsApp     || {},
+        hrmsAttendance:    DB.hrmsAttendance    || {},
+        policies:          DB.policies          || [],
+        fcmTokens:         (DB.fcmTokens        || []).slice(-200),
+      }));
+      await setDoc(doc(_db, `companies/${_compId}`, 'extras'),
+        { ...extrasClean, _updatedAt: ts, _updatedBy: uid }, { merge: false });
+    } catch (e) { console.warn('[extras push]', e.message); }
   } catch (e) { console.error('[_pushAll]', e.message); }
 }
 
@@ -456,14 +492,18 @@ async function fsGetOnlineUsers() {
    WANAGO SPACE — Firestore-based real-time chat
 ══════════════════════════════════════════════════ */
 
-async function fsChatSend(spaceId, message) {
+async function fsChatSend(spaceId, msgObj) {
   if (!_db) return;
   try {
     const { collection, addDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
     await addDoc(collection(_db, `companies/${_compId}/spaces/${spaceId}/messages`), {
-      text:      message,
-      senderId:  window.currentUser?.id   || 'unknown',
-      senderName:window.currentUser?.name || 'User',
+      senderId:  msgObj.senderId  || window.currentUser?.id   || 'unknown',
+      sender:    msgObj.sender    || window.currentUser?.name || 'User',
+      color:     msgObj.color     || '#228050',
+      text:      msgObj.text      || '',
+      reactions: msgObj.reactions || {},
+      edited:    false,
+      tsStr:     new Date().toISOString(),
       ts:        serverTimestamp(),
     });
   } catch(e) { console.error('[fsChatSend]', e.message); }
@@ -474,10 +514,38 @@ async function fsChatListen(spaceId, callback) {
   try {
     const { collection, onSnapshot, query, orderBy, limitToLast } = await import(`${FS_BASE}/firebase-firestore.js`);
     const q   = query(collection(_db, `companies/${_compId}/spaces/${spaceId}/messages`), orderBy('ts'), limitToLast(200));
-    const off = onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const off = onSnapshot(q, snap => callback(snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id:        d.id,
+        senderId:  data.senderId  || '',
+        sender:    data.sender    || '',
+        color:     data.color     || '#228050',
+        text:      data.text      || '',
+        reactions: data.reactions || {},
+        edited:    data.edited    || false,
+        ts:        data.tsStr || data.ts?.toDate?.()?.toISOString() || new Date().toISOString(),
+      };
+    })));
     _listeners.push(off);
     return off;
   } catch(e) { return null; }
+}
+
+async function fsChatUpdateMsg(spaceId, msgId, updates) {
+  if (!_db || !msgId) return;
+  try {
+    const { doc, updateDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
+    await updateDoc(doc(_db, `companies/${_compId}/spaces/${spaceId}/messages/${msgId}`), updates);
+  } catch(e) { console.error('[fsChatUpdateMsg]', e.message); }
+}
+
+async function fsChatDeleteMsg(spaceId, msgId) {
+  if (!_db || !msgId) return;
+  try {
+    const { doc, deleteDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
+    await deleteDoc(doc(_db, `companies/${_compId}/spaces/${spaceId}/messages/${msgId}`));
+  } catch(e) { console.error('[fsChatDeleteMsg]', e.message); }
 }
 
 /* ══════════════════════════════════════════════════
@@ -509,6 +577,7 @@ const _PAGE_RENDER_FNS = [
   'renderLeads','renderCustomers','renderBookings','renderPayments',
   'renderQuotationsPage','renderPackages','renderInvoices',
   'renderHRMSOverview','renderAllReports','renderDashboard','renderIncentiveDashboard',
+  'mktRenderOverview',
 ];
 function _fsRefreshPage() {
   for (const fn of _PAGE_RENDER_FNS) {
@@ -537,6 +606,8 @@ window.fsDataHealth    = fsDataHealth;
 window.fsGetOnlineUsers= fsGetOnlineUsers;
 window.fsChatSend      = fsChatSend;
 window.fsChatListen    = fsChatListen;
+window.fsChatUpdateMsg = fsChatUpdateMsg;
+window.fsChatDeleteMsg = fsChatDeleteMsg;
 window.showFsSyncStatus= showFsSyncStatus;
 window.fsStartListeners= _attachListeners; // backward compat
 window._fsRefreshPage  = _fsRefreshPage;

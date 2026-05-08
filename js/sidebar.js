@@ -23,6 +23,7 @@
     { section: 'FINANCE' },
     { id:'invoices',       label:'Invoices',       icon:'invoices',    page:'invoices'  },
     { id:'payments',       label:'Payments',       icon:'payments',    page:'payments'  },
+    { id:'expenses',       label:'Expenses',       icon:'expenses',    page:'expenses'  },
     { section: 'MARKETING' },
     { id:'marketing',      label:'Marketing Hub',  icon:'marketing',   page:'marketing' },
     { id:'whatsapp',       label:'WhatsApp',       icon:'whatsapp',    page:'whatsapp'  },
@@ -44,6 +45,7 @@
     bookings:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
     invoices:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
     payments:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+    expenses:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
     marketing:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
     whatsapp:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
     chat:          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -99,6 +101,10 @@
         <div style="display:none;font-family:'DM Serif Display',serif;font-size:20px;color:#fff;font-weight:700;position:relative;z-index:1"><span style="color:#c9a84c">wana</span><span>go</span><span style="font-size:13px;vertical-align:super">™</span></div>
       </div>
       <nav>${navHTML}</nav>
+      <div id="pwa-install-btn" onclick="pwaInstall()" style="display:${window._pwaInstallPrompt?'flex':'none'};align-items:center;gap:8px;margin:6px 12px 2px;padding:8px 12px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.25);border-radius:8px;cursor:pointer;transition:background .15s">
+        <span style="font-size:15px">📲</span>
+        <div style="flex:1"><div style="font-size:11.5px;font-weight:600;color:#c9a84c">Install App</div><div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:1px">Add to home screen</div></div>
+      </div>
       <div class="sidebar-user">
         <div class="user-av" id="user-avatar">${userName[0].toUpperCase()}</div>
         <div class="user-info">
@@ -185,12 +191,171 @@
       s.defer = true;
       document.head.appendChild(s);
     });
+    // Inject AI + Automation engines on every page
+    if (!window.WanagoAI) {
+      var ai = document.createElement('script');
+      ai.src = jsBase + 'ai.js';
+      document.head.appendChild(ai);
+    }
+    if (!window.WanagoAutomation) {
+      var at = document.createElement('script');
+      at.src = jsBase + 'automation.js';
+      document.head.appendChild(at);
+    }
     // Inject Google Sheets sync on every page (hooks into saveDB)
     if (!window.WanagoSheets) {
       var gs = document.createElement('script');
       gs.src = jsBase + 'google-sheets.js';
       document.head.appendChild(gs);
     }
+  }
+
+  // ── PWA: register service worker + inject manifest link ──
+  (function () {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+    // Load FCM push module (once per page)
+    if (!document.querySelector('script[src="/js/fcm.js"]')) {
+      var _fcmScript = document.createElement('script');
+      _fcmScript.type = 'module'; _fcmScript.src = '/js/fcm.js';
+      document.head.appendChild(_fcmScript);
+    }
+    if (!document.querySelector('link[rel="manifest"]')) {
+      var lnk = document.createElement('link');
+      lnk.rel = 'manifest'; lnk.href = '/manifest.json';
+      document.head.appendChild(lnk);
+    }
+    if (!document.querySelector('meta[name="theme-color"]')) {
+      var mc = document.createElement('meta');
+      mc.name = 'theme-color'; mc.content = '#134a32';
+      document.head.appendChild(mc);
+    }
+  })();
+
+  // ── PWA: capture install prompt ──
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    window._pwaInstallPrompt = e;
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex';
+  });
+  window.addEventListener('appinstalled', function() {
+    window._pwaInstallPrompt = null;
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'none';
+  });
+  window.pwaInstall = function() {
+    if (!window._pwaInstallPrompt) return;
+    window._pwaInstallPrompt.prompt();
+    window._pwaInstallPrompt.userChoice.then(function(r) {
+      if (r.outcome === 'accepted') {
+        window._pwaInstallPrompt = null;
+        var btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'none';
+      }
+    });
+  };
+
+  // ── Global Search (Ctrl+K / ⌘K) ──
+  function initGlobalSearch() {
+    if (window._gsInited) return;
+    window._gsInited = true;
+
+    var style = document.createElement('style');
+    style.textContent = '#gs-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99998;display:none;align-items:flex-start;justify-content:center;padding-top:80px}#gs-overlay.open{display:flex}#gs-box{width:100%;max-width:580px;background:var(--white);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;animation:gsIn .15s ease}@keyframes gsIn{from{opacity:0;transform:scale(.96) translateY(-10px)}to{opacity:1;transform:none}}#gs-inp{width:100%;border:none;outline:none;padding:16px 18px;font-size:15px;font-family:inherit;background:transparent;border-bottom:1px solid var(--border);color:var(--text);box-sizing:border-box}#gs-results{max-height:300px;overflow-y:auto}.gs-sec{padding:6px 14px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--textd);border-top:1px solid var(--border);background:var(--cream)}.gs-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:.1s}.gs-item:hover,.gs-item.gs-on{background:var(--g50)}.gs-item-main{flex:1;min-width:0}.gs-title{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}.gs-sub{font-size:11px;color:var(--textd);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}.gs-badge{font-size:10px;background:var(--g50);color:var(--g700);padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0;text-transform:capitalize}#gs-footer{padding:8px 14px;font-size:10.5px;color:var(--textd);border-top:1px solid var(--border);display:flex;gap:12px}#gs-empty{padding:24px;text-align:center;color:var(--textd);font-size:13px}';
+    document.head.appendChild(style);
+
+    var overlay = document.createElement('div');
+    overlay.id = 'gs-overlay';
+    overlay.innerHTML = '<div id="gs-box"><input id="gs-inp" type="text" placeholder="Search leads, customers, bookings…" autocomplete="off"><div id="gs-results"></div><div id="gs-footer"><span>↑↓ navigate</span><span>↵ open</span><span>Esc close</span><span style="margin-left:auto;opacity:.6">⌘K \xb7 Ctrl+K</span></div></div>';
+    document.body.appendChild(overlay);
+
+    var inp = document.getElementById('gs-inp');
+    var resEl = document.getElementById('gs-results');
+    var _activeIdx = -1;
+    var _items = [];
+    var _timer;
+
+    function open() {
+      overlay.classList.add('open');
+      inp.value = '';
+      resEl.innerHTML = '<div id="gs-empty">Type to search across leads, customers, bookings…</div>';
+      _activeIdx = -1; _items = [];
+      setTimeout(function() { inp.focus(); }, 40);
+    }
+    function close() { overlay.classList.remove('open'); inp.value = ''; resEl.innerHTML = ''; }
+    function nav(idx) {
+      _items.forEach(function(el, i) { el.classList.toggle('gs-on', i === idx); });
+      _activeIdx = idx;
+    }
+    function go(el) {
+      var pg = el.dataset.page;
+      close();
+      var prefix = window.location.pathname.includes('/pages/') ? '' : '/pages/';
+      window.location.href = prefix + pg + '.html';
+    }
+    function search(q) {
+      q = (q || '').trim().toLowerCase();
+      resEl.innerHTML = ''; _items = []; _activeIdx = -1;
+      if (q.length < 2) { resEl.innerHTML = '<div id="gs-empty">Type to search…</div>'; return; }
+      var DB = window.DB;
+      if (!DB) { resEl.innerHTML = '<div id="gs-empty">Loading…</div>'; return; }
+      var hs = window.hScoped;
+      var leads     = (hs ? hs('leads')      : DB.leads     ) || [];
+      var customers = (hs ? hs('customers')  : DB.customers ) || [];
+      var bookings  = (hs ? hs('bookings')   : DB.bookings  ) || [];
+      var quotations= (hs ? hs('quotations') : DB.quotations) || [];
+      var groups = {};
+      leads.filter(function(l) {
+        return (l.name||'').toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.destination||'').toLowerCase().includes(q)||(l.email||'').toLowerCase().includes(q);
+      }).slice(0,4).forEach(function(l) { (groups.lead||(groups.lead=[])).push({title:l.name,sub:(l.destination||'—')+(l.phone?' \xb7 '+l.phone:''),badge:(l.stage||'').replace(/_/g,' '),page:'leads'}); });
+      customers.filter(function(c) {
+        return (c.name||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.email||'').toLowerCase().includes(q);
+      }).slice(0,4).forEach(function(c) { (groups.customer||(groups.customer=[])).push({title:c.name,sub:(c.phone||'')+(c.city?' \xb7 '+c.city:''),badge:c.tag==='vip'?'⭐ VIP':'',page:'customers'}); });
+      bookings.filter(function(b) {
+        return (b.customerName||'').toLowerCase().includes(q)||(b.ref||'').toLowerCase().includes(q)||(b.destination||'').toLowerCase().includes(q);
+      }).slice(0,4).forEach(function(b) { (groups.booking||(groups.booking=[])).push({title:(b.customerName||'?')+' → '+(b.destination||'?'),sub:(b.ref||'')+(b.travelDate?' \xb7 '+b.travelDate:''),badge:b.status||'',page:'bookings'}); });
+      quotations.filter(function(qx) {
+        return (qx.customerName||'').toLowerCase().includes(q)||(qx.destination||'').toLowerCase().includes(q)||(qx.id||'').toLowerCase().includes(q);
+      }).slice(0,3).forEach(function(qx) { (groups.quotation||(groups.quotation=[])).push({title:(qx.customerName||'?')+(qx.destination?' \xb7 '+qx.destination:''),sub:(qx.id||'')+(qx.grandTotal?' \xb7 ₹'+Number(qx.grandTotal).toLocaleString('en-IN'):''),badge:qx.status||'',page:'quotations'}); });
+      var META = {lead:{icon:'🎯',lbl:'Leads'},customer:{icon:'👤',lbl:'Customers'},booking:{icon:'✈️',lbl:'Bookings'},quotation:{icon:'📄',lbl:'Quotations'}};
+      var html = '';
+      var total = 0;
+      ['lead','customer','booking','quotation'].forEach(function(type) {
+        var grp = groups[type]; if (!grp||!grp.length) return;
+        var m = META[type];
+        html += '<div class="gs-sec">'+m.icon+' '+m.lbl+'</div>';
+        grp.forEach(function(r) {
+          html += '<div class="gs-item" data-page="'+r.page+'"><div class="gs-item-main"><div class="gs-title">'+r.title+'</div><div class="gs-sub">'+r.sub+'</div></div>'+(r.badge?'<span class="gs-badge">'+r.badge+'</span>':'')+'</div>';
+          total++;
+        });
+      });
+      if (!total) { resEl.innerHTML = '<div id="gs-empty">No results for “'+q+'”</div>'; return; }
+      resEl.innerHTML = html;
+      _items = Array.from(resEl.querySelectorAll('.gs-item'));
+      _items.forEach(function(el, i) {
+        el.addEventListener('click', function() { go(el); });
+        el.addEventListener('mouseover', function() { nav(i); });
+      });
+    }
+
+    inp.addEventListener('input', function() { clearTimeout(_timer); _timer = setTimeout(function() { search(inp.value); }, 160); });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key==='Escape') { close(); return; }
+      if (e.key==='ArrowDown') { e.preventDefault(); nav(Math.min(_activeIdx+1, _items.length-1)); }
+      else if (e.key==='ArrowUp') { e.preventDefault(); nav(Math.max(_activeIdx-1, 0)); }
+      else if (e.key==='Enter' && _activeIdx>=0) { e.preventDefault(); go(_items[_activeIdx]); }
+    });
+    overlay.addEventListener('click', function(e) { if (e.target===overlay) close(); });
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); overlay.classList.contains('open') ? close() : open(); }
+    });
+    // Wire topbar search inputs that have no oninput handler
+    document.querySelectorAll('.topbar-actions .search-inp:not([oninput])').forEach(function(el) {
+      el.addEventListener('focus', function() { el.blur(); open(); });
+    });
+    window.openGlobalSearch = open;
   }
 
   // Build sidebar when DOM is ready
@@ -203,7 +368,7 @@
   }
 
   // Also rebuild after page loads (to update user name from session)
-  window.addEventListener('load', function() { buildSidebar(); setupMobileNav(); });
+  window.addEventListener('load', function() { buildSidebar(); setupMobileNav(); setTimeout(initGlobalSearch, 700); });
 
   // Expose rebuild for auth systems to call after login
   window.rebuildSidebar = buildSidebar;

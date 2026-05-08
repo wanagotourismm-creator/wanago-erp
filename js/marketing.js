@@ -135,7 +135,129 @@ function mktRenderOverview() {
         ${a.action ? `<button class="btn btn-sm btn-green" onclick="${a.action}" style="font-size:11px">${a.btn}</button>` : ''}
       </div>`).join('')
     : '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">Nothing urgent today! 🎉</div>';
+
+  renderMktAIRecs();
 }
+
+function renderMktAIRecs() {
+  const el = document.getElementById('mkt-ai-recs');
+  if (!el) return;
+
+  const recs = [];
+  const bookings = hScoped('bookings') || [];
+  const leads = hScoped('leads') || [];
+  const customers = hScoped('customers') || [];
+
+  // 1. Hot leads needing follow-up (scored 80+, no recent booking)
+  if (typeof window.WanagoAI !== 'undefined') {
+    try {
+      const activeLeads = leads.filter(l => l.stage !== 'booked' && l.stage !== 'lost');
+      const hotLeads = activeLeads.filter(l => {
+        try { return WanagoAI.scoreLeadHeat(l) >= 80; } catch(e) { return false; }
+      });
+      if (hotLeads.length) {
+        const topDest = hotLeads.map(l=>l.destination).filter(Boolean);
+        const dest = topDest.length ? topDest[0] : 'various destinations';
+        recs.push({ icon:'🔥', color:'#dc2626', bg:'#fee2e2',
+          title: hotLeads.length+' Hot Lead'+(hotLeads.length>1?'s':'')+' Ready to Close',
+          sub: 'High-intent, 80+ heat score — personalized follow-up can convert now',
+          badge: hotLeads.length+' leads',
+          audience: 'all_leads',
+          btnLabel: '💬 WA Blast Leads',
+        });
+      }
+
+      // 2. At-risk customers — re-engagement
+      const segs = WanagoAI.segmentCustomers();
+      const atRisk = segs.at_risk || [];
+      if (atRisk.length) {
+        const avgSpend = atRisk.reduce((s,c)=>s+Number(c.totalRevenue||0),0) / atRisk.length;
+        recs.push({ icon:'⚠️', color:'#f97316', bg:'#fff7ed',
+          title: atRisk.length+' At-Risk Customer'+(atRisk.length>1?'s':'')+' Slipping Away',
+          sub: 'Haven\'t engaged recently — a re-engagement offer can recover ≈'+formatMoney(Math.round(avgSpend * atRisk.length * 0.3))+' potential',
+          badge: atRisk.length+' customers',
+          audience: 'inactive_90',
+          btnLabel: '💬 Win-Back Blast',
+        });
+      }
+
+      // 3. VIP customers — exclusive offer
+      const vips = segs.vip || [];
+      if (vips.length) {
+        const vipRevenue = vips.reduce((s,c)=>s+Number(c.totalRevenue||0),0);
+        recs.push({ icon:'⭐', color:'#b45309', bg:'#fffbeb',
+          title: 'Exclusive Offer for '+vips.length+' VIP Customer'+(vips.length>1?'s':''),
+          sub: 'Your top spenders — ₹'+Math.round(vipRevenue/Math.max(vips.length,1)).toLocaleString('en-IN')+' avg spend. Premium package campaign recommended',
+          badge: vips.length+' VIPs',
+          audience: 'all_customers',
+          btnLabel: '💬 VIP Campaign',
+        });
+      }
+
+      // 4. Inactive customers — dormant win-back
+      const inactive = segs.inactive || [];
+      if (inactive.length) {
+        recs.push({ icon:'💤', color:'#6b7280', bg:'#f3f4f6',
+          title: inactive.length+' Dormant Customer'+(inactive.length>1?'s':'')+' to Re-activate',
+          sub: 'No engagement in 6+ months — a seasonal offer email can bring them back',
+          badge: inactive.length+' dormant',
+          audience: 'inactive_90',
+          btnLabel: '📧 Email Campaign',
+        });
+      }
+    } catch(e) {}
+  }
+
+  // 5. Pending payments blast (always useful, no AI needed)
+  const pendingBks = bookings.filter(b => b.status !== 'cancelled' && Number(b.pendingAmount||0) > 0);
+  if (pendingBks.length) {
+    const totalPending = pendingBks.reduce((s,b)=>s+Number(b.pendingAmount||0),0);
+    recs.push({ icon:'💰', color:'var(--g700)', bg:'var(--g50)',
+      title: 'Payment Reminder Blast — '+formatMoney(totalPending)+' Pending',
+      sub: pendingBks.length+' bookings with outstanding balances — a bulk WhatsApp reminder drives same-day payments',
+      badge: pendingBks.length+' bookings',
+      audience: 'pending_payment',
+      btnLabel: '💬 Send Reminders',
+    });
+  }
+
+  if (!recs.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  el.innerHTML =
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px">🤖 AI Campaign Recommendations '+
+        '<span style="font-size:11px;font-weight:500;color:var(--textd)">based on your customer data</span>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">'+
+        recs.slice(0,4).map(r =>
+          '<div style="background:'+r.bg+';border:1px solid '+r.color+'22;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">'+
+            '<div style="display:flex;align-items:center;gap:8px">'+
+              '<span style="font-size:17px">'+r.icon+'</span>'+
+              '<div style="flex:1">'+
+                '<div style="font-size:12.5px;font-weight:700;color:var(--text);line-height:1.3">'+r.title+'</div>'+
+                '<span style="font-size:10px;font-weight:700;color:'+r.color+';background:'+r.color+'20;padding:1px 7px;border-radius:10px">'+r.badge+'</span>'+
+              '</div>'+
+            '</div>'+
+            '<div style="font-size:11px;color:var(--textd);line-height:1.5">'+r.sub+'</div>'+
+            '<button onclick="mktLaunchFromRec(\''+r.audience+'\')" style="align-self:flex-start;font-size:11px;font-weight:700;padding:5px 12px;border:1px solid '+r.color+'44;border-radius:8px;background:'+r.color+'15;color:'+r.color+';cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background=\''+r.color+'30\'" onmouseout="this.style.background=\''+r.color+'15\'">'+r.btnLabel+' →</button>'+
+          '</div>'
+        ).join('')+
+      '</div>'+
+    '</div>';
+}
+
+function mktLaunchFromRec(audience) {
+  const tabs = document.querySelectorAll('.tab');
+  switchTab(tabs[2], 'mkt-wa-blast');
+  mktLoadBlastContacts('whatsapp');
+  setTimeout(() => {
+    const sel = document.getElementById('wa-blast-audience');
+    if (sel) { sel.value = audience; mktLoadBlastContacts('whatsapp'); }
+  }, 50);
+}
+window.renderMktAIRecs = renderMktAIRecs;
+window.mktLaunchFromRec = mktLaunchFromRec;
 
 function _buildTodayActions() {
   const db = DB; const today = new Date(); const actions = [];
@@ -947,6 +1069,7 @@ function mktRenderAnalytics() {
     </div>`).join('') || '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No lead source data</div>';
 }
 window.mktRenderAnalytics = mktRenderAnalytics;
+window.mktRenderOverview  = mktRenderOverview;
 
 // ── Boot ──
 initPage(mktInit);

@@ -52,6 +52,12 @@ function renderDashboard() {
     renderStats();
     renderRevenueChart();
     renderPipeline();
+    renderInsights();
+    renderAIRecs();
+    renderTopPerformers();
+    renderDeparting();
+    renderActivityFeed();
+    renderForecast();
   } catch(e) { console.error('Dashboard render error:', e); }
 }
 
@@ -145,6 +151,185 @@ function renderPipeline() {
       <div class="funnel-track"><div class="funnel-fill" style="width:${Math.max(4,(counts[s]/maxS)*100)}%;background:${colors[s]}">${counts[s]||''}</div></div>
       <div class="funnel-count">${counts[s]}</div>
     </div>`).join('');
+}
+
+// ── AI Insights strip ──
+function renderInsights() {
+  const el = document.getElementById('dash-insights');
+  if (!el || !window.WanagoAI) return;
+  const insights = WanagoAI.generateInsights();
+  if (!insights.length) { el.style.display = 'none'; return; }
+  el.style.display = 'grid';
+  const typeStyle = {
+    success: { bg:'#f0faf4', bdr:'#2ecc71', txt:'#1a7a4a' },
+    warning: { bg:'#fff8f0', bdr:'#f39c12', txt:'#b7770d' },
+    danger:  { bg:'#fff0f0', bdr:'#e74c3c', txt:'#c0392b' },
+    info:    { bg:'#f0f7ff', bdr:'#3498db', txt:'#1565c0' },
+  };
+  el.innerHTML = insights.map(ins => {
+    const st = typeStyle[ins.type] || typeStyle.info;
+    return `<div style="background:${st.bg};border:1px solid ${st.bdr}30;border-left:3px solid ${st.bdr};border-radius:10px;padding:11px 13px;display:flex;align-items:flex-start;gap:9px;cursor:pointer;transition:.1s" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'" onclick="goTo('${ins.actionPage}')">
+      <span style="font-size:18px;flex-shrink:0;line-height:1.3">${ins.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:700;color:${st.txt};line-height:1.3">${ins.title}</div>
+        <div style="font-size:11px;color:#666;margin-top:3px;line-height:1.4">${ins.detail}</div>
+      </div>
+      <span style="font-size:10.5px;color:${st.txt};border:1px solid ${st.bdr}50;border-radius:6px;padding:2px 8px;white-space:nowrap;flex-shrink:0;margin-top:1px">${ins.action} →</span>
+    </div>`;
+  }).join('');
+}
+
+// ── AI Recommendations ──
+function renderAIRecs() {
+  const el = document.getElementById('ai-recs');
+  if (!el || !window.WanagoAI) return;
+  const recs = WanagoAI.getRecommendations();
+  if (!recs.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:#999;font-size:12.5px">✅ No urgent actions right now</div>';
+    return;
+  }
+  const priColor = { high:'#e74c3c', medium:'#f39c12', low:'#3498db' };
+  el.innerHTML = recs.map(r => {
+    const c = priColor[r.priority] || '#666';
+    return `<div style="border-left:3px solid ${c};padding:10px 12px;margin-bottom:8px;background:#fafafa;border-radius:0 8px 8px 0;cursor:pointer" onclick="goTo('${r.actionPage}')">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+        <span style="font-size:16px">${r.icon}</span>
+        <span style="font-size:12.5px;font-weight:700;color:#111;flex:1">${r.title}</span>
+        <span style="font-size:9.5px;color:${c};font-weight:700;text-transform:uppercase;background:${c}18;border-radius:4px;padding:1px 6px">${r.priority}</span>
+      </div>
+      <ul style="margin:0;padding-left:18px;font-size:11.5px;color:#555;line-height:1.7">
+        ${r.items.map(i => `<li>${i}</li>`).join('')}
+      </ul>
+    </div>`;
+  }).join('');
+}
+
+// ── Top Performers ──
+function renderTopPerformers() {
+  const el = document.getElementById('top-performers');
+  if (!el || !window.WanagoAI) return;
+  const perf = WanagoAI.getTopPerformers();
+  if (!perf.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:#999;font-size:12.5px">No performance data yet</div>';
+    return;
+  }
+  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="color:#aaa;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px">
+      <th style="padding:6px 8px;text-align:left;font-weight:600">#</th>
+      <th style="padding:6px 8px;text-align:left;font-weight:600">Agent</th>
+      <th style="padding:6px 8px;text-align:right;font-weight:600">Won</th>
+      <th style="padding:6px 8px;text-align:right;font-weight:600">Revenue (MTD)</th>
+    </tr></thead>
+    <tbody>
+      ${perf.map((p, i) => `<tr style="border-top:1px solid #f0f0f0">
+        <td style="padding:7px 8px">${medals[i] || i + 1}</td>
+        <td style="padding:7px 8px;font-weight:600;color:#111">${p.name}</td>
+        <td style="padding:7px 8px;text-align:right;color:#2a7a4f;font-weight:600">${p.won}</td>
+        <td style="padding:7px 8px;text-align:right;font-weight:700;color:#111">₹${WanagoAI.fmt(p.revenue)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── Departing Soon ──
+function renderDeparting() {
+  const el = document.getElementById('departing-list');
+  if (!el || !window.WanagoAI) return;
+  const deps = WanagoAI.getUpcomingDepartures();
+  if (!deps.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">✈️</div><div class="empty-title">No upcoming departures</div></div>';
+    return;
+  }
+  const now = new Date();
+  el.innerHTML = deps.map(b => {
+    const diff  = Math.ceil((new Date(b.travelDate) - now) / 86400000);
+    const badge = diff === 0 ? 'Today!' : diff === 1 ? 'Tomorrow' : `In ${diff} days`;
+    const bc    = diff <= 1 ? '#e74c3c' : diff <= 3 ? '#f39c12' : '#2a7a4f';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f4f4f4;cursor:pointer" onclick="goTo('bookings')">
+      <span style="font-size:18px">✈️</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:600;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.customerName || 'Passenger'}</div>
+        <div style="font-size:11px;color:#888">${b.destination || ''} · ${b.pax || 1} pax · ${b.ref || ''}</div>
+      </div>
+      <span style="font-size:10px;font-weight:700;color:${bc};background:${bc}18;border-radius:6px;padding:2px 8px;flex-shrink:0;white-space:nowrap">${badge}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Activity Feed ──
+function renderActivityFeed() {
+  const el = document.getElementById('activity-feed');
+  if (!el) return;
+  const acts = ((window.DB && window.DB.activities) ? window.DB.activities : []).slice().reverse().slice(0, 15);
+  if (!acts.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No recent activity</div></div>';
+    return;
+  }
+  const icons = { lead:'🎯', booking:'📅', payment:'💰', invoice:'🧾', customer:'👤', chat:'💬', login:'🔐', default:'📌' };
+  el.innerHTML = acts.map(a => {
+    const icon = icons[a.type] || icons.default;
+    const d = new Date(a.ts || a.timestamp || a.time || Date.now());
+    const ago = _timeAgo(d);
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f4f4f4">
+      <span style="font-size:13px;flex-shrink:0;margin-top:2px">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:#222;line-height:1.4">${a.msg || a.message || ''}</div>
+        <div style="font-size:10px;color:#bbb;margin-top:2px">${ago}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _timeAgo(d) {
+  const m = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+function renderForecast() {
+  const el = document.getElementById('dash-forecast'); if (!el || !window.WanagoAI) return;
+  try {
+    const { history, forecast, ema } = WanagoAI.forecastRevenue();
+    const all = [...history, ...forecast];
+    const maxVal = Math.max(...all.map(m => m.predicted || m.value || 0), 1);
+    const confBadge = {
+      high:   '<span style="font-size:9px;color:#1a7a4a;background:#f0faf4;border-radius:4px;padding:1px 5px;margin-left:4px">↑ High</span>',
+      medium: '<span style="font-size:9px;color:#b7770d;background:#fff8f0;border-radius:4px;padding:1px 5px;margin-left:4px">~ Med</span>',
+      low:    '<span style="font-size:9px;color:#888;background:#f4f4f4;border-radius:4px;padding:1px 5px;margin-left:4px">? Low</span>',
+    };
+    el.innerHTML =
+      '<div style="display:flex;align-items:flex-end;gap:3px;height:80px;margin-bottom:8px;padding:0 2px">' +
+        history.map(h =>
+          '<div style="flex:1;display:flex;flex-direction:column;align-items:center">' +
+            '<div title="₹' + h.value.toLocaleString('en-IN') + '" style="width:100%;background:var(--g400);border-radius:3px 3px 0 0;height:' + Math.max(4, Math.round((h.value / maxVal) * 72)) + 'px"></div>' +
+          '</div>'
+        ).join('') +
+        forecast.map(f =>
+          '<div style="flex:1;display:flex;flex-direction:column;align-items:center">' +
+            '<div title="Forecast ₹' + f.predicted.toLocaleString('en-IN') + '" style="width:100%;background:var(--g100);border:1.5px dashed var(--g400);border-bottom:none;border-radius:3px 3px 0 0;height:' + Math.max(4, Math.round((f.predicted / maxVal) * 72)) + 'px"></div>' +
+          '</div>'
+        ).join('') +
+      '</div>' +
+      '<div style="display:flex;gap:3px;margin-bottom:14px;border-top:1px solid var(--border);padding-top:4px">' +
+        history.map(h => '<div style="flex:1;text-align:center;font-size:9px;color:#aaa;overflow:hidden;white-space:nowrap">' + h.month + '</div>').join('') +
+        forecast.map(f => '<div style="flex:1;text-align:center;font-size:9px;color:var(--g600);font-weight:600;overflow:hidden;white-space:nowrap">' + f.month + '</div>').join('') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
+        forecast.map(f =>
+          '<div style="flex:1;min-width:120px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:8px 10px">' +
+            '<div style="font-size:12px;font-weight:700;color:var(--g700)">₹' + WanagoAI.fmt(f.predicted) + '</div>' +
+            '<div style="font-size:10.5px;color:#888;margin-top:2px">' + f.month + (confBadge[f.confidence] || '') + '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>' +
+      '<div style="font-size:10px;color:#bbb;padding-top:8px;border-top:1px solid #f4f4f4">EMA baseline: ₹' + WanagoAI.fmt(ema) + '/month · Based on 6-month payment history</div>';
+  } catch (e) {
+    el.innerHTML = '<div style="color:#bbb;text-align:center;padding:24px;font-size:12px">Forecast available after payment data is collected</div>';
+  }
 }
 
 window.renderDashboard = renderDashboard;

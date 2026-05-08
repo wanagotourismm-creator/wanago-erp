@@ -74,9 +74,29 @@ function renderCustomerStats() {
   s('cstat-notquoted').textContent = all.length - all.filter(custIsQuoted).length;
 }
 
+function renderCustAIStrip() {
+  const el = document.getElementById('cust-ai-strip'); if (!el) return;
+  if (typeof window.WanagoAI === 'undefined') { el.style.display = 'none'; return; }
+  try {
+    const segs = WanagoAI.segmentCustomers();
+    const vipC = segs.vip.length, atRiskC = segs.at_risk.length, inactiveC = segs.inactive.length, newC = segs.new.length;
+    const items = [];
+    if (vipC > 0) items.push('<div style="background:#fff3cd;border-left:3px solid #f0ad4e;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#b7860d">⭐ ' + vipC + ' VIP Customer' + (vipC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">High-value relationships</div></div>');
+    if (atRiskC > 0) items.push('<div style="background:#fde8e8;border-left:3px solid #e74c3c;border-radius:8px;padding:9px 12px;cursor:pointer" onclick="filterCustomers(\'at_risk\',document.querySelector(\'.filter-bar .chip\'))"><div style="font-size:12px;font-weight:700;color:#c0392b">⚠️ ' + atRiskC + ' At-Risk Customer' + (atRiskC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">No booking in 12+ months — needs outreach</div></div>');
+    if (newC > 0) items.push('<div style="background:#e8f4fd;border-left:3px solid #3498db;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#1565c0">✨ ' + newC + ' New Customer' + (newC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">Joined in the last 30 days</div></div>');
+    if (inactiveC > 0) items.push('<div style="background:#f8f8f8;border-left:3px solid #aaa;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#666">💤 ' + inactiveC + ' Inactive</div><div style="font-size:10.5px;color:#888;margin-top:1px">Never booked — consider an outreach campaign</div></div>');
+    if (!items.length) { el.style.display = 'none'; return; }
+    el.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px';
+    el.innerHTML = items.join('');
+  } catch (e) { el.style.display = 'none'; }
+}
+
 function renderCustomers(filter) {
   if (filter) custFilter = filter;
   renderCustomerStats();
+  renderCustAIStrip();
+  const segMap = {};
+  if (typeof window.WanagoAI !== 'undefined') { try { const _sg = WanagoAI.segmentCustomers(); Object.entries(_sg).forEach(([_s, _a]) => _a.forEach(_c => { segMap[_c.id] = _s; })); } catch (e) {} }
   let custs = hScoped('customers');
   if (custFilter==='vip') custs=custs.filter(c=>c.tag==='vip');
   else if (custFilter==='corporate') custs=custs.filter(c=>c.tag==='corporate'||c.travelType==='corporate');
@@ -85,6 +105,9 @@ function renderCustomers(filter) {
   else if (custFilter==='quoted') custs=custs.filter(custIsQuoted);
   else if (custFilter==='not_quoted') custs=custs.filter(c=>!custIsQuoted(c));
   else if (custFilter==='passport_alert') custs=custs.filter(c=>{if(!c.passportExpiry)return false;const d=new Date(c.passportExpiry);return d>new Date()&&d<new Date(Date.now()+180*86400*1000);});
+  else if (custFilter==='at_risk') custs=custs.filter(c=>segMap[c.id]==='at_risk');
+  else if (custFilter==='loyal') custs=custs.filter(c=>segMap[c.id]==='loyal'||segMap[c.id]==='vip');
+  else if (custFilter==='inactive') custs=custs.filter(c=>segMap[c.id]==='inactive');
   const q=custSearchQuery.toLowerCase();
   if(q) custs=custs.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.email||'').toLowerCase().includes(q)||(c.city||'').toLowerCase().includes(q));
   const typeF=document.getElementById('cust-type-filter')?.value;
@@ -92,8 +115,9 @@ function renderCustomers(filter) {
   const budgetF=document.getElementById('cust-budget-filter')?.value;
   if(budgetF) custs=custs.filter(c=>c.budgetRange===budgetF);
   const tbody=document.getElementById('customers-tbody');
-  if(!custs.length){tbody.innerHTML=emptyRow(10,'No customers match your filters.');return;}
+  if(!custs.length){tbody.innerHTML=emptyRow(11,'No customers match your filters.');return;}
   const tagPill={vip:'<span class="pill pill-gold">⭐ VIP</span>',corporate:'<span class="pill pill-blue">Corporate</span>',regular:'<span class="pill pill-green">Regular</span>'};
+  const SEG_PILL={vip:'<span style="font-size:9.5px;font-weight:700;color:#b7860d;background:#fff3cd;border-radius:5px;padding:2px 7px">⭐ VIP</span>',loyal:'<span style="font-size:9.5px;font-weight:700;color:#1a7a4a;background:#f0faf4;border-radius:5px;padding:2px 7px">🔁 Loyal</span>',regular:'<span style="font-size:9.5px;color:#555;background:#f4f4f4;border-radius:5px;padding:2px 7px">Regular</span>',at_risk:'<span style="font-size:9.5px;font-weight:700;color:#c0392b;background:#fde8e8;border-radius:5px;padding:2px 7px">⚠️ At Risk</span>',new:'<span style="font-size:9.5px;font-weight:700;color:#1565c0;background:#e8f4fd;border-radius:5px;padding:2px 7px">✨ New</span>',inactive:'<span style="font-size:9.5px;color:#888;background:#f4f4f4;border-radius:5px;padding:2px 7px">💤 Inactive</span>'};
   const today6m=new Date(Date.now()+180*86400*1000);
   tbody.innerHTML=custs.map(c=>{
     const passWarn=c.passportExpiry&&new Date(c.passportExpiry)<today6m&&new Date(c.passportExpiry)>new Date();
@@ -111,6 +135,7 @@ function renderCustomers(filter) {
         </div></div></td>
       <td>${c.phone}</td><td style="font-size:12px;color:var(--textd)">${c.city||'—'}</td>
       <td>${tagPill[c.tag]||tagPill.regular}</td>
+      <td>${SEG_PILL[segMap[c.id]]||'<span style="font-size:9.5px;color:#ccc">—</span>'}</td>
       <td style="font-size:11.5px">${TRAVEL_TYPE_LABELS[c.travelType]||c.travelType||'—'}</td>
       <td style="font-weight:600;text-align:center">${c.bookingsCount||0}</td>
       <td style="font-weight:600">${formatMoney(c.totalSpent||0)}</td>
@@ -133,10 +158,21 @@ function custWhatsApp(id){const c=DB.customers.find(x=>x.id===id);if(!c)return;i
 function viewCustomer(id){
   const c=DB.customers.find(x=>x.id===id);if(!c)return;
   document.getElementById('vc-title').textContent=c.name;
+  document.getElementById('modal-view-customer')._custId=id;
   const passExpired=c.passportExpiry&&new Date(c.passportExpiry)<new Date();
   const passWarn=c.passportExpiry&&!passExpired&&new Date(c.passportExpiry)<new Date(Date.now()+180*86400*1000);
-  const custBookings=hScoped('bookings').filter(b=>b.customerId===id);
+  const custBookings=hScoped('bookings').filter(b=>b.customerId===id||b.customerPhone===c.phone);
   const custLeads=hScoped('leads').filter(l=>l.customerId===id||l.phone===c.phone);
+  const custQuots=hScoped('quotations').filter(q=>q.customerId===id||q.customerPhone===c.phone||q.customerName===c.name);
+  const custInvoices=hScoped('invoices').filter(i=>i.customerId===id||i.customerPhone===c.phone||i.customerName===c.name);
+  const invRow=i=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px">'+
+    '<div style="flex:1"><div style="font-weight:600;font-size:13px">🧾 '+(i.id||'')+'</div>'+
+    '<div style="font-size:11px;color:var(--textd)">'+(i.dueDate?'Due '+formatDate(i.dueDate):'—')+'</div></div>'+
+    '<div style="text-align:right"><div style="font-weight:700;color:var(--g700)">'+formatMoney(i.total||0)+'</div>'+stagePill(i.status)+'</div></div>';
+  const quotRow=q=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px">'+
+    '<div style="flex:1"><div style="font-weight:600;font-size:13px">📄 '+(q.id||'')+' · '+(q.destination||'')+'</div>'+
+    '<div style="font-size:11px;color:var(--textd)">'+(q.pax?q.pax+' pax · ':'')+formatMoney(q.grandTotal||q.amount||0)+'</div></div>'+
+    stagePill(q.status||'draft')+'</div>';
   document.getElementById('vc-body').innerHTML=`
     <div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--cream);border-radius:12px;margin-bottom:16px">
       <div style="width:52px;height:52px;border-radius:50%;background:${c.color||'var(--g600)'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0">${initials(c.name)}</div>
@@ -150,10 +186,11 @@ function viewCustomer(id){
         </div>
       </div>
     </div>
-    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
       <div class="stat-card"><div class="stat-label">Bookings</div><div class="stat-val">${c.bookingsCount||0}</div></div>
       <div class="stat-card"><div class="stat-label">Total Spent</div><div class="stat-val" style="font-size:17px">${formatMoney(c.totalSpent||0)}</div></div>
       <div class="stat-card"><div class="stat-label">Avg / Trip</div><div class="stat-val" style="font-size:17px">${c.bookingsCount>0?formatMoney(Math.round(c.totalSpent/c.bookingsCount)):'—'}</div></div>
+      <div class="stat-card"><div class="stat-label">Quotations</div><div class="stat-val">${custQuots.length}</div></div>
     </div>
     <div class="form-grid" style="margin-bottom:14px">
       <div><div class="form-label">City</div><div style="font-size:12.5px;margin-top:4px">${c.city||'—'}</div></div>
@@ -161,8 +198,10 @@ function viewCustomer(id){
       <div><div class="form-label">DOB</div><div style="font-size:12.5px;margin-top:4px">${c.dob?formatDate(c.dob):'—'}</div></div>
       <div><div class="form-label">Anniversary</div><div style="font-size:12.5px;margin-top:4px">${c.anniversary?formatDate(c.anniversary):'—'}</div></div>
     </div>
-    ${custBookings.length?`<div class="form-section">Bookings (${custBookings.length})</div>${custBookings.map(b=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">✈️ '+b.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(b.ref||'')+' · '+formatDate(b.travelDate)+'</div></div><div style="text-align:right"><div style="font-weight:700;color:var(--g700)">'+formatMoney(b.totalAmount||0)+'</div>'+stagePill(b.status)+'</div></div>').join('')}`:''}
-    ${custLeads.length?`<div class="form-section">Leads (${custLeads.length})</div>${custLeads.map(l=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">🎯 '+l.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(l.source||'')+' · '+(l.agent||'Unassigned')+'</div></div>'+stagePill(l.stage)+'</div>').join('')}`:''}
+    ${custBookings.length?`<div class="form-section">✈️ Bookings (${custBookings.length})</div>${custBookings.map(b=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">✈️ '+b.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(b.ref||'')+' · '+formatDate(b.travelDate)+'</div></div><div style="text-align:right"><div style="font-weight:700;color:var(--g700)">'+formatMoney(b.totalAmount||0)+'</div>'+stagePill(b.status)+'</div></div>').join('')}`:''}
+    ${custQuots.length?`<div class="form-section">📄 Quotations (${custQuots.length})</div>${custQuots.map(quotRow).join('')}`:''}
+    ${custInvoices.length?`<div class="form-section">🧾 Invoices (${custInvoices.length})</div>${custInvoices.map(invRow).join('')}`:''}
+    ${custLeads.length?`<div class="form-section">🎯 Leads (${custLeads.length})</div>${custLeads.map(l=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">🎯 '+l.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(l.source||'')+' · '+(l.agent||'Unassigned')+'</div></div>'+stagePill(l.stage)+'</div>').join('')}`:''}
     ${c.notes?`<div class="form-section">Notes</div><div style="font-size:13px;color:var(--textm);background:var(--cream);border-radius:10px;padding:12px;line-height:1.6">${c.notes}</div>`:''}`;
   openModal('modal-view-customer');
 }

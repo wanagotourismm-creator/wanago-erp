@@ -90,7 +90,7 @@
 
   var _results=[], _sel=0;
 
-  function _db(){ try{return JSON.parse(localStorage.getItem('wanago_erp_v3')||'{}');}catch(e){return{};} }
+  function _db(){ return window.DB || {}; }
   function _m(s,q){ return (s||'').toLowerCase().includes(q); }
   function _esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -116,6 +116,10 @@
       if(bk.length){out.push({_g:'Bookings'});bk.forEach(function(b){out.push({t:'rc',label:b.ref||'Booking',sub:(b.customerName||'')+(b.destination?' · '+b.destination:''),icon:'📅',page:'bookings'});});}
       var inv=(db.invoices||[]).filter(function(i){return _m(i.ref,q)||_m(i.customerName,q);}).slice(0,4);
       if(inv.length){out.push({_g:'Invoices'});inv.forEach(function(i){out.push({t:'rc',label:i.ref||'Invoice',sub:(i.customerName||'')+(i.total?' · ₹'+Number(i.total).toLocaleString():''),icon:'🧾',page:'invoices'});});}
+      var qt=(db.quotations||[]).filter(function(q2){return _m(q2.id,q)||_m(q2.customerName,q)||_m(q2.destination,q);}).slice(0,4);
+      if(qt.length){out.push({_g:'Quotations'});qt.forEach(function(q2){out.push({t:'rc',label:q2.id||'Quote',sub:(q2.customerName||'')+(q2.destination?' · '+q2.destination:''),icon:'📄',page:'quotations'});});}
+      var pk=(db.packages||[]).filter(function(p){return _m(p.name,q)||_m(p.destination,q)||_m(p.code,q);}).slice(0,4);
+      if(pk.length){out.push({_g:'Packages'});pk.forEach(function(p){out.push({t:'rc',label:p.name||'Package',sub:(p.destination||'')+(p.code?' · '+p.code:''),icon:'📦',page:'packages'});});}
       if(out.length===0) out.push({_empty:true});
     }
     return out;

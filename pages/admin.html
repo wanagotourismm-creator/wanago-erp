@@ -139,6 +139,7 @@
       <!-- ═══ OVERVIEW ═══ -->
       <div class="adm-tab active" id="adm-tab-overview">
         <div class="adm-kpi" id="admin-kpi-strip"></div>
+        <div id="adm-data-health" style="margin-bottom:20px"></div>
         <div class="adm-section-title">Quick Actions</div>
         <div class="adm-quick-grid">
           <button class="adm-quick-btn" onclick="admTab('team',document.querySelector('[onclick*=team]'))"><span>➕</span><div>Add Member</div></button>
@@ -390,6 +391,11 @@
           <div class="card-header"><div><div class="card-title">📦 Export All Data (CSV)</div><div class="card-sub">Export leads, bookings, payments as spreadsheets</div></div></div>
           <button class="btn btn-green" onclick="exportAllData()">📦 Export All Data</button>
         </div>
+        <div class="card" style="margin-top:16px;box-shadow:none;border:1px solid var(--border)">
+          <div class="card-header"><div><div class="card-title">🔄 Recalculate Customer Stats</div><div class="card-sub">Recompute bookingsCount and totalSpent from live data</div></div></div>
+          <p style="font-size:12px;color:var(--textd);line-height:1.7;margin-bottom:14px">Use this if customer totals look incorrect. Reads all confirmed bookings and completed payments to rebuild each customer's stats.</p>
+          <button class="btn btn-outline" onclick="recalcCustomerStats()">🔄 Recalculate Now</button>
+        </div>
       </div>
 
       <!-- ═══ INTEGRATIONS ═══ -->
@@ -576,6 +582,49 @@
           </div>
         </div>
 
+        <!-- Push Notifications -->
+        <div class="sett-card" style="margin-bottom:16px">
+          <div class="sett-card-hd">
+            <span class="sett-card-icon">🔔</span>
+            <div style="flex:1">
+              <div class="sett-card-title">Push Notifications (FCM)</div>
+              <div class="sett-card-sub">Browser push notifications for all team members, even when the tab is in the background</div>
+            </div>
+            <span id="push-integ-pill" style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#fee;color:#c0392b;border:1px solid rgba(192,57,43,.2);flex-shrink:0">● Not Configured</span>
+          </div>
+          <div style="background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1px solid #bfdbfe;border-radius:9px;padding:12px 14px;font-size:12px;color:var(--textm);line-height:1.8;margin-bottom:14px">
+            <strong>Setup:</strong> Go to <strong>Firebase Console → Project Settings → Cloud Messaging → Web configuration</strong> → click <strong>Generate key pair</strong> to get your VAPID public key. Paste it below. Team members click <strong>🔕 Push Off</strong> in the notification bell to enable push on their device.
+          </div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">VAPID Public Key <span style="color:var(--textd);font-weight:400;text-transform:none">(from Firebase Console → Cloud Messaging → Web Push certificates)</span></label>
+              <div class="password-wrap">
+                <input type="password" class="form-input" id="integ-fcm-vapid" placeholder="BK8u…" autocomplete="off">
+                <button type="button" class="toggle-pw" onclick="toggleIntegCred('integ-fcm-vapid',this)">👁</button>
+              </div>
+            </div>
+          </div>
+          <div id="push-devices-list" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <div style="font-size:12px;color:var(--textd)">Loading registered devices…</div>
+          </div>
+          <!-- Broadcast form -->
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:700;color:var(--textm);margin-bottom:10px">📣 Send Broadcast Notification</div>
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="push-bc-title" placeholder="New lead batch available"></div>
+              <div class="form-group"><label class="form-label">Message</label><input class="form-input" id="push-bc-body" placeholder="Check leads page for new assignments"></div>
+              <div class="form-group"><label class="form-label">Open URL <span style="color:var(--textd);font-weight:400;text-transform:none">(optional)</span></label><input class="form-input" id="push-bc-url" placeholder="/pages/leads.html"></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+              <button class="btn btn-primary" onclick="savePushSettings()">💾 Save VAPID Key</button>
+              <button class="btn btn-outline" onclick="sendLocalTestNotif()">🧪 Test (This Device)</button>
+            </div>
+            <div style="font-size:11px;color:var(--textd);margin-top:8px">
+              Cross-device broadcast requires a server key. Use the Firebase Console → Cloud Messaging → Send Message to broadcast to all registered tokens stored in your Firestore <code>extras.fcmTokens</code>.
+            </div>
+          </div>
+        </div>
+
         <!-- Setup guide -->
         <div class="sett-card">
           <div class="sett-card-hd"><span class="sett-card-icon">📖</span><div><div class="sett-card-title">Quick Setup Guide</div><div class="sett-card-sub">Step-by-step for each integration</div></div></div>
@@ -619,6 +668,17 @@
                 <li>Deploy → New deployment → Web App</li>
                 <li>Execute as: <strong>Me</strong> · Access: <strong>Anyone</strong></li>
                 <li>Copy URL → Paste above → Save → Test</li>
+              </ol>
+            </div>
+            <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:14px">
+              <div style="font-size:13px;font-weight:700;margin-bottom:8px">🔔 Push Notifications</div>
+              <ol style="font-size:11.5px;color:var(--textm);line-height:2.1;padding-left:16px;margin:0">
+                <li>Firebase Console → Project Settings</li>
+                <li>Cloud Messaging → Web configuration</li>
+                <li>Generate key pair → Copy public key</li>
+                <li>Paste VAPID key above → Save</li>
+                <li>Each team member clicks 🔕 in notification bell</li>
+                <li>Tokens auto-register in Firestore</li>
               </ol>
             </div>
           </div>

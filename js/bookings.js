@@ -49,6 +49,46 @@ const BK_WORKFLOW = {
   ops_pending: { next: 'confirmed', label: '✅ Confirm Booking' },
 };
 const PENDING_STATUSES = ['pending','pending_finance','finance_approved','ops_pending'];
+let bookFilter = 'all';
+let bkUrgencySort = false;
+
+function _deptBadge(travelDate) {
+  if (!travelDate) return '';
+  const d = Math.ceil((new Date(travelDate) - new Date(today())) / 86400000);
+  if (d === 0) return '<div style="font-size:9px;font-weight:700;color:#e74c3c;background:#fde8e8;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block">Today!</div>';
+  if (d === 1) return '<div style="font-size:9px;font-weight:700;color:#e67e22;background:#fef3e2;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block">Tomorrow</div>';
+  if (d > 1 && d <= 7) return '<div style="font-size:9px;color:#f39c12;background:#fffce0;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block">In ' + d + ' days</div>';
+  if (d < 0) return '<div style="font-size:9px;color:#aaa;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block">Departed</div>';
+  return '';
+}
+
+function renderBkAIStrip() {
+  const el = document.getElementById('bk-ai-strip'); if (!el) return;
+  const bks = hScoped('bookings');
+  const now = new Date();
+  const todayStr = today();
+  const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
+  const depToday = bks.filter(b => b.travelDate === todayStr && b.status !== 'cancelled').length;
+  const depTomorrow = bks.filter(b => b.travelDate === tomorrowStr && b.status !== 'cancelled').length;
+  const dep7 = bks.filter(b => { if (!b.travelDate || b.status === 'cancelled') return false; const d = Math.ceil((new Date(b.travelDate) - now) / 86400000); return d > 1 && d <= 7; }).length;
+  const pendingBal = bks.filter(b => b.status !== 'cancelled').reduce((s, b) => s + Number(b.pendingAmount || 0), 0);
+  const pendingCount = bks.filter(b => PENDING_STATUSES.includes(b.status)).length;
+  const items = [];
+  if (depToday > 0) items.push('<div style="background:#fde8e8;border-left:3px solid #e74c3c;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#c0392b">✈️ ' + depToday + ' departure' + (depToday > 1 ? 's' : '') + ' TODAY</div><div style="font-size:10.5px;color:#888;margin-top:1px">Immediate action required</div></div>');
+  if (depTomorrow > 0) items.push('<div style="background:#fef3e2;border-left:3px solid #f39c12;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#b7770d">🗓️ ' + depTomorrow + ' departure' + (depTomorrow > 1 ? 's' : '') + ' tomorrow</div><div style="font-size:10.5px;color:#888;margin-top:1px">Confirm documents and transfers</div></div>');
+  if (dep7 > 0) items.push('<div style="background:#f0faf4;border-left:3px solid #2ecc71;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#1a7a4a">📅 ' + dep7 + ' more within 7 days</div><div style="font-size:10.5px;color:#888;margin-top:1px">Plan ahead</div></div>');
+  if (pendingBal > 0) items.push('<div style="background:#fff8f0;border-left:3px solid #e67e22;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#b7770d">💳 ' + formatMoney(pendingBal) + ' pending collection</div><div style="font-size:10.5px;color:#888;margin-top:1px">' + pendingCount + ' booking' + (pendingCount !== 1 ? 's' : '') + ' awaiting payment</div></div>');
+  if (!items.length) { el.style.display = 'none'; return; }
+  el.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px';
+  el.innerHTML = items.join('');
+}
+
+function toggleBkUrgencySort() {
+  bkUrgencySort = !bkUrgencySort;
+  const btn = document.getElementById('bk-urgency-btn');
+  if (btn) { btn.style.background = bkUrgencySort ? 'var(--g600)' : ''; btn.style.color = bkUrgencySort ? '#fff' : ''; btn.style.borderColor = bkUrgencySort ? 'var(--g600)' : ''; }
+  renderBookings();
+}
 
 function renderBkStats() {
   const bks = hScoped('bookings');
@@ -71,6 +111,7 @@ function renderBkStats() {
 function renderBookings(filter) {
   if (filter) bookFilter = filter;
   renderBkStats();
+  renderBkAIStrip();
   let bks = hScoped('bookings');
   if (bookFilter !== 'all') bks = bks.filter(b=>b.status===bookFilter);
   const q = (document.getElementById('bk-search')?.value||'').toLowerCase();
@@ -86,6 +127,11 @@ function renderBookings(filter) {
   const agentSel = document.getElementById('bk-agent-filter');
   if (agentSel) { const cur=agentSel.value; const agents=[...new Set(hScoped('bookings').map(b=>b.agent).filter(Boolean))]; agentSel.innerHTML='<option value="">All Agents</option>'+agents.map(a=>'<option value="'+a+'" '+(cur===a?'selected':'')+'>'+a+'</option>').join(''); }
 
+  if (bkUrgencySort) bks = bks.slice().sort((a, bk) => {
+    const da = a.travelDate ? new Date(a.travelDate) : new Date('9999-12-31');
+    const db = bk.travelDate ? new Date(bk.travelDate) : new Date('9999-12-31');
+    return da - db;
+  });
   const tbody = document.getElementById('bookings-tbody'); if(!tbody) return;
   if (!bks.length) { tbody.innerHTML = emptyRow(12,'No bookings found. Bookings are created from accepted quotations.'); return; }
 
@@ -108,7 +154,7 @@ function renderBookings(filter) {
       '<td><span style="font-family:JetBrains Mono,monospace;font-size:11.5px;font-weight:600;color:var(--g700)">'+(b.ref||'—')+'</span>'+(b.quotationId?'<div style="font-size:9px;color:var(--textd)">from '+b.quotationId+'</div>':'')+'</td>'+
       '<td><div style="font-weight:600">'+b.customerName+'</div><div style="font-size:10.5px;color:var(--textd)">'+(b.customerPhone||'')+'</div></td>'+
       '<td>'+b.destination+'<br><span style="font-size:10px;color:var(--textd)">'+(b.tripType==='international'?'✈️ Intl':'🇮🇳 Dom')+'</span></td>'+
-      '<td>'+(b.travelDate?formatDate(b.travelDate):'—')+'</td>'+
+      '<td>'+(b.travelDate?formatDate(b.travelDate):'—')+_deptBadge(b.travelDate)+'</td>'+
       '<td style="text-align:center">'+(b.pax||'—')+'</td>'+
       '<td style="font-weight:600">'+formatMoney(total)+'</td>'+
       '<td style="color:var(--g600);font-weight:600">'+formatMoney(paid)+'</td>'+
@@ -143,12 +189,16 @@ function viewBooking(id) {
       '<div class="stat-card"><div class="stat-label">Balance</div><div class="stat-val '+(pending>0?'stat-dn':'')+'" style="font-size:18px">'+formatMoney(pending)+'</div></div>'+
       '<div class="stat-card"><div class="stat-label">Profit</div><div class="stat-val stat-up" style="font-size:18px">'+(b.profit?formatMoney(b.profit):'—')+'</div></div>'+
     '</div>'+
-    '<div class="form-grid" style="margin-bottom:14px">'+
-      '<div><div class="form-label">Phone</div><div style="font-size:13px;margin-top:4px">'+(b.customerPhone||'—')+'</div></div>'+
-      '<div><div class="form-label">Email</div><div style="font-size:13px;margin-top:4px">'+(b.customerEmail||'—')+'</div></div>'+
-      '<div><div class="form-label">Agent</div><div style="font-size:13px;margin-top:4px">'+(b.agent||'—')+'</div></div>'+
-      '<div><div class="form-label">Quotation</div><div style="font-size:13px;margin-top:4px">'+(b.quotationId||'Direct')+'</div></div>'+
-    '</div>'+
+    (function(){
+      var pkg = b.packageId ? (DB.packages||[]).find(function(p){return p.id===b.packageId;}) : null;
+      return '<div class="form-grid" style="margin-bottom:14px">'+
+        '<div><div class="form-label">Phone</div><div style="font-size:13px;margin-top:4px">'+(b.customerPhone||'—')+'</div></div>'+
+        '<div><div class="form-label">Email</div><div style="font-size:13px;margin-top:4px">'+(b.customerEmail||'—')+'</div></div>'+
+        '<div><div class="form-label">Agent</div><div style="font-size:13px;margin-top:4px">'+(b.agent||'—')+'</div></div>'+
+        '<div><div class="form-label">Quotation</div><div style="font-size:13px;margin-top:4px">'+(b.quotationId||'Direct')+'</div></div>'+
+        (pkg ? '<div style="grid-column:1/-1"><div class="form-label">📦 Package</div><div style="margin-top:4px;display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:600;color:var(--g700)">'+pkg.name+'</span><span style="font-size:11px;color:var(--textd)">'+pkg.destination+(pkg.nights?' · '+pkg.nights+'N/'+pkg.days+'D':'')+'</span></div></div>' : '')+
+      '</div>';
+    })()+
     (b.status==='pending'?
       '<div class="form-section">Record Payment</div>'+
       '<div class="form-grid" style="margin-bottom:14px">'+
@@ -166,9 +216,29 @@ function viewBooking(id) {
         '<div class="form-group"><label class="form-label">Profit (₹)</label><input class="form-input" id="vb-profit-preview" readonly style="background:var(--cream);font-weight:700;color:var(--g700)" value="'+(b.profit?formatMoney(b.profit):'Enter cost to see profit')+'"></div>'+
       '</div>'+
       '<button class="btn btn-sm btn-green" style="margin-top:8px" onclick="saveCostProfit(\''+b.id+'\')">Save Cost & Profit</button>'
-    :'');
+    :'')+
+  '<div class="form-section" style="margin-top:14px">📎 Travel Documents</div>'+
+  '<div id="vb-attach-list">'+_renderBookingAttachments(b)+'</div>'+
+  '<label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block;margin-top:6px">'+
+    '<input type="file" style="display:none" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="uploadBookingFiles(\''+b.id+'\',this)">'+
+    '📎 Attach Documents</label>'+
+  '<div id="vb-upload-progress" style="display:none;font-size:11px;color:var(--g600);margin-top:4px"></div>';
   document.getElementById('modal-view-booking')._bookingId = id;
   openModal('modal-view-booking');
+}
+
+function viewBookingInvoice(bookingId) {
+  const existing = (DB.invoices||[]).find(i => i.bookingId === bookingId);
+  if (existing) {
+    closeModal('modal-view-booking');
+    goTo('invoices');
+  } else {
+    if (!confirm('No invoice exists for this booking. Generate one now?')) return;
+    if (typeof autoGenerateInvoices === 'function') autoGenerateInvoices();
+    saveDB();
+    closeModal('modal-view-booking');
+    goTo('invoices');
+  }
 }
 
 function previewProfit(id) {
@@ -224,7 +294,14 @@ function submitPayment(id) {
 function confirmBooking(id) {
   const b = DB.bookings.find(x=>x.id===id); if(!b) return;
   if (!confirm('Manually confirm booking '+b.ref+'?')) return;
+  const wasNotConfirmed = b.status !== 'confirmed';
   b.status = 'confirmed'; b.confirmedAt = new Date().toISOString();
+  // Update customer bookingsCount if not already counted
+  if (wasNotConfirmed && !b._custCountedAt) {
+    const cust = (DB.customers||[]).find(c => c.id === b.customerId || c.phone === b.customerPhone);
+    if (cust) cust.bookingsCount = (cust.bookingsCount || 0) + 1;
+    b._custCountedAt = new Date().toISOString();
+  }
   saveDB(); renderBookings(); showToast(b.ref+' confirmed!');
   logActivity('Booking '+b.ref+' manually confirmed', 'booking');
 }
@@ -281,9 +358,59 @@ function renderBkKanban() {
 function switchBkTab(el, contentId) { switchTab(el, contentId); if(contentId==='bk-timeline') renderBkTimeline(); if(contentId==='bk-kanban') renderBkKanban(); }
 
 
-window.renderBookings=renderBookings;window.filterBookings=filterBookings;
-window.viewBooking=viewBooking;window.recordPayment=recordPayment;window.confirmBooking=confirmBooking;
+// ── Travel Document Attachments ──
+function _renderBookingAttachments(b) {
+  const files = b.attachments || [];
+  if (!files.length) return '<div style="font-size:12px;color:var(--textd);padding:4px 0 8px">No documents attached yet. Upload flight tickets, hotel vouchers, visa copies…</div>';
+  return files.map((f, i) => {
+    const icons = { 'application/pdf':'📄', 'image/jpeg':'🖼', 'image/png':'🖼', 'image/jpg':'🖼' };
+    const ico = icons[f.type] || '📎';
+    const kb = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1)+' MB' : Math.round(f.size/1024)+' KB') : '';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--cream);border-radius:8px;margin-bottom:4px">'+
+      '<span>'+ico+'</span>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+f.name+'</div><div style="font-size:10px;color:var(--textd)">'+kb+(kb&&f.uploadedAt?' · ':'')+( f.uploadedAt?formatDate(f.uploadedAt):'')+'</div></div>'+
+      '<a href="'+f.url+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--g700);font-weight:600;text-decoration:none;white-space:nowrap">⬇ View</a>'+
+      '<button onclick="deleteBookingFile(\''+b.id+'\','+i+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px;padding:0 4px;line-height:1">×</button>'+
+    '</div>';
+  }).join('');
+}
+
+async function uploadBookingFiles(bookingId, input) {
+  if (!input.files.length) return;
+  if (typeof fsUploadFile !== 'function') { showToast('Storage not available', 'error'); return; }
+  const b = DB.bookings.find(x => x.id === bookingId);
+  if (!b) return;
+  if (!b.attachments) b.attachments = [];
+  const prog = document.getElementById('vb-upload-progress');
+  if (prog) prog.style.display = 'block';
+  for (const file of Array.from(input.files)) {
+    try {
+      if (prog) prog.textContent = 'Uploading '+file.name+'…';
+      const path = 'bookings/'+bookingId+'/'+Date.now()+'_'+file.name.replace(/\s+/g,'_');
+      const url = await fsUploadFile(path, file, pct => { if (prog) prog.textContent = file.name+' — '+pct+'%'; });
+      b.attachments.push({ name: file.name, url, size: file.size, type: file.type, path, uploadedAt: new Date().toISOString(), uploadedBy: (window.currentUser&&window.currentUser.name)||'User' });
+    } catch(e) { showToast('Upload failed: '+file.name, 'error'); }
+  }
+  saveDB();
+  if (prog) prog.style.display = 'none';
+  viewBooking(bookingId);
+}
+
+function deleteBookingFile(bookingId, idx) {
+  const b = DB.bookings.find(x => x.id === bookingId);
+  if (!b || !b.attachments) return;
+  if (!confirm('Remove this document?')) return;
+  const f = b.attachments[idx];
+  if (f && f.path && typeof fsDeleteFile === 'function') fsDeleteFile(f.path).catch(() => {});
+  b.attachments.splice(idx, 1);
+  saveDB();
+  viewBooking(bookingId);
+}
+
+window.renderBookings=renderBookings;window.filterBookings=filterBookings;window.toggleBkUrgencySort=toggleBkUrgencySort;
+window.viewBooking=viewBooking;window.recordPayment=recordPayment;window.confirmBooking=confirmBooking;window.viewBookingInvoice=viewBookingInvoice;
 window.submitPayment=submitPayment;window.previewProfit=previewProfit;window.saveCostProfit=saveCostProfit;
 window.renderBkTimeline=renderBkTimeline;window.renderBkKanban=renderBkKanban;window.switchBkTab=switchBkTab;
+window.uploadBookingFiles=uploadBookingFiles;window.deleteBookingFile=deleteBookingFile;
 
 initPage(renderBookings);

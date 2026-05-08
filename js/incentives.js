@@ -151,6 +151,9 @@ function renderIncentiveDashboard() {
     tickClock(); clearInterval(window._incClockInterval); window._incClockInterval = setInterval(tickClock, 1000);
   } else if (liveBar) { liveBar.style.display = 'none'; }
 
+  // AI strip
+  renderIncAIStrip(month, teamProfit, teamTarget, daysPassed, daysTotal, daysLeft);
+
   // Agent cards
   const grid = document.getElementById('inc-agents-grid');
   if (!agents.length) { grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--textd);grid-column:1/-1"><div style="font-size:36px;margin-bottom:10px">🎯</div><div style="font-size:14px;font-weight:600">No agents with bookings this month</div><div style="font-size:12px;margin-top:4px">Set targets in the Settings tab and create confirmed bookings to see incentives here</div></div>'; return; }
@@ -300,7 +303,271 @@ function saveIncentiveSettings() {
 }
 
 
+function renderIncAIStrip(month, teamProfit, teamTarget, daysPassed, daysTotal, daysLeft) {
+  const el = document.getElementById('inc-ai-strip');
+  if (!el || isAgent()) { if (el) el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const cards = [];
+  const monthProgress = daysTotal > 0 ? Math.round((daysPassed / daysTotal) * 100) : 0;
+  const teamPct = teamTarget > 0 ? Math.round((teamProfit / teamTarget) * 100) : 0;
+
+  // 1. Team pace analysis
+  if (teamTarget > 0) {
+    const gap = teamPct - monthProgress;
+    if (gap >= 10) {
+      cards.push({ icon:'🚀', color:'#16a34a', bg:'#f0fdf4',
+        title: 'Team is Ahead of Pace! +'+gap+'%',
+        sub: teamPct+'% target achieved with '+monthProgress+'% of month gone · '+formatMoney(teamProfit)+' profit so far' });
+    } else if (gap >= -5) {
+      cards.push({ icon:'🎯', color:'#f59e0b', bg:'#fffbeb',
+        title: 'On Track — Stay Consistent',
+        sub: teamPct+'% of target at '+monthProgress+'% of month · Need '+formatMoney(Math.max(0,teamTarget-teamProfit))+' more' });
+    } else {
+      const projectedEnd = daysTotal > 0 ? Math.round((teamProfit / daysPassed) * daysTotal) : teamProfit;
+      cards.push({ icon:'⚠️', color:'#dc2626', bg:'#fee2e2',
+        title: 'Team Behind Pace — Action Needed',
+        sub: 'At current pace: projected '+formatMoney(projectedEnd)+' vs target '+formatMoney(teamTarget)+' · Push harder the next '+daysLeft+'d' });
+    }
+  }
+
+  // 2. At-risk agents (below 50% of personal target, month > 50% done)
+  if (monthProgress >= 50) {
+    const allAgents = typeof getAllAgentsWithBookings === 'function' ? getAllAgentsWithBookings(month) : [];
+    const atRisk = allAgents.filter(agent => {
+      const t = typeof getAgentMonthlyTarget === 'function' ? getAgentMonthlyTarget(agent, month) : 0;
+      if (!t) return false;
+      const p = typeof getAgentMonthlyProfit === 'function' ? getAgentMonthlyProfit(agent, month) : 0;
+      return Math.round((p/t)*100) < 50;
+    });
+    if (atRisk.length) {
+      cards.push({ icon:'⚠️', color:'#f97316', bg:'#fff7ed',
+        title: atRisk.length+' Agent'+(atRisk.length>1?'s':'')+' Below 50% Target Mid-Month',
+        sub: atRisk.join(', ')+' — coach and reassign leads to close the gap' });
+    }
+  }
+
+  // 3. Top performer this month
+  if (typeof getAllAgentsWithBookings === 'function' && typeof getAgentMonthlyProfit === 'function') {
+    const agents = getAllAgentsWithBookings(month);
+    if (agents.length > 1) {
+      const ranked = agents.map(a => ({ name:a, profit: getAgentMonthlyProfit(a, month) })).sort((a,b)=>b.profit-a.profit);
+      if (ranked[0].profit > 0) {
+        cards.push({ icon:'🏆', color:'#b45309', bg:'#fffbeb',
+          title: ranked[0].name+' Leading This Month',
+          sub: formatMoney(ranked[0].profit)+' profit · '+(ranked[1]?'2nd: '+ranked[1].name+' ('+formatMoney(ranked[1].profit)+')':'') });
+      }
+    }
+  }
+
+  if (!cards.length) { el.style.display = 'none'; return; }
+
+  el.innerHTML =
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--sh)">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">🤖 Incentive Intelligence <span style="font-size:10px;font-weight:400;color:var(--textd)">AI pace analysis</span></div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:9px">'+
+        cards.map(c =>
+          '<div style="background:'+c.bg+';border:1px solid '+c.color+'22;border-radius:9px;padding:10px 12px;display:flex;gap:9px;align-items:flex-start">'+
+            '<span style="font-size:16px;flex-shrink:0">'+c.icon+'</span>'+
+            '<div><div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.3">'+c.title+'</div>'+
+            '<div style="font-size:10.5px;color:var(--textd);margin-top:2px;line-height:1.4">'+c.sub+'</div></div>'+
+          '</div>'
+        ).join('')+
+      '</div>'+
+    '</div>';
+}
+
+// ══════ PAYOUT TAB ══════
+function renderPayoutTab() {
+  const month = document.getElementById('payout-month')?.value || getCurrentMonth();
+
+  const allAgents = getAllAgentsWithBookings(month);
+  const settings = DB.incentiveSettings;
+  const teamBonusOn = isTeamBonusActive(month);
+
+  // Build payout rows
+  const rows = allAgents.map(agent => {
+    const profit = getAgentMonthlyProfit(agent, month);
+    const target = getAgentMonthlyTarget(agent, month);
+    const pct = target > 0 ? Math.round(profit / target * 100) : 0;
+    const bookings = getAgentMonthlyBookings(agent, month);
+    let totalBase = 0, totalBoosts = 0;
+    bookings.forEach(b => {
+      const c = calculateBookingIncentive(b);
+      totalBase += c.base;
+      totalBoosts += c.fastClosure + c.highValue + c.selfGenerated;
+    });
+    const teamBonus = teamBonusOn ? Math.round(profit * settings.teamBonusPercent / 100) : 0;
+    // Monthly rank rewards
+    const allRanked = allAgents.map(a => ({ name: a, profit: getAgentMonthlyProfit(a, month) })).sort((a, b) => b.profit - a.profit);
+    const rank = allRanked.findIndex(r => r.name === agent);
+    const rankReward = rank >= 0 && rank < settings.monthlyRewards.length ? (settings.monthlyRewards[rank]?.amount || 0) : 0;
+    const totalIncentive = totalBase + totalBoosts + teamBonus + rankReward;
+
+    // Check if already paid this month
+    const payLog = (DB.incentiveLogs || []).find(l => l.agent === agent && l.month === month && l.status === 'paid');
+
+    return { agent, profit, target, pct, bookings: bookings.length, totalBase, totalBoosts, teamBonus, rankReward, totalIncentive, rank, paid: !!payLog, paidAt: payLog?.paidAt, paidBy: payLog?.paidBy, paidAmount: payLog?.amount };
+  }).sort((a, b) => b.totalIncentive - a.totalIncentive);
+
+  const totalPayable = rows.filter(r => !r.paid).reduce((s, r) => s + r.totalIncentive, 0);
+  const totalPaid = rows.filter(r => r.paid).reduce((s, r) => s + (r.paidAmount || r.totalIncentive), 0);
+
+  const el = document.getElementById('inc-payout-content');
+  if (!el) return;
+
+  el.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+        '<div style="background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:10px 16px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--red)">' + formatMoney(totalPayable) + '</div><div style="font-size:10px;color:var(--textd);margin-top:2px">Pending Payout</div></div>' +
+        '<div style="background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:10px 16px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--g700)">' + formatMoney(totalPaid) + '</div><div style="font-size:10px;color:var(--textd);margin-top:2px">Already Paid</div></div>' +
+        '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 16px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--text)">' + formatMoney(totalPayable + totalPaid) + '</div><div style="font-size:10px;color:var(--textd);margin-top:2px">Total This Month</div></div>' +
+      '</div>' +
+      (isAdmin() ? '<button class="btn btn-primary" onclick="markAllPaid(\'' + month + '\')">✅ Mark All Pending as Paid</button>' : '') +
+    '</div>' +
+
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh)">' +
+      '<table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="background:var(--cream)">' +
+          '<th style="text-align:left;padding:10px 14px;font-size:10px;color:var(--textd)">AGENT</th>' +
+          '<th style="padding:10px 14px;font-size:10px;color:var(--textd);text-align:right">PROFIT</th>' +
+          '<th style="padding:10px 14px;font-size:10px;color:var(--textd);text-align:right">ACHIEVE%</th>' +
+          '<th style="padding:10px 14px;font-size:10px;color:var(--textd);text-align:right">BASE</th>' +
+          '<th style="padding:10px 14px;font-size:10px;color:var(--textd);text-align:right">BOOSTS</th>' +
+          '<th style="padding:10px 14px;font-size:10px;color:var(--textd);text-align:right">BONUS</th>' +
+          '<th style="padding:10px 14px;font-size:10px;color:var(--textd);text-align:right">TOTAL</th>' +
+          '<th style="padding:10px 14px;font-size:10px;color:var(--textd);text-align:center">STATUS</th>' +
+          (isAdmin() ? '<th style="padding:10px 14px;font-size:10px;color:var(--textd)"></th>' : '') +
+        '</tr></thead>' +
+        '<tbody>' +
+          rows.map((r, i) => {
+            const medals = ['🥇', '🥈', '🥉'];
+            return '<tr style="border-bottom:1px solid var(--border);' + (r.paid ? 'opacity:.65' : '') + '">' +
+              '<td style="padding:10px 14px;font-weight:600">' + (i < 3 ? medals[i] + ' ' : '') + r.agent + '</td>' +
+              '<td style="padding:10px 14px;text-align:right;font-size:13px">' + formatMoney(r.profit) + '</td>' +
+              '<td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:700;color:' + (r.pct >= 100 ? 'var(--g600)' : r.pct >= 70 ? 'var(--amb)' : 'var(--red)') + '">' + r.pct + '%</td>' +
+              '<td style="padding:10px 14px;text-align:right;font-size:13px">' + formatMoney(r.totalBase) + '</td>' +
+              '<td style="padding:10px 14px;text-align:right;font-size:13px;color:var(--amb)">' + (r.totalBoosts > 0 ? '+' + formatMoney(r.totalBoosts) : '—') + '</td>' +
+              '<td style="padding:10px 14px;text-align:right;font-size:13px;color:#7c3aed">' + ((r.teamBonus + r.rankReward) > 0 ? '+' + formatMoney(r.teamBonus + r.rankReward) : '—') + '</td>' +
+              '<td style="padding:10px 14px;text-align:right;font-size:15px;font-weight:800;color:var(--g700)">' + formatMoney(r.totalIncentive) + '</td>' +
+              '<td style="padding:10px 14px;text-align:center">' +
+                (r.paid
+                  ? '<span style="background:var(--g50);color:var(--g700);border:1px solid var(--g200);font-size:10px;padding:3px 8px;border-radius:20px">✅ Paid ' + (r.paidAt ? new Date(r.paidAt).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) : '') + '</span>'
+                  : '<span style="background:#fff5f5;color:var(--red);border:1px solid rgba(220,38,38,.2);font-size:10px;padding:3px 8px;border-radius:20px">⏳ Pending</span>') +
+              '</td>' +
+              (isAdmin() ? '<td style="padding:10px 14px">' +
+                (!r.paid ? '<button class="btn btn-sm btn-outline" style="font-size:11px" onclick="markAgentPaid(\'' + r.agent + '\',\'' + month + '\',' + r.totalIncentive + ')">💸 Pay</button>' : '') +
+              '</td>' : '') +
+            '</tr>';
+          }).join('') +
+        '</tbody>' +
+        '<tfoot><tr style="background:var(--cream);font-weight:700">' +
+          '<td style="padding:10px 14px" colspan="6">Total Incentive Payable</td>' +
+          '<td style="padding:10px 14px;text-align:right;font-size:16px;color:var(--g700)">' + formatMoney(rows.reduce((s, r) => s + r.totalIncentive, 0)) + '</td>' +
+          '<td colspan="' + (isAdmin() ? '2' : '1') + '"></td>' +
+        '</tr></tfoot>' +
+      '</table>' +
+    '</div>' +
+
+    // Payout History
+    '<div style="margin-top:20px;font-size:13px;font-weight:700;color:var(--textm);margin-bottom:10px">Payout History</div>' +
+    _renderPayoutHistory();
+}
+
+function _renderPayoutHistory() {
+  const logs = (DB.incentiveLogs || []).filter(l => l.status === 'paid').sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt)).slice(0, 30);
+  if (!logs.length) return '<div style="text-align:center;padding:24px;color:var(--textd);font-size:13px">No payouts recorded yet</div>';
+  return '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">' +
+    '<table style="width:100%;border-collapse:collapse">' +
+    '<thead><tr style="background:var(--cream)"><th style="text-align:left;padding:8px 14px;font-size:10px;color:var(--textd)">AGENT</th><th style="padding:8px 14px;font-size:10px;color:var(--textd)">MONTH</th><th style="padding:8px 14px;font-size:10px;color:var(--textd);text-align:right">AMOUNT</th><th style="padding:8px 14px;font-size:10px;color:var(--textd)">PAID ON</th><th style="padding:8px 14px;font-size:10px;color:var(--textd)">BY</th></tr></thead>' +
+    '<tbody>' +
+    logs.map(l => '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 14px;font-weight:600">' + l.agent + '</td><td style="padding:8px 14px;color:var(--textd)">' + l.month + '</td><td style="padding:8px 14px;text-align:right;font-weight:700;color:var(--g700)">' + formatMoney(l.amount) + '</td><td style="padding:8px 14px;color:var(--textd)">' + new Date(l.paidAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) + '</td><td style="padding:8px 14px;color:var(--textd)">' + (l.paidBy || '—') + '</td></tr>').join('') +
+    '</tbody></table></div>';
+}
+
+function markAgentPaid(agent, month, amount) {
+  if (!confirm('Mark incentive of ' + formatMoney(amount) + ' as paid to ' + agent + ' for ' + month + '?')) return;
+  if (!Array.isArray(DB.incentiveLogs)) DB.incentiveLogs = [];
+  // Remove any prior entry for this agent/month
+  DB.incentiveLogs = DB.incentiveLogs.filter(l => !(l.agent === agent && l.month === month));
+  const session = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+  DB.incentiveLogs.push({ agent, month, amount, status: 'paid', paidAt: new Date().toISOString(), paidBy: session.name || session.email || 'Admin' });
+  saveDB();
+  showToast('Payment of ' + formatMoney(amount) + ' recorded for ' + agent + ' ✅');
+  renderPayoutTab();
+}
+
+function markAllPaid(month) {
+  const allAgents = getAllAgentsWithBookings(month);
+  const unpaid = allAgents.filter(agent => {
+    return !(DB.incentiveLogs || []).some(l => l.agent === agent && l.month === month && l.status === 'paid');
+  });
+  if (!unpaid.length) { showToast('All agents already paid for this month'); return; }
+  const settings = DB.incentiveSettings;
+  const teamBonusOn = isTeamBonusActive(month);
+  const allRanked = allAgents.map(a => ({ name: a, profit: getAgentMonthlyProfit(a, month) })).sort((a, b) => b.profit - a.profit);
+  if (!confirm('Mark incentives as paid for ' + unpaid.length + ' agent(s) for ' + month + '?')) return;
+  const session = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+  if (!Array.isArray(DB.incentiveLogs)) DB.incentiveLogs = [];
+  unpaid.forEach(agent => {
+    const profit = getAgentMonthlyProfit(agent, month);
+    const bookings = getAgentMonthlyBookings(agent, month);
+    let total = 0;
+    bookings.forEach(b => { const c = calculateBookingIncentive(b); total += c.total; });
+    if (teamBonusOn) total += Math.round(profit * settings.teamBonusPercent / 100);
+    const rank = allRanked.findIndex(r => r.name === agent);
+    if (rank >= 0 && rank < settings.monthlyRewards.length) total += (settings.monthlyRewards[rank]?.amount || 0);
+    DB.incentiveLogs = DB.incentiveLogs.filter(l => !(l.agent === agent && l.month === month));
+    DB.incentiveLogs.push({ agent, month, amount: total, status: 'paid', paidAt: new Date().toISOString(), paidBy: session.name || session.email || 'Admin' });
+  });
+  saveDB();
+  showToast(unpaid.length + ' agent(s) marked as paid ✅');
+  renderPayoutTab();
+}
+
+// ══════ DYNAMIC STRUCTURE TAB ══════
+function renderStructureTab() {
+  const s = DB.incentiveSettings;
+  const el = document.getElementById('inc-structure-content');
+  if (!el) return;
+
+  el.innerHTML =
+    '<div class="card" style="max-width:800px">' +
+      '<div class="card-header"><div><div class="card-title">📋 Incentive Structure Reference</div><div class="card-sub">As per current Wanago Sales Incentive Settings</div></div></div>' +
+      '<div class="form-section">Incentive Slabs (Profit-Based)</div>' +
+      '<table style="width:100%;border-collapse:collapse;margin-bottom:20px">' +
+        '<thead><tr style="background:var(--cream)"><th style="padding:10px 14px;text-align:left;font-size:11px">Target Achievement</th><th style="padding:10px 14px;text-align:left;font-size:11px">Performance Level</th><th style="padding:10px 14px;text-align:left;font-size:11px">Incentive %</th></tr></thead>' +
+        '<tbody>' +
+          s.slabs.map(sl =>
+            '<tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">' +
+            (sl.max === 999 ? sl.min + '%+' : sl.min + '% – ' + sl.max + '%') +
+            '</td><td>' + sl.level + '</td><td style="color:' + (sl.percent === 0 ? 'var(--red)' : 'var(--g600)') + ';font-weight:600">' +
+            (sl.percent === 0 ? 'No Incentive' : sl.percent + '% of Profit') + '</td></tr>'
+          ).join('') +
+        '</tbody>' +
+      '</table>' +
+      '<div class="form-section">Performance Boosters</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--amb);margin-bottom:8px">⚡ Fast Closure Bonus</div><div style="font-size:12px;line-height:2">' +
+          s.fastClosureBonus.map(fc => 'Within ' + fc.withinHours + ' Hours → <strong>₹' + fc.amount + '</strong>').join('<br>') +
+        '</div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">💎 High-Value Booking</div><div style="font-size:12px;line-height:2">Profit above ₹' + s.highValueThreshold.toLocaleString() + ' → <strong>₹' + s.highValueBonus + ' Bonus</strong></div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px">🔥 Self-Generated Lead</div><div style="font-size:12px;line-height:2">+' + s.selfGeneratedBonus + '% Additional on Profit</div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">👥 Team Bonus</div><div style="font-size:12px;line-height:2">Team hits target → +' + s.teamBonusPercent + '% for everyone</div></div>' +
+      '</div>' +
+      '<div class="form-section">Monthly & Quarterly Rewards</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--g700);margin-bottom:8px">🏆 Monthly Rewards</div><div style="font-size:12px;line-height:2">' +
+          s.monthlyRewards.map((r, i) => ['🥇', '🥈', '🥉'][i] + ' ' + r.label + ' → <strong>₹' + r.amount.toLocaleString() + '</strong>').join('<br>') +
+        '</div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">🌟 Quarterly Reward</div><div style="font-size:12px;line-height:2">Top Performer (3 months) → <strong>' + (s.quarterlyRewardLabel || '₹' + s.quarterlyRewardAmount.toLocaleString()) + '</strong></div></div>' +
+      '</div>' +
+    '</div>';
+}
+
 window.renderIncentiveDashboard=renderIncentiveDashboard;window.renderIncentiveSettings=renderIncentiveSettings;
 window.renderAgentTargets=renderAgentTargets;window.updateSlab=updateSlab;window.saveIncentiveSettings=saveIncentiveSettings;
+window.renderPayoutTab=renderPayoutTab;window.markAgentPaid=markAgentPaid;window.markAllPaid=markAllPaid;
+window.renderStructureTab=renderStructureTab;
 
 initPage(renderIncentiveDashboard);

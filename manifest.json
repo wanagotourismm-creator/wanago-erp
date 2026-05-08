@@ -1,0 +1,35 @@
+{
+  "name": "Wanago ERP",
+  "short_name": "Wanago",
+  "description": "AI-powered Travel ERP — Internal Company System",
+  "start_url": "/pages/dashboard.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#071c12",
+  "theme_color": "#134a32",
+  "lang": "en",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Dashboard",  "url": "/pages/dashboard.html",  "description": "Open Dashboard"  },
+    { "name": "Leads",      "url": "/pages/leads.html",      "description": "View Leads"       },
+    { "name": "Bookings",   "url": "/pages/bookings.html",   "description": "View Bookings"    },
+    { "name": "Payments",   "url": "/pages/payments.html",   "description": "View Payments"    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

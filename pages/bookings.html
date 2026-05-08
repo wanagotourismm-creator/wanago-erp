@@ -17,6 +17,9 @@
       <!-- Stats -->
       <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:18px" id="bk-stats"></div>
 
+      <!-- AI Insights Strip -->
+      <div id="bk-ai-strip" style="margin-bottom:0"></div>
+
       <!-- Tabs -->
       <div class="tab-bar">
         <div class="tab active" onclick="switchBkTab(this,'bk-table')">📋 All Bookings</div>
@@ -37,6 +40,7 @@
             </div>
             <select id="bk-agent-filter" class="form-select" style="width:140px;font-size:11.5px;padding:6px 10px" onchange="renderBookings()"><option value="">All Agents</option></select>
             <select id="bk-pay-filter" class="form-select" style="width:130px;font-size:11.5px;padding:6px 10px" onchange="renderBookings()"><option value="">All Payments</option><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Fully Paid</option></select>
+            <button id="bk-urgency-btn" class="btn btn-sm btn-outline" onclick="toggleBkUrgencySort()" title="Sort by departure urgency — soonest first" style="font-size:11.5px;padding:6px 12px;white-space:nowrap">🚨 Sort Urgent</button>
           </div>
           <table><thead><tr><th>Ref</th><th>Customer</th><th>Destination</th><th>Travel Date</th><th>Pax</th><th>Amount</th><th>Paid</th><th>Balance</th><th>Profit</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="bookings-tbody"></tbody></table>
         </div>
@@ -61,7 +65,10 @@
   <div class="modal modal-lg">
     <div class="modal-title" id="vb-title">Booking Details</div>
     <div id="vb-body"></div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-view-booking')">Close</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-view-booking')">Close</button>
+      <button class="btn btn-outline" onclick="viewBookingInvoice(document.getElementById('modal-view-booking')._bookingId)" id="vb-inv-btn">🧾 Invoice</button>
+    </div>
   </div>
 </div>
 

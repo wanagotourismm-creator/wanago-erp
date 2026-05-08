@@ -6,11 +6,43 @@
 (function () {
   'use strict';
 
-  // ── Storage (shared with wanago-space.html) ──
-  function wsKey(id)         { return 'ws5_' + id; }
-  function wsMsgs(id)        { try { return JSON.parse(localStorage.getItem(wsKey(id)) || '[]'); } catch(e) { return []; } }
-  function wsSaveMsgs(id, m) { localStorage.setItem(wsKey(id), JSON.stringify(m.slice(-500))); }
-  function wsDmId(a, b)      { const ids = [a, b].sort(); return 'dm_' + ids[0] + '_' + ids[1]; }
+  // ── Storage (Firestore real-time, in-memory cache) ──
+  const _wsCache     = {};   // id → messages[]
+  const _wsListeners = {};   // id → unsubscribe fn
+
+  function wsMsgs(id) { return _wsCache[id] || []; }
+  function wsDmId(a, b) { const ids = [a, b].sort(); return 'dm_' + ids[0] + '_' + ids[1]; }
+
+  function wsSubscribe(id) {
+    if (_wsListeners[id]) return;
+    if (typeof window.fsChatListen !== 'function') return;
+    window.fsChatListen(id, function(msgs) {
+      const prev = _wsCache[id]?.length || 0;
+      _wsCache[id] = msgs;
+      // Unread tracking
+      if (msgs.length > prev) {
+        const isActive = _open && (
+          (_tab === 'channels' && id === _room) ||
+          (_tab === 'dms' && _dmTarget && id === wsDmId(me().id, _dmTarget))
+        );
+        if (!isActive) {
+          _unread[id] = (_unread[id] || 0) + (msgs.length - prev);
+          const last = msgs[msgs.length - 1];
+          if (last && last.senderId !== me().id) wsShowNotif(last, id);
+        }
+        wsRenderRooms(); wsRenderDMList(); wsUpdateBadge();
+      }
+      if (_open) {
+        if (_tab === 'channels' && id === _room) wsRenderChanMsgs();
+        if (_tab === 'dms' && _dmTarget && id === wsDmId(me().id, _dmTarget)) wsRenderDMMsgs();
+      }
+    }).then(function(unsub) { if (unsub) _wsListeners[id] = unsub; });
+  }
+
+  function wsSubscribeAll() {
+    ROOMS.forEach(r => wsSubscribe(r.id));
+    team().forEach(m => { if (m.id !== me().id) wsSubscribe(wsDmId(me().id, m.id)); });
+  }
 
   // ── Channels ──
   const ROOMS = [
@@ -27,7 +59,7 @@
 
   // ── State ──
   let _open = false, _tab = 'channels', _room = 'general', _dmTarget = null;
-  let _unread = {}, _lastCounts = {};
+  let _unread = {};
 
   // ── Helpers ──
   function me()   { return window.currentUser || { id:'me', name:'Me', color:'#134a32' }; }
@@ -206,7 +238,8 @@
     `);
     document.body.appendChild(root);
     wsRenderAll();
-    setInterval(wsPoll, 1500);
+    // Subscribe after a brief delay so Firestore finishes loading
+    setTimeout(wsSubscribeAll, 1200);
   }
 
   // ── Toggle ──
@@ -259,6 +292,7 @@
 
   window.wsPickRoom = function (id) {
     _room = id; _unread[id] = 0;
+    wsSubscribe(id);
     wsRenderRooms(); wsRenderChanChat(); wsUpdateBadge();
     setTimeout(() => document.getElementById('ws5-ch-input')?.focus(), 50);
   };
@@ -297,11 +331,15 @@
     const inp = document.getElementById('ws5-ch-input');
     const text = inp?.value.trim(); if (!text) return;
     const m = me();
-    const msgs = wsMsgs(_room);
-    msgs.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2, 5), senderId: m.id, sender: m.name, color: m.color || '#228050', text, ts: new Date().toISOString(), reactions: {} });
-    wsSaveMsgs(_room, msgs);
+    if (typeof window.fsChatSend === 'function') {
+      window.fsChatSend(_room, { senderId: m.id, sender: m.name, color: m.color || '#228050', text, reactions: {} });
+    } else {
+      const msgs = [...wsMsgs(_room)];
+      msgs.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2, 5), senderId: m.id, sender: m.name, color: m.color || '#228050', text, ts: new Date().toISOString(), reactions: {} });
+      _wsCache[_room] = msgs;
+      wsRenderChanMsgs();
+    }
     inp.value = ''; inp.style.height = 'auto';
-    wsRenderChanMsgs();
     if (window.logActivity) logActivity('Message in #' + _room, 'chat');
   };
 
@@ -336,6 +374,7 @@
     _dmTarget = memberId;
     const dmId = wsDmId(me().id, memberId);
     _unread[dmId] = 0;
+    wsSubscribe(dmId);
     wsRenderDMList(); wsRenderDMChat(); wsUpdateBadge();
     const picker = document.getElementById('ws5-picker-overlay');
     if (picker) picker.remove();
@@ -388,11 +427,15 @@
     const inp = document.getElementById('ws5-dm-input');
     const text = inp?.value.trim(); if (!text) return;
     const m = me(), dmId = wsDmId(m.id, _dmTarget);
-    const msgs = wsMsgs(dmId);
-    msgs.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2, 5), senderId: m.id, sender: m.name, color: m.color || '#228050', text, ts: new Date().toISOString(), reactions: {} });
-    wsSaveMsgs(dmId, msgs);
+    if (typeof window.fsChatSend === 'function') {
+      window.fsChatSend(dmId, { senderId: m.id, sender: m.name, color: m.color || '#228050', text, reactions: {} });
+    } else {
+      const msgs = [...wsMsgs(dmId)];
+      msgs.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2, 5), senderId: m.id, sender: m.name, color: m.color || '#228050', text, ts: new Date().toISOString(), reactions: {} });
+      _wsCache[dmId] = msgs;
+      wsRenderDMMsgs();
+    }
     inp.value = ''; inp.style.height = 'auto';
-    wsRenderDMMsgs();
   };
 
   // ── New DM picker (no prompt!) ──
@@ -472,7 +515,9 @@
     const idx = msg.reactions[emoji].indexOf(me().id);
     if (idx >= 0) msg.reactions[emoji].splice(idx, 1); else msg.reactions[emoji].push(me().id);
     if (!msg.reactions[emoji].length) delete msg.reactions[emoji];
-    wsSaveMsgs(ctxId, msgs);
+    if (typeof window.fsChatUpdateMsg === 'function') {
+      window.fsChatUpdateMsg(ctxId, msgId, { reactions: msg.reactions });
+    }
     if (_tab === 'channels') wsRenderChanMsgs(); else wsRenderDMMsgs();
   };
 
@@ -483,13 +528,19 @@
     const newText = prompt('Edit message:', msg.text);
     if (newText === null || !newText.trim()) return;
     msg.text = newText.trim(); msg.edited = true;
-    wsSaveMsgs(ctxId, msgs);
+    if (typeof window.fsChatUpdateMsg === 'function') {
+      window.fsChatUpdateMsg(ctxId, msgId, { text: msg.text, edited: true });
+    }
     if (_tab === 'channels') wsRenderChanMsgs(); else wsRenderDMMsgs();
   };
   window.wsDel5 = function (msgId, ctxId) {
     if (!confirm('Delete this message?')) return;
-    wsSaveMsgs(ctxId, wsMsgs(ctxId).filter(m => m.id !== msgId));
-    if (_tab === 'channels') wsRenderChanMsgs(); else wsRenderDMMsgs();
+    if (typeof window.fsChatDeleteMsg === 'function') {
+      window.fsChatDeleteMsg(ctxId, msgId);
+    } else {
+      _wsCache[ctxId] = wsMsgs(ctxId).filter(m => m.id !== msgId);
+      if (_tab === 'channels') wsRenderChanMsgs(); else wsRenderDMMsgs();
+    }
   };
 
   // ── Input box HTML ──
@@ -557,37 +608,9 @@
     if (fab) fab.style.boxShadow = total ? '0 4px 18px rgba(13,50,35,.45),0 0 0 4px rgba(224,30,90,.25)' : '0 4px 18px rgba(13,50,35,.45)';
   }
 
-  // ── Poll for new messages ──
-  function wsPoll() {
-    const myId = me().id;
-    const ids = [
-      ...ROOMS.map(r => r.id),
-      ...team().filter(m => m.id !== myId).map(m => wsDmId(myId, m.id))
-    ];
-    let changed = false;
-    ids.forEach(id => {
-      const msgs = wsMsgs(id);
-      const prev = _lastCounts[id] || 0;
-      if (msgs.length > prev) {
-        const isActive = _open && (
-          (_tab === 'channels' && id === _room) ||
-          (_tab === 'dms' && id === wsDmId(myId, _dmTarget))
-        );
-        if (!isActive) {
-          _unread[id] = (_unread[id] || 0) + (msgs.length - prev);
-          const last = msgs[msgs.length - 1];
-          if (last && last.senderId !== myId) wsShowNotif(last, id);
-          changed = true;
-        }
-        if (_open) {
-          if (_tab === 'channels' && id === _room) wsRenderChanMsgs();
-          if (_tab === 'dms' && id === wsDmId(myId, _dmTarget)) wsRenderDMMsgs();
-        }
-      }
-      _lastCounts[id] = msgs.length;
-    });
-    if (changed) { wsRenderRooms(); wsRenderDMList(); wsUpdateBadge(); }
-  }
+  // ── Real-time listeners replace polling ──
+  // wsPoll is kept as a no-op; wsSubscribeAll sets up Firestore listeners
+  function wsPoll() {}
 
   // ── Notification popup ──
   function wsShowNotif(msg, roomId) {

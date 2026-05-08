@@ -52,6 +52,101 @@ window.goTo = goTo;
 
 let quotFilter = 'all';
 
+function renderQuotAIStrip() {
+  const el = document.getElementById('quot-ai-strip');
+  if (!el) return;
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+  const allQuots = DB.quotations || [];
+  const companyName = (DB.settings||{}).companyName || 'Wanago';
+
+  const quotsWithMeta = allQuots.map(q => {
+    const validDays = q.validDays || 15;
+    const expiry = new Date(q.createdAt);
+    expiry.setDate(expiry.getDate() + validDays);
+    const isExpired = expiry < todayDate && q.status === 'sent';
+    const daysSent = Math.ceil((todayDate - new Date(q.createdAt)) / 86400000);
+    return { ...q, _status: isExpired ? 'expired' : q.status, _expiry: expiry, _days: daysSent };
+  });
+
+  // Stale = sent, 7+ days with no response
+  const stale = quotsWithMeta.filter(q => q._status === 'sent' && q._days >= 7);
+  // Expiring soon = sent, expires in ≤3 days
+  const expiringSoon = quotsWithMeta.filter(q => {
+    if (q._status !== 'sent') return false;
+    const dte = Math.ceil((q._expiry - todayDate) / 86400000);
+    return dte >= 0 && dte <= 3;
+  });
+
+  const active = quotsWithMeta.filter(q => q._status === 'sent' || q._status === 'accepted');
+  if (!stale.length && !expiringSoon.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const pipelineValue = active.reduce((s, q) => s + Number(q.grandTotal||q.amount||0), 0);
+  const convRate = allQuots.length ? Math.round((allQuots.filter(q=>q.status==='converted').length / allQuots.length) * 100) : 0;
+
+  function winProb(q) {
+    let score = 70 - (q._days * 3);
+    const hasBkg = (DB.bookings||[]).some(b => b.customerName === q.customerName || b.customerId === q.customerId);
+    if (hasBkg) score += 15;
+    const dte = Math.ceil((q._expiry - todayDate) / 86400000);
+    if (dte >= 0 && dte <= 3) score -= 20;
+    return Math.max(5, Math.min(95, score));
+  }
+
+  const listItems = stale.length
+    ? stale.slice().sort((a,b) => Number(b.grandTotal||b.amount||0) - Number(a.grandTotal||a.amount||0)).slice(0, 5)
+    : expiringSoon.slice(0, 5);
+  const listLabel = stale.length
+    ? stale.length+' stale quote'+(stale.length!==1?'s':'')+' · no response in 7+ days'
+    : expiringSoon.length+' expiring within 3 days';
+
+  const cards = listItems.map(q => {
+    const prob = winProb(q);
+    const probColor = prob >= 60 ? 'var(--g600)' : prob >= 35 ? '#f59e0b' : 'var(--red)';
+    const dte = Math.ceil((q._expiry - todayDate) / 86400000);
+    const ageLabel = q._days === 0 ? 'today' : q._days === 1 ? '1d ago' : q._days+'d ago';
+    const expLabel = dte <= 0 ? 'Expired' : dte === 1 ? 'Exp. tomorrow' : 'Exp. in '+dte+'d';
+    const expStyle = dte <= 3 ? 'color:var(--red);font-weight:600' : 'color:var(--textd)';
+    const phone = (q.customerPhone||'').replace(/\D/g,'').replace(/^0/,'91');
+    const msg = 'Hi '+q.customerName+', following up on your quotation ('+q.id+') for '+(q.destination||'your upcoming trip')+' worth '+formatMoney(Number(q.grandTotal||q.amount||0))+'. This quote is valid until '+formatDate(q._expiry.toISOString().slice(0,10))+'. Would you like to proceed? - '+companyName;
+    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="WhatsApp follow-up" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:var(--blue2);color:var(--blue);text-decoration:none;flex-shrink:0;font-size:16px">💬</a>' : '';
+    return '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:10px">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">'+
+          '<div style="font-weight:700;font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">'+q.customerName+'</div>'+
+          '<span style="font-size:10px;color:var(--textd)">sent '+ageLabel+'</span>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--textd)">'+(q.destination||'—')+' · '+q.id+'</div>'+
+        '<div style="font-size:10px;'+expStyle+'">'+expLabel+'</div>'+
+      '</div>'+
+      '<div style="text-align:center;flex-shrink:0;margin-right:2px">'+
+        '<div style="font-size:13px;font-weight:800;color:'+probColor+'">'+prob+'%</div>'+
+        '<div style="font-size:10px;color:var(--textd)">win prob</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0;margin-right:4px">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text)">'+formatMoney(Number(q.grandTotal||q.amount||0))+'</div>'+
+        '<div style="font-size:10px;color:var(--textd)">value</div>'+
+      '</div>'+
+      waBtn+
+    '</div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">🎯 Quote Intelligence '+
+          '<span style="font-size:11px;font-weight:500;color:var(--textd)">'+listLabel+'</span>'+
+        '</div>'+
+        '<div style="display:flex;gap:14px;align-items:center">'+
+          '<div style="text-align:right"><div style="font-size:12px;font-weight:800;color:var(--g700)">'+formatMoney(pipelineValue)+'</div><div style="font-size:10px;color:var(--textd)">pipeline</div></div>'+
+          '<div style="text-align:right"><div style="font-size:12px;font-weight:800;color:'+(convRate>=30?'var(--g600)':convRate>=15?'#f59e0b':'var(--red)')+'">'+convRate+'%</div><div style="font-size:10px;color:var(--textd)">conv. rate</div></div>'+
+          (expiringSoon.length ? '<span style="font-size:11px;font-weight:700;color:var(--red);background:#fee2e2;padding:3px 10px;border-radius:20px">⏰ '+expiringSoon.length+' expiring soon</span>' : '')+
+        '</div>'+
+      '</div>'+
+      '<div style="display:grid;gap:7px">'+cards+'</div>'+
+    '</div>';
+}
+
 function renderQuotationsPage() {
   const search = (document.getElementById('quot-search')?.value || '').toLowerCase();
   const sort = document.getElementById('quot-sort')?.value || 'newest';
@@ -83,6 +178,8 @@ function renderQuotationsPage() {
     if (sort === 'amount-asc') return Number(a.grandTotal||0) - Number(b.grandTotal||0);
     return (b.createdAt||'').localeCompare(a.createdAt||'');
   });
+  renderQuotAIStrip();
+
   // Stats
   const all = DB.quotations || [];
   const el = id => document.getElementById(id) || {textContent:''};
@@ -261,6 +358,33 @@ function printQuotation() {
   if (w) { w.document.write('<html><head><title>Quotation</title></head><body>'+body.innerHTML+'<script>window.print()<\/script></body></html>'); w.document.close(); }
 }
 
+function whatsappQuotation() {
+  const quotId = document.getElementById('modal-view-quotation')._quotId;
+  const q = quotId ? DB.quotations.find(x => x.id === quotId) : null;
+  if (!q) { showToast('No quotation loaded', 'error'); return; }
+  const company = (DB.settings && DB.settings.companyName) || 'Wanago';
+  const total = formatMoney((q.grandTotal || q.amount || 0));
+  const lines = [
+    `Hi ${q.customerName} 👋`,
+    ``,
+    `Here's your travel quotation from *${company}*:`,
+    ``,
+    `🗒️ *Quotation ID:* ${q.id}`,
+    `📍 *Destination:* ${q.destination}`,
+    q.travelDate ? `📅 *Travel Date:* ${formatDate(q.travelDate)}` : '',
+    q.pax ? `👥 *Travellers:* ${q.pax} pax` : '',
+    `💰 *Package Amount:* ${total}`,
+    `⏳ *Valid for:* ${q.validDays || 15} days`,
+    ``,
+    `Please confirm at the earliest to secure your booking. 🙏`,
+    ``,
+    `— ${company} | ${(DB.settings && DB.settings.phone) || ''}`,
+  ].filter(l => l !== '').join('\n');
+  const ph = (q.customerPhone || '').replace(/\D/g,'').replace(/^0+/,'');
+  const full = ph.startsWith('91') ? ph : '91' + ph;
+  window.open(`https://wa.me/${full}?text=${encodeURIComponent(lines)}`, '_blank');
+}
+
 function acceptFromModal() {
   const quotId = document.getElementById('modal-view-quotation')._quotId;
   if (quotId) { closeModal('modal-view-quotation'); acceptQuotation(quotId); }
@@ -271,6 +395,7 @@ function convertFromModal() {
   if (quotId) { closeModal('modal-view-quotation'); convertToBooking(quotId); }
 }
 
+window.renderQuotAIStrip = renderQuotAIStrip;
 window.renderQuotationsPage = renderQuotationsPage;
 window.renderQuotations = renderQuotationsPage;
 window.filterQuotations = filterQuotations;
@@ -279,6 +404,7 @@ window.acceptQuotation = acceptQuotation;
 window.rejectQuotation = rejectQuotation;
 window.convertToBooking = convertToBooking;
 window.printQuotation = printQuotation;
+window.whatsappQuotation = whatsappQuotation;
 window.acceptFromModal = acceptFromModal;
 window.convertFromModal = convertFromModal;
 

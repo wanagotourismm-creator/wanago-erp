@@ -13,7 +13,7 @@ function loadDB() { return defaultDB(); }
 function defaultDB() {
   return {
     leads: [], customers: [], quotations: [], packages: [], bookings: [],
-    invoices: [], payments: [], campaigns: [], segments: [], activities: [],
+    invoices: [], payments: [], expenses: [], campaigns: [], segments: [], activities: [],
     hrmsEmployees: [], hrmsAttendance: {}, hrmsLeaves: [], hrmsPayroll: [], hrmsCheckIns: [],
     policies: [], tasks: [], rewards: [], pointsLog: [],
     counters: { leads: 0, bookings: 2000, invoices: 0, payments: 0, campaigns: 0, packages: 0 },
@@ -44,7 +44,7 @@ let DB = loadDB();
 
 // ── OFFICE SYSTEM ──
 const OFFICE_ALL = '*';
-const SCOPED_COLLECTIONS = ['leads','customers','quotations','packages','bookings','invoices','payments','campaigns','segments','hrmsEmployees','hrmsLeaves','hrmsPayroll'];
+const SCOPED_COLLECTIONS = ['leads','customers','quotations','packages','bookings','invoices','payments','expenses','campaigns','segments','hrmsEmployees','hrmsLeaves','hrmsPayroll'];
 const ALL_ACCESS_ROLES = ['founder','ceo'];
 let currentOfficeId = OFFICE_ALL;
 
@@ -186,6 +186,7 @@ window.getSessionName = getSessionName;
 
 // ── FORMATTERS ──
 function today() { return new Date().toISOString().split('T')[0]; }
+function getCurrentMonth() { return new Date().toISOString().slice(0, 7); }
 function formatMoney(n) { return '₹' + Number(n || 0).toLocaleString('en-IN'); }
 function formatDate(d) { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return d; } }
 function isOverdue(dateStr) { if (!dateStr) return false; return new Date(dateStr) < new Date(today()); }
@@ -298,6 +299,7 @@ window.currentUser = currentUser;
 window.currentOfficeId = currentOfficeId;
 window.OFFICE_ALL = OFFICE_ALL;
 window.today = today;
+window.getCurrentMonth = getCurrentMonth;
 window.formatMoney = formatMoney;
 window.formatDate = formatDate;
 window.isOverdue = isOverdue;
@@ -459,7 +461,13 @@ function convertQuotationToBooking(quotId) {
   if (lead) {
     lead.stage = 'won';
     lead.bookingRef = bookingRef;
-    lead.customerId = customer.id; // link lead → customer
+    lead.customerId = customer.id;
+  }
+
+  // Increment package bookings count
+  if (quot.packageId) {
+    const pkg = (DB.packages || []).find(p => p.id === quot.packageId);
+    if (pkg) pkg.bookingsCount = (pkg.bookingsCount || 0) + 1;
   }
 
   saveDB();
@@ -502,6 +510,9 @@ if (!DB.incentiveSettings) {
 
 // Ensure incentive log exists
 if (!Array.isArray(DB.incentiveLogs)) { DB.incentiveLogs = []; saveDB(); }
+
+// Ensure FCM tokens list exists
+if (!Array.isArray(DB.fcmTokens)) { DB.fcmTokens = []; }
 
 // Ensure agent targets exist
 if (!DB.agentTargets) { DB.agentTargets = {}; saveDB(); }
@@ -571,18 +582,18 @@ function setAgentMonthlyTarget(agent, month, target) {
 
 function getAgentMonthlyProfit(agent, month) {
   return (DB.bookings || [])
-    .filter(b => b.agent === agent && b.status === 'confirmed' && (b.createdAt || '').startsWith(month))
+    .filter(b => b.agent === agent && (b.status === 'confirmed' || b.status === 'completed') && (b.createdAt || '').startsWith(month))
     .reduce((sum, b) => sum + Number(b.profit || 0), 0);
 }
 
 function getAgentMonthlyBookings(agent, month) {
   return (DB.bookings || [])
-    .filter(b => b.agent === agent && b.status === 'confirmed' && (b.createdAt || '').startsWith(month));
+    .filter(b => b.agent === agent && (b.status === 'confirmed' || b.status === 'completed') && (b.createdAt || '').startsWith(month));
 }
 
 function getAllAgentsWithBookings(month) {
   const agents = new Set();
-  (DB.bookings || []).filter(b => b.status === 'confirmed' && (b.createdAt || '').startsWith(month))
+  (DB.bookings || []).filter(b => (b.status === 'confirmed' || b.status === 'completed') && (b.createdAt || '').startsWith(month))
     .forEach(b => { if (b.agent) agents.add(b.agent); });
   // Also add agents from team settings
   (DB.settings.team || []).filter(m => ['sales','operations'].includes(m.dept))
@@ -592,7 +603,7 @@ function getAllAgentsWithBookings(month) {
 
 function getTeamMonthlyProfit(month) {
   return (DB.bookings || [])
-    .filter(b => b.status === 'confirmed' && (b.createdAt || '').startsWith(month))
+    .filter(b => (b.status === 'confirmed' || b.status === 'completed') && (b.createdAt || '').startsWith(month))
     .reduce((sum, b) => sum + Number(b.profit || 0), 0);
 }
 

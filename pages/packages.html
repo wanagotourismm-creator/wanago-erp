@@ -16,6 +16,7 @@
     <div class="topbar"><div class="topbar-title">Package Management</div><div class="topbar-actions"><div class="search-wrap"><svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="pkg-search" type="text" placeholder="Search packages..." oninput="renderPackages()"/></div><button class="btn btn-primary" onclick="openNewPkgModal()">+ New Package</button><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
     <div id="content"><div class="page active">
       <div class="stats-grid g4" id="pkg-stats-strip" style="margin-bottom:18px"></div>
+      <div id="pkg-ai-strip" style="margin-bottom:14px"></div>
       <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--sh)">
         <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
           <div class="chip active" onclick="filterPackages('all',this)">All</div>

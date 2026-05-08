@@ -102,7 +102,10 @@
         </div>
       </div>
       <div id="np-scroll"></div>
-      <div id="np-foot"><a href="#" onclick="if(typeof goTo==='function')goTo('dashboard');npClose();return false">View all activity →</a></div>
+      <div id="np-foot" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <a href="#" onclick="if(typeof goTo==='function')goTo('dashboard');npClose();return false">View all activity →</a>
+        <button id="notif-push-btn" style="font-size:11px;color:var(--textd);background:none;border:1px solid var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;font-family:inherit;flex-shrink:0">🔕 Push Off</button>
+      </div>
     </div>`;
 
   /* ── Inject into topbar when ready ── */
@@ -123,7 +126,7 @@
   /* ── Helpers ── */
   function _rset() { try { return new Set(JSON.parse(localStorage.getItem(READ_KEY)||'[]')); } catch(e) { return new Set(); } }
   function _wsave(s) { localStorage.setItem(READ_KEY, JSON.stringify(Array.from(s).slice(-600))); }
-  function _db() { try { return JSON.parse(localStorage.getItem('wanago_erp_v3')||'{}'); } catch(e) { return {}; } }
+  function _db() { return window.DB || {}; }
 
   function _ago(ts) {
     if (!ts) return '';
@@ -137,8 +140,11 @@
 
   function _e(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  /* ── Smart alerts ── */
+  /* ── Smart alerts — use Automation Engine when loaded ── */
   function _alerts() {
+    if (typeof window.WanagoAutomation !== 'undefined') {
+      try { return window.WanagoAutomation.evaluate(); } catch(e) {}
+    }
     var db = _db();
     var today = new Date();
     var list = [];

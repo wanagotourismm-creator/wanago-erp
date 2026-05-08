@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wanago™ ERP — Expenses</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../styles/main.css"/>
+</head>
+<body>
+<div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div><div class="loader-text">Loading…</div></div>
+<div class="app">
+  <aside id="sidebar"></aside>
+  <div id="main">
+    <div class="topbar">
+      <div class="topbar-title">Expenses</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openAddExpenseModal()">+ Add Expense</button>
+        <div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div>
+      </div>
+    </div>
+    <div id="content"><div class="page active">
+
+      <!-- Stats -->
+      <div class="stats-grid g4" id="exp-stats" style="margin-bottom:16px"></div>
+
+      <!-- AI Strip -->
+      <div id="exp-ai-strip" style="margin-bottom:16px"></div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab(this,'exp-table')">💸 All Expenses</div>
+        <div class="tab" onclick="switchTab(this,'exp-analytics');renderExpAnalytics()">📊 Analytics</div>
+      </div>
+
+      <!-- TABLE TAB -->
+      <div class="tab-content active" id="exp-table">
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <div class="filter-bar" style="margin:0">
+              <div class="chip active" onclick="filterExp('all',this)">All</div>
+              <div class="chip" onclick="filterExp('paid',this)">Paid</div>
+              <div class="chip" onclick="filterExp('pending',this)">Pending</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap">
+              <select class="form-select" id="exp-cat-filter" onchange="renderExpenses()" style="height:32px;font-size:12px;width:150px">
+                <option value="">All Categories</option>
+                <option value="transportation">✈️ Transportation</option>
+                <option value="hotel">🏨 Hotel & Stay</option>
+                <option value="visa">📋 Visa & Docs</option>
+                <option value="marketing">📢 Marketing</option>
+                <option value="office">🏢 Office & Admin</option>
+                <option value="salary">👥 Staff & Salary</option>
+                <option value="technology">💻 Technology</option>
+                <option value="vehicle">🚗 Vehicle & Fuel</option>
+                <option value="miscellaneous">📦 Miscellaneous</option>
+              </select>
+              <input type="date" class="form-input" id="exp-from" onchange="renderExpenses()" style="height:32px;font-size:12px;width:130px">
+              <input type="date" class="form-input" id="exp-to" onchange="renderExpenses()" style="height:32px;font-size:12px;width:130px">
+              <button class="btn btn-sm btn-outline" onclick="clearExpFilters()">✕ Clear</button>
+              <button class="btn btn-sm btn-outline" onclick="exportExpenses()">⬇ Export</button>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Vendor / Payee</th>
+              <th>Description</th>
+              <th>Booking Ref</th>
+              <th>Method</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody id="exp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ANALYTICS TAB -->
+      <div class="tab-content" id="exp-analytics">
+        <div class="two-col-eq" style="margin-bottom:18px">
+          <div class="card"><div class="card-header"><div class="card-title">📈 Monthly Spend</div></div><div id="exp-monthly-chart" style="min-height:120px"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">🥧 By Category</div></div><div id="exp-cat-chart"></div></div>
+        </div>
+        <div class="two-col-eq">
+          <div class="card"><div class="card-header"><div class="card-title">💰 Profit & Loss</div></div><div id="exp-pnl"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">📋 Top Vendors</div></div><div id="exp-vendors"></div></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+
+<!-- ADD / EDIT EXPENSE MODAL -->
+<div class="modal-overlay" id="modal-add-expense">
+  <div class="modal" style="max-width:560px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div class="modal-title" id="exp-modal-title" style="margin-bottom:0">Add Expense</div>
+      <button onclick="closeModal('modal-add-expense')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--textd);line-height:1;padding:4px 8px">✕</button>
+    </div>
+    <input type="hidden" id="exp-edit-id">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Date *</label>
+        <input class="form-input" type="date" id="exp-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select class="form-select" id="exp-category">
+          <option value="">Select category</option>
+          <option value="transportation">✈️ Transportation</option>
+          <option value="hotel">🏨 Hotel & Stay</option>
+          <option value="visa">📋 Visa & Docs</option>
+          <option value="marketing">📢 Marketing</option>
+          <option value="office">🏢 Office & Admin</option>
+          <option value="salary">👥 Staff & Salary</option>
+          <option value="technology">💻 Technology</option>
+          <option value="vehicle">🚗 Vehicle & Fuel</option>
+          <option value="miscellaneous">📦 Miscellaneous</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (₹) *</label>
+        <input class="form-input" type="number" id="exp-amount" min="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Method</label>
+        <select class="form-select" id="exp-method">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Card">Card</option>
+          <option value="Cheque">Cheque</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Vendor / Payee *</label>
+        <input class="form-input" id="exp-vendor" placeholder="Vendor or person paid">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Description</label>
+        <input class="form-input" id="exp-desc" placeholder="What was this expense for?">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Booking Ref</label>
+        <input class="form-input" id="exp-bkref" placeholder="BK-XXXX">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="exp-status">
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="exp-notes" rows="2" placeholder="Additional notes…" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div id="exp-error" class="form-error" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-expense')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExpense()">💾 Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+<script src="../js/sidebar.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/firestore.js"></script>
+<script src="../js/db.js"></script>
+<script src="../js/expenses.js"></script>
+<script src="../js/wanago-space.js"></script>
+</body>
+</html>

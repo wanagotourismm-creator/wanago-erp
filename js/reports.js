@@ -76,14 +76,20 @@ function setPeriod(p) {
   renderAllReports();
 }
 
+let repPeriod = 'month';
+
 function renderAllReports() {
   const from = document.getElementById('rep-from').value;
   const to = document.getElementById('rep-to').value;
+  renderAIIntelligence(from, to);
   renderSalesReport(from, to);
   renderLeadsReport(from, to);
+  renderLeadQuality(from, to);
   renderAgentReport(from, to);
   renderFinanceReport(from, to);
   renderDestinationReport(from, to);
+  renderQuotationsReport(from, to);
+  renderPackageReport(from, to);
 }
 
 function inRange(dateStr, from, to) {
@@ -303,6 +309,256 @@ function renderDestinationReport(from, to) {
       </div>
     </div>`;
   }).join('') : '<div style="color:var(--textd);font-size:12px;text-align:center;padding:20px">No booking data yet</div>';
+}
+
+// ══════ AI INTELLIGENCE ══════
+function renderAIIntelligence(from, to) {
+  const section = document.getElementById('rep-ai-section');
+  const el = document.getElementById('rep-ai-content');
+  if (!el) return;
+  if (typeof window.WanagoAI === 'undefined') { if (section) section.style.display = 'none'; return; }
+  try {
+    const { forecast, ema } = WanagoAI.forecastRevenue();
+    const activeLeads = hScoped('leads').filter(l => !['won','lost'].includes(l.stage));
+    const heats = activeLeads.map(l => WanagoAI.scoreLeadHeat(l));
+    const hot = heats.filter(s => s >= 70).length;
+    const hotPct = heats.length ? Math.round(hot / heats.length * 100) : 0;
+    const health = WanagoAI.dataHealthScore();
+    const segs = WanagoAI.segmentCustomers();
+    const totalCusts = Object.values(segs).reduce((s, a) => s + a.length, 0);
+    const cards = [];
+
+    // Next month forecast
+    const nf = forecast[0];
+    if (nf) cards.push(
+      '<div style="background:linear-gradient(135deg,#134a32,#1e7a4e);border-radius:10px;padding:14px;color:#fff">' +
+        '<div style="font-size:10.5px;opacity:.75;margin-bottom:4px">📈 ' + nf.month + ' Forecast</div>' +
+        '<div style="font-size:22px;font-weight:800;font-family:\'DM Serif Display\',serif">₹' + WanagoAI.fmt(nf.predicted) + '</div>' +
+        '<div style="font-size:10px;opacity:.6;margin-top:4px">EMA ₹' + WanagoAI.fmt(ema) + '/mo</div>' +
+        '<div style="font-size:9.5px;background:rgba(255,255,255,.15);border-radius:5px;padding:2px 7px;display:inline-block;margin-top:6px">' +
+          (nf.confidence === 'high' ? '↑ High confidence' : nf.confidence === 'medium' ? '~ Medium confidence' : '? Low confidence') +
+        '</div>' +
+      '</div>'
+    );
+
+    // Lead temperature
+    cards.push(
+      '<div style="background:#fde8e8;border:1px solid #e74c3c30;border-radius:10px;padding:14px">' +
+        '<div style="font-size:10.5px;color:#888;margin-bottom:6px">🔥 Lead Temperature</div>' +
+        '<div style="font-size:26px;font-weight:800;color:#c0392b">' + hotPct + '%</div>' +
+        '<div style="font-size:11px;color:#888;margin-top:2px">' + hot + ' hot leads (score ≥70)</div>' +
+        '<div style="margin-top:8px;height:5px;background:#f4f4f4;border-radius:3px;overflow:hidden">' +
+          '<div style="height:100%;width:' + hotPct + '%;background:#e74c3c;border-radius:3px"></div>' +
+        '</div>' +
+      '</div>'
+    );
+
+    // Data health
+    const hc = health.score >= 80 ? '#2ecc71' : health.score >= 60 ? '#f39c12' : '#e74c3c';
+    const hbg = health.score >= 80 ? '#f0faf4' : health.score >= 60 ? '#fff8f0' : '#fde8e8';
+    cards.push(
+      '<div style="background:' + hbg + ';border:1px solid ' + hc + '30;border-radius:10px;padding:14px">' +
+        '<div style="font-size:10.5px;color:#888;margin-bottom:6px">🏥 Data Health</div>' +
+        '<div style="display:flex;align-items:baseline;gap:4px">' +
+          '<div style="font-size:26px;font-weight:800;color:' + hc + '">' + health.score + '</div>' +
+          '<div style="font-size:10px;color:#aaa">/ 100</div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#888;margin-top:2px">' + (health.issues > 0 ? health.issues + ' issues found' : 'All records complete') + '</div>' +
+        '<div style="margin-top:8px;height:5px;background:#f4f4f4;border-radius:3px;overflow:hidden">' +
+          '<div style="height:100%;width:' + health.score + '%;background:' + hc + ';border-radius:3px;transition:.4s"></div>' +
+        '</div>' +
+      '</div>'
+    );
+
+    // Customer segments
+    if (totalCusts > 0) {
+      const segCfg = [
+        { key:'vip',     label:'VIP',      color:'#f0ad4e' },
+        { key:'loyal',   label:'Loyal',    color:'#2ecc71' },
+        { key:'regular', label:'Regular',  color:'#3498db' },
+        { key:'at_risk', label:'At Risk',  color:'#e74c3c' },
+        { key:'new',     label:'New',      color:'#9b59b6' },
+        { key:'inactive',label:'Inactive', color:'#aaa'    },
+      ].filter(s => segs[s.key]?.length > 0);
+      cards.push(
+        '<div style="background:#f8f9fa;border:1px solid var(--border);border-radius:10px;padding:14px">' +
+          '<div style="font-size:10.5px;color:#888;margin-bottom:8px">👥 Customer Segments</div>' +
+          segCfg.map(s => {
+            const pct = Math.round(segs[s.key].length / totalCusts * 100);
+            return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">' +
+              '<div style="width:8px;height:8px;border-radius:50%;background:' + s.color + ';flex-shrink:0"></div>' +
+              '<div style="flex:1;font-size:11px;color:#555">' + s.label + '</div>' +
+              '<div style="font-size:10px;font-weight:700;color:' + s.color + ';min-width:22px;text-align:right">' + segs[s.key].length + '</div>' +
+              '<div style="width:44px;height:5px;background:#eee;border-radius:3px;overflow:hidden">' +
+                '<div style="height:100%;width:' + pct + '%;background:' + s.color + ';border-radius:3px"></div>' +
+              '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>'
+      );
+    }
+
+    el.innerHTML = cards.join('');
+    if (section) section.style.display = '';
+  } catch (e) {
+    if (section) section.style.display = 'none';
+  }
+}
+
+// ══════ LEAD QUALITY ══════
+function renderLeadQuality(from, to) {
+  const el = document.getElementById('rep-lead-quality'); if (!el) return;
+  if (typeof window.WanagoAI === 'undefined') { el.closest('.rep-section')?.style && (el.closest('.rep-section').style.display = 'none'); return; }
+  const leads = hScoped('leads').filter(l => inRange(l.createdAt, from, to) && !['won','lost'].includes(l.stage));
+  if (!leads.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No active leads in this period</div>'; return; }
+
+  const buckets = { hot:[], warm:[], lukewarm:[], cold:[], dormant:[] };
+  leads.forEach(l => {
+    const s = WanagoAI.scoreLeadHeat(l);
+    const tagged = {...l, _score: s};
+    if (s >= 82)      buckets.hot.push(tagged);
+    else if (s >= 62) buckets.warm.push(tagged);
+    else if (s >= 42) buckets.lukewarm.push(tagged);
+    else if (s >= 20) buckets.cold.push(tagged);
+    else              buckets.dormant.push(tagged);
+  });
+  const maxB = Math.max(...Object.values(buckets).map(b => b.length), 1);
+  const avgScore = Math.round(leads.reduce((s, l) => s + WanagoAI.scoreLeadHeat(l), 0) / leads.length);
+  const bucketCfg = [
+    { key:'hot',      label:'🔥 Hot',      color:'#e74c3c' },
+    { key:'warm',     label:'⚡ Warm',     color:'#e67e22' },
+    { key:'lukewarm', label:'😐 Lukewarm', color:'#d4ac0d' },
+    { key:'cold',     label:'❄️ Cold',     color:'#3498db' },
+    { key:'dormant',  label:'💤 Dormant',  color:'#95a5a6' },
+  ];
+
+  let html = '<div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:16px">' +
+    '<div style="text-align:center;padding:12px 18px;background:var(--cream);border-radius:10px;flex-shrink:0">' +
+      '<div style="font-size:28px;font-weight:800;color:var(--g700)">' + avgScore + '</div>' +
+      '<div style="font-size:10.5px;color:var(--textd)">Avg Heat Score</div>' +
+    '</div>' +
+    '<div style="flex:1;min-width:220px">' +
+      bucketCfg.map(b => {
+        const cnt = buckets[b.key].length;
+        const pct = Math.max(2, cnt / maxB * 100);
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">' +
+          '<div style="width:78px;font-size:11px;color:' + b.color + ';font-weight:600;flex-shrink:0">' + b.label + '</div>' +
+          '<div style="flex:1;height:7px;background:var(--border);border-radius:4px;overflow:hidden">' +
+            '<div style="height:100%;width:' + pct + '%;background:' + b.color + ';border-radius:4px;transition:.4s"></div>' +
+          '</div>' +
+          '<div style="width:24px;font-size:11.5px;font-weight:700;text-align:right;color:#333">' + cnt + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>' +
+  '</div>';
+
+  const topLeads = [...buckets.hot, ...buckets.warm].sort((a, b) => b._score - a._score).slice(0, 5);
+  if (topLeads.length) {
+    html += '<div style="font-size:11.5px;font-weight:700;color:var(--textm);margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border)">Top Priority Leads</div>';
+    html += topLeads.map(l => {
+      const hl = WanagoAI.heatLabel(l._score);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f4f4f4;cursor:pointer" onclick="goTo(\'leads\')">' +
+        '<div style="flex:1">' +
+          '<div style="font-size:12.5px;font-weight:600">' + (l.name||'Lead') + '</div>' +
+          '<div style="font-size:10.5px;color:#888">' + (l.destination||'—') + ' · ' + (l.agent||'Unassigned') + '</div>' +
+        '</div>' +
+        '<span style="font-size:10.5px;font-weight:700;color:' + hl.color + ';background:' + hl.bg + ';padding:2px 8px;border-radius:6px">' + hl.label + '</span>' +
+        '<span style="font-size:11px;font-weight:800;color:' + hl.color + ';min-width:24px;text-align:right">' + l._score + '</span>' +
+      '</div>';
+    }).join('');
+  }
+  el.innerHTML = html;
+}
+
+// ══════ 6. QUOTATIONS FUNNEL ══════
+function renderQuotationsReport(from, to) {
+  const statsEl = document.getElementById('rep-quot-stats');
+  const funnelEl = document.getElementById('rep-quot-funnel');
+  if (!statsEl || !funnelEl) return;
+
+  const quots = hScoped('quotations').filter(q => inRange(q.createdAt || q.date, from, to));
+  const total = quots.length;
+  const sent = quots.filter(q => q.status === 'sent' || q.status === 'draft' || !q.status).length;
+  const accepted = quots.filter(q => q.status === 'accepted').length;
+  const converted = quots.filter(q => q.status === 'converted').length;
+  const expired = quots.filter(q => q.status === 'expired').length;
+  const totalVal = quots.reduce((s, q) => s + Number(q.grandTotal || q.amount || 0), 0);
+  const convRate = total ? ((converted / total) * 100).toFixed(1) : 0;
+  const avgVal = total ? Math.round(totalVal / total) : 0;
+
+  statsEl.innerHTML = [
+    { l: 'Total Quotes', v: total, c: '' },
+    { l: '✅ Accepted', v: accepted, c: 'stat-up' },
+    { l: '🎉 Converted', v: converted, c: 'stat-up' },
+    { l: '📈 Conv. Rate', v: convRate + '%', c: Number(convRate) >= 30 ? 'stat-up' : '' },
+  ].map(s => `<div class="stat-card" style="padding:10px 12px"><div class="stat-label" style="font-size:10.5px">${s.l}</div><div class="stat-val ${s.c}" style="font-size:18px">${s.v}</div></div>`).join('');
+
+  const stages = [
+    { label: '📤 Sent',      count: sent,      color: 'var(--blue)' },
+    { label: '✅ Accepted',  count: accepted,  color: 'var(--g500)' },
+    { label: '🎉 Converted', count: converted, color: 'var(--g700)' },
+    { label: '⏰ Expired',   count: expired,   color: 'var(--red)'  },
+  ];
+  const maxC = Math.max(...stages.map(s => s.count), 1);
+
+  funnelEl.innerHTML = `<div style="font-size:10.5px;color:var(--textd);margin-bottom:10px">Avg value: <strong>${formatMoney(avgVal)}</strong> · Total: <strong>${formatMoney(totalVal)}</strong></div>` +
+    stages.map(s => {
+      const pct = Math.max(3, (s.count / maxC) * 100);
+      return `<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px">
+          <span>${s.label}</span><span style="font-weight:700">${s.count}</span>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${s.color};border-radius:4px;transition:.4s"></div>
+        </div>
+      </div>`;
+    }).join('') +
+    (total ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--textd)">
+      Drop-off: ${total - converted} quotes did not convert (${(100 - Number(convRate)).toFixed(1)}%)
+    </div>` : '');
+}
+
+// ══════ 7. PACKAGE REVENUE ══════
+function renderPackageReport(from, to) {
+  const el = document.getElementById('rep-packages');
+  if (!el) return;
+
+  const bookings = hScoped('bookings').filter(b => inRange(b.createdAt, from, to));
+  const pkgMap = {};
+  bookings.forEach(b => {
+    if (!b.packageId) return;
+    if (!pkgMap[b.packageId]) pkgMap[b.packageId] = { revenue: 0, count: 0 };
+    pkgMap[b.packageId].revenue += Number(b.totalAmount || b.total || 0);
+    pkgMap[b.packageId].count++;
+  });
+
+  const pkgs = hScoped('packages');
+  const rows = pkgs
+    .filter(p => pkgMap[p.id])
+    .map(p => ({ name: p.name, dest: p.destination, ...pkgMap[p.id] }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 8);
+
+  if (!rows.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--textd);font-size:12px">No package bookings in this period</div>';
+    return;
+  }
+
+  const maxR = Math.max(...rows.map(r => r.revenue), 1);
+  const colors = ['var(--g600)', 'var(--blue)', 'var(--amb)', '#7c3aed', 'var(--g400)', 'var(--red)', 'var(--g700)', '#e91e8c'];
+
+  el.innerHTML = rows.map((r, i) => {
+    const pct = Math.max(3, (r.revenue / maxR) * 100);
+    return `<div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px">
+        <span style="font-weight:600">📦 ${r.name} <span style="font-weight:400;color:var(--textd)">· ${r.dest||''}</span></span>
+        <span style="font-weight:700">${formatMoney(r.revenue)} <span style="color:var(--textd);font-weight:400">(${r.count} bk)</span></span>
+      </div>
+      <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${colors[i%colors.length]};border-radius:4px;transition:.4s"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ══════ EXPORT ══════

@@ -35,6 +35,9 @@
           <div class="stat-card" style="padding:12px 14px"><div class="stat-label">💰 Total Value</div><div class="stat-val" id="qstat-value" style="font-size:17px">₹0</div></div>
         </div>
 
+        <!-- AI Strip -->
+        <div id="quot-ai-strip" style="margin-bottom:14px"></div>
+
         <!-- Toolbar -->
         <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--sh)">
           <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
@@ -76,6 +79,7 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-view-quotation')">Close</button>
       <button class="btn btn-green" onclick="printQuotation()">🖨 Print</button>
+      <button class="btn btn-outline" id="quot-wa-btn" onclick="whatsappQuotation()" style="background:#25d366;color:#fff;border-color:#25d366">💬 WhatsApp</button>
       <button class="btn btn-blue" id="quot-accept-btn" onclick="acceptFromModal()" style="display:none">✅ Customer Accepted</button>
       <button class="btn btn-primary" id="quot-convert-btn" onclick="convertFromModal()" style="display:none">🗓 Convert to Booking</button>
     </div>

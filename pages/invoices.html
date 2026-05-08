@@ -24,6 +24,9 @@
         <button class="btn btn-sm btn-danger" onclick="filterInvoices('overdue',document.querySelectorAll('.page .chip')[5])">View Overdue</button>
       </div>
 
+      <!-- AI Recovery Strip -->
+      <div id="inv-ai-strip" style="margin-bottom:14px"></div>
+
       <!-- Toolbar -->
       <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--sh)">
         <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
@@ -54,7 +57,7 @@
   <div class="modal modal-lg">
     <div class="modal-title" id="vi-title">Invoice</div>
     <div id="vi-body"></div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-view-invoice')">Close</button><button class="btn btn-green" onclick="printInvoice(document.getElementById('modal-view-invoice')._invId)">🖨 Print</button></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-view-invoice')">Close</button><button class="btn btn-green" onclick="printInvoice(document.getElementById('modal-view-invoice')._invId)">🖨 Print</button><button class="btn btn-outline" onclick="whatsappInvoice(document.getElementById('modal-view-invoice')._invId)" style="background:#25d366;color:#fff;border-color:#25d366">💬 WhatsApp</button></div>
   </div>
 </div>
 

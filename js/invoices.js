@@ -81,6 +81,90 @@ function autoGenerateInvoices() {
   saveDB();
 }
 
+function renderInvAIStrip() {
+  const el = document.getElementById('inv-ai-strip');
+  if (!el) return;
+  const allInvs = hScoped('invoices');
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+  const overdue = allInvs.filter(i => i.status === 'overdue' && Number(i.amountDue||0) > 0);
+  if (!overdue.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  // Aging buckets
+  let b1=0,b1a=0, b2=0,b2a=0, b3=0,b3a=0, b4=0,b4a=0;
+  const companyName = (DB.settings||{}).companyName || 'Wanago';
+
+  const scored = overdue.map(inv => {
+    const days = inv.dueDate ? Math.ceil((todayDate - new Date(inv.dueDate)) / 86400000) : 0;
+    if (days <= 7) { b1++; b1a += Number(inv.amountDue||0); }
+    else if (days <= 30) { b2++; b2a += Number(inv.amountDue||0); }
+    else if (days <= 60) { b3++; b3a += Number(inv.amountDue||0); }
+    else { b4++; b4a += Number(inv.amountDue||0); }
+    return { ...inv, _days: days, _score: Number(inv.amountDue||0) * Math.max(days, 1) };
+  });
+  scored.sort((a, b) => b._score - a._score);
+  const top5 = scored.slice(0, 5);
+
+  const totalOverdue = overdue.reduce((s, i) => s + Number(i.amountDue||0), 0);
+
+  // Aging bar (max bucket for scaling)
+  const maxBktAmt = Math.max(b1a, b2a, b3a, b4a, 1);
+  const agingBars = [
+    { label:'1–7 days', count:b1, amt:b1a, color:'#f59e0b' },
+    { label:'8–30 days', count:b2, amt:b2a, color:'#f97316' },
+    { label:'31–60 days', count:b3, amt:b3a, color:'#dc2626' },
+    { label:'60+ days', count:b4, amt:b4a, color:'#7f1d1d' },
+  ].filter(b => b.count > 0).map(b =>
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'+
+      '<div style="font-size:11px;color:var(--textd);width:70px;flex-shrink:0">'+b.label+'</div>'+
+      '<div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">'+
+        '<div style="width:'+Math.round((b.amt/maxBktAmt)*100)+'%;height:100%;background:'+b.color+';border-radius:4px;transition:.4s"></div>'+
+      '</div>'+
+      '<div style="font-size:11px;font-weight:700;color:'+b.color+';width:72px;text-align:right;flex-shrink:0">'+formatMoney(b.amt)+'</div>'+
+      '<div style="font-size:10px;color:var(--textd);width:30px;flex-shrink:0">'+b.count+'inv</div>'+
+    '</div>'
+  ).join('');
+
+  const cards = top5.map(inv => {
+    const cust = (DB.customers||[]).find(c => c.id === inv.customerId || c.name === inv.customerName);
+    const phone = ((cust&&cust.phone)||inv.customerPhone||'').replace(/\D/g,'').replace(/^0/,'91');
+    const msg = 'Dear '+inv.customerName+', your invoice '+inv.ref+' for '+(inv.destination||'your booking')+' amounting to ₹'+Number(inv.amountDue).toLocaleString('en-IN')+' was due on '+formatDate(inv.dueDate)+'. Kindly clear the balance at the earliest. - '+companyName;
+    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="Send WhatsApp reminder" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:#dcfce7;color:#16a34a;text-decoration:none;flex-shrink:0;font-size:16px">💬</a>' : '';
+    const urgColor = inv._days > 60 ? '#7f1d1d' : inv._days > 30 ? '#dc2626' : inv._days > 7 ? '#f97316' : '#f59e0b';
+    return '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:10px">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">'+
+          '<div style="font-weight:700;font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">'+inv.customerName+'</div>'+
+          '<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;background:'+urgColor+'20;color:'+urgColor+';white-space:nowrap">+'+inv._days+'d overdue</span>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--textd)">'+inv.ref+' · '+(inv.destination||'—')+'</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0;margin-right:4px">'+
+        '<div style="font-size:14px;font-weight:800;color:var(--red)">₹'+Number(inv.amountDue).toLocaleString('en-IN')+'</div>'+
+        '<div style="font-size:10px;color:var(--textd)">due '+formatDate(inv.dueDate)+'</div>'+
+      '</div>'+
+      waBtn+
+    '</div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div style="background:var(--white);border:1px solid rgba(192,57,43,.2);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">🔍 Recovery Radar '+
+          '<span style="font-size:11px;font-weight:500;color:var(--textd)">'+overdue.length+' overdue invoice'+(overdue.length!==1?'s':'')+' · top '+top5.length+' by priority</span>'+
+        '</div>'+
+        '<div style="font-size:14px;font-weight:800;color:var(--red)">₹'+totalOverdue.toLocaleString('en-IN')+' at risk</div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start">'+
+        '<div>'+
+          '<div style="font-size:10px;font-weight:700;color:var(--textd);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Aging Analysis</div>'+
+          agingBars+
+        '</div>'+
+        '<div style="display:grid;gap:7px">'+cards+'</div>'+
+      '</div>'+
+    '</div>';
+}
+
 function renderInvoices(filter) {
   if (filter) invFilter = filter;
   // Mark overdue
@@ -103,6 +187,8 @@ function renderInvoices(filter) {
     {label:'🔴 Overdue',val:formatMoney(overdueAmt),meta:overdueList.length+' invoices',cls:'stat-dn'},
     {label:'✅ Paid',val:paidCount+'/'+allInvs.length,meta:'fully cleared',cls:'stat-up'},
   ].map(s=>'<div class="stat-card" style="cursor:pointer"><div class="stat-label">'+s.label+'</div><div class="stat-val '+(s.cls||'')+'">'+s.val+'</div><div class="stat-meta">'+s.meta+'</div></div>').join('');
+
+  renderInvAIStrip();
 
   // Overdue banner
   const banner = document.getElementById('inv-overdue-banner');
@@ -206,7 +292,34 @@ function printInvoice(id) {
 }
 
 
-window.renderInvoices=renderInvoices;window.filterInvoices=filterInvoices;
-window.clearInvDateFilter=clearInvDateFilter;window.viewInvoice=viewInvoice;window.quickMarkPaid=quickMarkPaid;window.printInvoice=printInvoice;
+function whatsappInvoice(id) {
+  const inv = id ? (DB.invoices || []).find(x => x.id === id) : null;
+  if (!inv) { showToast('Invoice not found', 'error'); return; }
+  const company = (DB.settings && DB.settings.companyName) || 'Wanago';
+  const dueAmt = formatMoney(inv.amountDue || inv.total || 0);
+  const dueDate = inv.dueDate ? formatDate(inv.dueDate) : '';
+  const lines = [
+    `Hi ${inv.customerName} 👋`,
+    ``,
+    `This is a gentle reminder from *${company}*.`,
+    ``,
+    `🧾 *Invoice:* ${inv.ref || inv.invoiceNo || inv.id}`,
+    `💰 *Amount Due:* ${dueAmt}`,
+    dueDate ? `📅 *Due Date:* ${dueDate}` : '',
+    ``,
+    `Kindly process the payment at the earliest. Thank you! 🙏`,
+    ``,
+    `— ${company} | ${(DB.settings && DB.settings.phone) || ''}`,
+  ].filter(l => l !== '').join('\n');
+  const ph = (inv.customerPhone || '').replace(/\D/g,'').replace(/^0+/,'');
+  const full = ph.startsWith('91') ? ph : '91' + ph;
+  if (!ph) { showToast('No phone number on invoice', 'error'); return; }
+  window.open(`https://wa.me/${full}?text=${encodeURIComponent(lines)}`, '_blank');
+}
 
-initPage(renderInvoices);
+window.autoGenerateInvoices=autoGenerateInvoices;window.renderInvAIStrip=renderInvAIStrip;window.renderInvoices=renderInvoices;window.filterInvoices=filterInvoices;window.initInvoices=function(){autoGenerateInvoices();renderInvoices();};
+window.clearInvDateFilter=clearInvDateFilter;window.viewInvoice=viewInvoice;window.quickMarkPaid=quickMarkPaid;window.printInvoice=printInvoice;
+window.whatsappInvoice=whatsappInvoice;
+
+function initInvoices() { autoGenerateInvoices(); renderInvoices(); }
+initPage(initInvoices);

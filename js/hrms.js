@@ -43,6 +43,77 @@ function goTo(page) { window.location.href = page + '.html'; }
 window.handleLogout = handleLogout;
 window.goTo = goTo;
 
+function renderHRMSAIStrip() {
+  const el = document.getElementById('hrms-ai-strip');
+  if (!el) return;
+  const emps = hScoped('hrmsEmployees') || [];
+  const active = emps.filter(e => (e.status||'active') === 'active');
+  if (!active.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const todayStr = today();
+  const cards = [];
+
+  // 1. Top performer from WanagoAI or bookings
+  if (typeof window.WanagoAI !== 'undefined') {
+    try {
+      const perf = WanagoAI.getTopPerformers();
+      if (perf && perf.length) {
+        const top = perf[0];
+        cards.push({ icon:'🏆', color:'#b45309', bg:'#fffbeb',
+          title: top.name + ' — Top Performer',
+          sub: formatMoney(top.revenue)+' revenue · '+top.bookings+' booking'+(top.bookings!==1?'s':'')+' this month' });
+      }
+    } catch(e) {}
+  }
+
+  // 2. Absent today (active, not marked in attendance)
+  const attToday = DB.hrmsAttendance || {};
+  const absentToday = active.filter(e => !attToday[e.id+'_'+todayStr]?.checkIn);
+  if (absentToday.length) {
+    cards.push({ icon:'📋', color:'#dc2626', bg:'#fee2e2',
+      title: absentToday.length+' Employee'+(absentToday.length>1?'s':'')+' Not Marked Today',
+      sub: absentToday.slice(0,3).map(e=>e.name).join(', ')+(absentToday.length>3?' +'+( absentToday.length-3)+' more':'') });
+  }
+
+  // 3. Pending leave requests
+  const pendLeaves = (DB.hrmsLeaves||[]).filter(l => l.status === 'pending');
+  if (pendLeaves.length) {
+    cards.push({ icon:'🏖️', color:'#f97316', bg:'#fff7ed',
+      title: pendLeaves.length+' Leave Request'+(pendLeaves.length>1?'s':'')+' Awaiting Approval',
+      sub: pendLeaves.slice(0,3).map(l=>l.employeeName||'—').join(', ')+(pendLeaves.length>3?' +more':'') });
+  }
+
+  // 4. Birthdays this week
+  const today7 = new Date(); const endWeek = new Date(); endWeek.setDate(endWeek.getDate()+7);
+  const bdaysSoon = active.filter(e => {
+    if (!e.dob) return false;
+    const bd = new Date(new Date().getFullYear()+'-'+e.dob.slice(5));
+    return bd >= today7 && bd <= endWeek;
+  });
+  if (bdaysSoon.length) {
+    cards.push({ icon:'🎂', color:'var(--g700)', bg:'var(--g50)',
+      title: bdaysSoon.length+' Birthday'+(bdaysSoon.length>1?'s':'')+' This Week',
+      sub: bdaysSoon.map(e=>e.name).join(', ') });
+  }
+
+  if (!cards.length) { el.style.display = 'none'; return; }
+
+  el.innerHTML =
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--sh)">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">🤖 HR Intelligence <span style="font-size:10px;font-weight:400;color:var(--textd)">today\'s alerts</span></div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:9px">'+
+        cards.map(c =>
+          '<div style="background:'+c.bg+';border:1px solid '+c.color+'22;border-radius:9px;padding:10px 12px;display:flex;gap:9px;align-items:flex-start">'+
+            '<span style="font-size:16px;flex-shrink:0">'+c.icon+'</span>'+
+            '<div><div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.3">'+c.title+'</div>'+
+            '<div style="font-size:10.5px;color:var(--textd);margin-top:2px;line-height:1.4">'+c.sub+'</div></div>'+
+          '</div>'
+        ).join('')+
+      '</div>'+
+    '</div>';
+}
+
 function renderHRMSOverview() {
   const emps = hScoped('hrmsEmployees');
   const active = emps.filter(e=>(e.status||'active')==='active');
@@ -65,6 +136,7 @@ function renderHRMSOverview() {
   if (bdayEl) bdayEl.style.display = bdays.length ? '' : 'none';
   if (bdays.length && bdayEl) bdayEl.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffd54f;border-radius:var(--radius)"><span style="font-size:22px">🎂</span><div><div style="font-size:13px;font-weight:700;color:#f57f17">Birthday Today!</div><div style="font-size:12px;color:var(--textd)">'+bdays.map(e=>e.name).join(', ')+'</div></div></div>';
 
+  renderHRMSAIStrip();
   renderEmployeeGrid();
 }
 
@@ -105,6 +177,7 @@ function renderEmployeeGrid() {
           '<span style="font-size:10px;color:var(--textd)">Today</span>'+
           '<span style="font-size:11px;font-weight:600;color:'+(att?.checkIn?'var(--g600)':'var(--textd)')+'">'+
             (att?.checkIn ? '✅ '+att.checkIn+(att.checkOut?' → '+att.checkOut:'') : '⬜ Not checked in')+
+            (att?.checkInLat ? ' <span title="Location: '+att.checkInLat+', '+att.checkInLng+'" style="font-size:10px;cursor:default">📍</span>' : '')+
           '</span>'+
         '</div>'+
         '<div style="display:flex;gap:6px">'+
@@ -221,9 +294,30 @@ function markAttendance(empId, type) {
   const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
   const attKey = empId+'_'+today();
   if (!DB.hrmsAttendance[attKey]) DB.hrmsAttendance[attKey] = {empId, date:today(), status:'present'};
-  if (type==='in') { DB.hrmsAttendance[attKey].checkIn = now; DB.hrmsAttendance[attKey].status='present'; showToast('Check-in recorded: '+now); }
-  else { DB.hrmsAttendance[attKey].checkOut = now; showToast('Check-out recorded: '+now); }
-  saveDB(); renderEmployeeGrid();
+  const rec = DB.hrmsAttendance[attKey];
+
+  function _save(lat, lng) {
+    if (type==='in') {
+      rec.checkIn = now; rec.status = 'present';
+      if (lat) { rec.checkInLat = lat; rec.checkInLng = lng; }
+      showToast('Check-in recorded: '+now+(lat?' 📍':''));
+    } else {
+      rec.checkOut = now;
+      if (lat) { rec.checkOutLat = lat; rec.checkOutLng = lng; }
+      showToast('Check-out recorded: '+now+(lat?' 📍':''));
+    }
+    saveDB(); renderEmployeeGrid();
+  }
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(pos) { _save(pos.coords.latitude.toFixed(5), pos.coords.longitude.toFixed(5)); },
+      function()    { _save(null, null); },
+      { timeout: 6000, maximumAge: 30000 }
+    );
+  } else {
+    _save(null, null);
+  }
 }
 
 function markAttendanceModal(empId) {

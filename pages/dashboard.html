@@ -46,7 +46,10 @@
       </div>
 
       <!-- STATS — all clickable -->
-      <div class="stats-grid g4" id="dash-stats" style="margin-bottom:20px"></div>
+      <div class="stats-grid g4" id="dash-stats" style="margin-bottom:16px"></div>
+
+      <!-- AI INSIGHTS -->
+      <div id="dash-insights" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:10px;margin-bottom:20px"></div>
 
       <!-- CHARTS -->
       <div class="two-col">
@@ -60,11 +63,29 @@
         </div>
       </div>
 
-      <!-- BOTTOM -->
+      <!-- REVENUE FORECAST -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><div><div class="card-title">📈 Revenue Forecast</div><div class="card-sub">EMA-based 3-month projection · Solid = actual · Dashed = AI forecast</div></div></div>
+        <div id="dash-forecast"><div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">Collecting data…</div></div></div>
+      </div>
+
+      <!-- AI RECOMMENDATIONS + TOP PERFORMERS -->
       <div class="two-col-eq" style="margin-top:16px">
         <div class="card">
-          <div class="card-header"><div class="card-title">✈️ Departing This Week</div></div>
-          <div id="departing-list"><div class="empty-state"><div class="empty-icon">✈️</div><div class="empty-title">No departures this week</div></div></div>
+          <div class="card-header"><div><div class="card-title">🤖 Smart Recommendations</div><div class="card-sub">AI-powered priorities for today</div></div></div>
+          <div id="ai-recs"><div class="empty-state"><div class="empty-icon">🤖</div><div class="empty-title">Loading recommendations…</div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">🏆 Top Performers</div><div class="card-sub">Revenue collected this month</div></div></div>
+          <div id="top-performers"><div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-title">No data yet</div></div></div>
+        </div>
+      </div>
+
+      <!-- DEPARTURES + ACTIVITY -->
+      <div class="two-col-eq" style="margin-top:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">✈️ Departing Soon</div><div class="card-sub">Next 14 days</div></div>
+          <div id="departing-list"><div class="empty-state"><div class="empty-icon">✈️</div><div class="empty-title">No upcoming departures</div></div></div>
         </div>
         <div class="card">
           <div class="card-header"><div class="card-title">📋 Recent Activity</div></div>
@@ -83,6 +104,7 @@
 <script src="../js/utils.js"></script>
 <script src="../js/firestore.js"></script>
 <script src="../js/db.js"></script>
+<script src="../js/ai.js"></script>
 <script type="module" src="../js/dashboard.js"></script>
 
 <script src="../js/wanago-space.js"></script>

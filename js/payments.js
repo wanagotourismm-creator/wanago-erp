@@ -57,6 +57,67 @@ const PAY_METHOD_META = {
   UPI:{label:'UPI',emoji:'📱',color:'var(--blue)',bg:'var(--blue2)'},
 };
 
+function renderCollectionRadar() {
+  const el = document.getElementById('pay-collection-radar');
+  if (!el) return;
+  const bookings = hScoped('bookings');
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+  const pending = bookings.filter(b => b.status !== 'cancelled' && Number(b.pendingAmount||0) > 0);
+  if (!pending.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const scored = pending.map(b => {
+    const days = b.travelDate ? Math.ceil((new Date(b.travelDate) - todayDate) / 86400000) : 999;
+    const mul = days < 0 ? 5 : days <= 3 ? 4 : days <= 7 ? 3 : days <= 14 ? 2 : 1;
+    return { ...b, _days: days, _score: Number(b.pendingAmount) * mul };
+  });
+  scored.sort((a, b) => b._score - a._score);
+  const top5 = scored.slice(0, 5);
+  const totalPending = pending.reduce((s, b) => s + Number(b.pendingAmount||0), 0);
+  const companyName = (DB.settings||{}).companyName || 'Wanago';
+
+  const cards = top5.map(b => {
+    const days = b._days;
+    let badge, badgeStyle;
+    if (days < 0) { badge = 'Departed'; badgeStyle = 'background:#fee2e2;color:#dc2626'; }
+    else if (days === 0) { badge = 'Today!'; badgeStyle = 'background:#dc2626;color:#fff'; }
+    else if (days === 1) { badge = 'Tomorrow'; badgeStyle = 'background:#f97316;color:#fff'; }
+    else if (days <= 7) { badge = 'In '+days+'d'; badgeStyle = 'background:#f59e0b;color:#fff'; }
+    else if (days <= 14) { badge = 'In '+days+'d'; badgeStyle = 'background:var(--blue2);color:var(--blue)'; }
+    else { badge = b.travelDate ? formatDate(b.travelDate) : '—'; badgeStyle = 'background:var(--cream2);color:var(--textd)'; }
+
+    const cust = (DB.customers||[]).find(c => c.id === b.customerId || c.name === b.customerName);
+    const phone = ((cust&&cust.phone)||b.customerPhone||'').replace(/\D/g,'').replace(/^0/,'91');
+    const travelFmt = b.travelDate ? formatDate(b.travelDate) : 'your travel date';
+    const msg = 'Dear '+b.customerName+', this is a gentle reminder from '+companyName+' regarding your upcoming trip to '+(b.destination||'your destination')+' on '+travelFmt+'. You have a balance of ₹'+Number(b.pendingAmount).toLocaleString('en-IN')+' pending. Kindly complete your payment at the earliest. Booking Ref: '+(b.ref||'—')+'.';
+    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="Send WhatsApp reminder" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#dcfce7;color:#16a34a;text-decoration:none;flex-shrink:0;font-size:17px">💬</a>' : '';
+    return '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:12px">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'+
+          '<div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">'+b.customerName+'</div>'+
+          '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;'+badgeStyle+'">'+badge+'</span>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--textd)">'+(b.destination||'—')+' · '+(b.ref||'—')+'</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0;margin-right:4px">'+
+        '<div style="font-size:15px;font-weight:800;color:var(--red)">₹'+Number(b.pendingAmount).toLocaleString('en-IN')+'</div>'+
+        '<div style="font-size:10px;color:var(--textd)">due</div>'+
+      '</div>'+
+      waBtn+
+    '</div>';
+  }).join('');
+
+  el.innerHTML = '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">🎯 Collection Radar '+
+        '<span style="font-size:11px;font-weight:500;color:var(--textd)">'+pending.length+' booking'+(pending.length!==1?'s':'')+' with pending dues · top '+top5.length+' by urgency</span>'+
+      '</div>'+
+      '<div style="font-size:14px;font-weight:800;color:var(--red)">₹'+totalPending.toLocaleString('en-IN')+' total</div>'+
+    '</div>'+
+    '<div style="display:grid;gap:7px">'+cards+'</div>'+
+  '</div>';
+}
+
 function renderPayments(filter) {
   if (filter) payFilter = filter;
   const allPays = hScoped('payments');
@@ -76,6 +137,8 @@ function renderPayments(filter) {
     {label:'📊 This Month',val:formatMoney(monthAmt),meta:new Date().toLocaleDateString('en-IN',{month:'long'}),cls:'stat-up'},
     {label:'⚠️ Pending Dues',val:formatMoney(pendingDues),meta:'balance outstanding',cls:'stat-dn'},
   ].map(s=>'<div class="stat-card" style="cursor:pointer"><div class="stat-label">'+s.label+'</div><div class="stat-val '+s.cls+'">'+s.val+'</div><div class="stat-meta">'+s.meta+'</div></div>').join('');
+
+  renderCollectionRadar();
 
   // Method breakdown cards
   const methodCards = document.getElementById('pay-method-cards');
@@ -203,11 +266,15 @@ function saveRecordPayment() {
     showToast('Payment recorded! Booking '+b.ref+' CONFIRMED! ✅');
   } else { showToast('Payment of '+formatMoney(amount)+' recorded!'); }
 
+  // Update customer totalSpent
+  const cust = (DB.customers||[]).find(c => c.id === b.customerId || c.name === b.customerName || (b.customerPhone && c.phone === b.customerPhone));
+  if (cust) cust.totalSpent = (Number(cust.totalSpent||0)) + amount;
+
   saveDB(); closeModal('modal-record-payment'); renderPayments();
 }
 
 
-window.renderPayments=renderPayments;window.filterPayments=filterPayments;
+window.renderCollectionRadar=renderCollectionRadar;window.renderPayments=renderPayments;window.filterPayments=filterPayments;
 window.clearPayDateFilter=clearPayDateFilter;window.viewPayReceipt=viewPayReceipt;window.closePayDrawer=closePayDrawer;
 window.printReceipt=printReceipt;window.openRecordPaymentModal=openRecordPaymentModal;window.onRPBookingChange=onRPBookingChange;
 window.saveRecordPayment=saveRecordPayment;

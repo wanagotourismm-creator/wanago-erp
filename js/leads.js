@@ -52,9 +52,23 @@ window.goTo = goTo;
 let leadsFilter = 'all';
 let leadsSearchQuery = '';
 let selectedLeadIds = new Set();
+let leadsAiSort = false;
 
-// ── Lead Score ──
+function toggleAiSort() {
+  leadsAiSort = !leadsAiSort;
+  const btn = document.getElementById('ai-sort-btn');
+  if (btn) {
+    btn.style.background = leadsAiSort ? 'var(--g700)' : '';
+    btn.style.color      = leadsAiSort ? '#fff' : '';
+    btn.textContent      = leadsAiSort ? '🤖 AI Sort ON' : '🤖 AI Sort';
+  }
+  renderLeads();
+}
+window.toggleAiSort = toggleAiSort;
+
+// ── Lead Score (AI-powered when available) ──
 function leadScore(l) {
+  if (typeof window.WanagoAI !== 'undefined') return WanagoAI.scoreLeadHeat(l);
   let s=0;
   if(l.priority==='hot')s+=40; else if(l.priority==='warm')s+=20;
   if(l.budget>100000)s+=20; else if(l.budget>50000)s+=10;
@@ -64,8 +78,13 @@ function leadScore(l) {
   return Math.min(s,100);
 }
 function scoreBar(score) {
-  const color=score>=70?'var(--g600)':score>=40?'var(--amb)':'var(--red)';
-  return `<div style="display:flex;align-items:center;gap:5px"><div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:${score}%;background:${color};border-radius:3px"></div></div><span style="font-size:10px;font-weight:700;color:${color};min-width:22px">${score}</span></div>`;
+  const color = score>=70?'var(--g600)':score>=40?'var(--amb)':'var(--red)';
+  let heat = '';
+  if (typeof window.WanagoAI !== 'undefined') {
+    const h = WanagoAI.heatLabel(score);
+    heat = `<div style="font-size:9.5px;font-weight:700;color:${h.color};margin-top:2px;line-height:1">${h.label}</div>`;
+  }
+  return `<div><div style="display:flex;align-items:center;gap:5px"><div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:${score}%;background:${color};border-radius:3px"></div></div><span style="font-size:10px;font-weight:700;color:${color};min-width:22px">${score}</span></div>${heat}</div>`;
 }
 
 // ── Stats ──
@@ -115,6 +134,12 @@ function renderLeads(filter) {
   if(srcF) leads=leads.filter(l=>l.source===srcF);
   const pkgF=document.getElementById('leads-pkg-filter')?.value;
   if(pkgF) leads=leads.filter(l=>l.packageId===pkgF);
+
+  // AI sort — order by heat score descending
+  if (leadsAiSort && typeof window.WanagoAI !== 'undefined') {
+    leads = leads.map(l => ({ ...l, _score: WanagoAI.scoreLeadHeat(l) }))
+                 .sort((a, b) => b._score - a._score);
+  }
 
   const tbody=document.getElementById('leads-tbody');
   if(!tbody) return;
@@ -327,9 +352,16 @@ function viewLead(id){
       <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="vl-fupnote" placeholder="Call about pricing..."></div>
     </div>
     <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="logFollowUp()">📅 Save Follow-up</button>
+    <div class="form-section" style="margin-top:14px">📎 Attachments</div>
+    <div id="vl-attach-list">${_renderLeadAttachments(l)}</div>
+    <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block;margin-top:6px">
+      <input type="file" style="display:none" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="uploadLeadFiles('${l.id}',this)">
+      📎 Attach Files
+    </label>
+    <div id="vl-upload-progress" style="display:none;font-size:11px;color:var(--g600);margin-top:4px"></div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button class="btn btn-sm btn-outline" onclick="openSalesChatWindow('${l.phone}','${l.name}','lead')">💬 Sales Chat</button>
-      ${l.stage==='quoted'||l.stage==='negotiation'?`<button class="btn btn-sm btn-green" onclick="createQuotationFromLead('${l.id}')">📋 Create Quotation</button>`:''}
+      ${!['won','lost'].includes(l.stage)?(l.quotationId?`<button class="btn btn-sm btn-outline" style="color:var(--blue)" onclick="closeModal('modal-view-lead');goTo('quotations')">📋 View Quotation</button>`:`<button class="btn btn-sm btn-green" onclick="createQuotationFromLead('${l.id}');closeModal('modal-view-lead');showToast('Quotation created — opening Quotations');goTo('quotations')">📋 Create Quotation</button>`):''}
       <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteLead('${l.id}')">🗑 Delete</button>
     </div>`;
   openModal('modal-view-lead');
@@ -382,6 +414,41 @@ function renderLeadsAnalytics(){
   const agents={};all.forEach(l=>{const a=l.agent||'Unassigned';if(!agents[a])agents[a]={total:0,won:0};agents[a].total++;if(l.stage==='won')agents[a].won++;});
   const at=document.getElementById('leads-agent-table');
   if(at)at.innerHTML='<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px">Agent</th><th style="text-align:center;padding:4px 8px">Leads</th><th style="text-align:center;padding:4px 8px">Won</th><th style="text-align:center;padding:4px 8px">CVR</th></tr></thead><tbody>'+Object.entries(agents).sort((a,b)=>b[1].total-a[1].total).map(([name,d])=>`<tr><td style="padding:4px 8px">${name}</td><td style="text-align:center;padding:4px 8px">${d.total}</td><td style="text-align:center;padding:4px 8px;color:var(--g600);font-weight:600">${d.won}</td><td style="text-align:center;padding:4px 8px"><span style="background:${d.won/d.total>=.2?'var(--g50)':'var(--red2)'};color:${d.won/d.total>=.2?'var(--g700)':'var(--red)'};padding:2px 8px;border-radius:8px;font-size:10.5px">${Math.round(d.won/d.total*100)}%</span></td></tr>`).join('')+'</tbody></table>';
+  const mc=document.getElementById('leads-monthly-chart');
+  if(mc){
+    const months=[];
+    for(let i=11;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
+    const totals={},wons={};
+    months.forEach(m=>{totals[m]=0;wons[m]=0;});
+    all.forEach(l=>{const m=(l.createdAt||'').slice(0,7);if(totals[m]!==undefined){totals[m]++;if(l.stage==='won')wons[m]++;}});
+    const maxVal=Math.max(1,...months.map(m=>totals[m]));
+    const hasData=months.some(m=>totals[m]>0);
+    if(!hasData){
+      mc.innerHTML='<div style="color:var(--textd);font-size:12px;padding:20px;text-align:center">Add more leads to see trend</div>';
+    } else {
+      const lbl=m=>new Date(m+'-02').toLocaleString('default',{month:'short'});
+      mc.innerHTML=
+        `<div style="display:flex;align-items:flex-end;gap:3px;height:104px;padding:4px 2px 0">`+
+        months.map(m=>{
+          const cnt=totals[m],won=wons[m];
+          const barH=Math.max(cnt>0?4:0,Math.round(cnt/maxVal*84));
+          const wonH=cnt>0&&won>0?Math.round(won/cnt*barH):0;
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center">`+
+            `<div style="font-size:8.5px;font-weight:700;color:var(--g700);min-height:12px;line-height:12px">${cnt||''}</div>`+
+            `<div style="flex:1;width:100%;display:flex;align-items:flex-end">`+
+            `<div style="width:100%;height:${barH}px;background:var(--g200);border-radius:3px 3px 0 0;position:relative;overflow:hidden">`+
+            (wonH?`<div style="position:absolute;bottom:0;left:0;right:0;height:${wonH}px;background:var(--g600)"></div>`:'')+
+            `</div></div>`+
+            `<div style="font-size:8.5px;color:var(--textd);margin-top:3px;white-space:nowrap">${lbl(m)}</div>`+
+            `</div>`;
+        }).join('')+
+        `</div>`+
+        `<div style="display:flex;gap:14px;justify-content:center;margin-top:6px;padding-bottom:2px">`+
+        `<span style="font-size:10px;color:var(--textd);display:flex;align-items:center;gap:4px"><span style="width:10px;height:6px;background:var(--g200);border-radius:2px;display:inline-block"></span>Added</span>`+
+        `<span style="font-size:10px;color:var(--textd);display:flex;align-items:center;gap:4px"><span style="width:10px;height:6px;background:var(--g600);border-radius:2px;display:inline-block"></span>Won</span>`+
+        `</div>`;
+    }
+  }
 }
 
 // ── Bulk Stage (from Bulk tab) ──
@@ -573,6 +640,55 @@ function runBulkAssign(){
 
 // ── Nav ──
 
+// ── File Attachments ──
+function _renderLeadAttachments(l) {
+  const files = l.attachments || [];
+  if (!files.length) return '<div style="font-size:12px;color:var(--textd);padding:4px 0 8px">No files attached.</div>';
+  return files.map((f, i) => {
+    const icons = { 'application/pdf':'📄', 'image/jpeg':'🖼', 'image/png':'🖼', 'image/jpg':'🖼' };
+    const ico = icons[f.type] || '📎';
+    const kb = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1)+' MB' : Math.round(f.size/1024)+' KB') : '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--cream);border-radius:8px;margin-bottom:4px">
+      <span>${ico}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</div><div style="font-size:10px;color:var(--textd)">${kb}${kb&&f.uploadedAt?' · ':''}${f.uploadedAt?formatDate(f.uploadedAt):''}</div></div>
+      <a href="${f.url}" target="_blank" rel="noopener" style="font-size:11px;color:var(--g700);font-weight:600;text-decoration:none;white-space:nowrap">⬇ View</a>
+      <button onclick="deleteLeadFile('${l.id}',${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px;padding:0 4px;line-height:1">×</button>
+    </div>`;
+  }).join('');
+}
+
+async function uploadLeadFiles(leadId, input) {
+  if (!input.files.length) return;
+  if (typeof fsUploadFile !== 'function') { showToast('Storage not available', 'error'); return; }
+  const l = DB.leads.find(x => x.id === leadId);
+  if (!l) return;
+  if (!l.attachments) l.attachments = [];
+  const prog = document.getElementById('vl-upload-progress');
+  if (prog) prog.style.display = 'block';
+  for (const file of Array.from(input.files)) {
+    try {
+      if (prog) prog.textContent = `Uploading ${file.name}…`;
+      const path = `leads/${leadId}/${Date.now()}_${file.name.replace(/\s+/g,'_')}`;
+      const url = await fsUploadFile(path, file, pct => { if (prog) prog.textContent = `${file.name} — ${pct}%`; });
+      l.attachments.push({ name: file.name, url, size: file.size, type: file.type, path, uploadedAt: new Date().toISOString(), uploadedBy: currentUser?.name || 'User' });
+    } catch(e) { showToast('Upload failed: ' + file.name, 'error'); }
+  }
+  saveDB();
+  if (prog) prog.style.display = 'none';
+  viewLead(leadId);
+}
+
+function deleteLeadFile(leadId, idx) {
+  const l = DB.leads.find(x => x.id === leadId);
+  if (!l || !l.attachments) return;
+  if (!confirm('Remove this attachment?')) return;
+  const f = l.attachments[idx];
+  if (f && f.path && typeof fsDeleteFile === 'function') fsDeleteFile(f.path).catch(() => {});
+  l.attachments.splice(idx, 1);
+  saveDB();
+  viewLead(leadId);
+}
+
 // ── Expose all to window ──
 window.renderLeads=renderLeads;window.filterLeads=filterLeads;window.searchLeads=searchLeads;
 window.renderLeadsStats=renderLeadsStats;window.populateLeadFilters=populateLeadFilters;
@@ -591,5 +707,6 @@ window.handleCSVFile=handleCSVFile;window.confirmCSVImport=confirmCSVImport;
 window.exportAllLeads=exportAllLeads;window.exportFilteredLeads=exportFilteredLeads;window.exportSelectedLeads=exportSelectedLeads;
 window.populateBulkAgentSelects=populateBulkAgentSelects;window.previewBulkAssign=previewBulkAssign;window.runBulkAssign=runBulkAssign;
 window.createQuotationFromLead=createQuotationFromLead;window.openSalesChatWindow=openSalesChatWindow;
+window.uploadLeadFiles=uploadLeadFiles;window.deleteLeadFile=deleteLeadFile;
 
 initPage(renderLeads);

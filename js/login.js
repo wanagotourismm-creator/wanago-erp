@@ -10,8 +10,22 @@
   }
 })();
 
+// ── Fetch team from Firestore (replaces localStorage read) ──
+async function _fetchTeamFromFirestore() {
+  try {
+    const [{ db }, { doc, getDoc }] = await Promise.all([
+      import('../firebase/firebase-config.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js')
+    ]);
+    if (!db) return [];
+    const projectId = db.app.options.projectId;
+    const snap = await getDoc(doc(db, `companies/${projectId}/settings`));
+    return snap.exists() ? (snap.data().team || []) : [];
+  } catch(e) { return []; }
+}
+
 // ── Login handler ──
-function handleLogin() {
+async function handleLogin() {
   var email    = (document.getElementById('login-email')?.value || '').trim();
   var password = document.getElementById('login-password')?.value || '';
   var btn      = document.getElementById('login-btn');
@@ -21,32 +35,24 @@ function handleLogin() {
   btn.textContent = 'Signing in...';
   btn.disabled = true;
 
-  // ── Try team member match (PIN login) ──
-  var matched = null;
-  try {
-    var DB_RAW = localStorage.getItem('wanago_erp_v3');
-    if (DB_RAW) {
-      var db = JSON.parse(DB_RAW);
-      var team = db.settings && db.settings.team ? db.settings.team : [];
+  // ── Fetch team from Firestore, try PIN/Firebase match ──
+  var team = await _fetchTeamFromFirestore();
 
-      // Match email + PIN
-      matched = team.find(function(m) {
-        return m.email && m.email.toLowerCase() === email.toLowerCase() && m.pin && m.pin === password;
-      });
+  // Match email + PIN
+  var matched = team.find(function(m) {
+    return m.email && m.email.toLowerCase() === email.toLowerCase() && m.pin && m.pin === password;
+  });
 
-      // Match email + any password if account has firebaseUid (Firebase user)
-      if (!matched) {
-        matched = team.find(function(m) {
-          return m.email && m.email.toLowerCase() === email.toLowerCase() && m.firebaseUid;
-        });
-        if (matched) {
-          // Has Firebase account — try Firebase auth
-          tryFirebaseLogin(email, password, matched, btn);
-          return;
-        }
-      }
+  // Match email + Firebase account — try Firebase auth
+  if (!matched) {
+    var fbMember = team.find(function(m) {
+      return m.email && m.email.toLowerCase() === email.toLowerCase() && m.firebaseUid;
+    });
+    if (fbMember) {
+      tryFirebaseLogin(email, password, fbMember, btn);
+      return;
     }
-  } catch(e) {}
+  }
 
   // ── Default admin fallback ──
   if (!matched) {

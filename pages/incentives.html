@@ -18,7 +18,8 @@
       <div class="tab-bar">
         <div class="tab active" onclick="switchTab(this,'inc-tab-dashboard')">📊 Incentive Dashboard</div>
         <div class="tab" id="inc-settings-tab" onclick="switchTab(this,'inc-tab-settings');renderIncentiveSettings()">⚙️ Settings & Targets</div>
-        <div class="tab" onclick="switchTab(this,'inc-tab-structure')">📋 Incentive Structure</div>
+        <div class="tab" onclick="switchTab(this,'inc-tab-payout');renderPayoutTab()">💸 Payouts</div>
+        <div class="tab" onclick="switchTab(this,'inc-tab-structure');renderStructureTab()">📋 Incentive Structure</div>
       </div>
 
       <!-- ═══ TAB 1: DASHBOARD ═══ -->
@@ -44,6 +45,8 @@
             <div class="stat-card" style="cursor:pointer"><div class="stat-label">👥 Team Bonus</div><div class="stat-val" id="inc-team-bonus" style="font-size:14px">❌ Not Yet</div></div>
           </div>
         </div>
+        <!-- AI Strip -->
+        <div id="inc-ai-strip" style="margin-bottom:14px"></div>
         <!-- Agent Cards -->
         <div style="font-size:13px;font-weight:700;color:var(--textm);margin-bottom:10px">Agent Performance & Earnings</div>
         <div id="inc-agents-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px"></div>
@@ -93,34 +96,18 @@
         </div>
       </div>
 
-      <!-- ═══ TAB 3: STRUCTURE REFERENCE ═══ -->
-      <div class="tab-content" id="inc-tab-structure">
-        <div class="card" style="max-width:800px">
-          <div class="card-header"><div><div class="card-title">📋 Incentive Structure Reference</div><div class="card-sub">As per Wanago Sales Incentive Policy</div></div></div>
-          <div class="form-section">Incentive Slabs (Profit-Based)</div>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
-            <thead><tr style="background:var(--cream)"><th style="padding:10px 14px;text-align:left;font-size:11px">Target Achievement</th><th style="padding:10px 14px;text-align:left;font-size:11px">Performance Level</th><th style="padding:10px 14px;text-align:left;font-size:11px">Incentive</th></tr></thead>
-            <tbody>
-              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">Upto 50%</td><td>Below Minimum Level</td><td style="color:var(--red);font-weight:600">No Incentive</td></tr>
-              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">50% – 70%</td><td>Level 1 – Achiever</td><td style="color:var(--g600);font-weight:600">4% of Profit</td></tr>
-              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">70% – 90%</td><td>Level 2 – Strong Performer</td><td style="color:var(--g600);font-weight:600">6% of Profit</td></tr>
-              <tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 14px">90% – 100%</td><td>Level 3 – High Performer</td><td style="color:var(--g600);font-weight:600">8% of Profit</td></tr>
-              <tr><td style="padding:10px 14px">100% & Above</td><td>Level 4 – Top Performer</td><td style="color:var(--g700);font-weight:700">10% of Profit</td></tr>
-            </tbody>
-          </table>
-          <div class="form-section">Performance Boosters</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
-            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--amb);margin-bottom:8px">⚡ Fast Closure Bonus</div><div style="font-size:12px;line-height:2">Within 24 Hours → <strong>₹300</strong><br>Within 48 Hours → <strong>₹150</strong></div></div>
-            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">💎 High-Value Booking</div><div style="font-size:12px;line-height:2">Profit above ₹15,000 → <strong>₹500 Bonus</strong></div></div>
-            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px">🔥 Self-Generated Lead</div><div style="font-size:12px;line-height:2">+2% Additional on Profit</div></div>
-            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">👥 Team Bonus</div><div style="font-size:12px;line-height:2">Team hits target → +2% for everyone</div></div>
-          </div>
-          <div class="form-section">Monthly & Quarterly Rewards</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--g700);margin-bottom:8px">🏆 Monthly Rewards</div><div style="font-size:12px;line-height:2">🥇 Top Performer → <strong>₹3,000</strong><br>🥈 2nd Place → <strong>₹2,000</strong><br>🥉 3rd Place → <strong>₹1,000</strong></div></div>
-            <div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">🌟 Quarterly Reward</div><div style="font-size:12px;line-height:2">Top Performer (3 months) → <strong>₹10,000 / Sponsored Trip</strong></div></div>
-          </div>
+      <!-- ═══ TAB 3: PAYOUTS ═══ -->
+      <div class="tab-content" id="inc-tab-payout">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <label style="font-size:12px;font-weight:600;color:var(--textm)">Month:</label>
+          <input type="month" id="payout-month" class="form-input" style="width:180px" onchange="renderPayoutTab()">
         </div>
+        <div id="inc-payout-content"></div>
+      </div>
+
+      <!-- ═══ TAB 4: STRUCTURE REFERENCE ═══ -->
+      <div class="tab-content" id="inc-tab-structure">
+        <div id="inc-structure-content"></div>
       </div>
 
     </div></div>
@@ -138,6 +125,7 @@
     const m = new Date().toISOString().slice(0,7);
     const el1 = document.getElementById('inc-month'); if(el1) el1.value = m;
     const el2 = document.getElementById('inc-target-month'); if(el2) el2.value = m;
+    const el3 = document.getElementById('payout-month'); if(el3) el3.value = m;
   });
 </script>
 <script src="../js/wanago-space.js"></script>
