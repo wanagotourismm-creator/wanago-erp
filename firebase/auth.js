@@ -25,6 +25,7 @@ async function createTeamAccount(name, email, password, role, memberId) {
       member.accountCreated = true;
       member.accountCreatedAt = new Date().toISOString();
       saveDB();
+      if (typeof fsSaveSettings === 'function') fsSaveSettings();
     }
 
     return { success: true, uid: cred.user.uid };

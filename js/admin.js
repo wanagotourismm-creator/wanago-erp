@@ -89,13 +89,18 @@ function admTab(name, el) {
 function switchAdminTab(a,b) { admTab(b||a, null); }
 
 // ── Delete member ──
+function persistSettingsNow() {
+  saveDB();
+  if (typeof fsSaveSettings === 'function') fsSaveSettings();
+}
+
 function deleteMember(elOrId) { var id = (typeof elOrId === "string") ? elOrId : elOrId.dataset.id;
   var m = (DB.settings.team||[]).find(function(x){return x.id===id;});
   if (!m) return;
   if (currentUser && currentUser.id === id) { showToast('You cannot remove yourself','error'); return; }
   if (!confirm('Remove ' + m.name + ' from team?')) return;
   DB.settings.team = DB.settings.team.filter(function(x){return x.id!==id;});
-  saveDB(); renderTeamMembers('all'); showToast(m.name + ' removed from team');
+  persistSettingsNow(); renderTeamMembers('all'); showToast(m.name + ' removed from team');
 }
 
 // ── Backup section ──
@@ -145,10 +150,10 @@ function saveSettings() {
   s.website=g('s-website'); s.address=g('s-address');
   s.bankName=g('s-bank'); s.accountNo=g('s-acc'); s.ifsc=g('s-ifsc'); s.upi=g('s-upi');
   if (s.gstEnabled) { s.gstin=g('s-gstin'); s.gstRate=parseInt(document.getElementById('s-gstrate')?.value)||5; s.gstType=document.getElementById('s-gsttype')?.value||'cgst_sgst'; s.state=g('s-state'); }
-  saveDB(); renderSetupChecklist(); showToast('Settings saved!');
+  persistSettingsNow(); renderSetupChecklist(); showToast('Settings saved!');
 }
 
-function toggleGST() { DB.settings.gstEnabled = !DB.settings.gstEnabled; syncGSTToggleUI(DB.settings.gstEnabled); saveDB(); }
+function toggleGST() { DB.settings.gstEnabled = !DB.settings.gstEnabled; syncGSTToggleUI(DB.settings.gstEnabled); persistSettingsNow(); }
 function syncGSTToggleUI(on) {
   const btn=document.getElementById('gst-toggle-btn'); const knob=document.getElementById('gst-toggle-knob'); const lbl=document.getElementById('gst-status-label'); const fields=document.getElementById('gst-fields');
   if(!btn)return; btn.style.background=on?'var(--g500)':'var(--border2)'; if(knob)knob.style.left=on?'20px':'2px'; if(lbl)lbl.textContent=on?'Enabled':'Disabled'; if(fields)fields.style.display=on?'':'none';
@@ -487,7 +492,7 @@ function saveMember() {
   fields.permissions = { pages: perms.pages, features: perms.features, actions: perms.features, sections: {} };
   if(editId) { const m=(DB.settings.team||[]).find(x=>x.id===editId); if(m)Object.assign(m,fields); showToast(name+' updated'); }
   else { const color=['#134a32','#1976d2','#f57c00','#7b1fa2','#c9a84c','#d32f2f','#00796b'][Math.floor(Math.random()*7)]; DB.settings.team.push({id:uid(),...fields,color,createdAt:new Date().toISOString()}); showToast(name+' added to team!'); }
-  saveDB(); closeModal('modal-add-member'); renderTeamMembers(); renderSetupChecklist();
+  persistSettingsNow(); closeModal('modal-add-member'); renderTeamMembers(); renderSetupChecklist();
 }
 
 // ══════ OFFICES ══════
@@ -598,7 +603,7 @@ function toggleOfficeActive(id) {
   const o = (DB.settings.offices || []).find(x => x.id === id);
   if (!o) return;
   o.active = !o.active;
-  saveDB(); renderOfficesTab(); renderOffices();
+  persistSettingsNow(); renderOfficesTab(); renderOffices();
   showToast(`"${o.name}" ${o.active ? 'activated' : 'deactivated'}`);
 }
 
@@ -636,7 +641,7 @@ function saveOffice() {
       o.address = g('of-address'); o.phone = g('of-phone'); o.email = g('of-email');
       o.managerId = g('of-manager');
     }
-    saveDB(); closeModal('modal-add-office'); renderOfficesTab(); renderOffices(); renderSetupChecklist();
+    persistSettingsNow(); closeModal('modal-add-office'); renderOfficesTab(); renderOffices(); renderSetupChecklist();
     showToast(`"${name}" updated!`);
   } else {
     const usedColors = (DB.settings.offices || []).map(o => o.color);
@@ -647,7 +652,7 @@ function saveOffice() {
       managerId: g('of-manager'), color: nextColor, active: true,
       createdAt: new Date().toISOString()
     });
-    saveDB(); closeModal('modal-add-office'); renderOfficesTab(); renderOffices(); renderSetupChecklist();
+    persistSettingsNow(); closeModal('modal-add-office'); renderOfficesTab(); renderOffices(); renderSetupChecklist();
     showToast(`Office "${name}" added!`);
   }
 }
@@ -665,7 +670,7 @@ function backupFullDB() {
   const blob = new Blob([data], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'wanago_backup_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
-  DB.settings.lastBackup = new Date().toISOString(); saveDB();
+  DB.settings.lastBackup = new Date().toISOString(); persistSettingsNow();
   showToast('Backup downloaded!'); renderSetupChecklist();
 }
 
@@ -675,7 +680,7 @@ function restoreDB() {
     const file = e.target.files[0]; if(!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      try { const data = JSON.parse(ev.target.result); if(!data.settings){showToast('Invalid backup file','error');return;} if(!confirm('This will replace ALL current data. Are you sure?'))return; Object.assign(DB,data); saveDB(); showToast('Data restored! Refreshing...'); setTimeout(()=>location.reload(),1500); }
+      try { const data = JSON.parse(ev.target.result); if(!data.settings){showToast('Invalid backup file','error');return;} if(!confirm('This will replace ALL current data. Are you sure?'))return; Object.assign(DB,data); saveDB(); if (typeof window._fsPushDBNow === 'function') window._fsPushDBNow(); showToast('Data restored! Refreshing...'); setTimeout(()=>location.reload(),1500); }
       catch(e) { showToast('Invalid file format','error'); }
     };
     reader.readAsText(file);
@@ -871,7 +876,7 @@ function addLeadSource() {
   const inp = document.getElementById('new-source-input'); if (!inp) return;
   const val = inp.value.trim(); if (!val) return;
   if (!DB.settings.leadSources) DB.settings.leadSources = [..._DEFAULT_LEAD_SOURCES];
-  if (!DB.settings.leadSources.includes(val)) { DB.settings.leadSources.push(val); saveDB(); }
+  if (!DB.settings.leadSources.includes(val)) { DB.settings.leadSources.push(val); persistSettingsNow(); }
   inp.value = '';
   renderLeadSources();
 }
@@ -879,7 +884,7 @@ function addLeadSource() {
 function removeLeadSource(src) {
   if (!DB.settings.leadSources) DB.settings.leadSources = [..._DEFAULT_LEAD_SOURCES];
   DB.settings.leadSources = DB.settings.leadSources.filter(s => s !== src);
-  saveDB(); renderLeadSources();
+  persistSettingsNow(); renderLeadSources();
 }
 
 // ══════ BUSINESS HOURS ══════
@@ -908,7 +913,7 @@ function toggleBhDay(day) {
   const bh = DB.settings.businessHours || {};
   bh[day] = { ...(bh[day]||{}), open: cb.checked, start: bh[day]?.start||'09:00', end: bh[day]?.end||'18:00' };
   DB.settings.businessHours = bh;
-  saveDB(); renderBusinessHours();
+  persistSettingsNow(); renderBusinessHours();
 }
 
 // ══════ DEPOSIT SLIDER SYNC ══════
@@ -972,7 +977,7 @@ function saveAllSettings() {
     if (openEl) bh[day] = { open: openEl.checked, start: startEl?.value||'09:00', end: endEl?.value||'18:00' };
   });
   if (Object.keys(bh).length) s.businessHours = bh;
-  saveDB(); showToast('✅ Settings saved!');
+  persistSettingsNow(); showToast('✅ Settings saved!');
 }
 function syncColorHex() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h) h.value=c.value; }
 function syncHexColor() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h&&h.value.length===7) c.value=h.value; }
@@ -1092,7 +1097,7 @@ function saveIntegration(key) {
     DB.settings.fcmVapidKey = g('integ-fcm-vapid');
   }
 
-  saveDB();
+  persistSettingsNow();
   _updateIntegPills();
   var names = { meta: 'Meta Ads', whatsapp: 'WhatsApp', gmail: 'Gmail', googlesheets: 'Google Sheets', fcm: 'Push Notifications' };
   showToast('✅ ' + (names[key] || key) + ' settings saved!');
@@ -1164,7 +1169,7 @@ function revokeIntegration(key) {
     if (!DB.settings.integrations) DB.settings.integrations = {};
     DB.settings.integrations[key] = {};
   }
-  saveDB();
+  persistSettingsNow();
   loadIntegrations();
   showToast(label + ' credentials cleared');
 }

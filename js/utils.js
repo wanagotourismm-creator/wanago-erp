@@ -4,11 +4,33 @@
 // ═══════════════════════════════════════════════════════════════
 
 // ── DATA LAYER ──
-// Firestore is the sole persistent store. DB is an in-memory cache populated
-// by real-time listeners in firestore.js. localStorage is no longer used.
-const STORE_KEY = 'wanago_erp_v3'; // kept only for one-time migration in firestore.js
+// Firestore is the live shared store. localStorage is kept as an immediate
+// safety cache so records survive refreshes while cloud sync is still pending.
+const STORE_KEY = 'wanago_erp_v3';
+const STORE_DIRTY_KEY = 'wanago_erp_v3_dirty';
 
-function loadDB() { return defaultDB(); }
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return defaultDB();
+    return mergeDefaults(defaultDB(), JSON.parse(raw));
+  } catch(e) {
+    return defaultDB();
+  }
+}
+
+function mergeDefaults(base, saved) {
+  if (!saved || typeof saved !== 'object') return base;
+  Object.keys(saved).forEach(function(k) {
+    if (saved[k] && typeof saved[k] === 'object' && !Array.isArray(saved[k]) &&
+        base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) {
+      base[k] = mergeDefaults(base[k], saved[k]);
+    } else {
+      base[k] = saved[k];
+    }
+  });
+  return base;
+}
 
 function defaultDB() {
   return {
@@ -36,7 +58,13 @@ function defaultDB() {
 }
 
 function saveDB() {
-  // Firestore handles persistence. _fsPushDB is defined in firestore.js (debounced 2s).
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+    localStorage.setItem(STORE_DIRTY_KEY, '1');
+  } catch(e) {
+    console.warn('[saveDB] local cache failed:', e.message);
+  }
+  // _fsPushDB is defined in firestore.js and pushes the local cache to Firestore.
   if (typeof window._fsPushDB === 'function') window._fsPushDB();
 }
 

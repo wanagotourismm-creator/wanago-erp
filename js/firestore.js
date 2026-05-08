@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 //  WANAGO ERP — Firestore Data Layer v3
 //  Single source of truth: Firebase Firestore + Storage
-//  No localStorage. DB is an in-memory cache synced via listeners.
+//  DB is synced via listeners and cached locally for refresh/offline safety.
 //
 //  Cool features:
 //  ✦ Real-time collaboration — all users see changes live
@@ -25,6 +25,7 @@ const FS_COLLECTIONS = [
 ];
 const FS_SETTINGS_DOC  = 'settings';
 const FS_MIGRATE_FLAG  = 'wanago_ls_migrated_v3';
+const FS_DIRTY_FLAG    = 'wanago_erp_v3_dirty';
 const FS_PRESENCE_PATH = 'presence';
 
 let _db       = null;
@@ -64,6 +65,7 @@ async function fsInit() {
     // Load all data once, then keep live via listeners
     await _loadAll();
     _attachListeners();
+    if (localStorage.getItem(FS_DIRTY_FLAG)) await _pushAll();
     _startPresence();
 
     console.log('✅ Firestore v3 ready:', _compId);
@@ -101,6 +103,16 @@ async function _migrateFromLocalStorage() {
       return;
     }
 
+    const hasRecords = FS_COLLECTIONS.some(col => Array.isArray(lsData[col]) && lsData[col].length);
+    const hasCustomSettings =
+      !!lsData.settings?.companyName ||
+      (Array.isArray(lsData.settings?.team) && lsData.settings.team.length > 1) ||
+      (Array.isArray(lsData.settings?.offices) && lsData.settings.offices.length > 1);
+    if (!hasRecords && !hasCustomSettings) {
+      localStorage.setItem(FS_MIGRATE_FLAG, '1');
+      return;
+    }
+
     showFsSyncStatus('☁️ Migrating data to Firebase…');
 
     // Load localStorage data into memory
@@ -114,7 +126,7 @@ async function _migrateFromLocalStorage() {
 
     // Clean up
     localStorage.setItem(FS_MIGRATE_FLAG, '1');
-    localStorage.removeItem('wanago_erp_v3');
+    // Keep wanago_erp_v3 as a refresh-safe cache after migration.
     localStorage.removeItem('wanago_erp_v2');
     localStorage.removeItem('wanago_uid_map');
     localStorage.removeItem('wanago_sheets_url');
@@ -243,7 +255,12 @@ window._fsPushDB = function() {
   clearTimeout(_pushTimer);
   _pushTimer = setTimeout(() => {
     _pushAll().catch(e => console.warn('[Push]', e.message));
-  }, 2000);
+  }, 300);
+};
+
+window._fsPushDBNow = function() {
+  clearTimeout(_pushTimer);
+  return _pushAll().catch(e => console.warn('[PushNow]', e.message));
 };
 
 async function _pushAll() {
@@ -266,7 +283,7 @@ async function _pushAll() {
         await batch.commit();
       }
     }
-    await fsSaveSettings();
+    const settingsOk = await fsSaveSettings();
 
     // Save extras — non-collection DB fields missed by FS_COLLECTIONS
     try {
@@ -283,6 +300,7 @@ async function _pushAll() {
       await setDoc(doc(_db, `companies/${_compId}`, 'extras'),
         { ...extrasClean, _updatedAt: ts, _updatedBy: uid }, { merge: false });
     } catch (e) { console.warn('[extras push]', e.message); }
+    if (settingsOk !== false) localStorage.removeItem(FS_DIRTY_FLAG);
   } catch (e) { console.error('[_pushAll]', e.message); }
 }
 
@@ -303,14 +321,19 @@ async function fsLoadSettings() {
 }
 
 async function fsSaveSettings() {
-  if (!_db) return;
+  if (!_db) return false;
   try {
     const { doc, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
     const clean = JSON.parse(JSON.stringify(DB.settings)); // strip non-serialisable values
     await setDoc(doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC), {
       ...clean, _updatedAt: serverTimestamp(),
     }, { merge: true });
-  } catch (e) { console.error('[fsSaveSettings]', e.message); }
+    return true;
+  } catch (e) {
+    console.error('[fsSaveSettings]', e.message);
+    try { localStorage.setItem(FS_DIRTY_FLAG, '1'); } catch(_) {}
+    return false;
+  }
 }
 
 /* ══════════════════════════════════════════════════
