@@ -46,10 +46,20 @@ window.goTo = goTo;
 
 // ── Tab switching (new self-contained admin nav) ──
 function admTab(name, el) {
-  // Update nav items - find correct nav item by tab name (el may be a quick-action button, not a nav item)
+  // Update nav items
   document.querySelectorAll('.adm-nav-item').forEach(function(n){n.classList.remove('active');});
-  var navItem = el && el.classList.contains('adm-nav-item') ? el : document.querySelector('.adm-nav-item[onclick*="''+name+''"],[onclick*=""'+name+'""]');
-  if (navItem) navItem.classList.add('active');
+  if (el && el.classList.contains('adm-nav-item')) {
+    el.classList.add('active');
+  } else {
+    // Quick-action buttons pass themselves as el — find the real nav item by name
+    var navItems = document.querySelectorAll('.adm-nav-item');
+    for (var i = 0; i < navItems.length; i++) {
+      if ((navItems[i].getAttribute('onclick') || '').indexOf("'" + name + "'") !== -1) {
+        navItems[i].classList.add('active');
+        break;
+      }
+    }
+  }
   // Scroll content to top
   var cont = document.querySelector('.adm-content');
   if (cont) cont.scrollTop = 0;
