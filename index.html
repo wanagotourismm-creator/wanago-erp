@@ -130,7 +130,7 @@
     document.getElementById('hero-quote').textContent = q.text;
     document.getElementById('hero-author').textContent = q.author;
   </script>
-  <script src="js/login.js"></script>
+  <script type="module" src="js/login.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(function(){});

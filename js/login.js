@@ -11,17 +11,22 @@
 })();
 
 // ── Fetch team from Firestore (replaces localStorage read) ──
+// Returns { team: [], fsOk: true/false }
 async function _fetchTeamFromFirestore() {
   try {
     const [{ db }, { doc, getDoc }] = await Promise.all([
-      import('../firebase/firebase-config.js'),
+      import('./firebase/firebase-config.js'),
       import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js')
     ]);
-    if (!db) return [];
+    if (!db) return { team: [], fsOk: false };
     const projectId = db.app.options.projectId;
     const snap = await getDoc(doc(db, `companies/${projectId}/settings`));
-    return snap.exists() ? (snap.data().team || []) : [];
-  } catch(e) { return []; }
+    const team = snap.exists() ? (snap.data().team || []) : [];
+    return { team, fsOk: true };
+  } catch(e) {
+    console.warn('[login] Firestore fetch failed:', e.message);
+    return { team: [], fsOk: false };
+  }
 }
 
 // ── Login handler ──
@@ -36,7 +41,9 @@ async function handleLogin() {
   btn.disabled = true;
 
   // ── Fetch team from Firestore, try PIN/Firebase match ──
-  var team = await _fetchTeamFromFirestore();
+  var fsResult = await _fetchTeamFromFirestore();
+  var team = fsResult.team;
+  var fsOk = fsResult.fsOk;
 
   // Match email + PIN
   var matched = team.find(function(m) {
@@ -54,11 +61,11 @@ async function handleLogin() {
     }
   }
 
-  // ── Default admin fallback ──
-  if (!matched) {
+  // ── Default admin fallback (ONLY when Firebase is unreachable, e.g. first setup/offline) ──
+  if (!matched && !fsOk) {
     var isAdminEmail = email === 'admin@wanago.in' || email === 'wanagotourismm@gmail.com';
-    var isAdminPass  = password === 'admin' || password === 'Admin@2024' || password === 'Wanago@2024';
-    if (isAdminEmail || isAdminPass) {
+    var isAdminPass  = password === 'Admin@2024' || password === 'Wanago@2024';
+    if (isAdminEmail && isAdminPass) {
       matched = { id:'t1', name:'Admin', role:'founder', dept:'leadership', officeId:'*', systemRole:'founder_ceo', email:email };
     }
   }
@@ -78,7 +85,7 @@ function tryFirebaseLogin(email, password, member, btn) {
   Promise.all([
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
-    import('../firebase/firebase-config.js')
+    import('./firebase/firebase-config.js')
   ]).then(function(modules) {
     var signIn = modules[1].signInWithEmailAndPassword;
     var auth   = modules[2].auth;
@@ -122,7 +129,7 @@ function handleForgotPassword() {
   var email = (document.getElementById('login-email')?.value || '').trim();
   if (!email) { showMsg('Enter your email first.', false); return; }
   Promise.all([
-    import('../firebase/firebase-config.js'),
+    import('./firebase/firebase-config.js'),
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
   ]).then(function(modules) {
     var cfg    = modules[0];
