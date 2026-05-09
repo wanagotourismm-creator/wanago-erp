@@ -774,10 +774,10 @@ function renderTeamLogins() {
         ? '<span style="background:#fff8e1;color:#7a5800;border:1px solid #ffd54f;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ No Account</span>'
         : '<span style="background:#fce4ec;color:#b71c1c;border:1px solid #ef9a9a;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">❌ No Email</span>';
     var actionBtns = hasFb
-      ? '<button class="row-btn" onclick="resetFirebasePassword(''+m.id+'')" style="color:var(--amb)">Reset Password</button>'
+      ? '<button class="row-btn" onclick="resetFirebasePassword(\'' + m.id + '\')" style="color:var(--amb)">Reset Password</button>'
       : hasEmail
-        ? '<button class="row-btn btn-primary-sm" onclick="openCreateAccountModal(''+m.id+'')">🔑 Create Account</button>'
-        : '<button class="row-btn" onclick="editMember(''+m.id+'')" style="color:var(--textd)">Set Email First</button>';
+        ? '<button class="row-btn btn-primary-sm" onclick="openCreateAccountModal(\'' + m.id + '\')">🔑 Create Account</button>'
+        : '<button class="row-btn" onclick="editMember(\'' + m.id + '\')" style="color:var(--textd)">Set Email First</button>';
     return '<tr>'
       + '<td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:8px;background:'+(m.color||'var(--g600)')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">'+(m.name||'?')[0].toUpperCase()+'</div><div><div style="font-weight:600;font-size:13px">'+m.name+'</div>'+(m.email?'<div style="font-size:11px;color:var(--textd)">'+m.email+'</div>':'')+'</div></div></td>'
       + '<td style="font-size:12px">'+(ROLE_LABELS[m.role]||m.role||'—')+'</td>'
@@ -819,8 +819,8 @@ window.openCreateAccountModal = function(memberId) {
     + '<div id="fbc-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>'
     + '<div id="fbc-success" style="display:none;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px;font-size:13px;color:var(--g700);margin-bottom:8px"></div>'
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">'
-    + '<button class="btn btn-outline" onclick="document.getElementById('fb-create-overlay').remove()">Cancel</button>'
-    + '<button id="fbc-submit" class="btn btn-primary" onclick="submitCreateFirebaseAccount(''+m.id+'')">🔑 Create Account</button>'
+    + '<button class="btn btn-outline" onclick="document.getElementById(\'fb-create-overlay\').remove()">Cancel</button>'
+    + '<button id="fbc-submit" class="btn btn-primary" onclick="submitCreateFirebaseAccount(\'+m.id+\')">🔑 Create Account</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
 
