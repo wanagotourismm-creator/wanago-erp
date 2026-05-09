@@ -733,37 +733,170 @@ window.recalcCustomerStats = recalcCustomerStats;
 // ── Team Logins tab ──
 function renderTeamLogins() {
   var team = DB.settings.team || [];
-  var withAcc = team.filter(function(m){ return m.email && m.pin; });
+  var withFb = team.filter(function(m){ return m.firebaseUid || m.accountCreated; });
+  var withEmail = team.filter(function(m){ return m.email; });
   var el = document.getElementById('login-stats');
   if (el) el.innerHTML = [
     {l:'👥 Total Team', v:team.length, m:'members'},
-    {l:'✅ Has Login', v:withAcc.length, m:'email + PIN set'},
-    {l:'⏳ No Login', v:team.length-withAcc.length, m:'PIN not set'},
-    {l:'🔑 Active', v:withAcc.length, m:'can log in'},
+    {l:'✅ Firebase Account', v:withFb.length, m:'can log in now'},
+    {l:'📧 Email Set', v:withEmail.length, m:'email on record'},
+    {l:'⏳ No Account', v:team.length-withFb.length, m:'needs setup'},
   ].map(function(s){ return '<div class="stat-card"><div class="stat-label">'+s.l+'</div><div class="stat-val">'+s.v+'</div><div class="stat-meta">'+s.m+'</div></div>'; }).join('');
 
   var tbody = document.getElementById('logins-tbody');
   if (!tbody) return;
-  if (!team.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--textd)">No team members yet. Add from Team tab.</td></tr>'; return; }
+  if (!team.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--textd)">No team members yet. Add from Team Members tab.</td></tr>'; return; }
 
-  var ROLE_LABELS = {founder:'👑 Founder',ceo:'👑 CEO',admin:'🔑 Admin',branch_manager:'📊 Branch Mgr',team_lead:'📊 Team Lead',sales_manager:'📊 Sales Mgr',operations_manager:'📊 Ops Mgr',finance_manager:'📊 Finance Mgr',marketing_manager:'📊 Mktg Mgr'};
+  var ROLE_LABELS = {founder:'👑 Founder',ceo:'👑 CEO',co_founder:'👑 Co-Founder',admin:'🔑 Admin',branch_manager:'📊 Branch Mgr',team_lead:'📊 Team Lead',sales_manager:'📊 Sales Mgr',operations_manager:'📊 Ops Mgr',finance_manager:'📊 Finance Mgr',marketing_manager:'📊 Mktg Mgr'};
   tbody.innerHTML = team.map(function(m) {
-    var hasLogin = m.email && m.pin;
-    var accessLevel = ['founder','ceo','admin'].includes(m.role) ? 'Full Access' :
+    var hasFb = !!(m.firebaseUid || m.accountCreated);
+    var hasEmail = !!m.email;
+    var accessLevel = ['founder','ceo','co_founder','admin'].includes(m.role) ? 'Full Access' :
       ['branch_manager','team_lead','senior_manager','sales_manager','operations_manager','finance_manager','marketing_manager'].includes(m.role) ? 'Manager View' : 'Agent View';
     var accessColor = accessLevel==='Full Access'?'var(--g700)':accessLevel==='Manager View'?'var(--amb)':'var(--textd)';
+    var statusBadge = hasFb
+      ? '<span style="background:#e8f5e9;color:#1a6341;border:1px solid #a5d6a7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✅ Active</span>'
+      : hasEmail
+        ? '<span style="background:#fff8e1;color:#7a5800;border:1px solid #ffd54f;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ No Account</span>'
+        : '<span style="background:#fce4ec;color:#b71c1c;border:1px solid #ef9a9a;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">❌ No Email</span>';
+    var actionBtns = hasFb
+      ? '<button class="row-btn" onclick="resetFirebasePassword(''+m.id+'')" style="color:var(--amb)">Reset Password</button>'
+      : hasEmail
+        ? '<button class="row-btn btn-primary-sm" onclick="openCreateAccountModal(''+m.id+'')">🔑 Create Account</button>'
+        : '<button class="row-btn" onclick="editMember(''+m.id+'')" style="color:var(--textd)">Set Email First</button>';
     return '<tr>'
-      + '<td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:8px;background:'+(m.color||'var(--g600)')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">'+(m.name||'?')[0].toUpperCase()+'</div><span style="font-weight:600">'+m.name+'</span></div></td>'
-      + '<td style="font-size:12px">'+(ROLE_LABELS[m.role]||m.role)+'</td>'
-      + '<td style="font-size:12px;color:var(--textm)">'+(m.email||'<span style="color:var(--textd)">Not set</span>')+'</td>'
-      + '<td>'+(m.pin?'<span style="font-family:monospace;letter-spacing:2px">••••</span>':'<span style="color:var(--textd);font-size:11px">No PIN</span>')+'</td>'
+      + '<td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:8px;background:'+(m.color||'var(--g600)')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">'+(m.name||'?')[0].toUpperCase()+'</div><div><div style="font-weight:600;font-size:13px">'+m.name+'</div>'+(m.email?'<div style="font-size:11px;color:var(--textd)">'+m.email+'</div>':'')+'</div></div></td>'
+      + '<td style="font-size:12px">'+(ROLE_LABELS[m.role]||m.role||'—')+'</td>'
+      + '<td>'+statusBadge+'</td>'
       + '<td style="font-size:12px;font-weight:600;color:'+accessColor+'">'+accessLevel+'</td>'
-      + '<td style="white-space:nowrap">'
-      + '<button class="row-btn" onclick="editMember(this)" data-id="'+m.id+'">Edit</button>'
-      + '<button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="deleteMember(this)" data-id="'+m.id+'">Remove</button>'
-      + '</td></tr>';
+      + '<td style="white-space:nowrap">'+actionBtns+'</td>'
+      + '</tr>';
   }).join('');
 }
+
+// ── Create Firebase Account Modal ──
+window.openCreateAccountModal = function(memberId) {
+  var team = DB.settings.team || [];
+  var m = team.find(function(x){ return x.id === memberId; });
+  if (!m) return;
+
+  var existing = document.getElementById('fb-create-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'fb-create-overlay';
+  overlay.innerHTML = '<style>#fb-create-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:inherit}</style>'
+    + '<div style="background:#fff;border-radius:16px;padding:28px;width:420px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
+    + '<div style="font-size:18px;font-weight:800;margin-bottom:4px">🔑 Create Login Account</div>'
+    + '<div style="font-size:12.5px;color:var(--textd);margin-bottom:20px">Set up Firebase login for this team member</div>'
+    + '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">'
+    + '<div style="font-size:13px;font-weight:700">'+m.name+'</div>'
+    + '<div style="font-size:11.5px;color:var(--textd);margin-top:2px">'+(m.role||'Team Member')+' · '+(m.dept||'')+'</div>'
+    + '</div>'
+    + '<div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Login Email *</label>'
+    + '<input id="fbc-email" type="email" class="form-input" value="'+(m.email||'')+'" placeholder="agent@wanago.in" style="width:100%;box-sizing:border-box"></div>'
+    + '<div style="margin-bottom:16px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Temporary Password *</label>'
+    + '<div style="display:flex;gap:8px">'
+    + '<input id="fbc-password" type="password" class="form-input" placeholder="Min 6 characters" style="flex:1">'
+    + '<button onclick="fbcGenPass()" class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">🎲 Generate</button>'
+    + '</div>'
+    + '<div id="fbc-gen-display" style="display:none;margin-top:6px;background:#f0f7f4;border:1px solid var(--g200);border-radius:6px;padding:8px 10px;font-family:monospace;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--g800)"></div>'
+    + '<div style="font-size:11px;color:var(--textd);margin-top:4px">⚠️ Share this with the agent securely. They should change it after first login.</div></div>'
+    + '<div id="fbc-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>'
+    + '<div id="fbc-success" style="display:none;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px;font-size:13px;color:var(--g700);margin-bottom:8px"></div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">'
+    + '<button class="btn btn-outline" onclick="document.getElementById('fb-create-overlay').remove()">Cancel</button>'
+    + '<button id="fbc-submit" class="btn btn-primary" onclick="submitCreateFirebaseAccount(''+m.id+'')">🔑 Create Account</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+
+  window.fbcGenPass = function() {
+    var chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
+    var pass = Array.from({length:10}, function(){ return chars[Math.floor(Math.random()*chars.length)]; }).join('');
+    document.getElementById('fbc-password').value = pass;
+    document.getElementById('fbc-password').type = 'text';
+    var disp = document.getElementById('fbc-gen-display');
+    disp.textContent = pass; disp.style.display = 'block';
+  };
+};
+
+window.submitCreateFirebaseAccount = function(memberId) {
+  var email = (document.getElementById('fbc-email').value||'').trim();
+  var password = document.getElementById('fbc-password').value||'';
+  var errEl = document.getElementById('fbc-error');
+  var sucEl = document.getElementById('fbc-success');
+  var btn = document.getElementById('fbc-submit');
+  errEl.style.display='none'; sucEl.style.display='none';
+
+  if (!email) { errEl.textContent='Email is required.'; errEl.style.display='block'; return; }
+  if (password.length < 6) { errEl.textContent='Password must be at least 6 characters.'; errEl.style.display='block'; return; }
+
+  btn.textContent='Creating...'; btn.disabled=true;
+
+  var team = DB.settings.team || [];
+  var m = team.find(function(x){ return x.id === memberId; });
+  if (!m) { errEl.textContent='Member not found.'; errEl.style.display='block'; btn.textContent='🔑 Create Account'; btn.disabled=false; return; }
+
+  // Use Firebase Auth REST API — works in plain <script> without import()
+  var API_KEY = 'AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU';
+  var url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + API_KEY;
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    var res = JSON.parse(xhr.responseText);
+    if (xhr.status === 200 && res.localId) {
+      // Success — save UID back to member record
+      m.firebaseUid = res.localId;
+      m.email = email;
+      m.accountCreated = true;
+      m.accountCreatedAt = new Date().toISOString();
+      persistSettingsNow();
+      if (typeof fsSaveSettings === 'function') fsSaveSettings();
+      sucEl.innerHTML = '✅ Account created for <strong>'+m.name+'</strong>!<br>Email: <strong>'+email+'</strong><br>They can now log in at the login page.';
+      sucEl.style.display='block';
+      btn.textContent='✅ Done'; btn.disabled=false;
+      setTimeout(function(){ renderTeamLogins(); }, 600);
+    } else {
+      var fbErrs = {'EMAIL_EXISTS':'This email already has a Firebase account. Use Reset Password instead.','INVALID_EMAIL':'Invalid email address.','WEAK_PASSWORD : Password should be at least 6 characters':'Password too weak — use at least 6 characters.'};
+      var msg = (res.error && res.error.message) || 'Unknown error';
+      errEl.textContent = fbErrs[msg] || ('Firebase error: ' + msg);
+      errEl.style.display='block';
+      btn.textContent='🔑 Create Account'; btn.disabled=false;
+    }
+  };
+  xhr.onerror = function() {
+    errEl.textContent='Network error. Check your internet connection.';
+    errEl.style.display='block';
+    btn.textContent='🔑 Create Account'; btn.disabled=false;
+  };
+  xhr.send(JSON.stringify({email: email, password: password, returnSecureToken: false}));
+};
+
+// ── Reset Firebase Password (REST API) ──
+window.resetFirebasePassword = function(memberId) {
+  var team = DB.settings.team || [];
+  var m = team.find(function(x){ return x.id === memberId; });
+  if (!m || !m.email) { showToast('No email on record for this member','error'); return; }
+  if (!confirm('Send password reset email to ' + m.email + '?')) return;
+
+  var API_KEY = 'AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU';
+  var url = 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + API_KEY;
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      showToast('✅ Reset email sent to ' + m.email);
+    } else {
+      var res = JSON.parse(xhr.responseText);
+      var msg = (res.error && res.error.message) || 'Unknown error';
+      showToast('Failed: ' + msg, 'error');
+    }
+  };
+  xhr.onerror = function() { showToast('Network error sending reset email','error'); };
+  xhr.send(JSON.stringify({requestType: 'PASSWORD_RESET', email: m.email}));
+};
 
 // ── Cloud Sync tab ──
 function renderCloudSync() {
