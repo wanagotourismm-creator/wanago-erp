@@ -95,7 +95,10 @@ function switchAdminTab(a,b) { admTab(b||a, null); }
 
 // ── Delete member ──
 function persistSettingsNow() {
-  saveDB();
+  // Save settings: update localStorage, push settings doc to Firestore.
+  // Use saveDB({silent:true}) to avoid triggering _fsPushDB (full collection push)
+  // which would cause Firestore listeners to fire and potentially reset active forms.
+  saveDB({ silent: true });
   if (typeof fsSaveSettings === 'function') fsSaveSettings();
 }
 
@@ -126,11 +129,20 @@ function renderAdminPage() {
   if (av) av.textContent = name[0].toUpperCase();
   if (un) un.textContent = name;
   if (em) em.textContent = email;
-  // Render default tab
-  loadCompanySettings();
+  // FIX: Only render stats/checklist here. Do NOT call loadCompanySettings() on every
+  // Firestore-triggered refresh — it resets form fields the user may be editing.
+  // loadCompanySettings() is called explicitly when the Company tab is clicked.
   renderOverviewStats();
   renderSetupChecklist();
   renderOffices(); // update nav badge
+}
+
+// Called once on page load to pre-fill all tabs
+function initAdminTabs() {
+  loadCompanySettings();
+  renderOverviewStats();
+  renderSetupChecklist();
+  renderOffices();
 }
 
 // ══════ COMPANY SETTINGS ══════
@@ -155,7 +167,11 @@ function saveSettings() {
   s.website=g('s-website'); s.address=g('s-address');
   s.bankName=g('s-bank'); s.accountNo=g('s-acc'); s.ifsc=g('s-ifsc'); s.upi=g('s-upi');
   if (s.gstEnabled) { s.gstin=g('s-gstin'); s.gstRate=parseInt(document.getElementById('s-gstrate')?.value)||5; s.gstType=document.getElementById('s-gsttype')?.value||'cgst_sgst'; s.state=g('s-state'); }
-  persistSettingsNow(); renderSetupChecklist(); showToast('Settings saved!');
+  // Save to localStorage + Firestore
+  saveDB();
+  if (typeof fsSaveSettings === 'function') fsSaveSettings();
+  renderSetupChecklist();
+  showToast('Settings saved!');
 }
 
 function toggleGST() { DB.settings.gstEnabled = !DB.settings.gstEnabled; syncGSTToggleUI(DB.settings.gstEnabled); persistSettingsNow(); }
@@ -1120,7 +1136,7 @@ function saveAllSettings() {
 function syncColorHex() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h) h.value=c.value; }
 function syncHexColor() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h&&h.value.length===7) c.value=h.value; }
 
-window.admTab=admTab;window.saveAllSettings=saveAllSettings;window.syncColorHex=syncColorHex;window.syncHexColor=syncHexColor;window.switchAdminTab=switchAdminTab;window.renderTeamLogins=renderTeamLogins;window.renderCloudSync=renderCloudSync;window.deleteMember=deleteMember;window.renderAdminPage=renderAdminPage;
+window.admTab=admTab;window.saveAllSettings=saveAllSettings;window.syncColorHex=syncColorHex;window.syncHexColor=syncHexColor;window.switchAdminTab=switchAdminTab;window.renderTeamLogins=renderTeamLogins;window.renderCloudSync=renderCloudSync;window.deleteMember=deleteMember;window.renderAdminPage=renderAdminPage;window.initAdminTabs=initAdminTabs;
 window.saveSettings=saveSettings;window.toggleGST=toggleGST;window.filterTeam=filterTeam;
 window.openAddMemberModal=openAddMemberModal;window.editMember=editMember;window.saveMember=saveMember;
 window.openAddOfficeModal=openAddOfficeModal;window.saveOffice=saveOffice;
@@ -1414,4 +1430,4 @@ window.sheetsSendEODRNow   = sheetsSendEODRNow;
 window.sendLocalTestNotif  = sendLocalTestNotif;
 
 
-initPage(renderAdminPage);
+initPage(initAdminTabs);
