@@ -52,7 +52,7 @@ function defaultDB() {
       fuDays: 1, invDays: 3, notifyLeadTo: 'manager', notifyPaymentTo: 'finance',
       agents: [],
       offices: [{ id:'o1', name:'Head Office', code:'HO', address:'', phone:'', active:true, createdAt:new Date().toISOString() }],
-      team: [{ id:'t1', name:'Admin', dept:'leadership', role:'founder', phone:'', email:'', empId:'WGO-000', pin:'0000', managerId:'', joinDate:'', color:'#134a32', officeId:'*' }]
+      team: []
     }
   };
 }

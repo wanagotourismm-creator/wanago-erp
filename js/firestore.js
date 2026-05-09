@@ -41,7 +41,15 @@ let _pushTimer = null;
 
 async function fsInit() {
   try {
-    const cfg = await import('../firebase/firebase-config.js');
+    // Inline Firebase config to avoid path resolution issues
+    const FB_CFG_FS = { apiKey:"AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU", authDomain:"wanago-erp.firebaseapp.com", projectId:"wanago-erp", storageBucket:"wanago-erp.firebasestorage.app", messagingSenderId:"445920648182", appId:"1:445920648182:web:2ef6f9110767bc9f36c5d7" };
+    const { initializeApp: _fsInitApp, getApps: _fsGetApps } = await import(`${FS_BASE}/firebase-app.js`);
+    const { getAuth: _fsGetAuth } = await import(`${FS_BASE}/firebase-auth.js`);
+    const { getFirestore: _fsGetFs } = await import(`${FS_BASE}/firebase-firestore.js`);
+    const { getStorage: _fsGetSt }   = await import(`${FS_BASE}/firebase-storage.js`);
+    const _fsApps = _fsGetApps();
+    const _fsApp  = _fsApps.length ? _fsApps[0] : _fsInitApp(FB_CFG_FS);
+    const cfg = { auth: _fsGetAuth(_fsApp), db: _fsGetFs(_fsApp), storage: _fsGetSt(_fsApp) };
     if (!cfg.db) { _loadLocalFallback(); return false; }
 
     _db      = cfg.db;
@@ -219,6 +227,18 @@ async function fsListen(collection, callback) {
   try {
     const { collection: col, onSnapshot } = await import(`${FS_BASE}/firebase-firestore.js`);
     const off = onSnapshot(col(_db, _path(collection)), snap => {
+      // Play notification sound on real-time updates from other users
+      if (snap.docChanges().some(c => c.type === 'added' || c.type === 'modified')) {
+        var sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+        snap.docChanges().forEach(function(change) {
+          var data = change.doc.data();
+          // Only play if updated by someone else
+          if (change.type === 'added' && data._updatedBy && data._updatedBy !== sess.uid) {
+            if (typeof window.playNotifSound === 'function') window.playNotifSound('ding');
+            if (typeof window.pushNotification === 'function') window.pushNotification({ title: 'New ' + collection, message: 'Data updated by team member', type: 'info', sound: false });
+          }
+        });
+      }
       DB[collection] = _sortRecords(snap.docs.map(d => _fromFirestoreDoc(d)));
       // Keep localStorage cache in sync so page reloads immediately have fresh data.
       // We do NOT set the dirty flag here — cloud is authoritative for these updates.
