@@ -104,6 +104,16 @@
       <div class="adm-nav-item" onclick="admTab('activity',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Activity Log
       </div>
+      <div class="adm-nav-item" onclick="admTab('attendance',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Attendance & Leave
+      </div>
+      <div class="adm-nav-item" onclick="admTab('notifications',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications
+        <span class="adm-nav-badge" id="notif-nav-badge" style="display:none">!</span>
+      </div>
+      <div class="adm-nav-item" onclick="admTab('rbac',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Access Control
+      </div>
       <div class="adm-nav-item" onclick="admTab('backup',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Backup & Restore
       </div>
@@ -151,6 +161,9 @@
           <button class="adm-quick-btn" onclick="admTab('settings',document.querySelector('[onclick*=settings]'))"><span>⚙️</span><div>Settings</div></button>
           <button class="adm-quick-btn" onclick="admTab('integrations',document.querySelector('[onclick*=integrations]'))"><span>🔗</span><div>Integrations</div></button>
           <button class="adm-quick-btn" onclick="admTab('activity',document.querySelector('[onclick*=activity]'))"><span>📋</span><div>Activity Log</div></button>
+          <button class="adm-quick-btn" onclick="admTab('attendance',document.querySelector('[onclick*=attendance]'))"><span>📅</span><div>Attendance</div></button>
+          <button class="adm-quick-btn" onclick="admTab('notifications',document.querySelector('[onclick*=notifications]'))"><span>🔔</span><div>Notifications</div></button>
+          <button class="adm-quick-btn" onclick="admTab('rbac',document.querySelector('[onclick*=rbac]'))"><span>🔒</span><div>Access Control</div></button>
           <button class="adm-quick-btn" onclick="openChangePinModal()"><span>🔑</span><div>Change PIN</div></button>
         </div>
         <div id="admin-setup-checklist" style="display:none;background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffd54f;border-radius:var(--radius);padding:16px 18px">
@@ -367,9 +380,23 @@
         </div>
       </div>
 
+      <!-- ═══ ATTENDANCE ═══ -->
+      <div class="adm-tab" id="adm-tab-attendance">
+        <div style="text-align:center;padding:40px;color:var(--textd)"><div style="font-size:24px">⏳</div>Loading...</div>
+      </div>
+
+      <!-- ═══ NOTIFICATIONS ═══ -->
+      <div class="adm-tab" id="adm-tab-notifications">
+        <div style="text-align:center;padding:40px;color:var(--textd)"><div style="font-size:24px">⏳</div>Loading...</div>
+      </div>
+
+      <!-- ═══ RBAC ═══ -->
+      <div class="adm-tab" id="adm-tab-rbac">
+        <div style="text-align:center;padding:40px;color:var(--textd)"><div style="font-size:24px">⏳</div>Loading...</div>
+      </div>
+
       <!-- ═══ ACTIVITY ═══ -->
       <div class="adm-tab" id="adm-tab-activity">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px">📋 Recent Activity Log</div>
         <div id="activity-list"></div>
       </div>
 
@@ -755,6 +782,39 @@
   </div>
 </div>
 
+<!-- LEAVE REQUEST MODAL -->
+<div class="modal-overlay" id="modal-leave-request">
+  <div class="modal">
+    <div class="modal-title">🌴 Add Leave Request</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Team Member *</label>
+      <select class="form-select" id="leave-member-select"></select>
+    </div>
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-group"><label class="form-label">From Date *</label><input class="form-input" id="leave-from-date" type="date"></div>
+      <div class="form-group"><label class="form-label">To Date *</label><input class="form-input" id="leave-to-date" type="date"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Leave Type</label>
+      <select class="form-select" id="leave-type">
+        <option value="casual">Casual Leave</option>
+        <option value="sick">Sick Leave</option>
+        <option value="annual">Annual Leave</option>
+        <option value="emergency">Emergency Leave</option>
+        <option value="unpaid">Unpaid Leave</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">Reason</label>
+      <textarea class="form-input" id="leave-reason" rows="2" placeholder="Reason for leave..." style="resize:vertical"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-leave-request')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitLeaveRequest()">✅ Submit Request</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
 
 <script src="../js/admin-lock.js"></script>
@@ -765,5 +825,4 @@
 <script src="../js/google-sheets.js"></script>
 <script src="../js/admin.js"></script>
 <script src="../js/wanago-space.js"></script>
-</body>
-</html>
+<script src="../js/admin-features.js"></script>

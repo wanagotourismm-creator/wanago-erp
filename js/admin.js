@@ -56,33 +56,38 @@ function admTab(name, el) {
   // Update topbar title
   var titles = {
     overview:'⚙️ Admin Panel', company:'🏢 Company Settings', team:'👥 Team Members',
-    offices:'🏢 Offices & Branches',
-    settings:'⚙️ Settings', logins:'🔑 Team Logins', cloudsync:'☁️ Cloud Sync',
-    activity:'📋 Activity Log', backup:'💾 Backup & Restore',
-    integrations:'🔗 Integrations'
+    offices:'🏢 Offices & Branches', settings:'⚙️ Settings', logins:'🔑 Team Logins',
+    cloudsync:'☁️ Cloud Sync', activity:'📋 Activity Log', backup:'💾 Backup & Restore',
+    integrations:'🔗 Integrations', attendance:'📅 Attendance & Leave',
+    notifications:'🔔 Notifications', rbac:'🔒 Access Control'
   };
   var subs = {
     overview:'Overview & quick actions', company:'Company info, bank details, GST',
     team:'Manage staff and roles', offices:'Manage all office locations and view performance',
-    settings:'Brand, PIN and preferences',
-    logins:'Team login credentials', cloudsync:'Firebase Firestore sync',
-    activity:'Recent system activity', backup:'Backup and restore data',
-    integrations:'Meta Ads · WhatsApp Business · Gmail — API credentials'
+    settings:'Brand, PIN and preferences', logins:'Team login credentials',
+    cloudsync:'Firebase Firestore sync', activity:'Full audit trail of all system actions',
+    backup:'Backup and restore data', integrations:'Meta Ads · WhatsApp Business · Gmail — API credentials',
+    attendance:'Daily attendance marking & leave management',
+    notifications:'Send alerts & manage notification rules',
+    rbac:'Role-based permissions for each team member'
   };
   var t = document.getElementById('adm-page-title');
   var s = document.getElementById('adm-page-sub');
   if (t) t.textContent = titles[name] || 'Admin Panel';
   if (s) s.textContent = subs[name] || '';
   // Render content
-  if (name === 'overview')   { renderOverviewStats(); renderSetupChecklist(); }
-  if (name === 'team')       { renderTeamMembers('all'); }
-  if (name === 'offices')    { renderOfficesTab(); }
-  if (name === 'activity')   { renderActivityLog(); }
-  if (name === 'company')    { loadCompanySettings(); }
-  if (name === 'settings')   { loadAllSettings(); }
-  if (name === 'logins')     { renderTeamLogins(); }
+  if (name === 'overview')       { renderOverviewStats(); renderSetupChecklist(); }
+  if (name === 'team')           { renderTeamMembers('all'); }
+  if (name === 'offices')        { renderOfficesTab(); }
+  if (name === 'activity')       { if (typeof renderActivityLog === 'function') renderActivityLog(); }
+  if (name === 'attendance')     { if (typeof renderAttendanceTab === 'function') renderAttendanceTab(); }
+  if (name === 'notifications')  { if (typeof renderNotificationsTab === 'function') renderNotificationsTab(); }
+  if (name === 'rbac')           { if (typeof renderRBACTab === 'function') renderRBACTab(); }
+  if (name === 'company')        { loadCompanySettings(); }
+  if (name === 'settings')       { loadAllSettings(); }
+  if (name === 'logins')         { renderTeamLogins(); }
   if (name === 'cloudsync')      { renderCloudSync(); }
-  if (name === 'integrations')  { loadIntegrations(); }
+  if (name === 'integrations')   { loadIntegrations(); }
 }
 
 // Keep old function as alias
