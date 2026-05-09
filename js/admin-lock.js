@@ -277,23 +277,24 @@
   // ── Auto-check on page load ──
   function checkLock() {
     var page = currentPage();
-    if (LOCKED_PAGES.indexOf(page) === -1) return; // not a locked page
-    if (isUnlocked()) return; // already unlocked this session
+    if (LOCKED_PAGES.indexOf(page) === -1) return;
+    if (isUnlocked()) return;
 
-    // Show lock screen - page content hidden until unlocked
-    var app = document.querySelector('.app');
-    if (app) app.style.visibility = 'hidden';
-
+    // Show PIN overlay on top of page — do NOT use visibility:hidden.
+    // The page starts at opacity:0 and becomes visible when initPage() adds .loaded.
+    // The overlay (z-index:99999) sits above the page; after PIN is correct we just
+    // make sure .loaded is present so the page is fully visible.
     showLockScreen(function() {
-      if (app) app.style.visibility = 'visible';
-      // BUG FIX: if initPage hasn't fired yet (page still opacity:0), trigger it now.
-      // This happens when the lock screen blocks the first render before .loaded is added.
-      if (!app.classList.contains('loaded')) {
-        if (typeof renderAdminPage === 'function') {
-          try { renderAdminPage(); } catch(e) {}
-        }
-        app.classList.add('loaded');
+      // PIN correct — ensure the page is fully visible regardless of initPage timing.
+      var app = document.querySelector('.app');
+      if (app) {
+        app.classList.add('loaded');       // safe to call even if already present
+        app.style.opacity = '1';           // force visible in case transition hasn't fired
+        app.style.visibility = 'visible';  // clear any stale visibility
       }
+      // Remove the page-loader if it's still showing (e.g. slow module load)
+      var loader = document.getElementById('page-loader');
+      if (loader) { loader.classList.add('fade-out'); setTimeout(function(){ try{loader.parentNode.removeChild(loader);}catch(e){} }, 300); }
     });
   }
 
