@@ -286,6 +286,14 @@
 
     showLockScreen(function() {
       if (app) app.style.visibility = 'visible';
+      // BUG FIX: if initPage hasn't fired yet (page still opacity:0), trigger it now.
+      // This happens when the lock screen blocks the first render before .loaded is added.
+      if (!app.classList.contains('loaded')) {
+        if (typeof renderAdminPage === 'function') {
+          try { renderAdminPage(); } catch(e) {}
+        }
+        app.classList.add('loaded');
+      }
     });
   }
 

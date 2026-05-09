@@ -299,8 +299,10 @@ function bulkAssignAgent(){
 function bulkDelete(){
   if(!selectedLeadIds.size)return;
   if(!confirm(`Delete ${selectedLeadIds.size} leads? Cannot be undone.`))return;
+  // BUG FIX: delete each from Firestore explicitly before filtering local array
+  if(typeof dbDelete==='function') selectedLeadIds.forEach(id=>dbDelete('leads', id));
   DB.leads=DB.leads.filter(l=>!selectedLeadIds.has(l.id));
-  saveDB(); selectedLeadIds.clear(); renderLeads();
+  saveDB({silent:true}); selectedLeadIds.clear(); renderLeads();
   const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';
   showToast('Leads deleted');
 }
@@ -397,7 +399,10 @@ function deleteLead(id){
   const l=DB.leads.find(x=>x.id===id);if(!l)return;
   if(!confirm('Delete lead '+l.name+'?'))return;
   DB.leads=DB.leads.filter(x=>x.id!==id);
-  saveDB();closeModal('modal-view-lead');renderLeads();showToast('Lead removed');
+  // BUG FIX: must delete from Firestore explicitly; saveDB() only upserts existing docs
+  // and can never remove a document — so the lead reappeared after refresh via fsListen.
+  if(typeof dbDelete==='function') dbDelete('leads', id);
+  saveDB({silent:true});closeModal('modal-view-lead');renderLeads();showToast('Lead removed');
 }
 
 // ── Analytics ──

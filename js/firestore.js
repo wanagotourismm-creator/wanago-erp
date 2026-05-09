@@ -624,7 +624,7 @@ const _PAGE_RENDER_FNS = [
   'renderLeads','renderCustomers','renderBookings','renderPayments',
   'renderQuotationsPage','renderPackages','renderInvoices',
   'renderHRMSOverview','renderAllReports','renderDashboard','renderIncentiveDashboard',
-  'mktRenderOverview','renderSupport',
+  'mktRenderOverview','renderSupport','renderAdminPage',
 ];
 function _fsRefreshPage() {
   for (const fn of _PAGE_RENDER_FNS) {
