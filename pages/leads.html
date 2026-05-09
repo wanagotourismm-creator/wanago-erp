@@ -20,7 +20,7 @@
       <div class="topbar-actions">
         <div class="search-wrap">
           <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input class="search-inp" id="leads-search" type="text" placeholder="Search name, phone, destination..." oninput="searchLeads(this.value)"/>
+          <input class="search-inp" id="leads-search" type="text" placeholder="Search name, phone, destination..." autocomplete="off" oninput="searchLeads(this.value)"/>
         </div>
         <button class="btn btn-sm btn-outline" onclick="openCSVImport()">📥 Import</button>
         <button class="btn btn-primary" onclick="openAddLeadModal()">+ Add Lead</button>
@@ -99,7 +99,7 @@
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
           <div style="position:relative;flex:1;min-width:180px;max-width:280px">
             <svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--textd)" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input class="search-inp" id="board-search" style="width:100%;padding-left:30px;font-size:12px" placeholder="Search leads on board..." oninput="renderLeadBoard()">
+            <input class="search-inp" id="board-search" style="width:100%;padding-left:30px;font-size:12px" placeholder="Search leads on board..." autocomplete="off" oninput="renderLeadBoard()">
           </div>
           <select class="form-select" id="board-agent-filter" onchange="renderLeadBoard()" style="width:140px;padding:7px 10px;font-size:12px"><option value="">All Agents</option></select>
           <select class="form-select" id="board-priority-filter" onchange="renderLeadBoard()" style="width:130px;padding:7px 10px;font-size:12px"><option value="">All Priorities</option><option value="hot">🔥 Hot</option><option value="warm">🌤️ Warm</option><option value="cold">❄️ Cold</option></select>

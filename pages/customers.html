@@ -18,7 +18,7 @@
     <div class="topbar">
       <div class="topbar-title">Customer CRM</div>
       <div class="topbar-actions">
-        <div class="search-wrap"><svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" type="text" placeholder="Search..." oninput="searchCustomers(this.value)"/></div>
+        <div class="search-wrap"><svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" type="text" placeholder="Search..." oninput="searchCustomers(this.value)" autocomplete="off"/></div>
         <button class="btn btn-primary" onclick="openModal('modal-add-customer')">+ Add Customer</button>
         <div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div>
       </div>
@@ -44,7 +44,7 @@
         <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
           <div style="position:relative;flex:1;min-width:200px;max-width:320px">
             <svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--textd)" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input class="search-inp" id="cust-search" style="width:100%;padding-left:30px;font-size:12px" placeholder="Search name, phone, email, city..." oninput="searchCustomers(this.value)">
+            <input class="search-inp" id="cust-search" style="width:100%;padding-left:30px;font-size:12px" placeholder="Search name, phone, email, city..." oninput="searchCustomers(this.value)" autocomplete="off">
           </div>
           <select class="form-select" id="cust-type-filter" onchange="renderCustomers()" style="width:140px;padding:7px 10px;font-size:12px"><option value="">All Types</option><option value="honeymoon">Honeymoon</option><option value="family">Family</option><option value="corporate">Corporate</option><option value="adventure">Adventure</option><option value="group">Group</option><option value="solo">Solo</option></select>
           <select class="form-select" id="cust-budget-filter" onchange="renderCustomers()" style="width:130px;padding:7px 10px;font-size:12px"><option value="">All Budgets</option><option value="high">High (>₹2L)</option><option value="mid">Mid</option><option value="low">Low</option></select>

@@ -46,9 +46,13 @@ window.goTo = goTo;
 
 // ── Tab switching (new self-contained admin nav) ──
 function admTab(name, el) {
-  // Update nav items
+  // Update nav items - find correct nav item by tab name (el may be a quick-action button, not a nav item)
   document.querySelectorAll('.adm-nav-item').forEach(function(n){n.classList.remove('active');});
-  if (el) el.classList.add('active');
+  var navItem = el && el.classList.contains('adm-nav-item') ? el : document.querySelector('.adm-nav-item[onclick*="''+name+''"],[onclick*=""'+name+'""]');
+  if (navItem) navItem.classList.add('active');
+  // Scroll content to top
+  var cont = document.querySelector('.adm-content');
+  if (cont) cont.scrollTop = 0;
   // Show correct tab
   document.querySelectorAll('.adm-tab').forEach(function(t){t.classList.remove('active');});
   var tab = document.getElementById('adm-tab-' + name);
@@ -95,10 +99,7 @@ function switchAdminTab(a,b) { admTab(b||a, null); }
 
 // ── Delete member ──
 function persistSettingsNow() {
-  // Save settings: update localStorage, push settings doc to Firestore.
-  // Use saveDB({silent:true}) to avoid triggering _fsPushDB (full collection push)
-  // which would cause Firestore listeners to fire and potentially reset active forms.
-  saveDB({ silent: true });
+  saveDB();
   if (typeof fsSaveSettings === 'function') fsSaveSettings();
 }
 
@@ -129,20 +130,11 @@ function renderAdminPage() {
   if (av) av.textContent = name[0].toUpperCase();
   if (un) un.textContent = name;
   if (em) em.textContent = email;
-  // FIX: Only render stats/checklist here. Do NOT call loadCompanySettings() on every
-  // Firestore-triggered refresh — it resets form fields the user may be editing.
-  // loadCompanySettings() is called explicitly when the Company tab is clicked.
-  renderOverviewStats();
-  renderSetupChecklist();
-  renderOffices(); // update nav badge
-}
-
-// Called once on page load to pre-fill all tabs
-function initAdminTabs() {
+  // Render default tab
   loadCompanySettings();
   renderOverviewStats();
   renderSetupChecklist();
-  renderOffices();
+  renderOffices(); // update nav badge
 }
 
 // ══════ COMPANY SETTINGS ══════
@@ -167,11 +159,7 @@ function saveSettings() {
   s.website=g('s-website'); s.address=g('s-address');
   s.bankName=g('s-bank'); s.accountNo=g('s-acc'); s.ifsc=g('s-ifsc'); s.upi=g('s-upi');
   if (s.gstEnabled) { s.gstin=g('s-gstin'); s.gstRate=parseInt(document.getElementById('s-gstrate')?.value)||5; s.gstType=document.getElementById('s-gsttype')?.value||'cgst_sgst'; s.state=g('s-state'); }
-  // Save to localStorage + Firestore
-  saveDB();
-  if (typeof fsSaveSettings === 'function') fsSaveSettings();
-  renderSetupChecklist();
-  showToast('Settings saved!');
+  persistSettingsNow(); renderSetupChecklist(); showToast('Settings saved!');
 }
 
 function toggleGST() { DB.settings.gstEnabled = !DB.settings.gstEnabled; syncGSTToggleUI(DB.settings.gstEnabled); persistSettingsNow(); }
@@ -1136,7 +1124,7 @@ function saveAllSettings() {
 function syncColorHex() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h) h.value=c.value; }
 function syncHexColor() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h&&h.value.length===7) c.value=h.value; }
 
-window.admTab=admTab;window.saveAllSettings=saveAllSettings;window.syncColorHex=syncColorHex;window.syncHexColor=syncHexColor;window.switchAdminTab=switchAdminTab;window.renderTeamLogins=renderTeamLogins;window.renderCloudSync=renderCloudSync;window.deleteMember=deleteMember;window.renderAdminPage=renderAdminPage;window.initAdminTabs=initAdminTabs;
+window.admTab=admTab;window.saveAllSettings=saveAllSettings;window.syncColorHex=syncColorHex;window.syncHexColor=syncHexColor;window.switchAdminTab=switchAdminTab;window.renderTeamLogins=renderTeamLogins;window.renderCloudSync=renderCloudSync;window.deleteMember=deleteMember;window.renderAdminPage=renderAdminPage;
 window.saveSettings=saveSettings;window.toggleGST=toggleGST;window.filterTeam=filterTeam;
 window.openAddMemberModal=openAddMemberModal;window.editMember=editMember;window.saveMember=saveMember;
 window.openAddOfficeModal=openAddOfficeModal;window.saveOffice=saveOffice;
@@ -1430,4 +1418,4 @@ window.sheetsSendEODRNow   = sheetsSendEODRNow;
 window.sendLocalTestNotif  = sendLocalTestNotif;
 
 
-initPage(initAdminTabs);
+initPage(renderAdminPage);
