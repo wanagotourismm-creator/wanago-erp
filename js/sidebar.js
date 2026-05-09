@@ -30,6 +30,7 @@
     { id:'sales-chat',     label:'Sales Chat',     icon:'chat',        action:"openSalesChatWindow('','','all')" },
     { section: 'TEAM' },
     { id:'hrms',           label:'HRMS',           icon:'hrms',        page:'hrms'      },
+    { id:'team-accounts',  label:'Team Accounts',  icon:'team-accounts', page:'team-accounts' },
     { section: 'SYSTEM' },
     { id:'admin',          label:'Admin Panel',    icon:'admin',       page:'admin'     },
   ];
@@ -106,10 +107,11 @@
         <div style="flex:1"><div style="font-size:11.5px;font-weight:600;color:#c9a84c">Install App</div><div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:1px">Add to home screen</div></div>
       </div>
       <div class="sidebar-user">
-        <div class="user-av" id="user-avatar">${userName[0].toUpperCase()}</div>
-        <div class="user-info">
+        <div class="user-av" id="user-avatar" onclick="openChangePasswordModal()" style="cursor:pointer" title="Click to change password">${userName[0].toUpperCase()}</div>
+        <div class="user-info" style="cursor:pointer" onclick="openChangePasswordModal()">
           <div class="user-name" id="user-name">${userName}</div>
           <div class="user-role" style="font-size:10px;opacity:.7">${userEmail || userRole}</div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,.4);margin-top:1px">🔑 Change Password</div>
         </div>
         <svg onclick="if(typeof handleLogout==='function')handleLogout()" style="width:16px;height:16px;color:rgba(255,255,255,.4);cursor:pointer;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -372,5 +374,14 @@
 
   // Expose rebuild for auth systems to call after login
   window.rebuildSidebar = buildSidebar;
+
+  // Auto-load change-password module
+  (function loadChangePassword() {
+    var isPages = window.location.pathname.includes('/pages/');
+    var prefix = isPages ? '../js/' : 'js/';
+    var s = document.createElement('script');
+    s.src = prefix + 'change-password.js';
+    document.body.appendChild(s);
+  })();
 
 })();
