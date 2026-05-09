@@ -97,10 +97,32 @@ async function handleLogin() {
       doLogin(member, email, btn);
 
     } else {
-      // No team member matched — treat as owner / first-time login
+      // No team member matched in local DB — try fetching from Firestore directly
+      // This happens when DB.settings.team hasn't synced yet (e.g. first load)
+      var derivedName = cred.user.displayName
+        || email.split('@')[0].replace(/[._-]/g,' ').replace(/\w/g,c=>c.toUpperCase())
+        || 'User';
+
+      // Try to fetch team from Firestore before falling back
+      var matched = null;
+      try {
+        if (typeof window._fsGetTeam === 'function') {
+          var fsTeam = await window._fsGetTeam();
+          if (fsTeam && fsTeam.length) {
+            matched = fsTeam.find(function(m){ return (m.firebaseUid===cred.user.uid)||(m.email||'')==email; });
+            if (matched) {
+              matched.systemRole = matched.systemRole || 'employee';
+              doLogin(matched, email, btn); return;
+            }
+          }
+        }
+      } catch(_) {}
+
+      // Still not found — treat as owner/admin only if it is truly the first user
+      // Use email prefix as name, never hardcode 'Admin'
       doLogin({
-        id: 't1',
-        name: cred.user.displayName || 'Admin',
+        id: cred.user.uid,
+        name: derivedName,
         email: email,
         role: 'founder',
         dept: 'leadership',

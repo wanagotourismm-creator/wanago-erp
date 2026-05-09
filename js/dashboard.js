@@ -47,7 +47,7 @@ window.goTo = goTo;
 function renderDashboard() {
   try {
     var s = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
-    var name = (window.currentUser && window.currentUser.name) || s.name || 'Admin';
+    var name = (window.currentUser && window.currentUser.name) || s.name || (s.email ? s.email.split('@')[0].replace(/[._-]/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}) : 'User');
     renderGreeting(name);
     renderStats();
     renderRevenueChart();

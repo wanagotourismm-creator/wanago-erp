@@ -183,8 +183,9 @@ function loadSessionUser() {
       currentUser = member;
       currentOfficeId = hasAllOfficesAccess(member) ? OFFICE_ALL : (member.officeId || (DB.settings.offices[0]?.id));
     } else {
-      // Session exists but no matching member - use session data directly
-      currentUser = { id:session.uid, name:session.name, email:session.email, role:session.role, dept:session.dept, officeId:session.officeId||'*', systemRole:session.systemRole||'founder_ceo' };
+      // Session exists but no matching member in local DB yet (Firestore may not have synced)
+      // Use actual session data — name comes from login.js which resolves it from Firebase
+      currentUser = { id:session.uid, name:session.name, email:session.email, role:session.role, dept:session.dept, officeId:session.officeId||'*', systemRole:session.systemRole||'employee' };
       currentOfficeId = OFFICE_ALL;
     }
     window.currentUser = currentUser;

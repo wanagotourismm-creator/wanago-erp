@@ -188,6 +188,10 @@ async function _loadAll() {
     } catch(e) {}
 
     showFsSyncStatus('✅ Synced', true);
+    // Re-resolve currentUser now that Firestore team data is available.
+    // Fixes: user shows as 'Admin' because team wasn't in localStorage at login time.
+    if (typeof loadSessionUser === 'function') loadSessionUser();
+    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
     _fsRefreshPage();
   } catch (e) {
     console.error('[Load] failed:', e.message);
@@ -692,6 +696,16 @@ window.fsChatDeleteMsg = fsChatDeleteMsg;
 window.showFsSyncStatus= showFsSyncStatus;
 window.fsStartListeners= _attachListeners; // backward compat
 window._fsRefreshPage  = _fsRefreshPage;
+
+// Helper: fetch team members directly from Firestore (used by login when local DB is empty)
+window._fsGetTeam = async function() {
+  if (!_db || !_compId) return [];
+  try {
+    const { collection, getDocs } = await import(FB_BASE + '/firebase-firestore.js');
+    const snap = await getDocs(collection(_db, _compId + '_team'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) { return []; }
+};
 window._fsReady        = false;
 
 /* ── Auto-init on load ── */
