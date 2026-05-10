@@ -408,4 +408,14 @@ window.whatsappQuotation = whatsappQuotation;
 window.acceptFromModal = acceptFromModal;
 window.convertFromModal = convertFromModal;
 
-initPage(renderQuotationsPage);
+initPage(function() {
+  renderQuotationsPage();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderQuotationsPage();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('quotations', function() { renderQuotationsPage(); });
+      }
+    }, 5000);
+  }
+});

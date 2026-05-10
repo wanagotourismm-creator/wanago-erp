@@ -237,4 +237,14 @@ function deleteCustomer(id){if(typeof canUserDoAction==='function'&&!canUserDoAc
 
 window.renderCustomers=renderCustomers;window.filterCustomers=filterCustomers;window.searchCustomers=searchCustomers;window.viewCustomer=viewCustomer;window.editCustomer=editCustomer;window.saveCustomer=saveCustomer;window.deleteCustomer=deleteCustomer;window.custWhatsApp=custWhatsApp;
 
-initPage(renderCustomers);
+initPage(function() {
+  renderCustomers();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderCustomers();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('customers', function() { renderCustomers(); });
+      }
+    }, 5000);
+  }
+});

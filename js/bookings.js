@@ -413,4 +413,14 @@ window.submitPayment=submitPayment;window.previewProfit=previewProfit;window.sav
 window.renderBkTimeline=renderBkTimeline;window.renderBkKanban=renderBkKanban;window.switchBkTab=switchBkTab;
 window.uploadBookingFiles=uploadBookingFiles;window.deleteBookingFile=deleteBookingFile;
 
-initPage(renderBookings);
+initPage(function() {
+  renderBookings();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderBookings();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('bookings', function() { renderBookings(); });
+      }
+    }, 5000);
+  }
+});

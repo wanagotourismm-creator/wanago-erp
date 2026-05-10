@@ -261,7 +261,11 @@ function renderDeparting() {
 function renderActivityFeed() {
   const el = document.getElementById('activity-feed');
   if (!el) return;
-  const acts = ((window.DB && window.DB.activities) ? window.DB.activities : []).slice().reverse().slice(0, 15);
+  // Prefer Firestore activity_log, fall back to DB.activities
+  const rawActs = (window.DB && window.DB.activities) ? window.DB.activities : [];
+  const acts = rawActs.slice().sort(function(a,b){
+    return new Date(b.ts||b.timestamp||b.time||0) - new Date(a.ts||a.timestamp||a.time||0);
+  }).slice(0, 20);
   if (!acts.length) {
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No recent activity</div></div>';
     return;
@@ -334,4 +338,26 @@ function renderForecast() {
 
 window.renderDashboard = renderDashboard;
 
-initPage(renderDashboard);
+// ── Wait for Firestore before first render ──
+initPage(function() {
+  // Show skeleton stats while loading
+  var el = document.getElementById('dash-stats');
+  if (el && !window._fsReady) {
+    el.innerHTML = ['💰 Revenue','🎯 Leads','🗓️ Bookings','⚠️ Dues'].map(function(l) {
+      return '<div class="stat-card"><div class="stat-label">'+l+'</div><div style="height:28px;background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);border-radius:6px;animation:shimmer 1.5s infinite;background-size:200% 100%"></div></div>';
+    }).join('');
+    // Add shimmer CSS once
+    if (!document.getElementById('shimmer-css')) {
+      var s = document.createElement('style');
+      s.id = 'shimmer-css';
+      s.textContent = '@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}';
+      document.head.appendChild(s);
+    }
+  }
+  // Render immediately with whatever data is in cache
+  renderDashboard();
+  // Re-render after Firestore loads (if not already ready)
+  if (!window._fsReady) {
+    waitForFirestore(function() { renderDashboard(); }, 6000);
+  }
+});

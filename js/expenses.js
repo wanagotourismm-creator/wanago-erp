@@ -359,4 +359,14 @@ window.deleteExpense = deleteExpense;
 window.renderExpAnalytics = renderExpAnalytics;
 window.exportExpenses = exportExpenses;
 
-initPage(renderExpenses);
+initPage(function() {
+  renderExpenses();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderExpenses();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('expenses', function() { renderExpenses(); });
+      }
+    }, 5000);
+  }
+});

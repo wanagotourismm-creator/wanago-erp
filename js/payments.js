@@ -280,4 +280,14 @@ window.clearPayDateFilter=clearPayDateFilter;window.viewPayReceipt=viewPayReceip
 window.printReceipt=printReceipt;window.openRecordPaymentModal=openRecordPaymentModal;window.onRPBookingChange=onRPBookingChange;
 window.saveRecordPayment=saveRecordPayment;
 
-initPage(renderPayments);
+initPage(function() {
+  renderPayments();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderPayments();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('payments', function() { renderPayments(); });
+      }
+    }, 5000);
+  }
+});

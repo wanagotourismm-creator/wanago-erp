@@ -216,10 +216,35 @@ function _attachListeners() {
   [
     'leads', 'customers', 'bookings', 'payments', 'expenses', 'activities',
     'quotations', 'invoices', 'hrmsEmployees', 'hrmsLeaves',
-    'campaigns', 'packages', 'tickets',
+    'campaigns', 'packages', 'tickets', 'tasks', 'hrmsCheckIns',
   ].forEach(col => {
     fsListen(col);
   });
+
+  // Listen for settings changes (team/company updates)
+  _listenSettings();
+}
+
+async function _listenSettings() {
+  if (!_fsReady || !_db) return;
+  try {
+    const { doc, onSnapshot } = await import(`${FS_BASE}/firebase-firestore.js`);
+    const off = onSnapshot(doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC), snap => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      delete data._updatedAt; delete data._updatedBy;
+      // Merge into DB.settings preserving local keys
+      DB.settings = Object.assign({}, DB.settings, data);
+      try {
+        const raw = localStorage.getItem('wanago_erp_v3');
+        const cached = raw ? JSON.parse(raw) : {};
+        cached.settings = DB.settings;
+        localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
+      } catch(e) {}
+      _fsRefreshPage();
+    }, err => console.warn('[listenSettings]', err.message));
+    _listeners.push(off);
+  } catch(e) { console.warn('[_listenSettings]', e.message); }
 }
 
 async function fsListen(collection, callback) {

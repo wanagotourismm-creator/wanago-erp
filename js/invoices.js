@@ -322,4 +322,12 @@ window.clearInvDateFilter=clearInvDateFilter;window.viewInvoice=viewInvoice;wind
 window.whatsappInvoice=whatsappInvoice;
 
 function initInvoices() { autoGenerateInvoices(); renderInvoices(); }
-initPage(initInvoices);
+initPage(function() {
+  initInvoices();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      initInvoices();
+      if (typeof dbSubscribe === 'function') dbSubscribe('invoices', function() { initInvoices(); });
+    }, 5000);
+  }
+});

@@ -178,4 +178,14 @@ function autofillDays() { const n=parseInt(document.getElementById('pkg-nights')
 function updatePkgPricePreview() { const price=parseFloat(document.getElementById('pkg-price')?.value);const gst=parseFloat(document.getElementById('pkg-gst')?.value||5);const mrp=parseFloat(document.getElementById('pkg-mrp')?.value);const prev=document.getElementById('pkg-price-preview');if(!prev)return;if(!price){prev.style.display='none';return;} prev.style.display='';const gstAmt=Math.round(price*gst/100);document.getElementById('pp-base').textContent='₹'+price.toLocaleString('en-IN');document.getElementById('pp-gst').textContent='₹'+gstAmt.toLocaleString('en-IN');document.getElementById('pp-total').textContent='₹'+(price+gstAmt).toLocaleString('en-IN');const dw=document.getElementById('pp-discount-wrap');if(mrp&&mrp>price){document.getElementById('pp-discount').textContent=Math.round((1-price/mrp)*100)+'% off MRP';dw.style.display='';}else{dw.style.display='none';} }
 window.renderPackages=renderPackages;window.filterPackages=filterPackages;window.setPkgView=setPkgView;window.openNewPkgModal=openNewPkgModal;window.viewPkgDrawer=viewPkgDrawer;window.closePkgDrawer=closePkgDrawer;window.editPackage=editPackage;window.duplicatePackage=duplicatePackage;window.savePackage=savePackage;window.deletePackage=deletePackage;window.switchPkgTab=switchPkgTab;window.autofillDays=autofillDays;window.updatePkgPricePreview=updatePkgPricePreview;
 
-initPage(renderPackages);
+initPage(function() {
+  renderPackages();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderPackages();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('packages', function() { renderPackages(); });
+      }
+    }, 5000);
+  }
+});

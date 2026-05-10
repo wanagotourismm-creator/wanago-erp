@@ -715,4 +715,18 @@ window.populateBulkAgentSelects=populateBulkAgentSelects;window.previewBulkAssig
 window.createQuotationFromLead=createQuotationFromLead;window.openSalesChatWindow=openSalesChatWindow;
 window.uploadLeadFiles=uploadLeadFiles;window.deleteLeadFile=deleteLeadFile;
 
-initPage(renderLeads);
+initPage(function() {
+  // Render from cache immediately
+  renderLeads();
+  // Subscribe to Firestore real-time updates
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      // Re-render with fresh Firestore data
+      renderLeads();
+      // Subscribe for live updates from teammates
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('leads', function() { renderLeads(); });
+      }
+    }, 5000);
+  }
+});
