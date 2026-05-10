@@ -54,6 +54,10 @@ let leadsSearchQuery = '';
 let selectedLeadIds = new Set();
 let leadsAiSort = false;
 
+function leadJsArg(value) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 function toggleAiSort() {
   leadsAiSort = !leadsAiSort;
   const btn = document.getElementById('ai-sort-btn');
@@ -164,7 +168,7 @@ function renderLeads(filter) {
       <td style="${isOverdue(l.followup)?'color:var(--red);font-weight:600':''}">${l.followup?formatDate(l.followup)+(isOverdue(l.followup)?' ⚠':''):'—'}</td>
       <td style="white-space:nowrap">
         <button class="row-btn" onclick="viewLead('${l.id}')">View</button>
-        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${l.phone}','${l.name}','lead')" title="Sales Chat">💬</button>
+        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${leadJsArg(l.phone)}','${leadJsArg(l.name)}','lead')" title="Sales Chat">💬</button>
         <button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="deleteLead('${l.id}')">✕</button>
       </td>
     </tr>`;

@@ -746,9 +746,12 @@ window._fsRefreshPage  = _fsRefreshPage;
 window._fsGetTeam = async function() {
   if (!_db || !_compId) return [];
   try {
-    const { collection, getDocs } = await import(FB_BASE + '/firebase-firestore.js');
-    const snap = await getDocs(collection(_db, _compId + '_team'));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { doc, getDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
+    // Team members are stored inside the settings document
+    const snap = await getDoc(doc(_db, `companies/${_compId}`, 'settings'));
+    if (!snap.exists()) return [];
+    const data = snap.data();
+    return Array.isArray(data.team) ? data.team : [];
   } catch(e) { return []; }
 };
 window._fsReady        = false;

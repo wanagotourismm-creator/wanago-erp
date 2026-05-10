@@ -476,7 +476,10 @@ function closeSalesChat() {
 
 // ── Quick chat button — add to any row ──
 function salesChatBtn(phone, name, context) {
-  return `<button class="btn btn-sm" style="background:#075e54;color:#fff;border:none;border-radius:7px;font-size:11px;padding:4px 8px;cursor:pointer" onclick="openSalesChat('${phone}','${name}',${JSON.stringify(context||{}).replace(/'/g,"\\'")}" title="Chat on WhatsApp">💬</button>`;
+  const safePhone = String(phone || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeName = String(name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeContext = JSON.stringify(context || {}).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `<button class="btn btn-sm" style="background:#075e54;color:#fff;border:none;border-radius:7px;font-size:11px;padding:4px 8px;cursor:pointer" onclick="openSalesChat('${safePhone}','${safeName}',${safeContext})" title="Chat on WhatsApp">💬</button>`;
 }
 
 // ── Agent registers their personal WhatsApp number ──

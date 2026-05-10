@@ -52,6 +52,10 @@ window.goTo = goTo;
 let custFilter = 'all';
 let custSearchQuery = '';
 const TRAVEL_TYPE_LABELS = { honeymoon:'💑 Honeymoon', family:'👨‍👩‍👧 Family', corporate:'💼 Corporate', adventure:'🏔 Adventure', group:'👥 Group', solo:'🧳 Solo' };
+
+function custJsArg(value) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
 const BUDGET_LABELS = { high:'High (>₹2L)', mid:'Mid (₹50K–2L)', low:'Low (<₹50K)' };
 
 function custIsQuoted(c) {
@@ -143,7 +147,7 @@ function renderCustomers(filter) {
       <td style="${passExpired?'color:var(--red);font-weight:700':passWarn?'color:var(--amb);font-weight:600':''}">${c.passportExpiry?formatDate(c.passportExpiry)+(passExpired?' ✗':passWarn?' ⚠':''):'—'}</td>
       <td style="white-space:nowrap">
         <button class="row-btn" onclick="viewCustomer('${c.id}')">View</button>
-        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${c.phone}','${c.name}','customer')" title="Sales Chat">💬</button>
+        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${custJsArg(c.phone)}','${custJsArg(c.name)}','customer')" title="Sales Chat">💬</button>
         <button class="row-btn" style="margin-left:3px;color:var(--g700)" onclick="editCustomer('${c.id}')">✏</button>
         <button class="row-btn btn-danger" style="margin-left:3px" onclick="deleteCustomer('${c.id}')">✕</button>
       </td></tr>`;
