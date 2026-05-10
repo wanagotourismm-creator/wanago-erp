@@ -220,7 +220,9 @@ function saveExpense() {
     if (idx > -1) Object.assign(DB.expenses[idx], data);
     showToast('Expense updated!');
   } else {
-    DB.expenses.unshift({ id: uid(), ...data, officeId: officeIdForNewRecord(), createdBy: createdByStamp(), createdAt: new Date().toISOString() });
+    const _exp = { id: uid(), ...data, officeId: officeIdForNewRecord(), createdBy: createdByStamp(), createdAt: new Date().toISOString() };
+    DB.expenses.unshift(_exp);
+    if (typeof dbSave === 'function') dbSave('expenses', _exp).catch(()=>{});
     showToast('Expense recorded!');
     logActivity('Expense: ' + vendor + ' ₹' + amount.toLocaleString('en-IN'), 'payment');
   }
@@ -232,11 +234,13 @@ function saveExpense() {
 function markExpPaid(id) {
   const e = (DB.expenses||[]).find(x => x.id === id); if (!e) return;
   e.status = 'paid';
+  if (e && typeof dbSave === 'function') dbSave('expenses', e).catch(()=>{});
   saveDB(); renderExpenses(); showToast('Expense marked as paid ✅');
 }
 
 function deleteExpense(id) {
   if (!confirm('Delete this expense? Cannot be undone.')) return;
+  if (typeof dbDelete === 'function') dbDelete('expenses', id).catch(()=>{});
   DB.expenses = (DB.expenses||[]).filter(x => x.id !== id);
   saveDB(); renderExpenses(); showToast('Expense deleted');
 }

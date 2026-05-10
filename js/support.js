@@ -250,7 +250,8 @@ function updateTicketStatus(id, status) {
   const t = (DB.tickets||[]).find(x => x.id === id); if (!t) return;
   t.status = status;
   if (status === 'resolved' && !t.resolvedAt) t.resolvedAt = new Date().toISOString();
-  saveDB(); renderSupport(); showToast('Ticket marked ' + TKT_STATUS[status]?.label || status);
+  if (t && typeof dbSave === 'function') dbSave('tickets', t).catch(()=>{});
+  saveDB(); renderSupport(); showToast('Ticket marked ' + (TKT_STATUS[status]?.label || status));
 }
 
 // ── View Ticket ──
@@ -325,4 +326,12 @@ window.viewTicket = viewTicket;
 window.updateTicketStatus = updateTicketStatus;
 window.addTicketNote = addTicketNote;
 
-initPage(renderSupport);
+initPage(function() {
+  renderSupport();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderSupport();
+      if (typeof dbSubscribe === 'function') dbSubscribe('tickets', function() { renderSupport(); });
+    }, 5000);
+  }
+});

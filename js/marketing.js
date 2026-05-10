@@ -806,6 +806,7 @@ function saveCampaign() {
     const idx = DB.campaigns.findIndex(c => c.id === _editCampaignId);
     if (idx > -1) DB.campaigns[idx] = obj;
   } else { DB.campaigns.push(obj); }
+  if (typeof dbSave === 'function') dbSave('campaigns', obj).catch(()=>{});
   saveDB(); logActivity(`Campaign "${name}" saved`, 'campaign');
   closeModal('mkt-camp-modal'); mktRenderCampaigns(); mktRenderOverview();
   showToast('Campaign saved!');
@@ -814,6 +815,7 @@ window.saveCampaign = saveCampaign;
 
 function deleteCampaign(id) {
   if (!confirm('Delete this campaign?')) return;
+  if (typeof dbDelete === 'function') dbDelete('campaigns', id).catch(()=>{});
   DB.campaigns = (DB.campaigns||[]).filter(c => c.id !== id);
   saveDB(); mktRenderCampaigns(); mktRenderOverview();
   showToast('Campaign deleted');
@@ -1072,4 +1074,15 @@ window.mktRenderAnalytics = mktRenderAnalytics;
 window.mktRenderOverview  = mktRenderOverview;
 
 // ── Boot ──
-initPage(mktInit);
+initPage(function() {
+  mktInit();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      mktInit();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('campaigns', function() { if(typeof mktRenderCampaigns==='function') mktRenderCampaigns(); mktRenderOverview(); });
+        dbSubscribe('leads',     function() { mktRenderOverview(); });
+      }
+    }, 5000);
+  }
+});

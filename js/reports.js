@@ -592,4 +592,24 @@ function printReport() {
 window.setPeriod=setPeriod;
 window.renderAllReports=renderAllReports;window.exportReport=exportReport;window.printReport=printReport;
 
-initPage(initReports);
+initPage(function() {
+  initReports();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      // Re-render reports with fresh Firestore data
+      if (typeof renderAllReports === 'function') renderAllReports();
+      // Subscribe to all relevant collections
+      if (typeof dbSubscribe === 'function') {
+        var reRender = function() {
+          if (typeof renderAllReports === 'function') renderAllReports();
+        };
+        dbSubscribe('bookings',  reRender);
+        dbSubscribe('payments',  reRender);
+        dbSubscribe('leads',     reRender);
+        dbSubscribe('customers', reRender);
+        dbSubscribe('expenses',  reRender);
+        dbSubscribe('invoices',  reRender);
+      }
+    }, 5000);
+  }
+});

@@ -230,8 +230,16 @@ function saveEmployee() {
     accNo:document.getElementById('emp-acc-no').value, ifsc:document.getElementById('emp-ifsc').value,
     status:document.getElementById('emp-status').value||'active',
   };
-  if(editId){const e=DB.hrmsEmployees.find(x=>x.id===editId);if(e)Object.assign(e,fields);showToast(name+' updated!');}
-  else{const color=['#134a32','#1976d2','#f57c00','#7b1fa2','#c9a84c','#d32f2f','#00796b'][DB.hrmsEmployees.length%7];DB.hrmsEmployees.push({id:uid(),...fields,color,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()});showToast(name+' added!');}
+  if(editId){
+    const e=DB.hrmsEmployees.find(x=>x.id===editId);
+    if(e){ Object.assign(e,fields); dbSave('hrmsEmployees',e); showToast(name+' updated!'); }
+  } else {
+    const color=['#134a32','#1976d2','#f57c00','#7b1fa2','#c9a84c','#d32f2f','#00796b'][DB.hrmsEmployees.length%7];
+    const _newEmp={id:uid(),...fields,color,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
+    DB.hrmsEmployees.push(_newEmp);
+    dbSave('hrmsEmployees',_newEmp);
+    showToast(name+' added!');
+  }
   saveDB(); closeModal('modal-add-employee'); renderEmployeeGrid(); renderHRMSOverview();
 }
 
@@ -337,7 +345,9 @@ function saveAttendance() {
   const checkOut=document.getElementById('att-checkout').value;
   if(!empId){showError('att-error','Select employee.');return;}
   const attKey=empId+'_'+date;
-  DB.hrmsAttendance[attKey]={empId,date,status,checkIn:checkIn||null,checkOut:checkOut||null};
+  const _att={id:attKey,empId,date,status,checkIn:checkIn||null,checkOut:checkOut||null};
+  DB.hrmsAttendance[attKey]=_att;
+  dbSave('hrmsCheckIns',_att);
   saveDB(); closeModal('modal-mark-attendance'); renderAttendancePage(); showToast('Attendance saved!');
 }
 
@@ -391,19 +401,23 @@ function saveLeave() {
   if(!empId||!start||!end){showError('leave-error','All fields required.');return;}
   const days=Math.max(1,Math.ceil((new Date(end)-new Date(start))/86400000)+1);
   const emp=DB.hrmsEmployees.find(e=>e.id===empId);
-  DB.hrmsLeaves.push({id:uid(),empId,empName:emp?.name||'',leaveType:type,startDate:start,endDate:end,days,reason,status:'pending',createdAt:new Date().toISOString()});
+  const _leave={id:uid(),empId,empName:emp?.name||'',leaveType:type,startDate:start,endDate:end,days,reason,status:'pending',createdAt:new Date().toISOString()};
+  DB.hrmsLeaves.push(_leave);
+  dbSave('hrmsLeaves',_leave);
   saveDB(); closeModal('modal-apply-leave'); renderLeavePage(); renderHRMSOverview(); showToast('Leave request submitted!');
 }
 
 function approveLeave(id) {
   const l=DB.hrmsLeaves.find(x=>x.id===id); if(!l) return;
   l.status='approved'; l.approvedBy=currentUser?.name||'Admin'; l.approvedAt=new Date().toISOString();
+  const _al=DB.hrmsLeaves.find(x=>x.id===id); if(_al) dbSave('hrmsLeaves',_al);
   saveDB(); renderLeavePage(); renderHRMSOverview(); showToast('Leave approved!');
 }
 
 function rejectLeave(id) {
   const l=DB.hrmsLeaves.find(x=>x.id===id); if(!l) return;
   l.status='rejected'; l.approvedBy=currentUser?.name||'Admin';
+  const _rl=DB.hrmsLeaves.find(x=>x.id===id); if(_rl) dbSave('hrmsLeaves',_rl);
   saveDB(); renderLeavePage(); showToast('Leave rejected');
 }
 
@@ -443,6 +457,7 @@ function markPayrollPaid(empId, month, net) {
   const existing=DB.hrmsPayroll.findIndex(p=>p.empId===empId&&p.month===month);
   const rec={id:uid(),empId,empName:emp.name,month,netSalary:net,status:'paid',paidDate:today(),paidBy:currentUser?.name||'Admin',createdAt:new Date().toISOString()};
   if(existing!==-1) DB.hrmsPayroll[existing]=rec; else DB.hrmsPayroll.push(rec);
+  const _pr=DB.hrmsPayroll.find(x=>x.empId===empId&&x.month===month); if(_pr) dbSave('hrmsPayroll',_pr);
   saveDB(); renderPayrollPage(); showToast(emp.name+' salary marked as paid!');
 }
 
@@ -465,4 +480,16 @@ window.renderLeavePage=renderLeavePage;window.openLeaveModal=openLeaveModal;wind
 window.saveLeave=saveLeave;window.approveLeave=approveLeave;window.rejectLeave=rejectLeave;
 window.renderPayrollPage=renderPayrollPage;window.markPayrollPaid=markPayrollPaid;window.switchHRMSTab=switchHRMSTab;
 
-initPage(renderHRMSOverview);
+initPage(function() {
+  renderHRMSOverview();
+  if (typeof waitForFirestore === 'function') {
+    waitForFirestore(function() {
+      renderHRMSOverview();
+      if (typeof dbSubscribe === 'function') {
+        dbSubscribe('hrmsEmployees', function() { renderHRMSOverview(); });
+        dbSubscribe('hrmsLeaves',    function() { renderHRMSOverview(); });
+        dbSubscribe('hrmsCheckIns',  function() { renderHRMSOverview(); });
+      }
+    }, 5000);
+  }
+});
