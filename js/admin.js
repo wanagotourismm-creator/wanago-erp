@@ -476,7 +476,7 @@ window.tmPermChanged = tmPermChanged;
 
 function openAddMemberModal() {
   document.getElementById('tm-edit-id').value=''; document.getElementById('tm-modal-title').textContent='Add Team Member';
-  ['tm-name','tm-phone','tm-email','tm-empid','tm-pin','tm-joindate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['tm-name','tm-phone','tm-email','tm-empid','tm-joindate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('tm-dept').value=''; document.getElementById('tm-role').value='';
   // Render default permissions
   setTimeout(()=>renderPermissionsPanel(null),50);
@@ -494,7 +494,7 @@ function editMember(elOrId) { var id = (typeof elOrId === "string") ? elOrId : e
   openAddMemberModal();
   document.getElementById('tm-edit-id').value=id; document.getElementById('tm-modal-title').textContent='Edit Member';
   const s=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val||'';};
-  s('tm-name',m.name);s('tm-phone',m.phone);s('tm-email',m.email);s('tm-empid',m.empId);s('tm-dept',m.dept);s('tm-role',m.role);s('tm-pin',m.pin);s('tm-office',m.officeId||'*');s('tm-manager',m.managerId);s('tm-joindate',m.joinDate);
+  s('tm-name',m.name);s('tm-phone',m.phone);s('tm-email',m.email);s('tm-empid',m.empId);s('tm-dept',m.dept);s('tm-role',m.role);s('tm-office',m.officeId||'*');s('tm-manager',m.managerId);s('tm-joindate',m.joinDate);
   setTimeout(()=>{ renderPermissionsPanel(m.permissions||null); const roleEl=document.getElementById('tm-role'); if(roleEl) roleEl.onchange=()=>renderPermissionsPanel(null); },50);
 }
 
@@ -504,7 +504,7 @@ function saveMember() {
   const dept=document.getElementById('tm-dept').value;
   const role=document.getElementById('tm-role').value;
   if(!name||!dept||!role) { showError('tm-error','Name, department and role are required.'); return; }
-  const fields = {name, phone:document.getElementById('tm-phone').value, email:document.getElementById('tm-email').value, empId:document.getElementById('tm-empid').value, dept, role, pin:document.getElementById('tm-pin').value, officeId:document.getElementById('tm-office').value||'*', managerId:document.getElementById('tm-manager').value, joinDate:document.getElementById('tm-joindate').value};
+  const fields = {name, phone:document.getElementById('tm-phone').value, email:document.getElementById('tm-email').value, empId:document.getElementById('tm-empid').value, dept, role, officeId:document.getElementById('tm-office').value||'*', managerId:document.getElementById('tm-manager').value, joinDate:document.getElementById('tm-joindate').value};
   fields.systemRole = ROLE_TO_SYSTEM_ROLE[role] || 'employee';
   const perms = tmGetPermissions();
   // Store as both .features (legacy) and .actions (new schema)
