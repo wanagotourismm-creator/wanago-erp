@@ -239,10 +239,12 @@ function saveLead(){
   };
   if(editId){
     const idx=DB.leads.findIndex(l=>l.id===editId);
-    if(idx>-1)Object.assign(DB.leads[idx],data);
+    if(idx>-1){ Object.assign(DB.leads[idx],data); dbSave('leads', DB.leads[idx]); }
     showToast(name+' updated!');
   } else {
-    DB.leads.unshift({id:uid(),...data,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()});
+    const _newLead = {id:uid(),...data,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
+    DB.leads.unshift(_newLead);
+    dbSave('leads', _newLead);
     showToast(name+' added as lead!');
     logActivity('New lead: '+name+' → '+dest,'lead');
   }
@@ -280,7 +282,7 @@ function clearBulkSelection(){
 }
 function bulkStageChange(stage){
   if(!selectedLeadIds.size)return;
-  selectedLeadIds.forEach(id=>{const l=DB.leads.find(x=>x.id===id);if(l)l.stage=stage;});
+  selectedLeadIds.forEach(id=>{const l=DB.leads.find(x=>x.id===id);if(l){l.stage=stage;dbSave('leads',l);}});
   saveDB(); const count=selectedLeadIds.size; selectedLeadIds.clear();
   renderLeads(); showToast(`${count} leads moved to "${stage}"`);
 }
@@ -291,7 +293,7 @@ function bulkAssignAgent(){
   if(!agent)return; const idx=parseInt(agent)-1;
   if(isNaN(idx)||idx<0||idx>=team.length)return;
   const agentName=team[idx].name;
-  selectedLeadIds.forEach(id=>{const l=DB.leads.find(x=>x.id===id);if(l)l.agent=agentName;});
+  selectedLeadIds.forEach(id=>{const l=DB.leads.find(x=>x.id===id);if(l){l.agent=agentName;dbSave('leads',l);}});
   saveDB(); selectedLeadIds.clear(); renderLeads();
   const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';
   showToast('Leads assigned to '+agentName+'!');
@@ -300,6 +302,7 @@ function bulkDelete(){
   if(!selectedLeadIds.size)return;
   if(!confirm(`Delete ${selectedLeadIds.size} leads? Cannot be undone.`))return;
   if(typeof dbDelete==='function')selectedLeadIds.forEach(id=>dbDelete('leads',id));
+  selectedLeadIds.forEach(id=>dbDelete('leads',id));
   DB.leads=DB.leads.filter(l=>!selectedLeadIds.has(l.id));
   saveDB(); selectedLeadIds.clear(); renderLeads();
   const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';
@@ -382,7 +385,7 @@ function saveLeadFinancials(id){
 }
 function updateLeadStage(id,stage){
   const l=DB.leads.find(x=>x.id===id);if(!l)return;
-  l.stage=stage;saveDB();renderLeads();showToast(l.name+' → '+stage.replace('_',' '));viewLead(id);
+  l.stage=stage;dbSave('leads',l);saveDB();renderLeads();showToast(l.name+' → '+stage.replace('_',' '));viewLead(id);
 }
 function logFollowUp(){
   const id=document.getElementById('modal-view-lead')._leadId;
@@ -391,12 +394,13 @@ function logFollowUp(){
   const note=document.getElementById('vl-fupnote').value;
   l.followup=date;
   if(note){if(!l.followupLog)l.followupLog=[];l.followupLog.push({date:today(),note,by:currentUser?.name||'Admin'});}
-  saveDB();renderLeads();showToast('Follow-up saved for '+formatDate(date));viewLead(id);
+  dbSave('leads',l);saveDB();renderLeads();showToast('Follow-up saved for '+formatDate(date));viewLead(id);
 }
 function deleteLead(id){
   if(typeof canUserDoAction==='function'&&!canUserDoAction('delete_lead')){showToast('No permission to delete leads','error');return;}
   const l=DB.leads.find(x=>x.id===id);if(!l)return;
   if(!confirm('Delete lead '+l.name+'?'))return;
+  dbDelete('leads',id);
   DB.leads=DB.leads.filter(x=>x.id!==id);
   if(typeof dbDelete==='function')dbDelete('leads',id);
   saveDB();closeModal('modal-view-lead');renderLeads();showToast('Lead removed');

@@ -231,6 +231,7 @@ function saveCustomer(){
   ['c-name','c-phone','c-email','c-dob','c-city','c-address','c-pref-dest','c-anniversary','c-passport-no','c-passport','c-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }
 
+dbDelete('customers', id);
 function deleteCustomer(id){if(typeof canUserDoAction==='function'&&!canUserDoAction('delete_lead')){showToast('No permission to delete customers','error');return;}if(!confirm('Remove this customer?'))return;DB.customers=DB.customers.filter(c=>c.id!==id);saveDB();renderCustomers();showToast('Customer removed');}
 
 
