@@ -245,6 +245,7 @@ function saveLead(){
     const _newLead = {id:uid(),...data,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
     DB.leads.unshift(_newLead);
     dbSave('leads', _newLead);
+    if (typeof notifyEvent === 'function') notifyEvent('lead_created', _newLead);
     showToast(name+' added as lead!');
     logActivity('New lead: '+name+' → '+dest,'lead');
   }

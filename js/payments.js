@@ -253,7 +253,8 @@ function saveRecordPayment() {
 
   // Record payment
   const receipt = 'RCP-'+String((DB.counters.payments=(DB.counters.payments||0)+1)).padStart(4,'0');
-  DB.payments.unshift({id:uid(),receipt,bookingId:b.id,bookingRef:b.ref,customerName:b.customerName,amount,method,date,reference:ref,status:'completed',officeId:b.officeId,createdBy:createdByStamp(),createdAt:new Date().toISOString()});
+  const _pay = {id:uid(),receipt,bookingId:b.id,bookingRef:b.ref,customerName:b.customerName,amount,method,date,reference:ref,status:'completed',officeId:b.officeId,createdBy:createdByStamp(),createdAt:new Date().toISOString()};
+  DB.payments.unshift(_pay);
   if(typeof dbSave==='function') dbSave('payments', DB.payments[0]).catch(()=>{});
 
   // Update booking
@@ -271,6 +272,7 @@ function saveRecordPayment() {
   const cust = (DB.customers||[]).find(c => c.id === b.customerId || c.name === b.customerName || (b.customerPhone && c.phone === b.customerPhone));
   if (cust) cust.totalSpent = (Number(cust.totalSpent||0)) + amount;
 
+  if(typeof dbSave==='function'){ dbSave('payments',_pay); if(b) dbSave('bookings',b); }
   saveDB(); closeModal('modal-record-payment'); renderPayments();
 }
 

@@ -253,7 +253,7 @@ function saveCostProfit(id) {
   const cost = parseFloat(document.getElementById('vb-cost').value)||0;
   b.cost = cost;
   b.profit = Math.max(0, Number(b.totalAmount||0) - cost);
-  saveDB(); showToast('Profit set: '+formatMoney(b.profit));
+  dbSave('bookings', b); saveDB(); showToast('Profit set: '+formatMoney(b.profit));
   viewBooking(id); renderBookings();
 }
 
@@ -284,11 +284,13 @@ function submitPayment(id) {
     b.confirmedAt = new Date().toISOString();
     logActivity('Booking '+b.ref+' confirmed — fully paid', 'booking');
     showToast('Payment received! Booking '+b.ref+' is now CONFIRMED! ✅');
+    if (typeof notifyEvent === 'function') notifyEvent('payment_received', {amount, bookingRef:b.ref});
   } else {
     showToast('Payment of '+formatMoney(amount)+' recorded for '+b.ref);
   }
 
-  saveDB(); closeModal('modal-view-booking'); renderBookings();
+  const _newPay = DB.payments[0];
+  dbSave('bookings', b); dbSave('payments', _newPay); saveDB(); closeModal('modal-view-booking'); renderBookings();
 }
 
 function confirmBooking(id) {
@@ -302,7 +304,8 @@ function confirmBooking(id) {
     if (cust) cust.bookingsCount = (cust.bookingsCount || 0) + 1;
     b._custCountedAt = new Date().toISOString();
   }
-  saveDB(); renderBookings(); showToast(b.ref+' confirmed!');
+  dbSave('bookings', b); saveDB(); renderBookings(); showToast(b.ref+' confirmed!');
+  if (typeof notifyEvent === 'function') notifyEvent('booking_confirmed', b);
   logActivity('Booking '+b.ref+' manually confirmed', 'booking');
 }
 
@@ -312,7 +315,7 @@ function advanceBookingStatus(id) {
   if (!confirm(step.label+' for '+b.ref+'?')) return;
   b.status = step.next;
   if (step.next === 'confirmed') b.confirmedAt = new Date().toISOString();
-  saveDB(); renderBookings(); showToast(b.ref+' → '+step.next);
+  dbSave('bookings', b); saveDB(); renderBookings(); showToast(b.ref+' → '+step.next);
   logActivity('Booking '+b.ref+' status: '+step.next, 'booking');
 }
 window.advanceBookingStatus = advanceBookingStatus;

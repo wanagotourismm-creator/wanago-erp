@@ -57,6 +57,8 @@ function findOrCreateCustomer(phone, name, extra = {}) {
     ...extra
   };
   DB.customers.unshift(c);
+  // Save new customer to Firestore immediately
+  if (typeof dbSave === 'function') dbSave('customers', c).catch(() => {});
   return c;
 }
 
