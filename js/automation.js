@@ -145,6 +145,21 @@ const WanagoAutomation = (function () {
 
 window.WanagoAutomation = WanagoAutomation;
 
+// ── Run full automation and push to Firestore ──
+window.runFullAutomation = function() {
+  if (!window.DB) return;
+  try {
+    var alerts = WanagoAutomation.evaluate();
+    // Update dashboard notification badge count
+    var urgentCount = alerts.filter(function(a) { return a.cls === 'danger'; }).length;
+    var badges = document.querySelectorAll('.notif-badge, #notif-count, .automation-badge');
+    badges.forEach(function(b) {
+      if (urgentCount > 0) { b.textContent = urgentCount; b.style.display = ''; }
+    });
+    return alerts;
+  } catch(e) { return []; }
+};
+
 /* ── Auto-evaluate when Firestore finishes loading ── */
 (function () {
   var _orig = window._fsRefreshPage;

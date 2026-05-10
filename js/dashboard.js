@@ -47,6 +47,8 @@ window.goTo = goTo;
 function renderDashboard() {
   try {
     var s = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+    // Render daily summary strip
+    renderDailySummaryStrip();
     var name = (window.currentUser && window.currentUser.name) || s.name || (s.email ? s.email.split('@')[0].replace(/[._-]/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}) : 'User');
     renderGreeting(name);
     renderStats();
@@ -59,6 +61,25 @@ function renderDashboard() {
     renderActivityFeed();
     renderForecast();
   } catch(e) { console.error('Dashboard render error:', e); }
+}
+
+// ── Daily Summary Strip ──
+function renderDailySummaryStrip() {
+  var el = document.getElementById('dash-daily-summary');
+  if (!el) return;
+  if (typeof getDailySummary !== 'function') return;
+  var s = getDailySummary();
+  if (!s.newLeadsToday && !s.bookingsToday && !s.revenueToday && !s.departures && !s.pendingFollowUps) {
+    el.style.display = 'none'; return;
+  }
+  el.style.display = '';
+  var items = [];
+  if (s.departures > 0)       items.push('<span style="background:#fde8e8;color:#c0392b;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">✈️ ' + s.departures + ' departure' + (s.departures>1?'s':'') + ' today</span>');
+  if (s.newLeadsToday > 0)    items.push('<span style="background:#e8f5e9;color:#1a7a4a;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">🎯 ' + s.newLeadsToday + ' new lead' + (s.newLeadsToday>1?'s':'') + '</span>');
+  if (s.bookingsToday > 0)    items.push('<span style="background:#e3f2fd;color:#1565c0;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">📋 ' + s.bookingsToday + ' booking' + (s.bookingsToday>1?'s':'') + '</span>');
+  if (s.revenueToday > 0)     items.push('<span style="background:#f3e5f5;color:#6a1b9a;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">💰 ₹' + Number(s.revenueToday).toLocaleString('en-IN') + ' today</span>');
+  if (s.pendingFollowUps > 0) items.push('<span style="background:#fff3e0;color:#e65100;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">📞 ' + s.pendingFollowUps + ' follow-up' + (s.pendingFollowUps>1?'s':'') + ' pending</span>');
+  el.innerHTML = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0">' + items.join('') + '</div>';
 }
 
 // ── Greeting ──
