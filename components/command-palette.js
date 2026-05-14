@@ -187,19 +187,20 @@
     if(e.key==='Escape'&&dl.classList.contains('open'))_close();
   });
 
-  // Hijack the existing topbar search input
+  // Wire topbar search inputs (those without oninput) to open the command palette.
+  // Delay by 800ms so browser focus-restoration on PWA/mobile load doesn't auto-fire.
   window.addEventListener('load',function(){
-    // Only wire search inputs that have NO oninput handler — these are intentional
-    // command-palette triggers (e.g. dashboard topbar). Never touch inputs that
-    // already have oninput (e.g. leads search, quotations search) — those are real
-    // data-search fields and must NOT open the palette or be made readonly.
-    document.querySelectorAll('.search-inp:not([oninput])').forEach(function(si){
-      si.setAttribute('readonly','true');
-      si.style.cursor='pointer';
-      si.placeholder='Search  (Ctrl+K)';
-      si.addEventListener('focus',function(ev){ev.target.blur();_open();});
-      si.addEventListener('click',_open);
-    });
+    setTimeout(function(){
+      var _userReady = false;
+      document.addEventListener('pointerdown', function(){ _userReady = true; }, {once:true});
+      document.querySelectorAll('.search-inp:not([oninput])').forEach(function(si){
+        si.setAttribute('readonly','true');
+        si.style.cursor='pointer';
+        si.placeholder='Search  (Ctrl+K)';
+        si.addEventListener('focus',function(ev){ if(!_userReady){ev.target.blur();return;} ev.target.blur(); _open(); });
+        si.addEventListener('click',function(){ _userReady=true; _open(); });
+      });
+    }, 800);
   });
 
   window.openCommandPalette = _open;

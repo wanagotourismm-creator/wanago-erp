@@ -275,107 +275,6 @@
     });
   };
 
-  // ── Global Search (Ctrl+K / ⌘K) ──
-  function initGlobalSearch() {
-    if (window._gsInited) return;
-    window._gsInited = true;
-
-    var style = document.createElement('style');
-    style.textContent = '#gs-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99998;display:none;align-items:flex-start;justify-content:center;padding-top:80px}#gs-overlay.open{display:flex}#gs-box{width:100%;max-width:580px;background:var(--white);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;animation:gsIn .15s ease}@keyframes gsIn{from{opacity:0;transform:scale(.96) translateY(-10px)}to{opacity:1;transform:none}}#gs-inp{width:100%;border:none;outline:none;padding:16px 18px;font-size:15px;font-family:inherit;background:transparent;border-bottom:1px solid var(--border);color:var(--text);box-sizing:border-box}#gs-results{max-height:300px;overflow-y:auto}.gs-sec{padding:6px 14px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--textd);border-top:1px solid var(--border);background:var(--cream)}.gs-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:.1s}.gs-item:hover,.gs-item.gs-on{background:var(--g50)}.gs-item-main{flex:1;min-width:0}.gs-title{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}.gs-sub{font-size:11px;color:var(--textd);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}.gs-badge{font-size:10px;background:var(--g50);color:var(--g700);padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0;text-transform:capitalize}#gs-footer{padding:8px 14px;font-size:10.5px;color:var(--textd);border-top:1px solid var(--border);display:flex;gap:12px}#gs-empty{padding:24px;text-align:center;color:var(--textd);font-size:13px}';
-    document.head.appendChild(style);
-
-    var overlay = document.createElement('div');
-    overlay.id = 'gs-overlay';
-    overlay.innerHTML = '<div id="gs-box"><input id="gs-inp" type="text" placeholder="Search leads, customers, bookings…" autocomplete="off"><div id="gs-results"></div><div id="gs-footer"><span>↑↓ navigate</span><span>↵ open</span><span>Esc close</span><span style="margin-left:auto;opacity:.6">⌘K \xb7 Ctrl+K</span></div></div>';
-    document.body.appendChild(overlay);
-
-    var inp = document.getElementById('gs-inp');
-    var resEl = document.getElementById('gs-results');
-    var _activeIdx = -1;
-    var _items = [];
-    var _timer;
-
-    function open() {
-      overlay.classList.add('open');
-      inp.value = '';
-      resEl.innerHTML = '<div id="gs-empty">Type to search across leads, customers, bookings…</div>';
-      _activeIdx = -1; _items = [];
-      setTimeout(function() { inp.focus(); }, 40);
-    }
-    function close() { overlay.classList.remove('open'); inp.value = ''; resEl.innerHTML = ''; }
-    function nav(idx) {
-      _items.forEach(function(el, i) { el.classList.toggle('gs-on', i === idx); });
-      _activeIdx = idx;
-    }
-    function go(el) {
-      var pg = el.dataset.page;
-      close();
-      var prefix = window.location.pathname.includes('/pages/') ? '' : '/pages/';
-      window.location.href = prefix + pg + '.html';
-    }
-    function search(q) {
-      q = (q || '').trim().toLowerCase();
-      resEl.innerHTML = ''; _items = []; _activeIdx = -1;
-      if (q.length < 2) { resEl.innerHTML = '<div id="gs-empty">Type to search…</div>'; return; }
-      var DB = window.DB;
-      if (!DB) { resEl.innerHTML = '<div id="gs-empty">Loading…</div>'; return; }
-      var hs = window.hScoped;
-      var leads     = (hs ? hs('leads')      : DB.leads     ) || [];
-      var customers = (hs ? hs('customers')  : DB.customers ) || [];
-      var bookings  = (hs ? hs('bookings')   : DB.bookings  ) || [];
-      var quotations= (hs ? hs('quotations') : DB.quotations) || [];
-      var groups = {};
-      leads.filter(function(l) {
-        return (l.name||'').toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.destination||'').toLowerCase().includes(q)||(l.email||'').toLowerCase().includes(q);
-      }).slice(0,4).forEach(function(l) { (groups.lead||(groups.lead=[])).push({title:l.name,sub:(l.destination||'—')+(l.phone?' \xb7 '+l.phone:''),badge:(l.stage||'').replace(/_/g,' '),page:'leads'}); });
-      customers.filter(function(c) {
-        return (c.name||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.email||'').toLowerCase().includes(q);
-      }).slice(0,4).forEach(function(c) { (groups.customer||(groups.customer=[])).push({title:c.name,sub:(c.phone||'')+(c.city?' \xb7 '+c.city:''),badge:c.tag==='vip'?'⭐ VIP':'',page:'customers'}); });
-      bookings.filter(function(b) {
-        return (b.customerName||'').toLowerCase().includes(q)||(b.ref||'').toLowerCase().includes(q)||(b.destination||'').toLowerCase().includes(q);
-      }).slice(0,4).forEach(function(b) { (groups.booking||(groups.booking=[])).push({title:(b.customerName||'?')+' → '+(b.destination||'?'),sub:(b.ref||'')+(b.travelDate?' \xb7 '+b.travelDate:''),badge:b.status||'',page:'bookings'}); });
-      quotations.filter(function(qx) {
-        return (qx.customerName||'').toLowerCase().includes(q)||(qx.destination||'').toLowerCase().includes(q)||(qx.id||'').toLowerCase().includes(q);
-      }).slice(0,3).forEach(function(qx) { (groups.quotation||(groups.quotation=[])).push({title:(qx.customerName||'?')+(qx.destination?' \xb7 '+qx.destination:''),sub:(qx.id||'')+(qx.grandTotal?' \xb7 ₹'+Number(qx.grandTotal).toLocaleString('en-IN'):''),badge:qx.status||'',page:'quotations'}); });
-      var META = {lead:{icon:'🎯',lbl:'Leads'},customer:{icon:'👤',lbl:'Customers'},booking:{icon:'✈️',lbl:'Bookings'},quotation:{icon:'📄',lbl:'Quotations'}};
-      var html = '';
-      var total = 0;
-      ['lead','customer','booking','quotation'].forEach(function(type) {
-        var grp = groups[type]; if (!grp||!grp.length) return;
-        var m = META[type];
-        html += '<div class="gs-sec">'+m.icon+' '+m.lbl+'</div>';
-        grp.forEach(function(r) {
-          html += '<div class="gs-item" data-page="'+r.page+'"><div class="gs-item-main"><div class="gs-title">'+r.title+'</div><div class="gs-sub">'+r.sub+'</div></div>'+(r.badge?'<span class="gs-badge">'+r.badge+'</span>':'')+'</div>';
-          total++;
-        });
-      });
-      if (!total) { resEl.innerHTML = '<div id="gs-empty">No results for “'+q+'”</div>'; return; }
-      resEl.innerHTML = html;
-      _items = Array.from(resEl.querySelectorAll('.gs-item'));
-      _items.forEach(function(el, i) {
-        el.addEventListener('click', function() { go(el); });
-        el.addEventListener('mouseover', function() { nav(i); });
-      });
-    }
-
-    inp.addEventListener('input', function() { clearTimeout(_timer); _timer = setTimeout(function() { search(inp.value); }, 160); });
-    inp.addEventListener('keydown', function(e) {
-      if (e.key==='Escape') { close(); return; }
-      if (e.key==='ArrowDown') { e.preventDefault(); nav(Math.min(_activeIdx+1, _items.length-1)); }
-      else if (e.key==='ArrowUp') { e.preventDefault(); nav(Math.max(_activeIdx-1, 0)); }
-      else if (e.key==='Enter' && _activeIdx>=0) { e.preventDefault(); go(_items[_activeIdx]); }
-    });
-    overlay.addEventListener('click', function(e) { if (e.target===overlay) close(); });
-    document.addEventListener('keydown', function(e) {
-      if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); overlay.classList.contains('open') ? close() : open(); }
-    });
-    // Wire topbar search inputs that have no oninput handler
-    document.querySelectorAll('.topbar-actions .search-inp:not([oninput])').forEach(function(el) {
-      el.addEventListener('focus', function() { el.blur(); open(); });
-    });
-    window.openGlobalSearch = open;
-  }
-
   // Build sidebar when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { buildSidebar(); loadComponents(); setupMobileNav(); });
@@ -386,7 +285,7 @@
   }
 
   // Also rebuild after page loads (to update user name from session)
-  window.addEventListener('load', function() { buildSidebar(); setupMobileNav(); setTimeout(initGlobalSearch, 700); });
+  window.addEventListener('load', function() { buildSidebar(); setupMobileNav(); });
 
   // Expose rebuild for auth systems to call after login
   window.rebuildSidebar = buildSidebar;
