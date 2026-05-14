@@ -820,7 +820,7 @@ window.openCreateAccountModal = function(memberId) {
     + '<div id="fbc-success" style="display:none;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px;font-size:13px;color:var(--g700);margin-bottom:8px"></div>'
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">'
     + '<button class="btn btn-outline" onclick="document.getElementById(\'fb-create-overlay\').remove()">Cancel</button>'
-    + '<button id="fbc-submit" class="btn btn-primary" onclick="submitCreateFirebaseAccount(\'+m.id+\')">🔑 Create Account</button>'
+    + '<button id="fbc-submit" class="btn btn-primary" onclick="submitCreateFirebaseAccount(\'' + m.id + '\')">🔑 Create Account</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
 
