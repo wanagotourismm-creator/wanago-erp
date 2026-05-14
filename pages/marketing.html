@@ -37,7 +37,12 @@
     .email-preview{background:#f9f9f9;border:1px solid var(--border);border-radius:10px;padding:16px;font-size:13px;line-height:1.7;min-height:120px;white-space:pre-wrap}
     .ana-kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
     .ana-kpi{background:#fff;border:1px solid var(--border);border-radius:var(--radius2);padding:14px 16px;box-shadow:var(--sh);position:relative;overflow:hidden}
-    .ana-kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--g400)}
+    .ana-kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--kpi-color,var(--g400))}
+    .funnel-row{display:flex;align-items:center;gap:10px;padding:5px 0}
+    .funnel-label{font-size:12px;font-weight:500;color:var(--text);min-width:115px;flex-shrink:0}
+    .funnel-track{flex:1;height:22px;background:var(--border);border-radius:4px;overflow:hidden}
+    .funnel-fill{height:100%;display:flex;align-items:center;padding:0 8px;color:#fff;font-size:11px;font-weight:700;border-radius:4px;min-width:4px;transition:width .35s}
+    .funnel-count{font-size:11px;font-weight:700;color:var(--textd);min-width:44px;text-align:right;flex-shrink:0}
     .ana-kpi-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--textd);font-weight:600;margin-bottom:4px}
     .ana-kpi-val{font-family:'DM Serif Display',serif;font-size:24px;color:var(--text);line-height:1.1}
     .meta-status-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--cream);border-radius:8px;margin-bottom:10px;font-size:12px}
@@ -364,21 +369,56 @@
 
       <!-- ══ ANALYTICS ══ -->
       <div class="tab-content" id="mkt-analytics">
-        <div class="ana-kpi-strip">
-          <div class="ana-kpi"><div class="ana-kpi-lbl">Total Campaigns</div><div class="ana-kpi-val" id="ana-campaigns">0</div></div>
-          <div class="ana-kpi"><div class="ana-kpi-lbl">Total Reach</div><div class="ana-kpi-val" id="ana-reach">0</div><div style="font-size:10px;color:var(--g600);margin-top:3px" id="ana-reach-delta"></div></div>
-          <div class="ana-kpi"><div class="ana-kpi-lbl">Total Converted</div><div class="ana-kpi-val" id="ana-converted">0</div><div style="font-size:10px;color:var(--g600);margin-top:3px" id="ana-cvr"></div></div>
-          <div class="ana-kpi"><div class="ana-kpi-lbl">Mkt Revenue (Est.)</div><div class="ana-kpi-val" id="ana-revenue">₹0</div></div>
+        <!-- Period selector -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:600;color:var(--textd)">Period:</span>
+          <button class="chip active" onclick="setAnaPeriod(30,this)">30 Days</button>
+          <button class="chip" onclick="setAnaPeriod(90,this)">90 Days</button>
+          <button class="chip" onclick="setAnaPeriod(180,this)">6 Months</button>
+          <button class="chip" onclick="setAnaPeriod(0,this)">All Time</button>
         </div>
-        <div class="two-col">
+        <!-- KPI strip — 6 cards -->
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px">
+          <div class="ana-kpi"><div class="ana-kpi-lbl">Campaigns</div><div class="ana-kpi-val" id="ana-campaigns">0</div></div>
+          <div class="ana-kpi"><div class="ana-kpi-lbl">Total Reach</div><div class="ana-kpi-val" id="ana-reach">0</div><div style="font-size:10px;color:var(--textd);margin-top:3px" id="ana-reach-delta"></div></div>
+          <div class="ana-kpi"><div class="ana-kpi-lbl">Conversions</div><div class="ana-kpi-val" id="ana-converted">0</div><div style="font-size:10px;color:var(--g600);margin-top:3px" id="ana-cvr"></div></div>
+          <div class="ana-kpi"><div class="ana-kpi-lbl">Est. Revenue</div><div class="ana-kpi-val" id="ana-revenue">₹0</div></div>
+          <div class="ana-kpi" style="--kpi-color:#f59e0b"><div class="ana-kpi-lbl">Total Budget</div><div class="ana-kpi-val" id="ana-budget">₹0</div></div>
+          <div class="ana-kpi" style="--kpi-color:#10b981"><div class="ana-kpi-lbl">Avg ROI</div><div class="ana-kpi-val" id="ana-roi">—</div></div>
+        </div>
+        <!-- Row 1: Funnel + Channels -->
+        <div class="two-col" style="margin-bottom:16px">
           <div class="card">
-            <div class="card-header"><div class="card-title">Campaign Performance</div></div>
-            <div class="table-wrap"><table><thead><tr><th>Campaign</th><th>Sent</th><th>Opened</th><th>Converted</th><th>CVR</th></tr></thead>
-            <tbody id="ana-camp-tbody"></tbody></table></div>
+            <div class="card-header"><div><div class="card-title">🔽 Conversion Funnel</div><div class="card-sub">Lead journey from inquiry to booking</div></div></div>
+            <div id="ana-funnel" style="padding:4px 0"></div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">Lead Sources</div></div>
-            <div id="ana-source-bars"></div>
+            <div class="card-header"><div><div class="card-title">📡 Channel Performance</div><div class="card-sub">Conversions by campaign type</div></div></div>
+            <div id="ana-channels" style="padding:4px 0"></div>
+          </div>
+        </div>
+        <!-- Row 2: ROI table + Lead Sources -->
+        <div class="two-col" style="margin-bottom:16px">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">💰 Campaign ROI</div><div class="card-sub">Budget spent vs estimated revenue</div></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Campaign</th><th>Type</th><th>Budget</th><th>Reach</th><th>Conv.</th><th>Est. Rev.</th><th>ROI</th></tr></thead>
+            <tbody id="ana-roi-tbody"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">🎯 Lead Source Attribution</div><div class="card-sub">Where your leads originate</div></div></div>
+            <div id="ana-source-bars" style="padding:4px 0"></div>
+          </div>
+        </div>
+        <!-- Row 3: Monthly trend + Campaign perf -->
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">📅 Monthly Campaign Trend</div><div class="card-sub">Campaigns sent over last 6 months</div></div></div>
+            <div id="ana-monthly-trend" style="padding:8px 0"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">🏆 Campaign Performance</div><div class="card-sub">Sent campaigns ranked by CVR</div></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Campaign</th><th>Sent</th><th>Opened</th><th>Conv.</th><th>CVR</th></tr></thead>
+            <tbody id="ana-camp-tbody"></tbody></table></div>
           </div>
         </div>
       </div>

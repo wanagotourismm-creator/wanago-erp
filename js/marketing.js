@@ -34,6 +34,7 @@ window.goTo = goTo; window.handleLogout = handleLogout;
 let _mktCampaignFilter = 'all';
 let _editCampaignId = null, _editSegmentId = null, _editTemplateId = null;
 let _waContacts = [], _emailContacts = [];
+let _anaPeriodDays = 30;
 
 // ── Default templates ──
 const DEFAULT_TEMPLATES = [
@@ -1026,50 +1027,195 @@ window.deleteTemplate = deleteTemplate;
 /* ══════════════════════════════════════════════════════
    ANALYTICS
 ══════════════════════════════════════════════════════ */
+function setAnaPeriod(days, btn) {
+  _anaPeriodDays = days;
+  document.querySelectorAll('#mkt-analytics .chip').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  mktRenderAnalytics();
+}
+
 function mktRenderAnalytics() {
-  const campaigns = hScoped('campaigns') || [];
+  const allCampaigns = hScoped('campaigns') || [];
+  const allLeads     = hScoped('leads')     || [];
+  const allBookings  = hScoped('bookings')  || [];
+
+  // Period filter
+  const now = new Date();
+  const cutoff = _anaPeriodDays > 0
+    ? new Date(now - _anaPeriodDays * 86400000).toISOString().split('T')[0]
+    : '2000-01-01';
+  const campaigns = allCampaigns.filter(c => {
+    const d = (c.date || c.createdAt || '').split('T')[0];
+    return d >= cutoff;
+  });
   const sent = campaigns.filter(c => c.status === 'sent');
-  const totalReach     = sent.reduce((s,c) => s+(c.stats?.sent||0), 0);
-  const totalConverted = sent.reduce((s,c) => s+(c.stats?.converted||0), 0);
-  const cvr = totalReach > 0 ? ((totalConverted/totalReach)*100).toFixed(1) : 0;
+
+  // ── KPIs ──
+  const totalReach     = sent.reduce((s,c) => s + (c.stats?.sent||0), 0);
+  const totalConverted = sent.reduce((s,c) => s + (c.stats?.converted||0), 0);
+  const totalBudget    = campaigns.reduce((s,c) => s + Number(c.budget||0), 0);
+  const cvr = totalReach > 0 ? ((totalConverted / totalReach) * 100).toFixed(1) : 0;
+  const avgBookingVal  = allBookings.filter(b => b.totalAmount > 0)
+    .reduce((s,b,_,a) => s + (b.totalAmount||0) / a.length, 0) || 25000;
+  const estRevenue = totalConverted * avgBookingVal;
+  const avgROI = totalBudget > 0 ? Math.round((estRevenue - totalBudget) / totalBudget * 100) : null;
 
   _setText('ana-campaigns', campaigns.length);
-  _setText('ana-reach', _fmtNum(totalReach));
+  _setText('ana-reach',       _fmtNum(totalReach));
   _setText('ana-reach-delta', sent.length + ' sent campaigns');
-  _setText('ana-converted', totalConverted);
-  _setText('ana-cvr', 'CVR: ' + cvr + '%');
+  _setText('ana-converted',   totalConverted);
+  _setText('ana-cvr',         'CVR: ' + cvr + '%');
+  _setText('ana-revenue',     '₹' + _fmtNum(Math.round(estRevenue)));
+  _setText('ana-budget',      '₹' + _fmtNum(totalBudget));
+  _setText('ana-roi', avgROI !== null ? (avgROI >= 0 ? '+' : '') + avgROI + '%' : '—');
 
-  // Rough revenue estimate
-  const avgBookingVal = (hScoped('bookings')||[]).filter(b=>b.totalAmount>0).reduce((s,b,_,a)=>s+(b.totalAmount||0)/a.length, 0) || 25000;
-  _setText('ana-revenue', '₹' + _fmtNum(Math.round(totalConverted * avgBookingVal)));
+  // ── Conversion Funnel ──
+  const fStages = [
+    { label:'Total Leads',      n: allLeads.length,                                                           color:'#6366f1' },
+    { label:'Contacted',        n: allLeads.filter(l => l.stage && l.stage !== 'new').length,                 color:'#8b5cf6' },
+    { label:'Quoted',           n: allLeads.filter(l => ['quoted','negotiation','won','lost'].includes(l.stage)).length, color:'#06b6d4' },
+    { label:'Won',              n: allLeads.filter(l => l.stage === 'won').length,                            color:'#10b981' },
+    { label:'Active Bookings',  n: allBookings.filter(b => b.status !== 'cancelled').length,                  color:'#f59e0b' },
+  ];
+  const maxF = Math.max(...fStages.map(s => s.n), 1);
+  const funnelEl = document.getElementById('ana-funnel');
+  if (funnelEl) funnelEl.innerHTML = fStages.map((s, i) => {
+    const w = Math.round(s.n / maxF * 100);
+    const dropPct = i > 0 && fStages[i-1].n > 0
+      ? ((s.n / fStages[i-1].n) * 100).toFixed(0) + '% of prev' : '';
+    return `<div class="funnel-row">
+      <div class="funnel-label">${s.label}</div>
+      <div class="funnel-track"><div class="funnel-fill" style="width:${w}%;background:${s.color}">${s.n}</div></div>
+      <div class="funnel-count">${dropPct}</div>
+    </div>`;
+  }).join('');
 
-  // Campaign table
-  const tbody = document.getElementById('ana-camp-tbody');
-  tbody.innerHTML = sent.map(c => {
-    const r = c.stats || {};
-    const cv = r.sent > 0 ? ((r.converted||0)/r.sent*100).toFixed(1) : '0';
-    return `<tr>
-      <td style="font-weight:600">${_e(c.name)}</td>
-      <td>${r.sent||0}</td>
-      <td>${r.opened||0}</td>
-      <td style="font-weight:700;color:var(--g600)">${r.converted||0}</td>
-      <td>${cv}%</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--textd)">No sent campaigns yet</td></tr>';
+  // ── Channel Performance ──
+  const CH = { whatsapp:'💬', email:'📧', meta:'📘', sms:'📱', social:'📢', other:'📣' };
+  const chMap = {};
+  campaigns.forEach(c => {
+    const ch = c.type || 'other';
+    if (!chMap[ch]) chMap[ch] = { count:0, sent:0, converted:0, budget:0 };
+    chMap[ch].count++;
+    chMap[ch].sent      += c.stats?.sent || 0;
+    chMap[ch].converted += c.stats?.converted || 0;
+    chMap[ch].budget    += Number(c.budget || 0);
+  });
+  const maxCh = Math.max(...Object.values(chMap).map(v => v.converted), 1);
+  const chanEl = document.getElementById('ana-channels');
+  if (chanEl) {
+    if (!Object.keys(chMap).length) {
+      chanEl.innerHTML = '<div style="text-align:center;padding:24px;font-size:12px;color:var(--textd)">No campaign data yet</div>';
+    } else {
+      chanEl.innerHTML = Object.entries(chMap)
+        .sort((a,b) => b[1].converted - a[1].converted)
+        .map(([ch, v]) => {
+          const cvrC = v.sent > 0 ? ((v.converted / v.sent) * 100).toFixed(1) : 0;
+          return `<div class="funnel-row">
+            <div class="funnel-label">${CH[ch]||'📣'} ${ch}</div>
+            <div class="funnel-track"><div class="funnel-fill" style="width:${Math.round(v.converted/maxCh*100)}%;background:var(--g500)">${v.converted}</div></div>
+            <div class="funnel-count">CVR ${cvrC}%</div>
+          </div>`;
+        }).join('');
+    }
+  }
 
-  // Lead source bars
-  const leads = hScoped('leads') || [];
+  // ── Campaign ROI table ──
+  const roiTbody = document.getElementById('ana-roi-tbody');
+  if (roiTbody) {
+    const typeIcon = { whatsapp:'💬', email:'📧', meta:'📘', sms:'📱', social:'📢' };
+    roiTbody.innerHTML = sent
+      .sort((a,b) => (b.stats?.converted||0) - (a.stats?.converted||0))
+      .map(c => {
+        const r = c.stats || {};
+        const budget = Number(c.budget || 0);
+        const rev    = Math.round((r.converted||0) * avgBookingVal);
+        const roi    = budget > 0 ? Math.round((rev - budget) / budget * 100) : null;
+        const roiHtml = roi !== null
+          ? `<span style="font-weight:700;color:${roi>=0?'var(--g600)':'#ef4444'}">${roi>=0?'+':''}${roi}%</span>`
+          : '<span style="color:var(--textd)">—</span>';
+        return `<tr>
+          <td style="font-weight:600">${_e(c.name)}</td>
+          <td>${typeIcon[c.type]||'📣'} ${c.type||'—'}</td>
+          <td>₹${_fmtNum(budget)}</td>
+          <td>${_fmtNum(r.sent||0)}</td>
+          <td style="color:var(--g600);font-weight:700">${r.converted||0}</td>
+          <td>₹${_fmtNum(rev)}</td>
+          <td>${roiHtml}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--textd)">No sent campaigns yet</td></tr>';
+  }
+
+  // ── Lead Source Attribution ──
   const srcMap = {};
-  leads.forEach(l => { const s = l.source||'unknown'; srcMap[s] = (srcMap[s]||0)+1; });
-  const maxSrc = Math.max(...Object.values(srcMap), 1);
-  const barsEl = document.getElementById('ana-source-bars');
-  barsEl.innerHTML = Object.entries(srcMap).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([src,n]) =>
-    `<div class="funnel-row">
-      <div class="funnel-label" style="text-transform:capitalize">${src}</div>
-      <div class="funnel-track"><div class="funnel-fill" style="width:${Math.round(n/maxSrc*100)}%;background:var(--g500)">${n}</div></div>
-      <div class="funnel-count">${n}</div>
-    </div>`).join('') || '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No lead source data</div>';
+  allLeads.forEach(l => { const s = l.source || 'unknown'; srcMap[s] = (srcMap[s]||0) + 1; });
+  const maxSrc  = Math.max(...Object.values(srcMap), 1);
+  const barsEl  = document.getElementById('ana-source-bars');
+  if (barsEl) {
+    barsEl.innerHTML = Object.entries(srcMap).sort((a,b) => b[1]-a[1]).slice(0,8).map(([src,n]) => {
+      const pct = allLeads.length > 0 ? Math.round(n / allLeads.length * 100) : 0;
+      return `<div class="funnel-row">
+        <div class="funnel-label" style="text-transform:capitalize">${src}</div>
+        <div class="funnel-track"><div class="funnel-fill" style="width:${Math.round(n/maxSrc*100)}%;background:var(--g500)">${n}</div></div>
+        <div class="funnel-count">${pct}%</div>
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No lead source data</div>';
+  }
+
+  // ── Monthly Trend (last 6 months) ──
+  const trendEl = document.getElementById('ana-monthly-trend');
+  if (trendEl) {
+    const months = [];
+    const mData  = {};
+    for (let i = 5; i >= 0; i--) {
+      const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.toISOString().slice(0, 7);
+      months.push({ key, label: d.toLocaleString('en', { month:'short', year:'2-digit' }) });
+      mData[key] = { sent:0, conv:0 };
+    }
+    allCampaigns.filter(c => c.status === 'sent').forEach(c => {
+      const key = (c.date || c.createdAt || '').slice(0, 7);
+      if (mData[key]) { mData[key].sent++; mData[key].conv += c.stats?.converted || 0; }
+    });
+    const maxSent = Math.max(...months.map(m => mData[m.key].sent), 1);
+    trendEl.innerHTML =
+      '<div style="display:flex;align-items:flex-end;gap:6px;height:80px;padding:0 4px">' +
+      months.map(m => {
+        const v = mData[m.key];
+        const h = Math.max(Math.round(v.sent / maxSent * 70), v.sent ? 4 : 0);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-size:10px;color:var(--g600);font-weight:700;min-height:14px">${v.sent||''}</div>
+          <div title="${v.sent} campaigns, ${v.conv} conversions" style="width:100%;height:${h}px;background:var(--g400);border-radius:4px 4px 0 0;cursor:default"></div>
+        </div>`;
+      }).join('') + '</div>' +
+      '<div style="display:flex;gap:6px;padding:4px 4px 0;border-top:1px solid var(--border);margin-top:4px">' +
+      months.map(m => `<div style="flex:1;text-align:center;font-size:10px;color:var(--textd)">${m.label}</div>`).join('') +
+      '</div>';
+  }
+
+  // ── Campaign performance table ──
+  const tbody = document.getElementById('ana-camp-tbody');
+  if (tbody) {
+    tbody.innerHTML = sent
+      .sort((a,b) => {
+        const cvrA = (a.stats?.sent||0) > 0 ? (a.stats?.converted||0)/a.stats.sent : 0;
+        const cvrB = (b.stats?.sent||0) > 0 ? (b.stats?.converted||0)/b.stats.sent : 0;
+        return cvrB - cvrA;
+      })
+      .map(c => {
+        const r  = c.stats || {};
+        const cv = r.sent > 0 ? ((r.converted||0) / r.sent * 100).toFixed(1) : '0';
+        return `<tr>
+          <td style="font-weight:600">${_e(c.name)}</td>
+          <td>${r.sent||0}</td>
+          <td>${r.opened||0}</td>
+          <td style="font-weight:700;color:var(--g600)">${r.converted||0}</td>
+          <td>${cv}%</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--textd)">No sent campaigns yet</td></tr>';
+  }
 }
+window.setAnaPeriod      = setAnaPeriod;
 window.mktRenderAnalytics = mktRenderAnalytics;
 window.mktRenderOverview  = mktRenderOverview;
 
