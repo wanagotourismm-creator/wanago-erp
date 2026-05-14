@@ -151,7 +151,8 @@ function renderQuotationsPage() {
   const search = (document.getElementById('quot-search')?.value || '').toLowerCase();
   const sort = document.getElementById('quot-sort')?.value || 'newest';
 
-  let items = (DB.quotations || []).map(q => {
+  const _allQuots = typeof hScoped === 'function' ? hScoped('quotations') : (DB.quotations || []);
+  let items = _allQuots.map(q => {
     // Check if expired (validDays from creation)
     const validDays = q.validDays || 15;
     const expiry = new Date(q.createdAt);
@@ -159,6 +160,7 @@ function renderQuotationsPage() {
     const isExpired = expiry < new Date() && q.status === 'sent';
     const status = isExpired ? 'expired' : q.status;
     return Object.assign({}, q, { _displayStatus: status, _expiry: expiry.toISOString().slice(0,10) });
+  });
   // Filter
   if (quotFilter !== 'all') items = items.filter(i => i._displayStatus === quotFilter);
 
@@ -169,9 +171,6 @@ function renderQuotationsPage() {
     (i.id||'').toLowerCase().includes(search) ||
     (i.agent||'').toLowerCase().includes(search)
   );
-
-  // Sort
-  });
   items.sort((a,b) => {
     if (sort === 'oldest') return (a.createdAt||'').localeCompare(b.createdAt||'');
     if (sort === 'amount-desc') return Number(b.grandTotal||0) - Number(a.grandTotal||0);
@@ -181,7 +180,7 @@ function renderQuotationsPage() {
   renderQuotAIStrip();
 
   // Stats
-  const all = DB.quotations || [];
+  const all = _allQuots;
   const el = id => document.getElementById(id) || {textContent:''};
   el('qstat-total').textContent = all.length;
   el('qstat-sent').textContent = all.filter(q => q.status === 'sent').length;
@@ -252,6 +251,7 @@ function acceptQuotation(quotId) {
   // Update lead
   const lead = DB.leads.find(l => l.id === q.leadId);
   if (lead) lead.stage = 'negotiation';
+  if(typeof dbSave==='function'){dbSave('quotations',q).catch(()=>{});if(lead)dbSave('leads',lead).catch(()=>{});}
   saveDB();
   renderQuotationsPage();
   showToast(`${q.customerName} accepted the quotation! Ready to convert to booking.`);
@@ -266,6 +266,7 @@ function rejectQuotation(quotId) {
   q.rejectedAt = new Date().toISOString();
   const lead = DB.leads.find(l => l.id === q.leadId);
   if (lead) lead.stage = 'follow_up'; // back to follow-up for re-engagement
+  if(typeof dbSave==='function'){dbSave('quotations',q).catch(()=>{});if(lead)dbSave('leads',lead).catch(()=>{});}
   saveDB();
   renderQuotationsPage();
   showToast('Quotation rejected. Lead moved back to follow-up.');

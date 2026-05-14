@@ -226,9 +226,9 @@ function printReceipt(payId) {
 
 // Record payment modal
 function openRecordPaymentModal() {
-  const OPEN_STATUSES = ['pending','pending_finance','finance_approved','ops_pending'];
+  const OPEN_STATUSES = ['pending','pending_finance','finance_approved','ops_pending','confirmed'];
   document.getElementById('rp-booking').innerHTML = '<option value="">Select booking</option>' +
-    (DB.bookings||[]).filter(b=>OPEN_STATUSES.includes(b.status)&&Number(b.pendingAmount||0)>0).map(b=>'<option value="'+b.id+'">'+b.ref+' — '+b.customerName+' (₹'+Number(b.pendingAmount).toLocaleString('en-IN')+' due)</option>').join('');
+    hScoped('bookings').filter(b=>OPEN_STATUSES.includes(b.status)&&Number(b.pendingAmount||0)>0).map(b=>'<option value="'+b.id+'">'+b.ref+' — '+b.customerName+' (₹'+Number(b.pendingAmount).toLocaleString('en-IN')+' due)</option>').join('');
   document.getElementById('rp-amount').value = '';
   document.getElementById('rp-method').value = 'Bank Transfer';
   document.getElementById('rp-date').value = today();
@@ -255,7 +255,6 @@ function saveRecordPayment() {
   const receipt = 'RCP-'+String((DB.counters.payments=(DB.counters.payments||0)+1)).padStart(4,'0');
   const _pay = {id:uid(),receipt,bookingId:b.id,bookingRef:b.ref,customerName:b.customerName,amount,method,date,reference:ref,status:'completed',officeId:b.officeId,createdBy:createdByStamp(),createdAt:new Date().toISOString()};
   DB.payments.unshift(_pay);
-  if(typeof dbSave==='function') dbSave('payments', DB.payments[0]).catch(()=>{});
 
   // Update booking
   b.advancePaid = (Number(b.advancePaid||b.paidAmount||0)) + amount;
@@ -272,7 +271,8 @@ function saveRecordPayment() {
   const cust = (DB.customers||[]).find(c => c.id === b.customerId || c.name === b.customerName || (b.customerPhone && c.phone === b.customerPhone));
   if (cust) cust.totalSpent = (Number(cust.totalSpent||0)) + amount;
 
-  if(typeof dbSave==='function'){ dbSave('payments',_pay); if(b) dbSave('bookings',b); }
+  // Save payment + updated booking to Firestore in one go
+  if (typeof dbSave === 'function') { dbSave('payments', _pay); dbSave('bookings', b); }
   saveDB(); closeModal('modal-record-payment'); renderPayments();
 }
 

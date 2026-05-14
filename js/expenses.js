@@ -217,7 +217,7 @@ function saveExpense() {
   if (!Array.isArray(DB.expenses)) DB.expenses = [];
   if (editId) {
     const idx = DB.expenses.findIndex(x => x.id === editId);
-    if (idx > -1) Object.assign(DB.expenses[idx], data);
+    if (idx > -1) { Object.assign(DB.expenses[idx], data); if(typeof dbSave==='function')dbSave('expenses',DB.expenses[idx]).catch(()=>{}); }
     showToast('Expense updated!');
   } else {
     const _exp = { id: uid(), ...data, officeId: officeIdForNewRecord(), createdBy: createdByStamp(), createdAt: new Date().toISOString() };

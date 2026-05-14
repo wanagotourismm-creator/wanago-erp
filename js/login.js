@@ -109,7 +109,7 @@ async function handleLogin() {
         if (typeof window._fsGetTeam === 'function') {
           var fsTeam = await window._fsGetTeam();
           if (fsTeam && fsTeam.length) {
-            matched = fsTeam.find(function(m){ return (m.firebaseUid===cred.user.uid)||(m.email||'')==email; });
+            matched = fsTeam.find(function(m){ return (m.firebaseUid===cred.user.uid)||(m.email||'').toLowerCase()===email.toLowerCase(); });
             if (matched) {
               matched.systemRole = matched.systemRole || 'employee';
               doLogin(matched, email, btn); return;

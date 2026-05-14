@@ -36,7 +36,8 @@ function defaultDB() {
   return {
     leads: [], customers: [], quotations: [], packages: [], bookings: [],
     invoices: [], payments: [], expenses: [], campaigns: [], segments: [], activities: [], tickets: [],
-    hrmsEmployees: [], hrmsAttendance: {}, hrmsLeaves: [], hrmsPayroll: [], hrmsCheckIns: [],
+    hrmsEmployees: [], hrmsAttendance: {}, hrmsLeaves: [], hrmsPayroll: [], hrmsCheckIns: [], hrmsLocRequests: [],
+    itineraries: [],
     policies: [], tasks: [], rewards: [], pointsLog: [],
     counters: { leads: 0, bookings: 2000, invoices: 0, payments: 0, campaigns: 0, packages: 0 },
     settings: {
@@ -52,6 +53,10 @@ function defaultDB() {
       fuDays: 1, invDays: 3, notifyLeadTo: 'manager', notifyPaymentTo: 'finance',
       agents: [],
       offices: [{ id:'o1', name:'Head Office', code:'HO', address:'', phone:'', active:true, createdAt:new Date().toISOString() }],
+      officeLocations: [],
+      workShift: '09:00 - 18:00',
+      weeklyOff: [0],
+      holidays: [],
       team: []
     }
   };
@@ -149,11 +154,14 @@ function visibleMemberIds() {
 
 function hScoped(collection) {
   const officeData = scoped(collection);
-  // Use RBAC filtering if loaded (rbac.js), otherwise show all in office
-  if (typeof window.hScopedRBAC === 'function') {
-    return window.RBAC ? window.RBAC.filterByOwnership(officeData, collection) : officeData;
-  }
-  return officeData;
+  if (!currentUser) return officeData;
+  if (isHierarchyUnrestricted(currentUser)) return officeData;
+  const ids = visibleMemberIds();
+  if (!ids) return officeData;
+  if (collection === 'hrmsEmployees') return officeData.filter(e => ids.has(e.id));
+  if (collection === 'hrmsLeaves')    return officeData.filter(l => ids.has(l.empId));
+  if (collection === 'hrmsPayroll')   return officeData.filter(p => ids.has(p.empId));
+  return officeData.filter(r => !r.createdBy || ids.has(r.createdBy));
 }
 
 function createdByStamp() { return currentUser ? currentUser.id : null; }
@@ -499,6 +507,12 @@ function convertQuotationToBooking(quotId) {
     if (pkg) pkg.bookingsCount = (pkg.bookingsCount || 0) + 1;
   }
 
+  if(typeof dbSave==='function'){
+    dbSave('bookings', booking).catch(()=>{});
+    dbSave('quotations', quot).catch(()=>{});
+    dbSave('customers', customer).catch(()=>{});
+    if(lead) dbSave('leads', lead).catch(()=>{});
+  }
   saveDB();
   logActivity('Booking ' + bookingRef + ' created from quotation ' + quotId, 'booking');
   return booking;

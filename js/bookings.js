@@ -14,14 +14,15 @@ const BOOKING_STATUS_CLS = {
 };
 
 function renderBookings(filter) {
+  const allVisible = typeof hScoped === 'function' ? hScoped('bookings') : DB.bookings;
   const list = filter
-    ? DB.bookings.filter(b => b.status === filter)
-    : DB.bookings;
+    ? allVisible.filter(b => b.status === filter)
+    : allVisible;
 
   // Update summary counters
-  document.getElementById('bk-total').textContent     = DB.bookings.length;
-  document.getElementById('bk-confirmed').textContent = DB.bookings.filter(b => b.status === 'Confirmed').length;
-  document.getElementById('bk-pending').textContent   = DB.bookings.filter(b => b.status === 'Pending').length;
+  document.getElementById('bk-total').textContent     = allVisible.length;
+  document.getElementById('bk-confirmed').textContent = allVisible.filter(b => b.status === 'Confirmed').length;
+  document.getElementById('bk-pending').textContent   = allVisible.filter(b => b.status === 'Pending').length;
 
   document.getElementById('bookings-tbody').innerHTML = list.map(b => `
     <tr>
@@ -49,6 +50,8 @@ function confirmBooking(id) {
   const b = DB.bookings.find(x => x.id === id);
   if (b && b.status === 'Pending') {
     b.status = 'Confirmed';
+    if(typeof dbSave==='function')dbSave('bookings',b).catch(()=>{});
+    saveDB();
     renderBookings();
     logActivity(currentUser.name, currentUser.role, 'Booking confirmed', 'Bookings', id);
     toast(`Booking ${id} confirmed`, 'success');
@@ -74,6 +77,8 @@ function addBooking() {
     campaign: '',
   });
 
+  if(typeof dbSave==='function')dbSave('bookings',DB.bookings[0]).catch(()=>{});
+  saveDB();
   logActivity(currentUser.name, currentUser.role, 'Booking created', 'Bookings', `${refNo} — ${cust}`);
   renderBookings();
   closeModal('modal-add-booking');

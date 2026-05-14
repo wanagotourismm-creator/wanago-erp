@@ -307,7 +307,6 @@ function bulkDelete(){
   if(!selectedLeadIds.size)return;
   if(!confirm(`Delete ${selectedLeadIds.size} leads? Cannot be undone.`))return;
   if(typeof dbDelete==='function')selectedLeadIds.forEach(id=>dbDelete('leads',id));
-  selectedLeadIds.forEach(id=>dbDelete('leads',id));
   DB.leads=DB.leads.filter(l=>!selectedLeadIds.has(l.id));
   saveDB(); selectedLeadIds.clear(); renderLeads();
   const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';

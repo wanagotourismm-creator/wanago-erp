@@ -43,6 +43,14 @@ function goTo(page) { window.location.href = page + '.html'; }
 window.handleLogout = handleLogout;
 window.goTo = goTo;
 
+// Sync hrmsCheckIns array → hrmsAttendance object (keyed by empId_date)
+function _syncCheckIns() {
+  if (!DB.hrmsAttendance) DB.hrmsAttendance = {};
+  (DB.hrmsCheckIns || []).forEach(rec => {
+    if (rec && rec.id) DB.hrmsAttendance[rec.id] = rec;
+  });
+}
+
 function renderHRMSAIStrip() {
   const el = document.getElementById('hrms-ai-strip');
   if (!el) return;
@@ -154,7 +162,7 @@ function renderEmployeeGrid() {
   const grid = document.getElementById('emp-grid'); if(!grid) return;
   if (!list.length) { grid.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--textd);grid-column:1/-1"><div style="font-size:40px;margin-bottom:12px">👥</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">No employees found</div><button class="btn btn-primary" style="margin-top:12px" onclick="openAddEmpModal()">+ Add Employee</button></div>'; return; }
 
-  const todayAtt = DB.hrmsAttendance||{};
+  const todayAtt = DB.hrmsAttendance || {};
   grid.innerHTML = list.map(e => {
     const attKey = e.id+'_'+today();
     const att = todayAtt[attKey];
@@ -279,14 +287,20 @@ function renderAttendancePage() {
   const daysInMonth = new Date(parseInt(month.slice(0,4)), parseInt(month.slice(5,7)), 0).getDate();
   const tbody = document.getElementById('att-tbody'); if(!tbody) return;
   if(!emps.length){tbody.innerHTML=emptyRow(5,'No active employees');return;}
+  const attMap = DB.hrmsAttendance || {};
 
   tbody.innerHTML = emps.map(e => {
     let present=0,absent=0,late=0,halfDay=0;
     for(let d=1;d<=daysInMonth;d++){
       const dateKey=month+'-'+String(d).padStart(2,'0');
       const attKey=e.id+'_'+dateKey;
-      const att=DB.hrmsAttendance[attKey];
-      if(att){if(att.status==='present')present++;else if(att.status==='absent')absent++;else if(att.status==='late')late++;else if(att.status==='half')halfDay++;}
+      const att=attMap[attKey];
+      if(att){
+        if(att.checkIn||att.status==='present') present++;
+        else if(att.status==='absent') absent++;
+        else if(att.status==='late') late++;
+        else if(att.status==='half') halfDay++;
+      }
     }
     return '<tr>'+
       '<td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:'+(e.color||'var(--g600)')+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">'+initials(e.name)+'</div><span style="font-weight:600">'+e.name+'</span></div></td>'+
@@ -301,7 +315,8 @@ function renderAttendancePage() {
 function markAttendance(empId, type) {
   const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
   const attKey = empId+'_'+today();
-  if (!DB.hrmsAttendance[attKey]) DB.hrmsAttendance[attKey] = {empId, date:today(), status:'present'};
+  if (!DB.hrmsAttendance) DB.hrmsAttendance = {};
+  if (!DB.hrmsAttendance[attKey]) DB.hrmsAttendance[attKey] = {id:attKey, empId, date:today(), status:'present'};
   const rec = DB.hrmsAttendance[attKey];
 
   function _save(lat, lng) {
@@ -345,6 +360,7 @@ function saveAttendance() {
   const checkOut=document.getElementById('att-checkout').value;
   if(!empId){showError('att-error','Select employee.');return;}
   const attKey=empId+'_'+date;
+  if(!DB.hrmsAttendance) DB.hrmsAttendance={};
   const _att={id:attKey,empId,date,status,checkIn:checkIn||null,checkOut:checkOut||null};
   DB.hrmsAttendance[attKey]=_att;
   dbSave('hrmsCheckIns',_att);
@@ -466,12 +482,179 @@ function switchHRMSTab(el, tabId) {
   document.querySelectorAll('.hrms-tab-btn').forEach(t=>t.classList.remove('active'));
   document.getElementById(tabId)?.classList.add('active');
   if(el) el.classList.add('active');
-  if(tabId==='hrms-attendance') renderAttendancePage();
-  if(tabId==='hrms-leaves') renderLeavePage();
-  if(tabId==='hrms-payroll') renderPayrollPage();
+  if(tabId==='hrms-attendance')    renderAttendancePage();
+  if(tabId==='hrms-leaves')        renderLeavePage();
+  if(tabId==='hrms-payroll')       renderPayrollPage();
+  if(tabId==='hrms-loc-approvals') renderLocApprovals();
+  if(tabId==='hrms-offices')       renderOfficeLocations();
+}
+
+// ══════ LOCATION APPROVALS ══════
+function renderLocApprovals() {
+  const filter = document.getElementById('loc-req-filter')?.value || 'all';
+  let reqs = (DB.hrmsLocRequests||[]);
+  if (filter !== 'all') reqs = reqs.filter(r => r.status === filter);
+  reqs = [...reqs].reverse();
+  const tbody = document.getElementById('loc-approvals-tbody'); if(!tbody) return;
+  // Update badge
+  const pending = (DB.hrmsLocRequests||[]).filter(r=>r.status==='pending').length;
+  const badge = document.getElementById('loc-badge');
+  if(badge){badge.textContent=pending;badge.style.display=pending?'':'none';}
+  if(!reqs.length){tbody.innerHTML=emptyRow(8,'No location approval requests');return;}
+  tbody.innerHTML = reqs.map(r=>{
+    const isReg = r.type === 'regularization';
+    const mapsUrl = r.lat&&r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : null;
+    return '<tr>'+
+      '<td><div style="font-weight:600">'+r.empName+'</div><div style="font-size:10px;color:var(--textd)">'+r.empRole+'</div></td>'+
+      '<td>'+r.date+'</td>'+
+      '<td>'+(r.time||'—')+'</td>'+
+      '<td>'+(mapsUrl?'<a href="'+mapsUrl+'" target="_blank" style="color:var(--g600);font-size:11px">📍 View Map</a>':'<span style="color:var(--textd)">—</span>')+(r.photo?'<br><button class="row-btn" onclick="showLocPhoto(\''+r.id+'\')">📷 Photo</button>':'')+'</td>'+
+      '<td style="font-size:11.5px;color:var(--textd);max-width:160px">'+r.reason+'</td>'+
+      '<td>'+PILL[isReg?'amber':'blue'](isReg?'Regularize':'Loc Request')+'</td>'+
+      '<td>'+stagePill(r.status)+'</td>'+
+      '<td style="white-space:nowrap">'+(r.status==='pending'?
+        '<button class="row-btn" style="color:var(--g600)" onclick="approveLocRequest(\''+r.id+'\')">✅ Approve</button>'+
+        '<button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="rejectLocRequest(\''+r.id+'\')">✕ Reject</button>'
+        :'<span style="font-size:11px;color:var(--textd)">'+(r.approvedBy||'—')+'</span>')+
+      '</td></tr>';
+  }).join('');
+}
+
+function approveLocRequest(id) {
+  const r = (DB.hrmsLocRequests||[]).find(x=>x.id===id); if(!r) return;
+  r.status='approved'; r.approvedBy=currentUser?.name||'Admin'; r.approvedAt=new Date().toISOString();
+  // If location request: also save attendance check-in now
+  if (r.type !== 'regularization' && r.lat && r.date) {
+    if(!DB.hrmsAttendance) DB.hrmsAttendance={};
+    const attKey = r.empId+'_'+r.date;
+    if(!DB.hrmsAttendance[attKey]) DB.hrmsAttendance[attKey]={id:attKey,empId:r.empId,date:r.date,status:'present'};
+    const att = DB.hrmsAttendance[attKey];
+    att.checkIn = r.time||'00:00'; att.status='present'; att.locStatus='loc_approved';
+    if(r.lat){att.checkInLat=r.lat;att.checkInLng=r.lng;}
+    if(r.photo) att.checkInPhoto=r.photo;
+    if(typeof dbSave==='function') dbSave('hrmsCheckIns',att).catch(()=>{});
+  }
+  // If regularization: update attendance record
+  if (r.type === 'regularization') {
+    if(!DB.hrmsAttendance) DB.hrmsAttendance={};
+    const attKey = r.empId+'_'+r.date;
+    if(!DB.hrmsAttendance[attKey]) DB.hrmsAttendance[attKey]={id:attKey,empId:r.empId,date:r.date,status:'present'};
+    const att = DB.hrmsAttendance[attKey];
+    if(r.checkIn) att.checkIn=r.checkIn;
+    if(r.checkOut) att.checkOut=r.checkOut;
+    att.status='present'; att.regularized=true;
+    if(typeof dbSave==='function') dbSave('hrmsCheckIns',att).catch(()=>{});
+  }
+  if(typeof dbSave==='function') dbSave('hrmsLocRequests',r).catch(()=>{});
+  saveDB(); renderLocApprovals(); showToast('Request approved!');
+}
+
+function rejectLocRequest(id) {
+  const r=(DB.hrmsLocRequests||[]).find(x=>x.id===id); if(!r) return;
+  r.status='rejected'; r.approvedBy=currentUser?.name||'Admin';
+  if(typeof dbSave==='function') dbSave('hrmsLocRequests',r).catch(()=>{});
+  saveDB(); renderLocApprovals(); showToast('Request rejected');
+}
+
+function showLocPhoto(id) {
+  const r=(DB.hrmsLocRequests||[]).find(x=>x.id===id); if(!r||!r.photo) return;
+  const img=document.getElementById('loc-photo-img'); if(img) img.src=r.photo;
+  openModal('modal-loc-photo');
+}
+
+// ══════ OFFICE LOCATIONS ══════
+function renderOfficeLocations() {
+  const locs = (DB.settings&&DB.settings.officeLocations)||[];
+  const el = document.getElementById('office-loc-list'); if(!el) return;
+  // Load settings
+  const shiftEl=document.getElementById('sett-shift'); if(shiftEl) shiftEl.value=DB.settings?.workShift||'09:00 - 18:00';
+  const woEl=document.getElementById('sett-weekly-off');
+  if(woEl){const wo=(DB.settings?.weeklyOff)||[0];Array.from(woEl.options).forEach(o=>{o.selected=wo.includes(Number(o.value));});}
+  if(!locs.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--textd);grid-column:1/-1">No office locations set. Add one to enable geofenced attendance.</div>';return;}
+  el.innerHTML=locs.map(loc=>`
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--sh)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:14px;font-weight:700">🏢 ${loc.name}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" onclick="editOfficeLoc('${loc.id}')">Edit</button>
+          <button class="btn btn-sm" style="background:var(--red2);color:var(--red);border:1px solid rgba(192,57,43,.2)" onclick="deleteOfficeLoc('${loc.id}')">Delete</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--textd);margin-bottom:6px">📍 ${loc.lat}, ${loc.lng}</div>
+      <div style="font-size:12px;font-weight:600;color:var(--g700)">Radius: ${loc.radiusMeters||200}m</div>
+      ${loc.lat&&loc.lng?`<a href="https://maps.google.com/?q=${loc.lat},${loc.lng}" target="_blank" style="font-size:11.5px;color:var(--g600)">View on Google Maps ›</a>`:''}
+    </div>`).join('');
+}
+
+function openAddOfficeLocModal() {
+  document.getElementById('office-loc-edit-id').value='';
+  document.getElementById('office-loc-modal-title').textContent='Add Office Location';
+  ['ol-name','ol-lat','ol-lng','ol-radius'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const e=document.getElementById('ol-error');if(e)e.style.display='none';
+  openModal('modal-add-office-loc');
+}
+
+function editOfficeLoc(id) {
+  const loc=(DB.settings?.officeLocations||[]).find(x=>x.id===id); if(!loc) return;
+  document.getElementById('office-loc-edit-id').value=id;
+  document.getElementById('office-loc-modal-title').textContent='Edit Office Location';
+  const s=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val||'';};
+  s('ol-name',loc.name);s('ol-lat',loc.lat);s('ol-lng',loc.lng);s('ol-radius',loc.radiusMeters||200);
+  openModal('modal-add-office-loc');
+}
+
+function saveOfficeLoc() {
+  const editId=document.getElementById('office-loc-edit-id').value;
+  const name=document.getElementById('ol-name').value.trim();
+  const lat=document.getElementById('ol-lat').value.trim();
+  const lng=document.getElementById('ol-lng').value.trim();
+  const radius=parseInt(document.getElementById('ol-radius').value)||200;
+  const errEl=document.getElementById('ol-error');
+  if(!name||!lat||!lng){if(errEl){errEl.textContent='Name, latitude and longitude are required.';errEl.style.display='';}return;}
+  if(errEl)errEl.style.display='none';
+  if(!DB.settings.officeLocations) DB.settings.officeLocations=[];
+  if(editId){const idx=DB.settings.officeLocations.findIndex(x=>x.id===editId);if(idx!==-1)DB.settings.officeLocations[idx]={...DB.settings.officeLocations[idx],name,lat,lng,radiusMeters:radius};}
+  else{DB.settings.officeLocations.push({id:uid(),name,lat,lng,radiusMeters:radius,createdAt:new Date().toISOString()});}
+  if(typeof fsSaveSettings==='function')fsSaveSettings().catch(()=>{});
+  saveDB();closeModal('modal-add-office-loc');renderOfficeLocations();showToast('Office location saved!');
+}
+
+function deleteOfficeLoc(id) {
+  if(!confirm('Remove this office location?'))return;
+  DB.settings.officeLocations=(DB.settings.officeLocations||[]).filter(x=>x.id!==id);
+  if(typeof fsSaveSettings==='function')fsSaveSettings().catch(()=>{});
+  saveDB();renderOfficeLocations();showToast('Removed');
+}
+
+function useMyLocation() {
+  const statusEl=document.getElementById('ol-my-loc-status');
+  if(statusEl)statusEl.textContent='Detecting location…';
+  if(!navigator.geolocation){if(statusEl)statusEl.textContent='Geolocation not supported';return;}
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
+      const latEl=document.getElementById('ol-lat');const lngEl=document.getElementById('ol-lng');
+      if(latEl)latEl.value=lat;if(lngEl)lngEl.value=lng;
+      if(statusEl)statusEl.textContent='✅ Location captured: '+lat+', '+lng+' (accuracy: '+Math.round(pos.coords.accuracy)+'m)';
+    },
+    ()=>{if(statusEl)statusEl.textContent='⚠ Could not get location. Please enter manually.';},
+    {timeout:8000}
+  );
+}
+
+function saveAttSettings() {
+  const shift=document.getElementById('sett-shift')?.value?.trim();
+  const woEl=document.getElementById('sett-weekly-off');
+  if(shift) DB.settings.workShift=shift;
+  if(woEl){const selected=Array.from(woEl.selectedOptions).map(o=>Number(o.value));DB.settings.weeklyOff=selected;}
+  if(typeof fsSaveSettings==='function')fsSaveSettings().catch(()=>{});
+  saveDB();showToast('Attendance settings saved!');
 }
 
 
+window._syncCheckIns=_syncCheckIns;
+window.renderLocApprovals=renderLocApprovals;window.approveLocRequest=approveLocRequest;window.rejectLocRequest=rejectLocRequest;window.showLocPhoto=showLocPhoto;
+window.renderOfficeLocations=renderOfficeLocations;window.openAddOfficeLocModal=openAddOfficeLocModal;window.editOfficeLoc=editOfficeLoc;window.saveOfficeLoc=saveOfficeLoc;window.deleteOfficeLoc=deleteOfficeLoc;window.useMyLocation=useMyLocation;window.saveAttSettings=saveAttSettings;
 window.renderHRMSOverview=renderHRMSOverview;
 window.renderEmployeeGrid=renderEmployeeGrid;window.openAddEmpModal=openAddEmpModal;window.editEmployee=editEmployee;
 window.saveEmployee=saveEmployee;window.viewEmployee=viewEmployee;window.markAttendance=markAttendance;
@@ -481,14 +664,17 @@ window.saveLeave=saveLeave;window.approveLeave=approveLeave;window.rejectLeave=r
 window.renderPayrollPage=renderPayrollPage;window.markPayrollPaid=markPayrollPaid;window.switchHRMSTab=switchHRMSTab;
 
 initPage(function() {
+  _syncCheckIns();
   renderHRMSOverview();
   if (typeof waitForFirestore === 'function') {
     waitForFirestore(function() {
+      _syncCheckIns();
       renderHRMSOverview();
       if (typeof dbSubscribe === 'function') {
-        dbSubscribe('hrmsEmployees', function() { renderHRMSOverview(); });
-        dbSubscribe('hrmsLeaves',    function() { renderHRMSOverview(); });
-        dbSubscribe('hrmsCheckIns',  function() { renderHRMSOverview(); });
+        dbSubscribe('hrmsEmployees',   function() { renderHRMSOverview(); });
+        dbSubscribe('hrmsLeaves',      function() { renderHRMSOverview(); });
+        dbSubscribe('hrmsCheckIns',    function() { _syncCheckIns(); renderHRMSOverview(); });
+        dbSubscribe('hrmsLocRequests', function() { renderLocApprovals(); });
       }
     }, 5000);
   }

@@ -252,6 +252,7 @@ function quickMarkPaid(id) {
   // Also update booking
   const bk = DB.bookings.find(b=>b.id===inv.bookingId);
   if (bk) { bk.advancePaid = bk.totalAmount; bk.paidAmount = bk.totalAmount; bk.pendingAmount = 0; if(bk.status==='pending'){bk.status='confirmed';bk.confirmedAt=new Date().toISOString();} }
+  if(typeof dbSave==='function'){dbSave('invoices',inv).catch(()=>{});if(bk)dbSave('bookings',bk).catch(()=>{});}
   saveDB(); renderInvoices(); showToast(inv.ref+' marked as paid! ✅');
 }
 

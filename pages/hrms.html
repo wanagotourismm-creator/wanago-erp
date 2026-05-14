@@ -20,6 +20,8 @@
         <div class="tab hrms-tab-btn" onclick="switchHRMSTab(this,'hrms-attendance')">📅 Attendance</div>
         <div class="tab hrms-tab-btn" onclick="switchHRMSTab(this,'hrms-leaves')">🏖️ Leaves</div>
         <div class="tab hrms-tab-btn" onclick="switchHRMSTab(this,'hrms-payroll')">💰 Payroll</div>
+        <div class="tab hrms-tab-btn" onclick="switchHRMSTab(this,'hrms-loc-approvals')">📍 Loc Approvals <span id="loc-badge" style="background:#dc2626;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;display:none">0</span></div>
+        <div class="tab hrms-tab-btn" onclick="switchHRMSTab(this,'hrms-offices')">🏢 Offices</div>
       </div>
 
       <!-- EMPLOYEES TAB -->
@@ -63,7 +65,85 @@
         <div class="table-wrap"><table><thead><tr><th>Employee</th><th style="text-align:right">Basic</th><th style="text-align:right">Allowances</th><th style="text-align:right">Gross</th><th style="text-align:right">Deductions</th><th style="text-align:right">Net Pay</th><th>Status</th><th>Action</th></tr></thead><tbody id="payroll-tbody"></tbody></table></div>
       </div>
 
+      <!-- LOCATION APPROVALS TAB -->
+      <div class="hrms-tab-content" id="hrms-loc-approvals">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <h3 style="font-size:15px;font-weight:700;flex:1">📍 Location Approval Requests</h3>
+          <select id="loc-req-filter" class="form-select" style="width:160px" onchange="renderLocApprovals()">
+            <option value="all">All Requests</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Date</th><th>Time</th><th>Location</th><th>Reason</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead><tbody id="loc-approvals-tbody"></tbody></table></div>
+      </div>
+
+      <!-- OFFICES TAB -->
+      <div class="hrms-tab-content" id="hrms-offices">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <h3 style="font-size:15px;font-weight:700;flex:1">🏢 Office Locations (Geofence)</h3>
+          <button class="btn btn-primary" onclick="openAddOfficeLocModal()">+ Add Office Location</button>
+        </div>
+        <p style="font-size:12.5px;color:var(--textd);margin-bottom:14px">Set GPS coordinates and allowed radius for each office. Staff must be within the radius to check in without approval.</p>
+        <div id="office-loc-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+        <div style="margin-top:20px;padding:14px;background:var(--cream);border-radius:var(--radius);font-size:12px;color:var(--textd)">
+          <strong>⚙ Attendance Settings</strong><br>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">
+            <div class="form-group" style="flex:1;min-width:160px">
+              <label class="form-label">Work Shift</label>
+              <input class="form-input" id="sett-shift" placeholder="09:00 - 18:00" style="font-size:12px">
+            </div>
+            <div class="form-group" style="flex:1;min-width:160px">
+              <label class="form-label">Weekly Off Days</label>
+              <select class="form-select" id="sett-weekly-off" multiple style="height:70px;font-size:12px">
+                <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+                <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button class="btn btn-primary" onclick="saveAttSettings()">Save Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div></div>
+  </div>
+</div>
+
+<!-- ADD OFFICE LOCATION MODAL -->
+<div class="modal-overlay" id="modal-add-office-loc">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title" id="office-loc-modal-title">Add Office Location</div>
+    <input type="hidden" id="office-loc-edit-id">
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Office Name *</label><input class="form-input" id="ol-name" placeholder="Head Office, Branch 1…"></div>
+      <div class="form-group"><label class="form-label">Latitude *</label><input class="form-input" id="ol-lat" placeholder="12.9716" type="number" step="any"></div>
+      <div class="form-group"><label class="form-label">Longitude *</label><input class="form-input" id="ol-lng" placeholder="77.5946" type="number" step="any"></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Allowed Radius (meters) — default 200m</label>
+        <input class="form-input" id="ol-radius" placeholder="200" type="number" min="50" max="5000">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <button class="btn btn-outline" type="button" onclick="useMyLocation()" style="font-size:12px">📍 Use My Current Location</button>
+        <div id="ol-my-loc-status" style="font-size:11px;color:var(--textd);margin-top:4px"></div>
+      </div>
+    </div>
+    <div id="ol-error" style="color:var(--red);font-size:12px;display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-office-loc')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOfficeLoc()">Save Location</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW LOCATION PHOTO MODAL -->
+<div class="modal-overlay" id="modal-loc-photo">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-title">Check-In Photo</div>
+    <div style="text-align:center"><img id="loc-photo-img" style="max-width:100%;border-radius:8px" alt="check-in photo"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-loc-photo')">Close</button></div>
   </div>
 </div>
 

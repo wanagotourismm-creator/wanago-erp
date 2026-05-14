@@ -20,7 +20,8 @@ const FS_BASE = `https://www.gstatic.com/firebasejs/${FS_VER}`;
 const FS_COLLECTIONS = [
   'leads','customers','quotations','packages','bookings',
   'invoices','payments','expenses','campaigns','segments','activities','tickets',
-  'hrmsEmployees','hrmsLeaves','hrmsPayroll','hrmsCheckIns',
+  'hrmsEmployees','hrmsLeaves','hrmsPayroll','hrmsCheckIns','hrmsLocRequests',
+  'itineraries',
   'tasks','rewards','pointsLog',
 ];
 const FS_SETTINGS_DOC  = 'settings';
@@ -34,6 +35,7 @@ let _compId   = null;   // Firebase project ID = company namespace
 let _fsReady  = false;
 let _listeners = [];
 let _pushTimer = null;
+let _initialSnapDone = {};  // tracks which collections have completed their first snapshot
 
 /* ══════════════════════════════════════════════════
    INIT
@@ -252,18 +254,20 @@ async function fsListen(collection, callback) {
   try {
     const { collection: col, onSnapshot } = await import(`${FS_BASE}/firebase-firestore.js`);
     const off = onSnapshot(col(_db, _path(collection)), snap => {
-      // Play notification sound on real-time updates from other users
-      if (snap.docChanges().some(c => c.type === 'added' || c.type === 'modified')) {
-        var sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+      // Skip notifications on the initial snapshot — every existing doc fires as 'added'.
+      // Only notify on subsequent real-time updates from other users.
+      if (_initialSnapDone[collection]) {
+        const sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
         snap.docChanges().forEach(function(change) {
-          var data = change.doc.data();
-          // Only play if updated by someone else
-          if (change.type === 'added' && data._updatedBy && data._updatedBy !== sess.uid) {
+          const data = change.doc.data();
+          if ((change.type === 'added' || change.type === 'modified') &&
+              data._updatedBy && data._updatedBy !== sess.uid) {
             if (typeof window.playNotifSound === 'function') window.playNotifSound('ding');
             if (typeof window.pushNotification === 'function') window.pushNotification({ title: 'New ' + collection, message: 'Data updated by team member', type: 'info', sound: false });
           }
         });
       }
+      _initialSnapDone[collection] = true;
       DB[collection] = _sortRecords(snap.docs.map(d => _fromFirestoreDoc(d)));
       // Keep localStorage cache in sync so page reloads immediately have fresh data.
       // We do NOT set the dirty flag here — cloud is authoritative for these updates.
@@ -316,7 +320,7 @@ window._fsPushDB = function() {
   clearTimeout(_pushTimer);
   _pushTimer = setTimeout(() => {
     _pushAll().catch(e => console.warn('[Push]', e.message));
-  }, 300);
+  }, 2000);
 };
 
 window._fsPushDBNow = function() {
@@ -326,6 +330,8 @@ window._fsPushDBNow = function() {
 
 async function _pushAll() {
   if (!_fsReady || !_db) return;
+  let collectionsOk = true;
+  let extrasOk = true;
   try {
     const { doc, writeBatch, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
     const ts  = serverTimestamp();
@@ -336,14 +342,18 @@ async function _pushAll() {
       if (!items.length) continue;
       // Batch in chunks of 400 (Firestore limit is 500)
       for (let i = 0; i < items.length; i += 400) {
-        const batch = writeBatch(_db);
-        items.slice(i, i + 400).forEach(item => {
-          if (!item.id) return;
-          batch.set(doc(_db, _path(col), item.id), { ..._cleanForFirestore(item), _updatedAt: ts, _updatedBy: uid }, { merge: true });
-        });
-        await batch.commit();
+        try {
+          const batch = writeBatch(_db);
+          items.slice(i, i + 400).forEach(item => {
+            if (!item.id) return;
+            batch.set(doc(_db, _path(col), item.id), { ..._cleanForFirestore(item), _updatedAt: ts, _updatedBy: uid }, { merge: true });
+          });
+          await batch.commit();
+        } catch(e) { console.warn(`[push:${col}]`, e.message); collectionsOk = false; }
       }
     }
+
+    // Save settings
     const settingsOk = await fsSaveSettings();
 
     // Save extras — non-collection DB fields missed by FS_COLLECTIONS
@@ -360,8 +370,12 @@ async function _pushAll() {
       });
       await setDoc(doc(_db, `companies/${_compId}`, 'extras'),
         { ...extrasClean, _updatedAt: ts, _updatedBy: uid }, { merge: false });
-    } catch (e) { console.warn('[extras push]', e.message); }
-    if (settingsOk !== false) localStorage.removeItem(FS_DIRTY_FLAG);
+    } catch (e) { console.warn('[extras push]', e.message); extrasOk = false; }
+
+    // Clear dirty flag only when all sections saved successfully
+    if (collectionsOk && settingsOk !== false && extrasOk) {
+      localStorage.removeItem(FS_DIRTY_FLAG);
+    }
   } catch (e) { console.error('[_pushAll]', e.message); }
 }
 

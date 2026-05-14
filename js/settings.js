@@ -101,7 +101,7 @@ function saveAllSettings() {
   s.notifBirthday=document.getElementById('sett-notif-bday')?.checked||false;
   s.notifFollowup=document.getElementById('sett-notif-followup')?.checked||false;
   s.notifPassport=document.getElementById('sett-notif-passport')?.checked||false;
-  saveDB(); showToast('Settings saved! ✅');
+  saveDB(); if(typeof fsSaveSettings==='function')fsSaveSettings().catch(()=>{}); showToast('Settings saved! ✅');
 }
 
 function toggleGSTFields() {
