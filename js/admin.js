@@ -511,7 +511,7 @@ function saveMember() {
   fields.permissions = { pages: perms.pages, features: perms.features, actions: perms.features, sections: {} };
   if(editId) { const m=(DB.settings.team||[]).find(x=>x.id===editId); if(m)Object.assign(m,fields); showToast(name+' updated'); }
   else { const color=['#134a32','#1976d2','#f57c00','#7b1fa2','#c9a84c','#d32f2f','#00796b'][Math.floor(Math.random()*7)]; DB.settings.team.push({id:uid(),...fields,color,createdAt:new Date().toISOString()}); showToast(name+' added to team!'); }
-  persistSettingsNow(); closeModal('modal-add-member'); renderTeamMembers(); renderSetupChecklist();
+  persistSettingsNow(); closeModal('modal-add-member'); renderTeamMembers(); renderTeamLogins(); renderSetupChecklist();
 }
 
 // ══════ OFFICES ══════
