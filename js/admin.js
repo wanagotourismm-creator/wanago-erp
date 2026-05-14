@@ -774,7 +774,7 @@ function renderTeamLogins() {
         ? '<span style="background:#fff8e1;color:#7a5800;border:1px solid #ffd54f;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ No Account</span>'
         : '<span style="background:#fce4ec;color:#b71c1c;border:1px solid #ef9a9a;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">❌ No Email</span>';
     var actionBtns = hasFb
-      ? '<button class="row-btn" onclick="resetFirebasePassword(\'' + m.id + '\')" style="color:var(--amb)">Reset Password</button>'
+      ? '<button class="row-btn" onclick="openResetPasswordModal(\'' + m.id + '\')" style="color:var(--amb)">🔄 Reset Password</button>'
       : hasEmail
         ? '<button class="row-btn btn-primary-sm" onclick="openCreateAccountModal(\'' + m.id + '\')">🔑 Create Account</button>'
         : '<button class="row-btn" onclick="editMember(\'' + m.id + '\')" style="color:var(--textd)">Set Email First</button>';
@@ -887,12 +887,45 @@ window.submitCreateFirebaseAccount = function(memberId) {
   xhr.send(JSON.stringify({email: email, password: password, returnSecureToken: false}));
 };
 
-// ── Reset Firebase Password (REST API) ──
-window.resetFirebasePassword = function(memberId) {
+// ── Reset Firebase Password (modal, no confirm()) ──
+window.openResetPasswordModal = function(memberId) {
   var team = DB.settings.team || [];
   var m = team.find(function(x){ return x.id === memberId; });
   if (!m || !m.email) { showToast('No email on record for this member','error'); return; }
-  if (!confirm('Send password reset email to ' + m.email + '?')) return;
+
+  // Remove any stale modal
+  var old = document.getElementById('reset-pw-overlay');
+  if (old) old.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'reset-pw-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:360px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18)">' +
+      '<div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:6px">🔄 Reset Password</div>' +
+      '<div style="font-size:13px;color:#64748b;margin-bottom:18px">A password reset link will be sent to:</div>' +
+      '<div style="background:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:13.5px;font-weight:600;color:#1e293b;margin-bottom:20px;word-break:break-all">' + m.email + '</div>' +
+      '<div id="reset-pw-msg" style="display:none;font-size:12.5px;border-radius:7px;padding:8px 12px;margin-bottom:14px"></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button id="reset-pw-cancel" class="btn btn-outline btn-sm" onclick="document.getElementById(\'reset-pw-overlay\').remove()">Cancel</button>' +
+        '<button id="reset-pw-send" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none" onclick="submitResetPassword(\'' + m.id + '\')">Send Reset Email</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  // close on backdrop click
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.remove(); });
+};
+
+window.submitResetPassword = function(memberId) {
+  var team = DB.settings.team || [];
+  var m = team.find(function(x){ return x.id === memberId; });
+  if (!m || !m.email) return;
+
+  var msgEl = document.getElementById('reset-pw-msg');
+  var sendBtn = document.getElementById('reset-pw-send');
+  var cancelBtn = document.getElementById('reset-pw-cancel');
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+  if (cancelBtn) { cancelBtn.disabled = true; }
 
   var API_KEY = 'AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU';
   var url = 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + API_KEY;
@@ -901,14 +934,38 @@ window.resetFirebasePassword = function(memberId) {
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.onload = function() {
     if (xhr.status === 200) {
-      showToast('✅ Reset email sent to ' + m.email);
+      if (msgEl) {
+        msgEl.style.display = 'block';
+        msgEl.style.background = '#dcfce7';
+        msgEl.style.color = '#166534';
+        msgEl.textContent = '✅ Reset email sent to ' + m.email;
+      }
+      if (sendBtn) { sendBtn.style.display = 'none'; }
+      if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.textContent = 'Close'; }
     } else {
-      var res = JSON.parse(xhr.responseText);
-      var msg = (res.error && res.error.message) || 'Unknown error';
-      showToast('Failed: ' + msg, 'error');
+      var res = {};
+      try { res = JSON.parse(xhr.responseText); } catch(_) {}
+      var errMsg = (res.error && res.error.message) || 'Unknown error';
+      if (msgEl) {
+        msgEl.style.display = 'block';
+        msgEl.style.background = '#fee2e2';
+        msgEl.style.color = '#991b1b';
+        msgEl.textContent = '❌ Failed: ' + errMsg;
+      }
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Retry'; }
+      if (cancelBtn) { cancelBtn.disabled = false; }
     }
   };
-  xhr.onerror = function() { showToast('Network error sending reset email','error'); };
+  xhr.onerror = function() {
+    if (msgEl) {
+      msgEl.style.display = 'block';
+      msgEl.style.background = '#fee2e2';
+      msgEl.style.color = '#991b1b';
+      msgEl.textContent = '❌ Network error. Check your connection.';
+    }
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Retry'; }
+    if (cancelBtn) { cancelBtn.disabled = false; }
+  };
   xhr.send(JSON.stringify({requestType: 'PASSWORD_RESET', email: m.email}));
 };
 
