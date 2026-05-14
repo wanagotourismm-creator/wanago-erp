@@ -90,6 +90,11 @@ function renderAllReports() {
   renderDestinationReport(from, to);
   renderQuotationsReport(from, to);
   renderPackageReport(from, to);
+  renderPLStatement(from, to);
+  renderCashflow(from, to);
+  renderExpenseBreakdown(from, to);
+  renderRevenueForecast(from, to);
+  renderOutstandingCollections(from, to);
 }
 
 function inRange(dateStr, from, to) {
@@ -559,6 +564,239 @@ function renderPackageReport(from, to) {
       </div>
     </div>`;
   }).join('');
+}
+
+// ══════ 8. P&L STATEMENT ══════
+function renderPLStatement(from, to) {
+  const el = document.getElementById('rep-pl-content'); if (!el) return;
+  const payments = hScoped('payments').filter(p => inRange(p.date, from, to) && p.status === 'completed');
+  const expenses = hScoped('expenses').filter(e => inRange(e.date, from, to));
+  const bookings = hScoped('bookings').filter(b => inRange(b.date || b.createdAt, from, to) && b.status === 'Cancelled');
+
+  const totalRevenue  = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalRefunds  = bookings.reduce((s, b) => s + Number(b.cancellation?.refundAmount || 0), 0);
+  const grossProfit   = totalRevenue - totalRefunds;
+  const netProfit     = grossProfit - totalExpenses;
+  const margin        = grossProfit > 0 ? ((netProfit / grossProfit) * 100).toFixed(1) : 0;
+  const profitColor   = netProfit >= 0 ? 'var(--g700)' : 'var(--red)';
+
+  const row = (label, value, bold, color) =>
+    `<tr style="${bold ? 'font-weight:700;border-top:2px solid var(--border)' : ''}">
+      <td style="padding:9px 14px;font-size:13px;color:var(--textm)">${label}</td>
+      <td style="padding:9px 14px;font-size:13px;text-align:right;font-weight:${bold?'700':'500'};color:${color||'var(--text)'}">${formatMoney(value)}</td>
+      <td style="padding:9px 14px;font-size:12px;text-align:right;color:var(--textd)">${grossProfit>0?Math.round(Math.abs(value)/grossProfit*100)+'%':''}</td>
+    </tr>`;
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+      ${[
+        {l:'Revenue Collected', v:formatMoney(totalRevenue), c:'var(--g700)'},
+        {l:'Total Expenses',    v:formatMoney(totalExpenses), c:'var(--red)'},
+        {l:'Net Profit / Loss', v:formatMoney(netProfit),    c:profitColor},
+        {l:'Profit Margin',     v:margin+'%',                c:Number(margin)>=20?'var(--g700)':Number(margin)>=0?'var(--amb)':'var(--red)'},
+      ].map(s=>`<div style="background:var(--cream);border-radius:10px;padding:14px 16px">
+        <div style="font-size:11px;color:var(--textd);margin-bottom:5px">${s.l}</div>
+        <div style="font-size:22px;font-weight:800;color:${s.c}">${s.v}</div>
+      </div>`).join('')}
+    </div>
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--cream)">
+          <th style="padding:9px 14px;text-align:left;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Item</th>
+          <th style="padding:9px 14px;text-align:right;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Amount</th>
+          <th style="padding:9px 14px;text-align:right;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">% of Revenue</th>
+        </tr></thead>
+        <tbody>
+          ${row('Revenue from Payments', totalRevenue, false, 'var(--g700)')}
+          ${totalRefunds ? row('Less: Cancellation Refunds', -totalRefunds, false, 'var(--red)') : ''}
+          ${row('Gross Revenue', grossProfit, true, 'var(--g700)')}
+          ${row('Total Expenses', totalExpenses, false, 'var(--red)')}
+          ${row('Net Profit / Loss', netProfit, true, profitColor)}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ══════ 9. CASHFLOW ══════
+function renderCashflow(from, to) {
+  const el = document.getElementById('rep-cashflow-chart'); if (!el) return;
+  const payments = hScoped('payments').filter(p => p.status === 'completed' && p.date);
+  const expenses = hScoped('expenses').filter(e => e.date);
+
+  const months = {};
+  const ensure = m => { if (!months[m]) months[m] = { in:0, out:0 }; };
+
+  payments.forEach(p => { const m=p.date.slice(0,7); ensure(m); months[m].in += Number(p.amount||0); });
+  expenses.forEach(e => { const m=e.date.slice(0,7); ensure(m); months[m].out += Number(e.amount||0); });
+
+  const keys = Object.keys(months).sort().slice(-12);
+  if (!keys.length) { el.innerHTML='<div style="text-align:center;padding:30px;color:var(--textd)">No cashflow data yet</div>'; return; }
+
+  const maxVal = Math.max(...keys.flatMap(k=>[months[k].in, months[k].out]), 1);
+
+  el.innerHTML = `<div style="display:flex;align-items:flex-end;gap:8px;height:180px;padding-bottom:22px;overflow-x:auto">` +
+    keys.map(k => {
+      const m = months[k];
+      const net = m.in - m.out;
+      const inPct  = Math.max(3, (m.in  / maxVal) * 100);
+      const outPct = Math.max(3, (m.out / maxVal) * 100);
+      const label  = new Date(k+'-01').toLocaleDateString('en-IN',{month:'short',year:'2-digit'});
+      const netClr = net >= 0 ? 'var(--g700)' : 'var(--red)';
+      return `<div style="flex:1;min-width:48px;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="font-size:9px;color:${netClr};font-weight:700;margin-bottom:1px">${net>=0?'+':''}${formatMoney(net)}</div>
+        <div style="width:100%;display:flex;gap:3px;align-items:flex-end;height:130px">
+          <div style="flex:1;background:var(--g500);border-radius:3px 3px 0 0;height:${inPct}%;min-height:3px;opacity:.85" title="Cash In: ${formatMoney(m.in)}"></div>
+          <div style="flex:1;background:var(--red);border-radius:3px 3px 0 0;height:${outPct}%;min-height:3px;opacity:.75" title="Cash Out: ${formatMoney(m.out)}"></div>
+        </div>
+        <div style="font-size:9px;color:var(--textd)">${label}</div>
+      </div>`;
+    }).join('') +
+  `</div>
+  <div style="display:flex;gap:16px;justify-content:center;margin-top:6px">
+    <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--textd)"><div style="width:10px;height:10px;background:var(--g500);border-radius:2px;opacity:.85"></div>Cash In</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--textd)"><div style="width:10px;height:10px;background:var(--red);border-radius:2px;opacity:.75"></div>Cash Out</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--textd)"><div style="width:10px;height:10px;background:var(--g700);border-radius:2px"></div>Net (label)</div>
+  </div>`;
+}
+
+// ══════ 10. EXPENSE BREAKDOWN ══════
+function renderExpenseBreakdown(from, to) {
+  const el = document.getElementById('rep-expense-breakdown'); if (!el) return;
+  const expenses = hScoped('expenses').filter(e => inRange(e.date, from, to));
+  if (!expenses.length) { el.innerHTML='<div style="text-align:center;padding:24px;color:var(--textd);font-size:12px">No expense data for this period</div>'; return; }
+
+  const cats = {};
+  expenses.forEach(e => {
+    const c = e.category || e.type || 'Uncategorised';
+    if (!cats[c]) cats[c] = 0;
+    cats[c] += Number(e.amount || 0);
+  });
+
+  const total  = Object.values(cats).reduce((s, v) => s + v, 0);
+  const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  const maxV   = Math.max(...sorted.map(s => s[1]), 1);
+  const clrs   = ['var(--red)','var(--amb)','#7c3aed','var(--blue)','var(--g500)','#e91e8c','var(--g700)','#aaa'];
+
+  el.innerHTML = `<div style="font-size:11.5px;color:var(--textd);margin-bottom:12px;font-weight:600">Total: ${formatMoney(total)}</div>` +
+    sorted.map(([cat, val], i) => {
+      const pct     = Math.max(3, (val / maxV) * 100);
+      const sharePct = Math.round((val / total) * 100);
+      return `<div style="margin-bottom:9px">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px">
+          <span style="color:var(--textm)">${cat}</span>
+          <span style="font-weight:700">${formatMoney(val)} <span style="color:var(--textd);font-weight:400">(${sharePct}%)</span></span>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${clrs[i%clrs.length]};border-radius:4px;transition:.4s"></div>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// ══════ 11. REVENUE FORECAST ══════
+function renderRevenueForecast(from, to) {
+  const el = document.getElementById('rep-revenue-forecast'); if (!el) return;
+  const today = new Date().toISOString().slice(0,10);
+
+  // Upcoming confirmed bookings (future departure dates)
+  const upcoming = hScoped('bookings').filter(b =>
+    b.status === 'Confirmed' && b.date && b.date >= today
+  ).sort((a, b) => a.date < b.date ? -1 : 1);
+
+  if (!upcoming.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--textd);font-size:12px">No upcoming confirmed bookings</div>';
+    return;
+  }
+
+  // Group by month
+  const months = {};
+  upcoming.forEach(b => {
+    const m = b.date.slice(0, 7);
+    if (!months[m]) months[m] = { count:0, expected:0, bookings:[] };
+    const amt = Number(b.amount || b.totalAmount || 0);
+    months[m].count++;
+    months[m].expected += amt;
+    months[m].bookings.push(b);
+  });
+
+  const keys    = Object.keys(months).sort().slice(0, 6);
+  const totalFc = Object.values(months).reduce((s, m) => s + m.expected, 0);
+  const maxV    = Math.max(...keys.map(k => months[k].expected), 1);
+
+  el.innerHTML = `<div style="font-size:11.5px;color:var(--textd);margin-bottom:12px">
+    <strong style="color:var(--g700);font-size:13px">${formatMoney(totalFc)}</strong> expected from ${upcoming.length} upcoming bookings
+  </div>` +
+    keys.map(k => {
+      const m     = months[k];
+      const pct   = Math.max(3, (m.expected / maxV) * 100);
+      const label = new Date(k+'-01').toLocaleDateString('en-IN',{month:'short', year:'numeric'});
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px">
+          <span style="font-weight:600">${label}</span>
+          <span style="font-weight:700;color:var(--g700)">${formatMoney(m.expected)} <span style="color:var(--textd);font-weight:400">(${m.count} bk)</span></span>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--g500);border-radius:4px;transition:.4s"></div>
+        </div>
+      </div>`;
+    }).join('') +
+    `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--textd)">
+      Based on booking amounts of confirmed trips. Amounts marked TBD excluded.
+    </div>`;
+}
+
+// ══════ 12. OUTSTANDING COLLECTIONS ══════
+function renderOutstandingCollections(from, to) {
+  const el = document.getElementById('rep-outstanding'); if (!el) return;
+
+  // Bookings with pending dues (pendingAmount > 0 or status = Confirmed and unpaid)
+  const bookings = hScoped('bookings').filter(b =>
+    b.status !== 'Cancelled' &&
+    (Number(b.pendingAmount || 0) > 0 || (b.status === 'Confirmed' && !b.isPaid && b.amount && b.amount !== 'TBD'))
+  );
+
+  if (!bookings.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--textd);font-size:12px">✅ No outstanding collections — all cleared!</div>';
+    return;
+  }
+
+  const total = bookings.reduce((s, b) => {
+    const due = Number(b.pendingAmount || b.amount || 0);
+    return s + due;
+  }, 0);
+
+  const today = new Date().toISOString().slice(0,10);
+  const sortedBk = [...bookings].sort((a, b) => (a.date||'') < (b.date||'') ? -1 : 1);
+
+  el.innerHTML = `<div style="font-size:12px;color:var(--textd);margin-bottom:12px">
+    <strong style="color:var(--red);font-size:14px">${formatMoney(total)}</strong> outstanding across <strong>${bookings.length}</strong> booking${bookings.length!==1?'s':''}
+  </div>
+  <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--cream)">
+        <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Booking</th>
+        <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Customer</th>
+        <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Package</th>
+        <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Amount Due</th>
+        <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Dep. Date</th>
+        <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--textd);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Status</th>
+      </tr></thead>
+      <tbody>${sortedBk.map(b => {
+        const due = Number(b.pendingAmount || b.amount || 0);
+        const isOverdue = b.date && b.date < today;
+        const statusCl  = isOverdue ? 'color:var(--red);font-weight:700' : 'color:var(--amb);font-weight:600';
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:9px 12px;font-size:12.5px;font-weight:700;color:var(--g700)">${b.id||b.ref||'—'}</td>
+          <td style="padding:9px 12px;font-size:12.5px">${b.customer||b.customerName||'—'}</td>
+          <td style="padding:9px 12px;font-size:12.5px;color:var(--textd)">${b.pkg||b.packageName||'—'}</td>
+          <td style="padding:9px 12px;font-size:13px;font-weight:700;text-align:right;color:var(--red)">${formatMoney(due)}</td>
+          <td style="padding:9px 12px;font-size:12px">${b.date ? new Date(b.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
+          <td style="padding:9px 12px;font-size:12px;${statusCl}">${isOverdue ? '🔴 Overdue' : '🟡 Due'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
 }
 
 // ══════ EXPORT ══════

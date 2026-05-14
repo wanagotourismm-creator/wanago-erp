@@ -21,7 +21,7 @@ const FS_COLLECTIONS = [
   'leads','customers','quotations','packages','bookings',
   'invoices','payments','expenses','campaigns','segments','activities','tickets',
   'hrmsEmployees','hrmsLeaves','hrmsPayroll','hrmsCheckIns','hrmsLocRequests',
-  'itineraries',
+  'itineraries','suppliers','chatMessages',
   'tasks','rewards','pointsLog',
 ];
 const FS_SETTINGS_DOC  = 'settings';

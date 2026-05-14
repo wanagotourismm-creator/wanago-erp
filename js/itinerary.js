@@ -1,5 +1,31 @@
 // itinerary.js — Wanago ERP Itinerary Builder
 
+// ── Auth guard (same pattern as every other page module) ──
+function initPage(renderFn) {
+  var session = sessionStorage.getItem('wanago_session');
+  if (!session) { window.location.href = '../index.html'; return; }
+  try {
+    var s = JSON.parse(session);
+    var tu = document.getElementById('topbar-user');
+    if (tu) tu.textContent = s.email || '';
+    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
+  } catch(ex) {}
+  function fadeLoader() {
+    var l = document.getElementById('page-loader');
+    var a = document.querySelector('.app');
+    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
+    if (a) a.classList.add('loaded');
+  }
+  setTimeout(function() {
+    try { if (renderFn) renderFn(); } catch(e) { console.error('Itinerary render error:', e); }
+    fadeLoader();
+  }, 20);
+}
+function handleLogout() { sessionStorage.removeItem('wanago_session'); window.location.href = '../index.html'; }
+function goTo(page) { window.location.href = page + '.html'; }
+window.handleLogout = handleLogout;
+window.goTo = goTo;
+
 const SERVICE_TYPES = {
   flight:      { label:'Flight',      emoji:'✈️',  color:'#dbeafe', text:'#1e40af', group:'fg-flight'   },
   hotel:       { label:'Hotel',       emoji:'🏨',  color:'#dcfce7', text:'#166534', group:'fg-hotel'    },
