@@ -35,6 +35,7 @@ let _compId   = null;   // Firebase project ID = company namespace
 let _fsReady  = false;
 let _listeners = [];
 let _pushTimer = null;
+let _pendingWrites = [];    // writes queued before Firestore is ready
 let _initialSnapDone = {};  // tracks which collections have completed their first snapshot
 
 /* ══════════════════════════════════════════════════
@@ -68,6 +69,12 @@ async function fsInit() {
 
     _fsReady         = true;
     window._fsReady  = true;
+
+    // Flush writes queued before Firestore was ready — await so they land before _loadAll() reads.
+    if (_pendingWrites.length) {
+      const pending = _pendingWrites.splice(0);
+      await Promise.all(pending.map(w => fsSave(w.collection, w.docId, w.data)));
+    }
 
     // Push any dirty local data FIRST — before _loadAll() overwrites DB with cloud data.
     // Without this, unsaved changes from the previous session are silently lost.
@@ -167,7 +174,13 @@ async function _loadAll() {
     await Promise.all(FS_COLLECTIONS.map(async col => {
       try {
         const snap = await getDocs(collection(_db, _path(col)));
-        if (!snap.empty) DB[col] = _sortRecords(snap.docs.map(d => _fromFirestoreDoc(d)));
+        const fsRecords = snap.empty ? [] : snap.docs.map(d => _fromFirestoreDoc(d));
+        const fsIds = new Set(fsRecords.map(r => r.id));
+        const localPending = (DB[col] || []).filter(r => r.id && !fsIds.has(r.id));
+        if (fsRecords.length || localPending.length) {
+          DB[col] = _sortRecords([...fsRecords, ...localPending]);
+          if (localPending.length) localPending.forEach(item => fsSave(col, item.id, item));
+        }
       } catch(e) { /* collection doesn't exist yet */ }
     }));
 
@@ -267,8 +280,17 @@ async function fsListen(collection, callback) {
           }
         });
       }
+      const fsRecords = snap.docs.map(d => _fromFirestoreDoc(d));
+      if (!_initialSnapDone[collection]) {
+        // First snapshot: merge local-only records not yet committed to Firestore
+        const fsIds = new Set(fsRecords.map(r => r.id));
+        const localPending = (DB[collection] || []).filter(r => r.id && !fsIds.has(r.id));
+        DB[collection] = _sortRecords([...fsRecords, ...localPending]);
+        if (localPending.length) localPending.forEach(item => fsSave(collection, item.id, item));
+      } else {
+        DB[collection] = _sortRecords(fsRecords);
+      }
       _initialSnapDone[collection] = true;
-      DB[collection] = _sortRecords(snap.docs.map(d => _fromFirestoreDoc(d)));
       // Keep localStorage cache in sync so page reloads immediately have fresh data.
       // We do NOT set the dirty flag here — cloud is authoritative for these updates.
       try {
@@ -293,7 +315,10 @@ async function fsListen(collection, callback) {
 ══════════════════════════════════════════════════ */
 
 async function fsSave(collection, docId, data) {
-  if (!_fsReady || !_db) return;
+  if (!_fsReady || !_db) {
+    _pendingWrites.push({ collection, docId, data });
+    return;
+  }
   try {
     const { doc, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
     await setDoc(doc(_db, _path(collection), docId), {
