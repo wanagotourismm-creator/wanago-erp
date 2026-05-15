@@ -812,8 +812,23 @@ window.uploadLeadFiles=uploadLeadFiles;window.deleteLeadFile=deleteLeadFile;
 
 initPage(function() {
   renderLeads();
-  // Re-render once Firestore data arrives; live updates handled by _fsRefreshPage → renderLeads
   if (typeof waitForFirestore === 'function') {
     waitForFirestore(function() { renderLeads(); }, 5000);
+  }
+  // Pre-fill add lead modal if navigated from customer page
+  const prefill = sessionStorage.getItem('wanago_prefill_lead');
+  if (prefill) {
+    sessionStorage.removeItem('wanago_prefill_lead');
+    try {
+      const d = JSON.parse(prefill);
+      setTimeout(function() {
+        openAddLeadModal();
+        setTimeout(function() {
+          const fld = (i, v) => { const el = document.getElementById(i); if (el && v) el.value = v; };
+          fld('l-name', d.name); fld('l-phone', d.phone); fld('l-email', d.email);
+          fld('l-source', d.source); fld('l-triptype', d.travelType);
+        }, 120);
+      }, 400);
+    } catch(e) {}
   }
 });

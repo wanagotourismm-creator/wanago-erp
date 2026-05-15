@@ -198,9 +198,18 @@ function viewCustomer(id){
     </div>
     <div class="form-grid" style="margin-bottom:14px">
       <div><div class="form-label">City</div><div style="font-size:12.5px;margin-top:4px">${c.city||'—'}</div></div>
-      <div><div class="form-label">Passport Expiry</div><div style="font-size:12.5px;margin-top:4px;color:${passExpired?'var(--red)':passWarn?'var(--amb)':'inherit'};font-weight:${passWarn||passExpired?'700':'400'}">${c.passportExpiry?formatDate(c.passportExpiry)+(passExpired?' ✗ EXPIRED':passWarn?' ⚠ Expiring':''):'—'}</div></div>
       <div><div class="form-label">DOB</div><div style="font-size:12.5px;margin-top:4px">${c.dob?formatDate(c.dob):'—'}</div></div>
       <div><div class="form-label">Anniversary</div><div style="font-size:12.5px;margin-top:4px">${c.anniversary?formatDate(c.anniversary):'—'}</div></div>
+      <div><div class="form-label">Address</div><div style="font-size:12.5px;margin-top:4px">${c.address||'—'}</div></div>
+      <div><div class="form-label">Passport No.</div><div style="font-size:12.5px;margin-top:4px;font-family:monospace;font-weight:600">${c.passportNo||'—'}</div></div>
+      <div><div class="form-label">Passport Expiry</div><div style="font-size:12.5px;margin-top:4px;color:${passExpired?'var(--red)':passWarn?'var(--amb)':'inherit'};font-weight:${passWarn||passExpired?'700':'400'}">${c.passportExpiry?formatDate(c.passportExpiry)+(passExpired?' ✗ EXPIRED':passWarn?' ⚠ Expiring Soon':''):'—'}</div></div>
+      ${c.prefDest?`<div style="grid-column:1/-1"><div class="form-label">Preferred Destinations</div><div style="font-size:12.5px;margin-top:4px">${c.prefDest}</div></div>`:''}
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-outline" onclick="custWhatsApp('${c.id}')">💬 WhatsApp</button>
+      <button class="btn btn-sm btn-outline" onclick="closeModal('modal-view-customer');editCustomer('${c.id}')">✏️ Edit</button>
+      <button class="btn btn-sm btn-green" onclick="newLeadFromCustomer('${c.id}')">+ New Lead</button>
+      <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteCustomer('${c.id}')">🗑 Delete</button>
     </div>
     ${custBookings.length?`<div class="form-section">✈️ Bookings (${custBookings.length})</div>${custBookings.map(b=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">✈️ '+b.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(b.ref||'')+' · '+formatDate(b.travelDate)+'</div></div><div style="text-align:right"><div style="font-weight:700;color:var(--g700)">'+formatMoney(b.totalAmount||0)+'</div>'+stagePill(b.status)+'</div></div>').join('')}`:''}
     ${custQuots.length?`<div class="form-section">📄 Quotations (${custQuots.length})</div>${custQuots.map(quotRow).join('')}`:''}
@@ -208,6 +217,18 @@ function viewCustomer(id){
     ${custLeads.length?`<div class="form-section">🎯 Leads (${custLeads.length})</div>${custLeads.map(l=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">🎯 '+l.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(l.source||'')+' · '+(l.agent||'Unassigned')+'</div></div>'+stagePill(l.stage)+'</div>').join('')}`:''}
     ${c.notes?`<div class="form-section">Notes</div><div style="font-size:13px;color:var(--textm);background:var(--cream);border-radius:10px;padding:12px;line-height:1.6">${c.notes}</div>`:''}`;
   openModal('modal-view-customer');
+}
+
+function openAddCustomerModal(){
+  document.getElementById('c-edit-id').value='';
+  document.getElementById('cust-modal-title').textContent='Add New Customer';
+  ['c-name','c-phone','c-email','c-dob','c-city','c-address','c-pref-dest','c-anniversary','c-passport-no','c-passport','c-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const t=document.getElementById('c-type');if(t)t.value='';
+  const b=document.getElementById('c-budget');if(b)b.value='';
+  const tag=document.getElementById('c-tag');if(tag)tag.value='regular';
+  const wa=document.getElementById('c-wa-optin');if(wa)wa.value='yes';
+  const err=document.getElementById('c-error');if(err){err.style.display='none';err.textContent='';}
+  openModal('modal-add-customer');
 }
 
 function editCustomer(id){
@@ -232,22 +253,51 @@ function saveCustomer(){
   if(editId){const c=DB.customers.find(x=>x.id===editId);if(c){Object.assign(c,fields);if(typeof dbSave==='function')dbSave('customers',c).catch(()=>{});}saveDB();closeModal('modal-add-customer');renderCustomers();showToast(`${name} updated`);}
   else{const color=['#134a32','#1976d2','#f57c00','#7b1fa2','#c9a84c','#d32f2f','#00796b'][Math.floor(Math.random()*7)];const cust={id:uid(),...fields,color,bookingsCount:0,totalSpent:0,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};DB.customers.unshift(cust);if(typeof dbSave==='function')dbSave('customers',cust).catch(()=>{});saveDB();logActivity(`New customer: ${name}`,'customer');closeModal('modal-add-customer');renderCustomers();showToast(`${name} added!`);}
   document.getElementById('c-edit-id').value='';document.getElementById('cust-modal-title').textContent='Add New Customer';
+  const errEl=document.getElementById('c-error');if(errEl){errEl.style.display='none';errEl.textContent='';}
   ['c-name','c-phone','c-email','c-dob','c-city','c-address','c-pref-dest','c-anniversary','c-passport-no','c-passport','c-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }
 
-function deleteCustomer(id){if(typeof canUserDoAction==='function'&&!canUserDoAction('delete_lead')){showToast('No permission to delete customers','error');return;}if(!confirm('Remove this customer?'))return;DB.customers=DB.customers.filter(c=>c.id!==id);if(typeof dbDelete==='function')dbDelete('customers',id);saveDB();renderCustomers();showToast('Customer removed');}
+function deleteCustomer(id){
+  if(typeof canUserDoAction==='function'&&!canUserDoAction('delete_lead')){showToast('No permission to delete customers','error');return;}
+  const c=DB.customers.find(x=>x.id===id);if(!c)return;
+  const old=document.getElementById('del-cust-overlay');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='del-cust-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML=`<div style="background:#fff;border-radius:14px;padding:26px 24px 20px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">🗑 Delete Customer</div>
+    <div style="font-size:13px;color:var(--textd);margin-bottom:18px">Remove <strong>${c.name}</strong>? This cannot be undone.</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('del-cust-overlay').remove()">Cancel</button>
+      <button class="btn" style="flex:1;background:var(--red);color:#fff;border-color:var(--red)" onclick="confirmDeleteCustomer('${id}')">Delete</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+function confirmDeleteCustomer(id){
+  document.getElementById('del-cust-overlay')?.remove();
+  DB.customers=DB.customers.filter(c=>c.id!==id);
+  if(typeof dbDelete==='function')dbDelete('customers',id);
+  saveDB();closeModal('modal-view-customer');renderCustomers();showToast('Customer removed');
+}
 
 
-window.renderCustomers=renderCustomers;window.filterCustomers=filterCustomers;window.searchCustomers=searchCustomers;window.viewCustomer=viewCustomer;window.editCustomer=editCustomer;window.saveCustomer=saveCustomer;window.deleteCustomer=deleteCustomer;window.custWhatsApp=custWhatsApp;
+function newLeadFromCustomer(id){
+  const c=DB.customers.find(x=>x.id===id);if(!c)return;
+  closeModal('modal-view-customer');
+  goTo('leads');
+  sessionStorage.setItem('wanago_prefill_lead',JSON.stringify({customerId:c.id,name:c.name,phone:c.phone,email:c.email||'',travelType:c.travelType||'domestic',source:'Existing Customer'}));
+}
+
+window.renderCustomers=renderCustomers;window.filterCustomers=filterCustomers;window.searchCustomers=searchCustomers;
+window.viewCustomer=viewCustomer;window.editCustomer=editCustomer;window.saveCustomer=saveCustomer;
+window.deleteCustomer=deleteCustomer;window.confirmDeleteCustomer=confirmDeleteCustomer;
+window.custWhatsApp=custWhatsApp;window.openAddCustomerModal=openAddCustomerModal;
+window.newLeadFromCustomer=newLeadFromCustomer;
 
 initPage(function() {
   renderCustomers();
   if (typeof waitForFirestore === 'function') {
-    waitForFirestore(function() {
-      renderCustomers();
-      if (typeof dbSubscribe === 'function') {
-        dbSubscribe('customers', function() { renderCustomers(); });
-      }
-    }, 5000);
+    waitForFirestore(function() { renderCustomers(); }, 5000);
   }
 });

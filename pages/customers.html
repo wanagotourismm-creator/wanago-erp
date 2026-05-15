@@ -19,7 +19,7 @@
       <div class="topbar-title">Customer CRM</div>
       <div class="topbar-actions">
         <div class="search-wrap"><svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" type="text" placeholder="Search..." oninput="searchCustomers(this.value)" autocomplete="off"/></div>
-        <button class="btn btn-primary" onclick="openModal('modal-add-customer')">+ Add Customer</button>
+        <button class="btn btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button>
         <div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div>
       </div>
     </div>
@@ -66,7 +66,7 @@
               <div class="chip" onclick="filterCustomers('loyal',this)">🔁 Loyal</div>
               <div class="chip" onclick="filterCustomers('inactive',this)">💤 Inactive</div>
             </div>
-            <button class="btn btn-sm btn-primary" onclick="openModal('modal-add-customer')">+ Add Customer</button>
+            <button class="btn btn-sm btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button>
           </div>
           <table>
             <thead><tr><th>Customer</th><th>Phone</th><th>City</th><th>Tag</th><th>Segment</th><th>Type</th><th>Bookings</th><th>Total Spent</th><th>Avg/Trip</th><th>Passport</th><th>Actions</th></tr></thead>
