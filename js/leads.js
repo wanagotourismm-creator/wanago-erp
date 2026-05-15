@@ -385,7 +385,7 @@ function saveLeadFinancials(id){
   l.budget=parseFloat(document.getElementById('vl-budget').value)||0;
   l.advance=parseFloat(document.getElementById('vl-advance').value)||0;
   l.balance=Math.max(0,l.budget-l.advance);
-  saveDB();renderLeads();showToast('Finance updated!');viewLead(id);
+  dbSave('leads',l);saveDB();renderLeads();showToast('Finance updated!');viewLead(id);
 }
 function updateLeadStage(id,stage){
   const l=DB.leads.find(x=>x.id===id);if(!l)return;
@@ -404,9 +404,8 @@ function deleteLead(id){
   if(typeof canUserDoAction==='function'&&!canUserDoAction('delete_lead')){showToast('No permission to delete leads','error');return;}
   const l=DB.leads.find(x=>x.id===id);if(!l)return;
   if(!confirm('Delete lead '+l.name+'?'))return;
-  dbDelete('leads',id);
   DB.leads=DB.leads.filter(x=>x.id!==id);
-  if(typeof dbDelete==='function')dbDelete('leads',id);
+  dbDelete('leads',id);
   saveDB();closeModal('modal-view-lead');renderLeads();showToast('Lead removed');
 }
 
@@ -470,7 +469,7 @@ function runBulkStageUpdate(){
   if(from)leads=leads.filter(l=>l.stage===from);
   if(!leads.length){showToast('No leads match','error');return;}
   if(!confirm(`Move ${leads.length} leads to "${to.replace('_',' ')}"?`))return;
-  leads.forEach(l=>l.stage=to);saveDB();renderLeads();showToast(leads.length+' leads updated!');
+  leads.forEach(l=>{l.stage=to;dbSave('leads',l);});saveDB();renderLeads();showToast(leads.length+' leads updated!');
 }
 function findStaleLeads(){
   const cutoff=new Date(Date.now()-14*86400000).toISOString().slice(0,10);
@@ -558,7 +557,7 @@ function boardAdvance(id){
   const STAGES=['new','contacted','follow_up','quoted','negotiation','won'];
   const l=DB.leads.find(x=>x.id===id);if(!l)return;
   const idx=STAGES.indexOf(l.stage);if(idx<0||idx>=STAGES.length-1)return;
-  l.stage=STAGES[idx+1];saveDB();renderLeadBoard();renderLeads();
+  l.stage=STAGES[idx+1];dbSave('leads',l);saveDB();renderLeadBoard();renderLeads();
   showToast(l.name+' → '+l.stage.replace('_',' '));
 }
 function boardAddLead(stage){openAddLeadModal();setTimeout(()=>{const el=document.getElementById('l-stage');if(el)el.value=stage;},100);}
@@ -568,7 +567,7 @@ window.wsKanbanDrop=function(e,stage){
   e.preventDefault();e.currentTarget.style.outline='none';
   const leadId=e.dataTransfer.getData('leadId');
   const l=DB.leads.find(x=>x.id===leadId);if(!l)return;
-  const old=l.stage;l.stage=stage;saveDB();renderLeadBoard();renderLeads();
+  const old=l.stage;l.stage=stage;dbSave('leads',l);saveDB();renderLeadBoard();renderLeads();
   showToast(l.name+' → '+stage.replace('_',' '));
   logActivity('Lead '+l.name+' moved from '+old+' to '+stage,'lead');
 };
@@ -615,7 +614,8 @@ function confirmCSVImport(){
     const name=(row.name||'').trim();if(!name){skipped++;return;}
     const phone=(row.phone||'').trim();
     if(phone&&DB.leads.find(l=>l.phone===phone)){skipped++;return;}
-    DB.leads.unshift({id:uid(),name,phone,email:row.email||'',destination:row.destination||'',source:row.source||'CSV Import',budget:parseFloat(row.budget)||0,priority:row.priority||'warm',agent:row.agent||'',notes:row.notes||'',stage:'new',officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()});
+    const _nl={id:uid(),name,phone,email:row.email||'',destination:row.destination||'',source:row.source||'CSV Import',budget:parseFloat(row.budget)||0,priority:row.priority||'warm',agent:row.agent||'',notes:row.notes||'',stage:'new',officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
+    DB.leads.unshift(_nl);dbSave('leads',_nl);
     added++;
   });
   saveDB();_csvRows=[];closeModal('modal-csv-import');renderLeads();
@@ -645,7 +645,7 @@ function runBulkAssign(){
   const leads=hScoped('leads').filter(l=>!fa||l.agent===fa);
   if(!leads.length){showToast('No matching leads','error');return;}
   if(!confirm(`Assign ${leads.length} leads to ${ta}?`))return;
-  leads.forEach(l=>l.agent=ta);saveDB();renderLeads();showToast(leads.length+' leads assigned to '+ta+'!');
+  leads.forEach(l=>{l.agent=ta;dbSave('leads',l);});saveDB();renderLeads();showToast(leads.length+' leads assigned to '+ta+'!');
 }
 
 // ── Nav ──
@@ -720,17 +720,9 @@ window.createQuotationFromLead=createQuotationFromLead;window.openSalesChatWindo
 window.uploadLeadFiles=uploadLeadFiles;window.deleteLeadFile=deleteLeadFile;
 
 initPage(function() {
-  // Render from cache immediately
   renderLeads();
-  // Subscribe to Firestore real-time updates
+  // Re-render once Firestore data arrives; live updates handled by _fsRefreshPage → renderLeads
   if (typeof waitForFirestore === 'function') {
-    waitForFirestore(function() {
-      // Re-render with fresh Firestore data
-      renderLeads();
-      // Subscribe for live updates from teammates
-      if (typeof dbSubscribe === 'function') {
-        dbSubscribe('leads', function() { renderLeads(); });
-      }
-    }, 5000);
+    waitForFirestore(function() { renderLeads(); }, 5000);
   }
 });
