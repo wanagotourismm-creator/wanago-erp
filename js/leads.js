@@ -138,6 +138,10 @@ function renderLeads(filter) {
   if(srcF) leads=leads.filter(l=>l.source===srcF);
   const pkgF=document.getElementById('leads-pkg-filter')?.value;
   if(pkgF) leads=leads.filter(l=>l.packageId===pkgF);
+  const dateFrom=document.getElementById('leads-date-from')?.value;
+  const dateTo=document.getElementById('leads-date-to')?.value;
+  if(dateFrom) leads=leads.filter(l=>(l.createdAt||'').slice(0,10)>=dateFrom);
+  if(dateTo) leads=leads.filter(l=>(l.createdAt||'').slice(0,10)<=dateTo);
 
   // AI sort — order by heat score descending
   if (leadsAiSort && typeof window.WanagoAI !== 'undefined') {
@@ -149,11 +153,15 @@ function renderLeads(filter) {
   if(!tbody) return;
   if(!leads.length){tbody.innerHTML=emptyRow(13,'No leads match your filters.');return;}
   const priIcon={hot:'🔥',warm:'🌤',cold:'❄️'};
+  const todayStr=today();
   tbody.innerHTML=leads.map(l=>{
     const score=leadScore(l);
     const isSelected=selectedLeadIds.has(l.id);
     const pkg=l.packageId?(DB.packages||[]).find(p=>p.id===l.packageId):null;
-    return `<tr id="lrow-${l.id}" style="${isSelected?'background:var(--g50)':''}">
+    const fuToday=l.followup===todayStr&&!['won','lost'].includes(l.stage);
+    const fuOverdue=l.followup&&l.followup<todayStr&&!['won','lost'].includes(l.stage);
+    const rowBg=isSelected?'background:var(--g50)':fuOverdue?'background:rgba(220,38,38,.05);':fuToday?'background:rgba(245,158,11,.06);':'';
+    return `<tr id="lrow-${l.id}" style="${rowBg}">
       <td><input type="checkbox" class="lead-checkbox" data-id="${l.id}" ${isSelected?'checked':''} onchange="toggleLeadSelect(this)" style="cursor:pointer"></td>
       <td><div style="font-weight:600">${l.name} <span style="font-size:12px">${priIcon[l.priority]||''}</span></div><div style="font-size:10.5px;color:var(--textd)">${l.phone}</div></td>
       <td>${l.destination}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'✈️ Intl':'🇮🇳 Dom'}</span></td>
@@ -165,9 +173,10 @@ function renderLeads(filter) {
       <td style="color:var(--g600);font-weight:500">${l.advance?formatMoney(l.advance):'—'}</td>
       <td style="${l.balance>0?'color:var(--red);font-weight:600':'color:var(--textd)'}">${l.balance!=null?formatMoney(l.balance):'—'}</td>
       <td>${l.agent||'—'}</td>
-      <td style="${isOverdue(l.followup)?'color:var(--red);font-weight:600':''}">${l.followup?formatDate(l.followup)+(isOverdue(l.followup)?' ⚠':''):'—'}</td>
+      <td style="${fuOverdue?'color:var(--red);font-weight:600':fuToday?'color:var(--amb);font-weight:600':''}">${l.followup?formatDate(l.followup)+(fuOverdue?' ⚠':fuToday?' 📅':''):'—'}</td>
       <td style="white-space:nowrap">
         <button class="row-btn" onclick="viewLead('${l.id}')">View</button>
+        <button class="row-btn" style="margin-left:3px" onclick="editLead('${l.id}')" title="Edit">✏️</button>
         <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${leadJsArg(l.phone)}','${leadJsArg(l.name)}','lead')" title="Sales Chat">💬</button>
         <button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="deleteLead('${l.id}')">✕</button>
       </td>
@@ -227,6 +236,7 @@ function saveLead(){
   const pkgId=document.getElementById('l-package')?.value||'';
   const existingCust=DB.customers.find(c=>c.phone===phone);
   const editId=document.getElementById('l-edit-id').value;
+  if(!editId&&phone){const dupLead=DB.leads.find(l=>l.phone===phone);if(dupLead){showError('l-error',`Phone ${phone} already exists for lead "${dupLead.name}". Open and edit that lead instead.`);return;}}
   const data={
     name,phone,email:document.getElementById('l-email').value.trim(),
     destination:dest,tripType:document.getElementById('l-triptype').value||'domestic',
@@ -292,14 +302,33 @@ function bulkStageChange(stage){
   renderLeads(); showToast(`${count} leads moved to "${stage}"`);
 }
 function bulkAssignAgent(){
-  const team=(DB.settings.team||[]).filter(m=>['sales','management'].includes(m.dept));
-  if(!team.length){showToast('No sales agents in Admin → Team','error');return;}
-  const agent=prompt('Assign to agent:\n'+team.map((m,i)=>`${i+1}. ${m.name}`).join('\n')+'\n\nEnter number:');
-  if(!agent)return; const idx=parseInt(agent)-1;
-  if(isNaN(idx)||idx<0||idx>=team.length)return;
-  const agentName=team[idx].name;
+  if(!selectedLeadIds.size)return;
+  const team=(DB.settings.team||[]);
+  if(!team.length){showToast('No team members in Admin → Team','error');return;}
+  const old=document.getElementById('bulk-assign-overlay');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='bulk-assign-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML=`<div style="background:#fff;border-radius:14px;padding:26px 24px 20px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">👤 Assign Agent</div>
+    <div style="font-size:12.5px;color:var(--textd);margin-bottom:14px">${selectedLeadIds.size} lead${selectedLeadIds.size>1?'s':''} selected</div>
+    <select id="bulk-assign-agent-sel" class="form-select" style="width:100%;margin-bottom:16px">
+      <option value="">Select agent…</option>
+      ${team.map(m=>`<option value="${m.name}">${m.name}${m.dept?' ('+m.dept+')':''}</option>`).join('')}
+    </select>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('bulk-assign-overlay').remove()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="confirmBulkAssignAgent()">Assign</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+function confirmBulkAssignAgent(){
+  const agentName=document.getElementById('bulk-assign-agent-sel')?.value;
+  if(!agentName){showToast('Select an agent','error');return;}
+  document.getElementById('bulk-assign-overlay')?.remove();
   selectedLeadIds.forEach(id=>{const l=DB.leads.find(x=>x.id===id);if(l){l.agent=agentName;dbSave('leads',l);}});
-  saveDB(); selectedLeadIds.clear(); renderLeads();
+  saveDB();selectedLeadIds.clear();renderLeads();
   const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';
   showToast('Leads assigned to '+agentName+'!');
 }
@@ -356,10 +385,20 @@ function viewLead(id){
     <button class="btn btn-sm btn-green" onclick="saveLeadFinancials('${l.id}')">Save Finance</button>
     <div class="form-section" style="margin-top:14px">Log Follow-up</div>
     <div class="form-grid">
-      <div class="form-group"><label class="form-label">Next Follow-up Date</label><input class="form-input" type="date" id="vl-followup" value="${l.followup||today()}"></div>
+      <div class="form-group"><label class="form-label">Next Follow-up Date</label>
+        <input class="form-input" type="date" id="vl-followup" value="${l.followup||today()}">
+        <div style="display:flex;gap:4px;margin-top:5px">
+          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(0)">Today</button>
+          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(1)">+1d</button>
+          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(3)">+3d</button>
+          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(7)">+1wk</button>
+          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(14)">+2wk</button>
+        </div>
+      </div>
       <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="vl-fupnote" placeholder="Call about pricing..."></div>
     </div>
     <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="logFollowUp()">📅 Save Follow-up</button>
+    ${(l.followupLog||[]).length?`<div class="form-section" style="margin-top:14px">📜 Activity Log</div><div style="border-left:2px solid var(--border);padding-left:12px;margin-left:4px;max-height:200px;overflow-y:auto">${[...(l.followupLog||[])].reverse().map(e=>`<div style="margin-bottom:9px;position:relative"><div style="position:absolute;left:-16px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--g400);border:2px solid #fff"></div><div style="font-size:10.5px;color:var(--textd)">${formatDate(e.date)}${e.by?' · '+e.by:''}</div><div style="font-size:12px;color:var(--text);margin-top:1px">${e.note}</div></div>`).join('')}</div>`:''}
     <div class="form-section" style="margin-top:14px">📎 Attachments</div>
     <div id="vl-attach-list">${_renderLeadAttachments(l)}</div>
     <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block;margin-top:6px">
@@ -367,9 +406,11 @@ function viewLead(id){
       📎 Attach Files
     </label>
     <div id="vl-upload-progress" style="display:none;font-size:11px;color:var(--g600);margin-top:4px"></div>
-    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-      <button class="btn btn-sm btn-outline" onclick="openSalesChatWindow('${l.phone}','${l.name}','lead')">💬 Sales Chat</button>
-      ${!['won','lost'].includes(l.stage)?(l.quotationId?`<button class="btn btn-sm btn-outline" style="color:var(--blue)" onclick="closeModal('modal-view-lead');goTo('quotations')">📋 View Quotation</button>`:`<button class="btn btn-sm btn-green" onclick="createQuotationFromLead('${l.id}');closeModal('modal-view-lead');showToast('Quotation created — opening Quotations');goTo('quotations')">📋 Create Quotation</button>`):''}
+    <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm btn-primary" onclick="editLead('${l.id}')">✏️ Edit</button>
+      <button class="btn btn-sm btn-outline" onclick="openSalesChatWindow('${l.phone}','${l.name}','lead')">💬 Chat</button>
+      ${!['won','lost'].includes(l.stage)?(l.quotationId?`<button class="btn btn-sm btn-outline" style="color:var(--blue)" onclick="closeModal('modal-view-lead');goTo('quotations')">📋 View Quote</button>`:`<button class="btn btn-sm btn-green" onclick="createQuotationFromLead('${l.id}');closeModal('modal-view-lead');showToast('Quotation created!');goTo('quotations')">📋 Create Quote</button>`):''}
+      ${l.stage==='won'?`<button class="btn btn-sm btn-green" onclick="convertLeadToBooking('${l.id}')">🎫 Convert to Booking</button>`:''}
       <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteLead('${l.id}')">🗑 Delete</button>
     </div>`;
   openModal('modal-view-lead');
@@ -407,6 +448,54 @@ function deleteLead(id){
   DB.leads=DB.leads.filter(x=>x.id!==id);
   dbDelete('leads',id);
   saveDB();closeModal('modal-view-lead');renderLeads();showToast('Lead removed');
+}
+
+// ── Edit Lead ──
+function editLead(id){
+  const l=DB.leads.find(x=>x.id===id);if(!l)return;
+  closeModal('modal-view-lead');
+  document.getElementById('l-edit-id').value=l.id;
+  document.getElementById('leads-modal-title').textContent='Edit Lead';
+  const fld=(i,v)=>{const el=document.getElementById(i);if(el)el.value=v||'';};
+  fld('l-name',l.name);fld('l-phone',l.phone);fld('l-email',l.email);
+  fld('l-dest',l.destination);fld('l-budget',l.budget);fld('l-advance',l.advance);
+  fld('l-balance',l.balance);fld('l-pax',l.pax||2);fld('l-notes',l.notes);
+  fld('l-traveldate',l.travelDate);fld('l-followup',l.followup||today());
+  fld('l-source',l.source);fld('l-triptype',l.tripType||'domestic');
+  fld('l-priority',l.priority||'warm');fld('l-stage',l.stage||'new');
+  const agentSel=document.getElementById('l-agent');
+  if(agentSel){agentSel.innerHTML='<option value="">Unassigned</option>'+(DB.settings.team||[]).map(m=>`<option value="${m.name}"${m.name===l.agent?' selected':''}>${m.name}</option>`).join('');agentSel.value=l.agent||'';}
+  populateLeadPackageSelect();
+  setTimeout(()=>{const pkgEl=document.getElementById('l-package');if(pkgEl)pkgEl.value=l.packageId||'';},50);
+  openModal('modal-add-lead');
+}
+
+// ── Create Quotation from Lead ──
+function createQuotationFromLead(leadId){
+  const l=DB.leads.find(x=>x.id===leadId);if(!l)return;
+  if(!DB.quotations)DB.quotations=[];
+  if(l.quotationId&&DB.quotations.find(q=>q.id===l.quotationId)){showToast('Quotation already exists for this lead');return;}
+  if(!DB.counters)DB.counters={};
+  const qId='QT-'+String((DB.counters.quotations=(DB.counters.quotations||0)+1)).padStart(4,'0');
+  const quot={id:qId,leadId:l.id,customerName:l.name,customerPhone:l.phone,customerEmail:l.email||'',destination:l.destination,tripType:l.tripType||'domestic',travelDate:l.travelDate||'',pax:l.pax||2,amount:l.budget||0,grandTotal:l.budget||0,packageId:l.packageId||'',agent:l.agent||'',status:'draft',validDays:15,officeId:l.officeId||officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
+  DB.quotations.unshift(quot);
+  l.quotationId=qId;dbSave('quotations',quot);dbSave('leads',l);saveDB();
+  logActivity('Quotation '+qId+' created from lead '+l.name,'quotation');
+}
+
+// ── Convert Won Lead to Booking ──
+function convertLeadToBooking(leadId){
+  const l=DB.leads.find(x=>x.id===leadId);if(!l)return;
+  sessionStorage.setItem('wanago_prefill_booking',JSON.stringify({leadId:l.id,customerName:l.name,customerPhone:l.phone,customerEmail:l.email||'',destination:l.destination,tripType:l.tripType||'domestic',travelDate:l.travelDate||'',pax:l.pax||2,totalAmount:l.budget||0,advancePaid:l.advance||0,packageId:l.packageId||'',agent:l.agent||'',source:'lead'}));
+  closeModal('modal-view-lead');
+  showToast('Opening Bookings — lead data pre-filled! ✅');
+  goTo('bookings');
+}
+
+// ── Quick set follow-up date offset (days from today) ──
+function quickSetFollowup(days){
+  const d=new Date();d.setDate(d.getDate()+days);
+  const el=document.getElementById('vl-followup');if(el)el.value=d.toISOString().slice(0,10);
 }
 
 // ── Analytics ──
@@ -705,9 +794,10 @@ window.renderLeadsStats=renderLeadsStats;window.populateLeadFilters=populateLead
 window.openAddLeadModal=openAddLeadModal;window.saveLead=saveLead;window.calcLeadBalance=calcLeadBalance;window.onLeadPackageSelect=onLeadPackageSelect;
 window.toggleLeadSelect=toggleLeadSelect;window.toggleSelectAllLeads=toggleSelectAllLeads;
 window.updateLeadBulkBar=updateLeadBulkBar;window.clearBulkSelection=clearBulkSelection;
-window.bulkStageChange=bulkStageChange;window.bulkAssignAgent=bulkAssignAgent;window.bulkDelete=bulkDelete;window.bulkExport=bulkExport;
-window.viewLead=viewLead;window.deleteLead=deleteLead;window.updateLeadStage=updateLeadStage;
+window.bulkStageChange=bulkStageChange;window.bulkAssignAgent=bulkAssignAgent;window.confirmBulkAssignAgent=confirmBulkAssignAgent;window.bulkDelete=bulkDelete;window.bulkExport=bulkExport;
+window.viewLead=viewLead;window.editLead=editLead;window.deleteLead=deleteLead;window.updateLeadStage=updateLeadStage;
 window.updateLeadBalance=updateLeadBalance;window.saveLeadFinancials=saveLeadFinancials;window.logFollowUp=logFollowUp;
+window.quickSetFollowup=quickSetFollowup;
 window.renderLeadBoard=renderLeadBoard;window.renderKanban=renderKanban;
 window.boardAdvance=boardAdvance;window.boardAddLead=boardAddLead;
 window.renderFollowUps=renderFollowUps;window.renderLeadsAnalytics=renderLeadsAnalytics;
@@ -716,7 +806,8 @@ window.openCSVImport=openCSVImport;window.downloadCSVTemplate=downloadCSVTemplat
 window.handleCSVFile=handleCSVFile;window.confirmCSVImport=confirmCSVImport;
 window.exportAllLeads=exportAllLeads;window.exportFilteredLeads=exportFilteredLeads;window.exportSelectedLeads=exportSelectedLeads;
 window.populateBulkAgentSelects=populateBulkAgentSelects;window.previewBulkAssign=previewBulkAssign;window.runBulkAssign=runBulkAssign;
-window.createQuotationFromLead=createQuotationFromLead;window.openSalesChatWindow=openSalesChatWindow;
+window.createQuotationFromLead=createQuotationFromLead;window.convertLeadToBooking=convertLeadToBooking;
+window.openSalesChatWindow=openSalesChatWindow;
 window.uploadLeadFiles=uploadLeadFiles;window.deleteLeadFile=deleteLeadFile;
 
 initPage(function() {
