@@ -285,11 +285,6 @@ window.saveRecordPayment=saveRecordPayment;
 initPage(function() {
   renderPayments();
   if (typeof waitForFirestore === 'function') {
-    waitForFirestore(function() {
-      renderPayments();
-      if (typeof dbSubscribe === 'function') {
-        dbSubscribe('payments', function() { renderPayments(); });
-      }
-    }, 5000);
+    waitForFirestore(function() { renderPayments(); }, 5000);
   }
 });
