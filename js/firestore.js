@@ -281,16 +281,19 @@ async function fsListen(collection, callback) {
         });
       }
       const fsRecords = snap.docs.map(d => _fromFirestoreDoc(d));
+      // Always merge local records not yet confirmed in this snapshot.
+      // Prevents the race where a listener event arrives before fsSave completes
+      // for a locally-added record, causing it to vanish from the list.
+      // Safe for deletes: deleted records are removed from DB[collection] before
+      // fsDelete is called, so they won't appear in localPending.
+      const fsIds = new Set(fsRecords.map(r => r.id));
+      const localPending = (DB[collection] || []).filter(r => r.id && !fsIds.has(r.id));
+      DB[collection] = _sortRecords([...fsRecords, ...localPending]);
       if (!_initialSnapDone[collection]) {
-        // First snapshot: merge local-only records not yet committed to Firestore
-        const fsIds = new Set(fsRecords.map(r => r.id));
-        const localPending = (DB[collection] || []).filter(r => r.id && !fsIds.has(r.id));
-        DB[collection] = _sortRecords([...fsRecords, ...localPending]);
+        // On the very first snapshot, push any pre-existing local records to Firestore.
         if (localPending.length) localPending.forEach(item => fsSave(collection, item.id, item));
-      } else {
-        DB[collection] = _sortRecords(fsRecords);
+        _initialSnapDone[collection] = true;
       }
-      _initialSnapDone[collection] = true;
       // Keep localStorage cache in sync so page reloads immediately have fresh data.
       // We do NOT set the dirty flag here — cloud is authoritative for these updates.
       try {
