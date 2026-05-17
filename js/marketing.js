@@ -75,9 +75,9 @@ function _updateIntegrationPills() {
   const metaPill = document.getElementById('meta-status-pill');
   const gmailPill = document.getElementById('gmail-status-pill');
 
-  if (waPill) { const on = !!(wa.accessToken && wa.phoneNumberId); waPill.className = 'int-pill ' + (on?'on':'off'); waPill.textContent = '💬 WA'; }
-  if (metaPill) { const on = !!(meta.accessToken && meta.adAccountId); metaPill.className = 'int-pill ' + (on?'on':'off'); metaPill.textContent = '📘 Meta'; }
-  if (gmailPill) { const on = !!(gmail.accessToken || gmail.clientId); gmailPill.className = 'int-pill ' + (on?'on':'off'); gmailPill.textContent = '📧 Gmail'; }
+  if (waPill) { const on = !!(wa.accessToken && wa.phoneNumberId); waPill.className = 'int-pill ' + (on?'on':'off'); waPill.textContent = 'WA'; }
+  if (metaPill) { const on = !!(meta.accessToken && meta.adAccountId); metaPill.className = 'int-pill ' + (on?'on':'off'); metaPill.textContent = 'Meta'; }
+  if (gmailPill) { const on = !!(gmail.accessToken || gmail.clientId); gmailPill.className = 'int-pill ' + (on?'on':'off'); gmailPill.textContent = 'Gmail'; }
 }
 
 // ── Helpers ──
@@ -115,11 +115,11 @@ function mktRenderOverview() {
   // Recent campaigns
   const tbody = document.getElementById('mkt-recent-tbody');
   const recent = [...campaigns].sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0)).slice(0,8);
-  const TYPE_ICONS = { whatsapp:'💬', email:'📧', meta:'📘', sms:'📱', social:'📢' };
+  const TYPE_ICONS = { whatsapp:'WA', email:'Mail', meta:'Meta', sms:'SMS', social:'Social' };
   tbody.innerHTML = recent.length
     ? recent.map(c => `<tr>
         <td style="font-weight:600">${_e(c.name)}</td>
-        <td>${TYPE_ICONS[c.type]||'📣'} ${c.type||''}</td>
+        <td>${TYPE_ICONS[c.type]||c.type||''}</td>
         <td>${_pillStatus(c.status)}</td>
         <td>${c.stats?.sent || 0}</td>
         <td style="font-size:11px;color:var(--textd)">${c.scheduledAt ? formatDate(c.scheduledAt) : formatDate(c.createdAt)}</td>
@@ -131,11 +131,10 @@ function mktRenderOverview() {
   const actions = _buildTodayActions();
   todayEl.innerHTML = actions.length
     ? actions.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:16px">${a.icon}</span>
         <div style="flex:1"><div style="font-size:12.5px;font-weight:600">${_e(a.title)}</div><div style="font-size:11px;color:var(--textd)">${_e(a.sub)}</div></div>
         ${a.action ? `<button class="btn btn-sm btn-green" onclick="${a.action}" style="font-size:11px">${a.btn}</button>` : ''}
       </div>`).join('')
-    : '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">Nothing urgent today! 🎉</div>';
+    : '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">Nothing urgent today!</div>';
 
   renderMktAIRecs();
 }
@@ -159,12 +158,12 @@ function renderMktAIRecs() {
       if (hotLeads.length) {
         const topDest = hotLeads.map(l=>l.destination).filter(Boolean);
         const dest = topDest.length ? topDest[0] : 'various destinations';
-        recs.push({ icon:'🔥', color:'#dc2626', bg:'#fee2e2',
+        recs.push({ icon:'', color:'#dc2626', bg:'#fee2e2',
           title: hotLeads.length+' Hot Lead'+(hotLeads.length>1?'s':'')+' Ready to Close',
           sub: 'High-intent, 80+ heat score — personalized follow-up can convert now',
           badge: hotLeads.length+' leads',
           audience: 'all_leads',
-          btnLabel: '💬 WA Blast Leads',
+          btnLabel: 'WA Blast Leads',
         });
       }
 
@@ -173,12 +172,12 @@ function renderMktAIRecs() {
       const atRisk = segs.at_risk || [];
       if (atRisk.length) {
         const avgSpend = atRisk.reduce((s,c)=>s+Number(c.totalRevenue||0),0) / atRisk.length;
-        recs.push({ icon:'⚠️', color:'#f97316', bg:'#fff7ed',
+        recs.push({ icon:'', color:'#f97316', bg:'#fff7ed',
           title: atRisk.length+' At-Risk Customer'+(atRisk.length>1?'s':'')+' Slipping Away',
           sub: 'Haven\'t engaged recently — a re-engagement offer can recover ≈'+formatMoney(Math.round(avgSpend * atRisk.length * 0.3))+' potential',
           badge: atRisk.length+' customers',
           audience: 'inactive_90',
-          btnLabel: '💬 Win-Back Blast',
+          btnLabel: 'Win-Back Blast',
         });
       }
 
@@ -186,24 +185,24 @@ function renderMktAIRecs() {
       const vips = segs.vip || [];
       if (vips.length) {
         const vipRevenue = vips.reduce((s,c)=>s+Number(c.totalRevenue||0),0);
-        recs.push({ icon:'⭐', color:'#b45309', bg:'#fffbeb',
+        recs.push({ icon:'', color:'#b45309', bg:'#fffbeb',
           title: 'Exclusive Offer for '+vips.length+' VIP Customer'+(vips.length>1?'s':''),
           sub: 'Your top spenders — ₹'+Math.round(vipRevenue/Math.max(vips.length,1)).toLocaleString('en-IN')+' avg spend. Premium package campaign recommended',
           badge: vips.length+' VIPs',
           audience: 'all_customers',
-          btnLabel: '💬 VIP Campaign',
+          btnLabel: 'VIP Campaign',
         });
       }
 
       // 4. Inactive customers — dormant win-back
       const inactive = segs.inactive || [];
       if (inactive.length) {
-        recs.push({ icon:'💤', color:'#6b7280', bg:'#f3f4f6',
+        recs.push({ icon:'', color:'#6b7280', bg:'#f3f4f6',
           title: inactive.length+' Dormant Customer'+(inactive.length>1?'s':'')+' to Re-activate',
           sub: 'No engagement in 6+ months — a seasonal offer email can bring them back',
           badge: inactive.length+' dormant',
           audience: 'inactive_90',
-          btnLabel: '📧 Email Campaign',
+          btnLabel: 'Email Campaign',
         });
       }
     } catch(e) {}
@@ -213,12 +212,12 @@ function renderMktAIRecs() {
   const pendingBks = bookings.filter(b => b.status !== 'cancelled' && Number(b.pendingAmount||0) > 0);
   if (pendingBks.length) {
     const totalPending = pendingBks.reduce((s,b)=>s+Number(b.pendingAmount||0),0);
-    recs.push({ icon:'💰', color:'var(--g700)', bg:'var(--g50)',
+    recs.push({ icon:'', color:'var(--g700)', bg:'var(--g50)',
       title: 'Payment Reminder Blast — '+formatMoney(totalPending)+' Pending',
       sub: pendingBks.length+' bookings with outstanding balances — a bulk WhatsApp reminder drives same-day payments',
       badge: pendingBks.length+' bookings',
       audience: 'pending_payment',
-      btnLabel: '💬 Send Reminders',
+      btnLabel: 'Send Reminders',
     });
   }
 
@@ -227,14 +226,13 @@ function renderMktAIRecs() {
 
   el.innerHTML =
     '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
-      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px">🤖 AI Campaign Recommendations '+
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px">AI Campaign Recommendations '+
         '<span style="font-size:11px;font-weight:500;color:var(--textd)">based on your customer data</span>'+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">'+
         recs.slice(0,4).map(r =>
           '<div style="background:'+r.bg+';border:1px solid '+r.color+'22;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">'+
             '<div style="display:flex;align-items:center;gap:8px">'+
-              '<span style="font-size:17px">'+r.icon+'</span>'+
               '<div style="flex:1">'+
                 '<div style="font-size:12.5px;font-weight:700;color:var(--text);line-height:1.3">'+r.title+'</div>'+
                 '<span style="font-size:10px;font-weight:700;color:'+r.color+';background:'+r.color+'20;padding:1px 7px;border-radius:10px">'+r.badge+'</span>'+
@@ -268,19 +266,19 @@ function _buildTodayActions() {
     if (dob) {
       const bd = new Date(dob);
       const diff = _daysUntil(bd.getMonth(), bd.getDate());
-      if (diff === 0) actions.push({ icon:'🎂', title:'Birthday: ' + p.name, sub:'Send a birthday wish today!', btn:'Send WA', action:`mktQuickWish('${p.id||''}','birthday','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
-      else if (diff <= 3) actions.push({ icon:'🎉', title:'Upcoming: ' + p.name, sub:`Birthday in ${diff} day${diff===1?'':'s'}`, btn:'Prep Msg', action:`mktQuickWish('${p.id||''}','birthday','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
+      if (diff === 0) actions.push({ icon:'', title:'Birthday: ' + p.name, sub:'Send a birthday wish today!', btn:'Send WA', action:`mktQuickWish('${p.id||''}','birthday','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
+      else if (diff <= 3) actions.push({ icon:'', title:'Upcoming: ' + p.name, sub:`Birthday in ${diff} day${diff===1?'':'s'}`, btn:'Prep Msg', action:`mktQuickWish('${p.id||''}','birthday','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
     }
     const ann = p.anniversary;
     if (ann) {
       const ad = new Date(ann);
       const diff = _daysUntil(ad.getMonth(), ad.getDate());
-      if (diff === 0) actions.push({ icon:'💕', title:'Anniversary: ' + p.name, sub:'Send an anniversary wish!', btn:'Send WA', action:`mktQuickWish('${p.id||''}','anniversary','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
+      if (diff === 0) actions.push({ icon:'', title:'Anniversary: ' + p.name, sub:'Send an anniversary wish!', btn:'Send WA', action:`mktQuickWish('${p.id||''}','anniversary','${(p.phone||p.mobile||'').replace(/'/g,'')}','${(p.name||'').replace(/'/g,'')}')` });
     }
   });
   // Overdue invoices
   (hScoped('invoices')||[]).filter(i => i.status === 'unpaid' || i.status === 'overdue').slice(0,3).forEach(inv => {
-    actions.push({ icon:'💰', title:'Payment Due: ' + (inv.customerName||'—'), sub:'₹' + _fmtNum(inv.total||inv.amount||0), btn:'Remind', action:`goTo('invoices')` });
+    actions.push({ icon:'', title:'Payment Due: ' + (inv.customerName||'—'), sub:'₹' + _fmtNum(inv.total||inv.amount||0), btn:'Remind', action:`goTo('invoices')` });
   });
   return actions.slice(0, 8);
 }
@@ -678,9 +676,9 @@ window.mktRenderOccasions = mktRenderOccasions;
 function _renderOccasionList(id, list, type) {
   const el = document.getElementById(id);
   if (!el) return;
-  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">None in next 30 days 🎉</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">None in next 30 days</div>'; return; }
   el.innerHTML = list.map(p => {
-    const icon = type === 'birthday' ? '🎂' : '💕';
+    const icon = '';
     const bg   = type === 'birthday' ? '#fce4ec' : '#f3e5f5';
     const dayLabel = p._diff === 0 ? 'Today!' : p._diff === 1 ? 'Tomorrow' : `In ${p._diff}d`;
     const dayClass = p._diff === 0 ? 'today' : p._diff <= 3 ? 'soon' : 'week';
@@ -688,7 +686,7 @@ function _renderOccasionList(id, list, type) {
     const tplId = type === 'birthday' ? 'tpl_bd' : 'tpl_ann';
     const tpl = (DB.settings.mktTemplates||DEFAULT_TEMPLATES).find(t=>t.id===tplId)||DEFAULT_TEMPLATES.find(t=>t.id===tplId);
     const msg = encodeURIComponent((tpl?.body||'Hi {{name}}!').replace(/{{name}}/g, p.name||'').replace(/\*/g,''));
-    const waLink = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${msg}" target="_blank" class="btn btn-sm btn-green" style="font-size:11px;margin-left:4px">💬 WA</a>` : '';
+    const waLink = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${msg}" target="_blank" class="btn btn-sm btn-green" style="font-size:11px;margin-left:4px">WA</a>` : '';
     return `<div class="occ-row">
       <div class="occ-icon" style="background:${bg}">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -704,14 +702,14 @@ function _renderOccasionList(id, list, type) {
 function _renderPaymentList(id, list) {
   const el = document.getElementById(id);
   if (!el) return;
-  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No pending payments 🎉</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No pending payments</div>'; return; }
   el.innerHTML = list.slice(0,15).map(b => {
     const phone = b.customerPhone || b.phone || '';
     const amount = _fmtNum(b.balanceAmount||b.balance||0);
     const msg = encodeURIComponent(`Hi ${b.customerName||''}, your balance of ₹${amount} is pending for your upcoming trip. Please pay at your earliest convenience. — Team Wanago`);
-    const wa = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${msg}" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px">💬 Remind</a>` : '';
+    const wa = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${msg}" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px">Remind</a>` : '';
     return `<div class="occ-row">
-      <div class="occ-icon" style="background:#fff3e0">💰</div>
+      <div class="occ-icon" style="background:#fff3e0"></div>
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${_e(b.customerName||'—')}</div><div style="font-size:11px;color:var(--textd)">${b.ref||''}</div></div>
       <span style="font-weight:700;color:var(--amb);font-size:13px;flex-shrink:0">₹${amount}</span>
       ${wa}
@@ -722,14 +720,14 @@ function _renderPaymentList(id, list) {
 function _renderFollowupList(id, list) {
   const el = document.getElementById(id);
   if (!el) return;
-  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No overdue follow-ups 🎉</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No overdue follow-ups</div>'; return; }
   el.innerHTML = list.slice(0,15).map(l => {
     const phone = l.phone || l.mobile || '';
     const due = new Date(l.followUpDate);
     const daysOverdue = Math.floor((Date.now() - due) / 86400000);
-    const wa = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi ${l.name||''}, just checking in! — Team Wanago`)}" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px">💬</a>` : '';
+    const wa = phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi ${l.name||''}, just checking in! — Team Wanago`)}" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px">WA</a>` : '';
     return `<div class="occ-row">
-      <div class="occ-icon" style="background:#fce4ec">📞</div>
+      <div class="occ-icon" style="background:#fce4ec"></div>
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${_e(l.name||'—')}</div><div style="font-size:11px;color:var(--textd)">${l.stage||''} · ${phone}</div></div>
       <span class="occ-days" style="background:var(--red2);color:var(--red)">${daysOverdue}d overdue</span>
       ${wa}
@@ -743,7 +741,7 @@ function _renderFollowupList(id, list) {
 function mktRenderCampaigns() {
   const all = hScoped('campaigns') || [];
   const filtered = _mktCampaignFilter === 'all' ? all : all.filter(c => c.type === _mktCampaignFilter);
-  const TYPE_ICONS = { whatsapp:'💬', email:'📧', meta:'📘', sms:'📱', social:'📢' };
+  const TYPE_ICONS = { whatsapp:'WA', email:'Mail', meta:'Meta', sms:'SMS', social:'Social' };
   const tbody = document.getElementById('mkt-camps-tbody');
   tbody.innerHTML = filtered.length
     ? filtered.map(c => `<tr>
@@ -827,14 +825,14 @@ window.deleteCampaign = deleteCampaign;
    SEGMENTS
 ══════════════════════════════════════════════════════ */
 const BUILT_IN_SEGMENTS = [
-  { id:'seg_all_cust',  name:'All Customers',       icon:'👤', desc:'Every customer in the system',              filter:() => hScoped('customers')||[] },
-  { id:'seg_all_leads', name:'All Leads',            icon:'👥', desc:'Every lead in the pipeline',               filter:() => hScoped('leads')||[] },
-  { id:'seg_hot',       name:'Hot Leads',            icon:'🔥', desc:'Leads in Hot or Negotiation stage',        filter:() => (hScoped('leads')||[]).filter(l=>['hot','negotiation'].includes((l.stage||'').toLowerCase())) },
-  { id:'seg_bday_30',   name:'Birthdays in 30d',     icon:'🎂', desc:'Customers/leads with birthday in 30 days', filter:() => { const all=[...(hScoped('customers')||[]),...(hScoped('leads')||[])]; return all.filter(p=>{const d=new Date(p.dob||p.birthday||'');if(isNaN(d))return false;return _daysUntil(d.getMonth(),d.getDate())<=30;}); } },
-  { id:'seg_ann_30',    name:'Anniversaries in 30d', icon:'💕', desc:'Upcoming anniversaries this month',        filter:() => { const all=[...(hScoped('customers')||[]),...(hScoped('leads')||[])]; return all.filter(p=>{const d=new Date(p.anniversary||'');if(isNaN(d))return false;return _daysUntil(d.getMonth(),d.getDate())<=30;}); } },
-  { id:'seg_inactive',  name:'Inactive 90d',         icon:'💤', desc:'Customers not contacted in 90 days',       filter:() => { const cut=Date.now()-90*86400000; return (hScoped('customers')||[]).filter(c=>!c.lastContactDate||new Date(c.lastContactDate)<new Date(cut)); } },
-  { id:'seg_premium',   name:'Premium (₹50K+)',      icon:'⭐', desc:'Customers with total spend over ₹50,000',   filter:() => (hScoped('customers')||[]).filter(c=>(c.totalSpend||0)>=50000) },
-  { id:'seg_instagram', name:'Instagram Leads',      icon:'📸', desc:'Leads sourced from Instagram',             filter:() => (hScoped('leads')||[]).filter(l=>(l.source||'').toLowerCase()==='instagram') },
+  { id:'seg_all_cust',  name:'All Customers',       desc:'Every customer in the system',              filter:() => hScoped('customers')||[] },
+  { id:'seg_all_leads', name:'All Leads',            desc:'Every lead in the pipeline',               filter:() => hScoped('leads')||[] },
+  { id:'seg_hot',       name:'Hot Leads',            desc:'Leads in Hot or Negotiation stage',        filter:() => (hScoped('leads')||[]).filter(l=>['hot','negotiation'].includes((l.stage||'').toLowerCase())) },
+  { id:'seg_bday_30',   name:'Birthdays in 30d',     desc:'Customers/leads with birthday in 30 days', filter:() => { const all=[...(hScoped('customers')||[]),...(hScoped('leads')||[])]; return all.filter(p=>{const d=new Date(p.dob||p.birthday||'');if(isNaN(d))return false;return _daysUntil(d.getMonth(),d.getDate())<=30;}); } },
+  { id:'seg_ann_30',    name:'Anniversaries in 30d', desc:'Upcoming anniversaries this month',        filter:() => { const all=[...(hScoped('customers')||[]),...(hScoped('leads')||[])]; return all.filter(p=>{const d=new Date(p.anniversary||'');if(isNaN(d))return false;return _daysUntil(d.getMonth(),d.getDate())<=30;}); } },
+  { id:'seg_inactive',  name:'Inactive 90d',         desc:'Customers not contacted in 90 days',       filter:() => { const cut=Date.now()-90*86400000; return (hScoped('customers')||[]).filter(c=>!c.lastContactDate||new Date(c.lastContactDate)<new Date(cut)); } },
+  { id:'seg_premium',   name:'Premium (₹50K+)',      desc:'Customers with total spend over ₹50,000',   filter:() => (hScoped('customers')||[]).filter(c=>(c.totalSpend||0)>=50000) },
+  { id:'seg_instagram', name:'Instagram Leads',      desc:'Leads sourced from Instagram',             filter:() => (hScoped('leads')||[]).filter(l=>(l.source||'').toLowerCase()==='instagram') },
 ];
 
 function mktRenderSegments() {
@@ -846,13 +844,12 @@ function mktRenderSegments() {
     const isCustom = !s.filter;
     return `<div class="seg-card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div style="width:38px;height:38px;border-radius:10px;background:var(--g50);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${s.icon||'👥'}</div>
         <div style="flex:1;min-width:0"><div class="seg-card-name">${_e(s.name)}</div><div class="seg-card-desc">${_e(s.desc||s.description||'')}</div></div>
       </div>
       <div style="display:flex;align-items:flex-end;justify-content:space-between">
         <div><div class="seg-card-count">${count}</div><div class="seg-card-label">Contacts</div></div>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-sm btn-green" onclick="mktBlastSegment('${s.id}')">💬 Blast</button>
+          <button class="btn btn-sm btn-green" onclick="mktBlastSegment('${s.id}')">Blast</button>
           ${isCustom ? `<button class="btn btn-sm btn-danger" onclick="deleteSegment('${s.id}')">✕</button>` : ''}
         </div>
       </div>

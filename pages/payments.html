@@ -27,11 +27,11 @@
       <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--sh)">
         <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
           <div class="chip active" onclick="filterPayments('all',this)">All</div>
-          <div class="chip" onclick="filterPayments('UPI',this)">📱 UPI</div>
-          <div class="chip" onclick="filterPayments('Bank Transfer',this)">🏦 Bank</div>
-          <div class="chip" onclick="filterPayments('Cash',this)">💵 Cash</div>
-          <div class="chip" onclick="filterPayments('Cheque',this)">📋 Cheque</div>
-          <div class="chip" onclick="filterPayments('Card',this)">💳 Card</div>
+          <div class="chip" onclick="filterPayments('UPI',this)">UPI</div>
+          <div class="chip" onclick="filterPayments('Bank Transfer',this)">Bank</div>
+          <div class="chip" onclick="filterPayments('Cash',this)">Cash</div>
+          <div class="chip" onclick="filterPayments('Cheque',this)">Cheque</div>
+          <div class="chip" onclick="filterPayments('Card',this)">Card</div>
         </div>
         <select id="pay-sort" onchange="renderPayments()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);background:var(--cream);font-family:inherit;cursor:pointer;outline:none"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="amount-desc">Amount ↓</option><option value="amount-asc">Amount ↑</option></select>
         <input type="date" id="pay-date-from" onchange="renderPayments()" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:11px;background:var(--cream);font-family:inherit;outline:none" title="From">
@@ -65,7 +65,7 @@
       <div class="form-group"><label class="form-label">Reference / Transaction ID</label><input class="form-input" id="rp-ref" placeholder="UTR / Ref number"></div>
     </div>
     <div id="rp-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-record-payment')">Cancel</button><button class="btn btn-primary" onclick="saveRecordPayment()">💰 Record Payment</button></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-record-payment')">Cancel</button><button class="btn btn-primary" onclick="saveRecordPayment()">Record Payment</button></div>
   </div>
 </div>
 

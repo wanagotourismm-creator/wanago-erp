@@ -45,16 +45,16 @@ window.goTo = goTo;
 
 let payFilter = 'all';
 const PAY_METHOD_META = {
-  upi:{label:'UPI',emoji:'📱',color:'var(--blue)',bg:'var(--blue2)'},
-  'Bank Transfer':{label:'Bank Transfer',emoji:'🏦',color:'var(--g600)',bg:'var(--g50)'},
-  bank_transfer:{label:'Bank Transfer',emoji:'🏦',color:'var(--g600)',bg:'var(--g50)'},
-  Cash:{label:'Cash',emoji:'💵',color:'var(--amb)',bg:'var(--amb2)'},
-  cash:{label:'Cash',emoji:'💵',color:'var(--amb)',bg:'var(--amb2)'},
-  Cheque:{label:'Cheque',emoji:'📋',color:'var(--textm)',bg:'var(--cream2)'},
-  cheque:{label:'Cheque',emoji:'📋',color:'var(--textm)',bg:'var(--cream2)'},
-  Card:{label:'Card',emoji:'💳',color:'#7c3aed',bg:'#f5f3ff'},
-  card:{label:'Card',emoji:'💳',color:'#7c3aed',bg:'#f5f3ff'},
-  UPI:{label:'UPI',emoji:'📱',color:'var(--blue)',bg:'var(--blue2)'},
+  upi:{label:'UPI',color:'var(--blue)',bg:'var(--blue2)'},
+  'Bank Transfer':{label:'Bank Transfer',color:'var(--g600)',bg:'var(--g50)'},
+  bank_transfer:{label:'Bank Transfer',color:'var(--g600)',bg:'var(--g50)'},
+  Cash:{label:'Cash',color:'var(--amb)',bg:'var(--amb2)'},
+  cash:{label:'Cash',color:'var(--amb)',bg:'var(--amb2)'},
+  Cheque:{label:'Cheque',color:'var(--textm)',bg:'var(--cream2)'},
+  cheque:{label:'Cheque',color:'var(--textm)',bg:'var(--cream2)'},
+  Card:{label:'Card',color:'#7c3aed',bg:'#f5f3ff'},
+  card:{label:'Card',color:'#7c3aed',bg:'#f5f3ff'},
+  UPI:{label:'UPI',color:'var(--blue)',bg:'var(--blue2)'},
 };
 
 function renderCollectionRadar() {
@@ -90,7 +90,7 @@ function renderCollectionRadar() {
     const phone = ((cust&&cust.phone)||b.customerPhone||'').replace(/\D/g,'').replace(/^0/,'91');
     const travelFmt = b.travelDate ? formatDate(b.travelDate) : 'your travel date';
     const msg = 'Dear '+b.customerName+', this is a gentle reminder from '+companyName+' regarding your upcoming trip to '+(b.destination||'your destination')+' on '+travelFmt+'. You have a balance of ₹'+Number(b.pendingAmount).toLocaleString('en-IN')+' pending. Kindly complete your payment at the earliest. Booking Ref: '+(b.ref||'—')+'.';
-    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="Send WhatsApp reminder" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#dcfce7;color:#16a34a;text-decoration:none;flex-shrink:0;font-size:17px">💬</a>' : '';
+    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="Send WhatsApp reminder" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#dcfce7;color:#16a34a;text-decoration:none;flex-shrink:0;font-size:11px;font-weight:700">WA</a>' : '';
     return '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:12px">'+
       '<div style="flex:1;min-width:0">'+
         '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'+
@@ -109,7 +109,7 @@ function renderCollectionRadar() {
 
   el.innerHTML = '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
-      '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">🎯 Collection Radar '+
+      '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">Collection Radar '+
         '<span style="font-size:11px;font-weight:500;color:var(--textd)">'+pending.length+' booking'+(pending.length!==1?'s':'')+' with pending dues · top '+top5.length+' by urgency</span>'+
       '</div>'+
       '<div style="font-size:14px;font-weight:800;color:var(--red)">₹'+totalPending.toLocaleString('en-IN')+' total</div>'+
@@ -132,10 +132,10 @@ function renderPayments(filter) {
 
   const strip = document.getElementById('pay-strip');
   if (strip) strip.innerHTML = [
-    {label:'💰 Total Collected',val:formatMoney(totalAmt),meta:allPays.length+' transactions',cls:''},
-    {label:'📅 Today',val:formatMoney(todayAmt),meta:'received today',cls:'stat-up'},
-    {label:'📊 This Month',val:formatMoney(monthAmt),meta:new Date().toLocaleDateString('en-IN',{month:'long'}),cls:'stat-up'},
-    {label:'⚠️ Pending Dues',val:formatMoney(pendingDues),meta:'balance outstanding',cls:'stat-dn'},
+    {label:'Total Collected',val:formatMoney(totalAmt),meta:allPays.length+' transactions',cls:''},
+    {label:'Today',val:formatMoney(todayAmt),meta:'received today',cls:'stat-up'},
+    {label:'This Month',val:formatMoney(monthAmt),meta:new Date().toLocaleDateString('en-IN',{month:'long'}),cls:'stat-up'},
+    {label:'Pending Dues',val:formatMoney(pendingDues),meta:'balance outstanding',cls:'stat-dn'},
   ].map(s=>'<div class="stat-card" style="cursor:pointer"><div class="stat-label">'+s.label+'</div><div class="stat-val '+s.cls+'">'+s.val+'</div><div class="stat-meta">'+s.meta+'</div></div>').join('');
 
   renderCollectionRadar();
@@ -145,11 +145,11 @@ function renderPayments(filter) {
   if (methodCards) {
     const methods = ['UPI','Bank Transfer','Cash','Cheque','Card'];
     methodCards.innerHTML = methods.map(key => {
-      const m = PAY_METHOD_META[key] || {label:key,emoji:'💰',color:'var(--textd)',bg:'var(--cream)'};
+      const m = PAY_METHOD_META[key] || {label:key,color:'var(--textd)',bg:'var(--cream)'};
       const mAmt = allPays.filter(p=>(p.method||'')=== key && p.status==='completed').reduce((s,p)=>s+Number(p.amount||0),0);
       const mCount = allPays.filter(p=>(p.method||'')===key).length;
       const pct = totalAmt > 0 ? Math.round((mAmt/totalAmt)*100) : 0;
-      return '<div onclick="filterPayments(\''+key+'\',this)" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:.2s;position:relative;overflow:hidden" onmouseover="this.style.boxShadow=\'var(--sh2)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'\';this.style.transform=\'\'"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:18px">'+m.emoji+'</span><span style="font-size:10px;font-weight:700;color:'+m.color+';background:'+m.bg+';padding:2px 8px;border-radius:10px">'+pct+'%</span></div><div style="font-size:13px;font-weight:700;color:var(--text)">'+formatMoney(mAmt)+'</div><div style="font-size:10px;color:var(--textd);margin-top:2px">'+m.label+' · '+mCount+' txn'+(mCount!==1?'s':'')+'</div><div style="position:absolute;bottom:0;left:0;width:'+pct+'%;height:3px;background:'+m.color+';border-radius:0 2px 2px 0;transition:.4s"></div></div>';
+      return '<div onclick="filterPayments(\''+key+'\',this)" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:.2s;position:relative;overflow:hidden" onmouseover="this.style.boxShadow=\'var(--sh2)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'\';this.style.transform=\'\'"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:'+m.color+'">'+m.label+'</span><span style="font-size:10px;font-weight:700;color:'+m.color+';background:'+m.bg+';padding:2px 8px;border-radius:10px">'+pct+'%</span></div><div style="font-size:13px;font-weight:700;color:var(--text)">'+formatMoney(mAmt)+'</div><div style="font-size:10px;color:var(--textd);margin-top:2px">'+mCount+' txn'+(mCount!==1?'s':'')+'</div><div style="position:absolute;bottom:0;left:0;width:'+pct+'%;height:3px;background:'+m.color+';border-radius:0 2px 2px 0;transition:.4s"></div></div>';
     }).join('');
   }
 
@@ -170,20 +170,20 @@ function renderPayments(filter) {
 
   // Table
   const tbody = document.getElementById('payments-tbody'); if(!tbody) return;
-  if (!pays.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:48px;color:var(--textd)"><div style="font-size:32px;margin-bottom:10px">💳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">No payments found</div><div style="font-size:12px">Payments are recorded from the Bookings page</div></td></tr>'; return; }
+  if (!pays.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:48px;color:var(--textd)"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">No payments found</div><div style="font-size:12px">Payments are recorded from the Bookings page</div></td></tr>'; return; }
 
   tbody.innerHTML = pays.map(p => {
-    const m = PAY_METHOD_META[p.method] || {label:p.method||'Other',emoji:'💰',color:'var(--textd)',bg:'var(--cream)'};
+    const m = PAY_METHOD_META[p.method] || {label:p.method||'Other',color:'var(--textd)',bg:'var(--cream)'};
     return '<tr>'+
       '<td><span style="font-family:JetBrains Mono,monospace;font-size:11px;font-weight:600;color:var(--g700)">'+(p.receipt||p.id?.slice(-6)||'—')+'</span></td>'+
       '<td style="font-family:JetBrains Mono,monospace;font-size:12px">'+(p.bookingRef||'—')+'</td>'+
       '<td><div style="font-weight:600">'+(p.customerName||'—')+'</div></td>'+
       '<td><div style="font-weight:700;font-size:14px;color:var(--g700)">'+formatMoney(p.amount)+'</div></td>'+
-      '<td><span style="display:inline-flex;align-items:center;gap:4px;background:'+m.bg+';color:'+m.color+';border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600">'+m.emoji+' '+m.label+'</span></td>'+
+      '<td><span style="display:inline-flex;align-items:center;gap:4px;background:'+m.bg+';color:'+m.color+';border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600">'+m.label+'</span></td>'+
       '<td style="font-size:11.5px;color:var(--textd);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.reference||p.ref||'—')+'</td>'+
       '<td style="font-size:12px">'+formatDate(p.date)+'</td>'+
       '<td>'+stagePill(p.status||'completed')+'</td>'+
-      '<td><button class="row-btn" onclick="viewPayReceipt(\''+p.id+'\')">🧾 Receipt</button></td>'+
+      '<td><button class="row-btn" onclick="viewPayReceipt(\''+p.id+'\')">Receipt</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -194,12 +194,12 @@ function clearPayDateFilter() { const df=document.getElementById('pay-date-from'
 // Receipt drawer
 function viewPayReceipt(payId) {
   const p = DB.payments.find(x=>x.id===payId); if(!p) return;
-  const m = PAY_METHOD_META[p.method]||{label:p.method||'Other',emoji:'💰',color:'var(--g700)',bg:'var(--cream)'};
+  const m = PAY_METHOD_META[p.method]||{label:p.method||'Other',color:'var(--g700)',bg:'var(--cream)'};
   const bk = DB.bookings.find(b=>b.id===p.bookingId);
   const s = DB.settings;
   document.getElementById('pay-drawer').innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px"><div style="font-size:18px;font-weight:800;color:var(--g800)">🧾 Payment Receipt</div><button onclick="closePayDrawer()" style="background:var(--cream2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;line-height:1">✕</button></div>'+
-    '<div style="background:linear-gradient(135deg,var(--g800),var(--g600));border-radius:12px;padding:18px;color:#fff;margin-bottom:16px;text-align:center"><div style="font-size:28px;font-weight:900;font-family:DM Serif Display,serif">'+formatMoney(p.amount)+'</div><div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px">'+m.emoji+' '+m.label+' · '+formatDate(p.date)+'</div><div style="margin-top:8px">'+stagePill(p.status||'completed')+'</div></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px"><div style="font-size:18px;font-weight:800;color:var(--g800)">Payment Receipt</div><button onclick="closePayDrawer()" style="background:var(--cream2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;line-height:1">✕</button></div>'+
+    '<div style="background:linear-gradient(135deg,var(--g800),var(--g600));border-radius:12px;padding:18px;color:#fff;margin-bottom:16px;text-align:center"><div style="font-size:28px;font-weight:900;font-family:DM Serif Display,serif">'+formatMoney(p.amount)+'</div><div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px">'+m.label+' · '+formatDate(p.date)+'</div><div style="margin-top:8px">'+stagePill(p.status||'completed')+'</div></div>'+
     '<div style="display:grid;gap:12px;margin-bottom:16px">'+
       '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--textd)">Receipt #</span><span style="font-size:12px;font-weight:600">'+(p.receipt||p.id?.slice(-8)||'—')+'</span></div>'+
       '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--textd)">Booking Ref</span><span style="font-size:12px;font-weight:600">'+(p.bookingRef||'—')+'</span></div>'+
@@ -208,7 +208,7 @@ function viewPayReceipt(payId) {
       '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--textd)">Date & Time</span><span style="font-size:12px;font-weight:600">'+formatDate(p.date)+' '+(p.createdAt?new Date(p.createdAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'')+'</span></div>'+
     '</div>'+
     (bk?'<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px"><div style="font-size:10px;font-weight:700;color:var(--textd);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Booking Details</div><div style="font-size:13px;font-weight:600">'+bk.customerName+' → '+bk.destination+'</div><div style="font-size:11px;color:var(--textd);margin-top:4px">Total: '+formatMoney(bk.totalAmount)+' · Paid: '+formatMoney(bk.advancePaid||bk.paidAmount||0)+' · Balance: '+formatMoney(bk.pendingAmount||0)+'</div></div>':'')+
-    '<div style="display:flex;gap:8px"><button class="btn btn-primary" style="flex:1" onclick="printReceipt(\''+p.id+'\')">🖨 Print Receipt</button></div>';
+    '<div style="display:flex;gap:8px"><button class="btn btn-primary" style="flex:1" onclick="printReceipt(\''+p.id+'\')">Print Receipt</button></div>';
   document.getElementById('pay-drawer-overlay').style.display = '';
   document.getElementById('pay-drawer').style.display = '';
 }
@@ -264,7 +264,7 @@ function saveRecordPayment() {
   if (b.pendingAmount <= 0 && OPEN_ST.includes(b.status)) {
     b.status = 'confirmed'; b.confirmedAt = new Date().toISOString();
     logActivity('Booking '+b.ref+' confirmed — fully paid','booking');
-    showToast('Payment recorded! Booking '+b.ref+' CONFIRMED! ✅');
+    showToast('Payment recorded! Booking '+b.ref+' CONFIRMED!');
   } else { showToast('Payment of '+formatMoney(amount)+' recorded!'); }
 
   // Update customer totalSpent

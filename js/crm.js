@@ -28,17 +28,17 @@ window.goTo = goTo;
 
 // ── Stage config ──────────────────────────────────────────────────
 const STAGES = [
-  { id:'new',         label:'New',         emoji:'🔵', bg:'#dbeafe', text:'#1e40af', colBg:'#eff6ff' },
-  { id:'contacted',   label:'Contacted',   emoji:'📞', bg:'#e0f2fe', text:'#0c4a6e', colBg:'#f0f9ff' },
-  { id:'follow_up',   label:'Follow-up',   emoji:'🔄', bg:'#fef9c3', text:'#854d0e', colBg:'#fefce8' },
-  { id:'quoted',      label:'Quoted',      emoji:'📋', bg:'#ede9fe', text:'#5b21b6', colBg:'#f5f3ff' },
-  { id:'negotiation', label:'Negotiation', emoji:'🤝', bg:'#ffedd5', text:'#c2410c', colBg:'#fff7ed' },
-  { id:'won',         label:'Won',         emoji:'✅', bg:'#dcfce7', text:'#166534', colBg:'#f0fdf4' },
-  { id:'lost',        label:'Lost',        emoji:'❌', bg:'#fee2e2', text:'#991b1b', colBg:'#fff5f5' },
+  { id:'new',         label:'New',         bg:'#dbeafe', text:'#1e40af', colBg:'#eff6ff' },
+  { id:'contacted',   label:'Contacted',   bg:'#e0f2fe', text:'#0c4a6e', colBg:'#f0f9ff' },
+  { id:'follow_up',   label:'Follow-up',   bg:'#fef9c3', text:'#854d0e', colBg:'#fefce8' },
+  { id:'quoted',      label:'Quoted',      bg:'#ede9fe', text:'#5b21b6', colBg:'#f5f3ff' },
+  { id:'negotiation', label:'Negotiation', bg:'#ffedd5', text:'#c2410c', colBg:'#fff7ed' },
+  { id:'won',         label:'Won',         bg:'#dcfce7', text:'#166534', colBg:'#f0fdf4' },
+  { id:'lost',        label:'Lost',        bg:'#fee2e2', text:'#991b1b', colBg:'#fff5f5' },
 ];
 const OPEN_STAGES = ['new','contacted','follow_up','quoted','negotiation'];
 
-const ACT_ICONS = { call:'📞', whatsapp:'💬', email:'📧', meeting:'🤝', quote:'📋', note:'📝', stage_change:'🔄' };
+const ACT_ICONS = { call:'Call', whatsapp:'WA', email:'Mail', meeting:'Mtg', quote:'Quote', note:'Note', stage_change:'Stage' };
 const ACT_COLORS= { call:'#dcfce7', whatsapp:'#d1fae5', email:'#dbeafe', meeting:'#ede9fe', quote:'#fef9c3', note:'#f1f5f9', stage_change:'#fce7f3' };
 
 // ── State ─────────────────────────────────────────────────────────
@@ -119,13 +119,12 @@ function renderStats() {
   const wonMonth = leads.filter(l => l.stage === 'won' && (l.updatedAt||l.createdAt||'').slice(0,7) === today.slice(0,7)).length;
 
   document.getElementById('crm-stats').innerHTML = [
-    { icon:'💼', bg:'#eef2ff', num: open.length,       label:'Open Leads',       onclick:"setCrmTab('leads')"    },
-    { icon:'💰', bg:'#f0fdf4', num: _fmtMoney(pipeline),label:'Pipeline Value',   onclick:"setCrmTab('pipeline')" },
-    { icon:'🔴', bg:'#fef2f2', num: overdue,            label:'Overdue Follow-ups',onclick:"setCrmTab('followups')"},
-    { icon:'📅', bg:'#fefce8', num: dueToday,           label:'Due Today',        onclick:"setCrmTab('followups')"},
-    { icon:'🏆', bg:'#f0fdf4', num: wonMonth,           label:'Won This Month',   onclick:"setCrmTab('leads')"    },
+    { bg:'#eef2ff', num: open.length,       label:'Open Leads',        onclick:"setCrmTab('leads')"    },
+    { bg:'#f0fdf4', num: _fmtMoney(pipeline),label:'Pipeline Value',   onclick:"setCrmTab('pipeline')" },
+    { bg:'#fef2f2', num: overdue,            label:'Overdue Follow-ups',onclick:"setCrmTab('followups')"},
+    { bg:'#fefce8', num: dueToday,           label:'Due Today',         onclick:"setCrmTab('followups')"},
+    { bg:'#f0fdf4', num: wonMonth,           label:'Won This Month',    onclick:"setCrmTab('leads')"    },
   ].map(s => `<div class="crm-stat" onclick="${s.onclick}">
-    <div class="crm-stat-icon" style="background:${s.bg}">${s.icon}</div>
     <div><div class="crm-stat-num">${s.num}</div><div class="crm-stat-label">${s.label}</div></div>
   </div>`).join('');
 }
@@ -168,7 +167,7 @@ function renderPipeline() {
   content.innerHTML = `
     <div class="crm-section" style="margin-top:14px">
       <div class="crm-section-hdr">
-        <span class="crm-section-title">🏆 Pipeline Board
+        <span class="crm-section-title">Pipeline Board
           <span style="font-size:12px;font-weight:400;color:#64748b">${_fmtMoney(totalPipeline)} total pipeline value</span>
         </span>
         <span style="font-size:12px;color:#94a3b8">Drag cards to move stages</span>
@@ -188,7 +187,7 @@ function _pipelineCol(stage, data) {
   return `<div class="pipeline-col">
     <div class="pipeline-col-hdr" style="background:${stage.bg};color:${stage.text}">
       <div>
-        <div class="pipeline-col-label">${stage.emoji} ${stage.label}</div>
+        <div class="pipeline-col-label">${stage.label}</div>
         <div class="pipeline-col-value">${data.value ? _fmtMoney(data.value) : ''}</div>
       </div>
       <span class="pipeline-col-count">${data.count}</span>
@@ -214,17 +213,17 @@ function _pipelineCard(lead, stage) {
     ondragstart="onCardDragStart(event,'${_esc(lead.id)}')"
     ondragend="onCardDragEnd(event)">
     <div class="pc-actions">
-      <button class="pc-btn pc-btn-log" onclick="openActivityModal('${_esc(lead.id)}')" title="Log activity">📝</button>
+      <button class="pc-btn pc-btn-log" onclick="openActivityModal('${_esc(lead.id)}')" title="Log activity">Log</button>
       ${nextStage ? `<button class="pc-btn pc-btn-next" onclick="moveLeadStage('${_esc(lead.id)}','${nextStage}')" title="Move to ${nextStage}">→</button>` : ''}
     </div>
     <div class="pc-name" onclick="openLeadDetail('${_esc(lead.id)}')">${_esc(lead.name||'—')}</div>
-    <div class="pc-dest">📍 ${_esc(lead.destination||'—')}</div>
+    <div class="pc-dest">${_esc(lead.destination||'—')}</div>
     <div class="pc-meta">
       <span class="pc-budget">${lead.budget ? _fmtMoney(lead.budget) : '—'}</span>
       <span class="pc-score ${sc}">${score}</span>
     </div>
-    ${lead.followup ? `<div class="pc-followup${fuOverdue?' overdue':''}">📅 ${fuRel}</div>` : ''}
-    ${lead.agent ? `<div style="font-size:10px;color:#94a3b8;margin-top:3px">👤 ${_esc(lead.agent)}</div>` : ''}
+    ${lead.followup ? `<div class="pc-followup${fuOverdue?' overdue':''}">FU: ${fuRel}</div>` : ''}
+    ${lead.agent ? `<div style="font-size:10px;color:#94a3b8;margin-top:3px">${_esc(lead.agent)}</div>` : ''}
   </div>`;
 }
 
@@ -308,10 +307,10 @@ function renderFollowUps() {
   };
 
   content.innerHTML =
-    section('🔴 Overdue Follow-ups', overdue, 'overdue') ||
-    (overdue.length ? '' : '<div style="padding:14px 24px 0"><div style="background:#f0fdf4;border-radius:10px;padding:12px 16px;font-size:13px;color:#166534">✅ No overdue follow-ups!</div></div>') +
-    section('📅 Due Today', dueToday, 'today') +
-    section('📆 Upcoming Follow-ups', upcoming, 'upcoming') +
+    section('Overdue Follow-ups', overdue, 'overdue') ||
+    (overdue.length ? '' : '<div style="padding:14px 24px 0"><div style="background:#f0fdf4;border-radius:10px;padding:12px 16px;font-size:13px;color:#166534">No overdue follow-ups!</div></div>') +
+    section('Due Today', dueToday, 'today') +
+    section('Upcoming Follow-ups', upcoming, 'upcoming') +
     (overdue.length + dueToday.length + upcoming.length === 0
       ? '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">No follow-ups scheduled.</div>'
       : '');
@@ -325,7 +324,7 @@ function _fuItem(lead, cls) {
     <div class="fu-dot" style="background:${stageObj.text}"></div>
     <div style="flex:1;min-width:0">
       <div class="fu-name">${_esc(lead.name||'—')}</div>
-      <div class="fu-sub">${_esc(lead.destination||'—')} · ${stageObj.emoji} ${stageObj.label} · ${lead.budget ? _fmtMoney(lead.budget) : '—'}</div>
+      <div class="fu-sub">${_esc(lead.destination||'—')} · ${stageObj.label} · ${lead.budget ? _fmtMoney(lead.budget) : '—'}</div>
       ${lead.notes ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(lead.notes)}</div>` : ''}
     </div>
     <div style="text-align:right;flex-shrink:0">
@@ -349,7 +348,7 @@ function renderHotLeads() {
 
   content.innerHTML = `<div class="crm-section" style="margin-top:14px">
     <div class="crm-section-hdr">
-      <span class="crm-section-title">🔥 Hot Leads Leaderboard</span>
+      <span class="crm-section-title">Hot Leads Leaderboard</span>
       <span style="font-size:12px;color:#94a3b8">${open.length} open leads</span>
     </div>
     <div class="crm-body">
@@ -364,7 +363,7 @@ function renderHotLeads() {
               <div class="lb-avatar" style="background:${_avatarColor(lead.name)}">${(lead.name||'?')[0].toUpperCase()}</div>
               <div class="lb-info">
                 <div class="lb-name">${_esc(lead.name||'—')}</div>
-                <div class="lb-sub">${_esc(lead.destination||'—')} · ${stg.emoji} ${stg.label} · ${lead.budget ? _fmtMoney(lead.budget) : '—'}</div>
+                <div class="lb-sub">${_esc(lead.destination||'—')} · ${stg.label} · ${lead.budget ? _fmtMoney(lead.budget) : '—'}</div>
               </div>
               <div class="lb-score-bar"><div class="lb-score-fill" style="width:${Math.round(lead._score/maxSc*100)}%;background:${clr}"></div></div>
               <div class="lb-score-val" style="color:${clr}">${lead._score}</div>
@@ -391,14 +390,14 @@ function renderActivityFeed() {
 
   content.innerHTML = `<div class="crm-section" style="margin-top:14px">
     <div class="crm-section-hdr">
-      <span class="crm-section-title">📋 All Activity Log</span>
+      <span class="crm-section-title">All Activity Log</span>
       <span style="font-size:12px;color:#94a3b8">${entries.length} entries</span>
     </div>
     <div class="crm-body">
       ${!entries.length
         ? '<div style="text-align:center;padding:24px;color:#94a3b8">No activities logged yet. Use "Log" on any lead to track calls, emails, and meetings.</div>'
         : entries.slice(0,50).map(act => {
-            const icon = ACT_ICONS[act.type] || '📝';
+            const icon = ACT_ICONS[act.type] || 'Note';
             const bg   = ACT_COLORS[act.type] || '#f1f5f9';
             const d    = act.at ? new Date(act.at) : null;
             const timeStr = d ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) + ' ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}) : '—';
@@ -500,7 +499,7 @@ function openLeadDetail(leadId) {
 
   document.getElementById('ld-body').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      ${_dr('Stage',         `${stageObj.emoji} ${stageObj.label}`)}
+      ${_dr('Stage',         `${stageObj.label}`)}
       ${_dr('Heat Score',    `<span style="font-weight:700;color:${scClr}">${score} / 100</span>`, true)}
       ${_dr('Destination',   lead.destination)}
       ${_dr('Trip Type',     lead.tripType)}
@@ -519,11 +518,11 @@ function openLeadDetail(leadId) {
       <div style="font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:4px">NOTES</div>
       <div style="font-size:13px;color:#334155">${_esc(lead.notes)}</div>
     </div>` : ''}
-    <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px">📋 Activity Timeline</div>
+    <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px">Activity Timeline</div>
     ${!acts.length
       ? '<div style="text-align:center;padding:16px;color:#94a3b8;font-size:12px;border:1.5px dashed #e2e8f0;border-radius:8px">No activities logged yet.</div>'
       : `<div class="act-timeline">${acts.map(act => {
-          const icon = ACT_ICONS[act.type]||'📝';
+          const icon = ACT_ICONS[act.type]||'Note';
           const bg   = ACT_COLORS[act.type]||'#f1f5f9';
           const d    = act.at ? new Date(act.at) : null;
           const tStr = d ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}) : '';

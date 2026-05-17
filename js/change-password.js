@@ -12,7 +12,7 @@ const FB_CFG_CP = { apiKey:"AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU", authDomain
   modal.innerHTML = `
   <div class="modal-overlay" id="modal-change-password" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:none;align-items:center;justify-content:center">
     <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:420px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:16px;font-weight:800;color:#1a1a1a;margin-bottom:6px">🔑 Change Password</div>
+      <div style="font-size:16px;font-weight:800;color:#1a1a1a;margin-bottom:6px">Change Password</div>
       <div style="font-size:12px;color:#888;margin-bottom:20px">Update your login password</div>
 
       <div style="margin-bottom:14px">
@@ -33,7 +33,7 @@ const FB_CFG_CP = { apiKey:"AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU", authDomain
 
       <div style="display:flex;gap:8px">
         <button onclick="closeChangePasswordModal()" style="flex:1;padding:10px;border:1px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#555">Cancel</button>
-        <button id="cp-submit-btn" onclick="submitChangePassword()" style="flex:2;padding:10px;border:none;border-radius:8px;background:#134a32;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔑 Change Password</button>
+        <button id="cp-submit-btn" onclick="submitChangePassword()" style="flex:2;padding:10px;border:none;border-radius:8px;background:#134a32;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Change Password</button>
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f0f0f0;text-align:center">
         <span style="font-size:12px;color:#888">Forgot your password? </span>
@@ -53,7 +53,7 @@ window.openChangePasswordModal = function() {
   document.getElementById('cp-confirm').value = '';
   document.getElementById('cp-error').style.display = 'none';
   document.getElementById('cp-success').style.display = 'none';
-  document.getElementById('cp-submit-btn').textContent = '🔑 Change Password';
+  document.getElementById('cp-submit-btn').textContent = 'Change Password';
   document.getElementById('cp-submit-btn').disabled = false;
   setTimeout(() => document.getElementById('cp-current')?.focus(), 100);
 };
@@ -79,7 +79,7 @@ window.submitChangePassword = async function() {
   if (newPass !== confirm) { errEl.textContent = 'New passwords do not match.'; errEl.style.display = ''; return; }
   if (newPass === current) { errEl.textContent = 'New password must be different from current.'; errEl.style.display = ''; return; }
 
-  btn.textContent = '⏳ Updating...';
+  btn.textContent = 'Updating...';
   btn.disabled = true;
 
   try {
@@ -101,9 +101,9 @@ window.submitChangePassword = async function() {
     // Update password
     await updatePassword(auth.currentUser, newPass);
 
-    sucEl.textContent = '✅ Password changed successfully! Use your new password next time you log in.';
+    sucEl.textContent = 'Password changed successfully! Use your new password next time you log in.';
     sucEl.style.display = '';
-    btn.textContent = '✅ Done';
+    btn.textContent = 'Done';
 
     if (typeof logActivity === 'function') logActivity('Password changed', email, 'login');
 
@@ -118,7 +118,7 @@ window.submitChangePassword = async function() {
     };
     errEl.textContent = errs[e.code] || e.message;
     errEl.style.display = '';
-    btn.textContent = '🔑 Change Password';
+    btn.textContent = 'Change Password';
     btn.disabled = false;
   }
 };
@@ -136,7 +136,7 @@ window.sendResetEmailFromModal = async function() {
     const app = apps.length ? apps[0] : initializeApp(FB_CFG_CP);
     const auth = getAuth(app);
     await sendPasswordResetEmail(auth, email);
-    document.getElementById('cp-success').textContent = `✅ Reset email sent to ${email}. Check your inbox!`;
+    document.getElementById('cp-success').textContent = `Reset email sent to ${email}. Check your inbox!`;
     document.getElementById('cp-success').style.display = '';
   } catch(e) {
     document.getElementById('cp-error').textContent = 'Could not send reset email: ' + e.message;

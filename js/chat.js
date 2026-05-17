@@ -34,9 +34,9 @@ let _unread          = {};          // { channel: count }
 
 // ── Built-in channels ─────────────────────────────────────────────
 const BUILTIN_CHANNELS = [
-  { id:'general',      label:'# General',      icon:'💬', bg:'#6366f1' },
-  { id:'announcements',label:'# Announcements',icon:'📣', bg:'#f59e0b' },
-  { id:'operations',   label:'# Operations',   icon:'⚙️', bg:'#10b981' },
+  { id:'general',      label:'# General',      icon:'#', bg:'#6366f1' },
+  { id:'announcements',label:'# Announcements',icon:'#', bg:'#f59e0b' },
+  { id:'operations',   label:'# Operations',   icon:'#', bg:'#10b981' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -75,23 +75,23 @@ function _channelLabel(channel) {
   if (channel.startsWith('booking:')) {
     const id = channel.slice(8);
     const b  = (DB.bookings||[]).find(x => x.id === id);
-    return `📅 ${b ? b.customer + ' — ' + id : id}`;
+    return `${b ? b.customer + ' — ' + id : id}`;
   }
   if (channel.startsWith('customer:')) {
     const id = channel.slice(9);
     const c  = (DB.customers||[]).find(x => x.id === id);
-    return `👤 ${c ? c.name || c.fullName || id : id}`;
+    return `${c ? c.name || c.fullName || id : id}`;
   }
   return channel;
 }
 
 function _channelIcon(channel) {
-  if (!channel) return '💬';
+  if (!channel) return '#';
   const builtin = BUILTIN_CHANNELS.find(c => c.id === channel);
   if (builtin) return builtin.icon;
-  if (channel.startsWith('booking:'))  return '📅';
-  if (channel.startsWith('customer:')) return '👤';
-  return '💬';
+  if (channel.startsWith('booking:'))  return 'B';
+  if (channel.startsWith('customer:')) return 'C';
+  return '#';
 }
 
 function _channelBg(channel) {
@@ -204,12 +204,12 @@ function renderChatMain() {
       <div class="chat-input-row">
         <textarea class="chat-textarea" id="chat-input" placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
           onkeydown="onChatKeyDown(event)" oninput="autoResizeChatInput(this)" rows="1"></textarea>
-        <button class="chat-note-btn" onclick="sendNote()" title="Send as shared note">📝</button>
+        <button class="chat-note-btn" onclick="sendNote()" title="Send as shared note">Note</button>
         <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" title="Send (Enter)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
-      <div class="chat-input-hint">Enter to send · Shift+Enter for new line · 📝 to send as a pinned note</div>
+      <div class="chat-input-hint">Enter to send · Shift+Enter for new line · Note button to send as a pinned note</div>
     </div>`;
 
   _scrollToBottom();
@@ -237,7 +237,7 @@ function _buildMessagesHtml(msgs) {
     if (msg.type === 'note') {
       html += `<div style="display:flex;justify-content:${isMe?'flex-end':'flex-start'}">
         <div class="msg-note">
-          <div class="msg-note-label">📝 Shared Note — ${_esc(msg.senderName || msg.senderEmail)}</div>
+          <div class="msg-note-label">Shared Note — ${_esc(msg.senderName || msg.senderEmail)}</div>
           <div style="white-space:pre-wrap">${_esc(msg.text)}</div>
           <div style="font-size:10.5px;color:#d97706;margin-top:4px">${_fmtTime(msg.createdAt)}</div>
         </div>

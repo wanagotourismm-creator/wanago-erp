@@ -152,7 +152,8 @@ function renderLeads(filter) {
   const tbody=document.getElementById('leads-tbody');
   if(!tbody) return;
   if(!leads.length){tbody.innerHTML=emptyRow(13,'No leads match your filters.');return;}
-  const priIcon={hot:'🔥',warm:'🌤',cold:'❄️'};
+  const priIcon={hot:'Hot',warm:'Warm',cold:'Cold'};
+  const priColor={hot:'var(--red)',warm:'var(--amb)',cold:'#3b82f6'};
   const todayStr=today();
   tbody.innerHTML=leads.map(l=>{
     const score=leadScore(l);
@@ -163,8 +164,8 @@ function renderLeads(filter) {
     const rowBg=isSelected?'background:var(--g50)':fuOverdue?'background:rgba(220,38,38,.05);':fuToday?'background:rgba(245,158,11,.06);':'';
     return `<tr id="lrow-${l.id}" style="${rowBg}">
       <td><input type="checkbox" class="lead-checkbox" data-id="${l.id}" ${isSelected?'checked':''} onchange="toggleLeadSelect(this)" style="cursor:pointer"></td>
-      <td><div style="font-weight:600">${l.name} <span style="font-size:12px">${priIcon[l.priority]||''}</span></div><div style="font-size:10.5px;color:var(--textd)">${l.phone}</div></td>
-      <td>${l.destination}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'✈️ Intl':'🇮🇳 Dom'}</span></td>
+      <td><div style="font-weight:600">${l.name} ${priIcon[l.priority]?`<span style="font-size:9.5px;font-weight:700;color:${priColor[l.priority]};background:${priColor[l.priority]}18;border-radius:4px;padding:1px 5px">${priIcon[l.priority]}</span>`:''}</div><div style="font-size:10.5px;color:var(--textd)">${l.phone}</div></td>
+      <td>${l.destination}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'Intl':'Dom'}</span></td>
       <td>${pkg?`<div style="font-size:11px;font-weight:600;color:var(--g700)">${pkg.name}</div>`:`<span style="color:var(--textd);font-size:11px">—</span>`}</td>
       <td><span class="pill pill-gray" style="font-size:9.5px">${l.source||'—'}</span></td>
       <td>${stagePill(l.stage)}</td>
@@ -173,11 +174,11 @@ function renderLeads(filter) {
       <td style="color:var(--g600);font-weight:500">${l.advance?formatMoney(l.advance):'—'}</td>
       <td style="${l.balance>0?'color:var(--red);font-weight:600':'color:var(--textd)'}">${l.balance!=null?formatMoney(l.balance):'—'}</td>
       <td>${l.agent||'—'}</td>
-      <td style="${fuOverdue?'color:var(--red);font-weight:600':fuToday?'color:var(--amb);font-weight:600':''}">${l.followup?formatDate(l.followup)+(fuOverdue?' ⚠':fuToday?' 📅':''):'—'}</td>
+      <td style="${fuOverdue?'color:var(--red);font-weight:600':fuToday?'color:var(--amb);font-weight:600':''}">${l.followup?formatDate(l.followup)+(fuOverdue?' Overdue':fuToday?' Today':''):'—'}</td>
       <td style="white-space:nowrap">
         <button class="row-btn" onclick="viewLead('${l.id}')">View</button>
-        <button class="row-btn" style="margin-left:3px" onclick="editLead('${l.id}')" title="Edit">✏️</button>
-        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${leadJsArg(l.phone)}','${leadJsArg(l.name)}','lead')" title="Sales Chat">💬</button>
+        <button class="row-btn" style="margin-left:3px" onclick="editLead('${l.id}')" title="Edit">Edit</button>
+        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${leadJsArg(l.phone)}','${leadJsArg(l.name)}','lead')" title="Sales Chat">WA</button>
         <button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="deleteLead('${l.id}')">✕</button>
       </td>
     </tr>`;
@@ -309,7 +310,7 @@ function bulkAssignAgent(){
   const ov=document.createElement('div');ov.id='bulk-assign-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
   ov.innerHTML=`<div style="background:#fff;border-radius:14px;padding:26px 24px 20px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px">👤 Assign Agent</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">Assign Agent</div>
     <div style="font-size:12.5px;color:var(--textd);margin-bottom:14px">${selectedLeadIds.size} lead${selectedLeadIds.size>1?'s':''} selected</div>
     <select id="bulk-assign-agent-sel" class="form-select" style="width:100%;margin-bottom:16px">
       <option value="">Select agent…</option>
@@ -358,7 +359,7 @@ function viewLead(id){
       <div><div class="form-label">Phone</div><div style="margin-top:4px;font-size:13px">${l.phone}</div></div>
       <div><div class="form-label">Email</div><div style="margin-top:4px;font-size:13px">${l.email||'—'}</div></div>
       <div><div class="form-label">Destination</div><div style="margin-top:4px;font-size:13px">${l.destination}</div></div>
-      <div><div class="form-label">Trip Type</div><div style="margin-top:4px;font-size:13px">${l.tripType==='international'?'✈️ International':'🇮🇳 Domestic'}</div></div>
+      <div><div class="form-label">Trip Type</div><div style="margin-top:4px;font-size:13px">${l.tripType==='international'?'International':'Domestic'}</div></div>
       <div><div class="form-label">Travel Date</div><div style="margin-top:4px;font-size:13px">${formatDate(l.travelDate)}</div></div>
       <div><div class="form-label">Pax</div><div style="margin-top:4px;font-size:13px">${l.pax||'—'}</div></div>
       <div><div class="form-label">Package Amount</div><div style="margin-top:4px;font-size:13px;font-weight:600">${l.budget?formatMoney(l.budget):'—'}</div></div>
@@ -366,9 +367,9 @@ function viewLead(id){
       <div><div class="form-label">Balance Due</div><div style="margin-top:4px;font-size:13px;color:var(--red);font-weight:700">${l.balance!=null?formatMoney(l.balance):'—'}</div></div>
       <div><div class="form-label">Source</div><div style="margin-top:4px">${stagePill(l.source||'other')}</div></div>
       <div><div class="form-label">Stage</div><div style="margin-top:4px">${stagePill(l.stage)}</div></div>
-      <div><div class="form-label">Priority</div><div style="margin-top:4px">${l.priority==='hot'?'🔥 Hot':l.priority==='warm'?'🌤 Warm':'❄️ Cold'}</div></div>
+      <div><div class="form-label">Priority</div><div style="margin-top:4px;font-size:13px;font-weight:600;color:${l.priority==='hot'?'var(--red)':l.priority==='warm'?'var(--amb)':'#3b82f6'}">${l.priority==='hot'?'Hot':l.priority==='warm'?'Warm':'Cold'}</div></div>
       <div><div class="form-label">Agent</div><div style="margin-top:4px;font-size:13px">${l.agent||'Unassigned'}</div></div>
-      <div><div class="form-label">Follow-up</div><div style="margin-top:4px;font-size:13px;${isOverdue(l.followup)?'color:var(--red);font-weight:600':''}">${formatDate(l.followup)||'—'}${isOverdue(l.followup)?' ⚠️ Overdue':''}</div></div>
+      <div><div class="form-label">Follow-up</div><div style="margin-top:4px;font-size:13px;${isOverdue(l.followup)?'color:var(--red);font-weight:600':''}">${formatDate(l.followup)||'—'}${isOverdue(l.followup)?' Overdue':''}</div></div>
       ${pkg?`<div style="grid-column:1/-1"><div class="form-label">Package</div><div style="margin-top:4px;font-size:13px;font-weight:600;color:var(--g700)">${pkg.name}</div></div>`:''}
       ${l.notes?`<div style="grid-column:1/-1"><div class="form-label">Notes</div><div style="margin-top:4px;font-size:13px;background:var(--cream);padding:10px;border-radius:8px">${l.notes}</div></div>`:''}
     </div>
@@ -397,21 +398,21 @@ function viewLead(id){
       </div>
       <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="vl-fupnote" placeholder="Call about pricing..."></div>
     </div>
-    <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="logFollowUp()">📅 Save Follow-up</button>
-    ${(l.followupLog||[]).length?`<div class="form-section" style="margin-top:14px">📜 Activity Log</div><div style="border-left:2px solid var(--border);padding-left:12px;margin-left:4px;max-height:200px;overflow-y:auto">${[...(l.followupLog||[])].reverse().map(e=>`<div style="margin-bottom:9px;position:relative"><div style="position:absolute;left:-16px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--g400);border:2px solid #fff"></div><div style="font-size:10.5px;color:var(--textd)">${formatDate(e.date)}${e.by?' · '+e.by:''}</div><div style="font-size:12px;color:var(--text);margin-top:1px">${e.note}</div></div>`).join('')}</div>`:''}
-    <div class="form-section" style="margin-top:14px">📎 Attachments</div>
+    <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="logFollowUp()">Save Follow-up</button>
+    ${(l.followupLog||[]).length?`<div class="form-section" style="margin-top:14px">Activity Log</div><div style="border-left:2px solid var(--border);padding-left:12px;margin-left:4px;max-height:200px;overflow-y:auto">${[...(l.followupLog||[])].reverse().map(e=>`<div style="margin-bottom:9px;position:relative"><div style="position:absolute;left:-16px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--g400);border:2px solid #fff"></div><div style="font-size:10.5px;color:var(--textd)">${formatDate(e.date)}${e.by?' · '+e.by:''}</div><div style="font-size:12px;color:var(--text);margin-top:1px">${e.note}</div></div>`).join('')}</div>`:''}
+    <div class="form-section" style="margin-top:14px">Attachments</div>
     <div id="vl-attach-list">${_renderLeadAttachments(l)}</div>
     <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block;margin-top:6px">
       <input type="file" style="display:none" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="uploadLeadFiles('${l.id}',this)">
-      📎 Attach Files
+      Attach Files
     </label>
     <div id="vl-upload-progress" style="display:none;font-size:11px;color:var(--g600);margin-top:4px"></div>
     <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-sm btn-primary" onclick="editLead('${l.id}')">✏️ Edit</button>
-      <button class="btn btn-sm btn-outline" onclick="openSalesChatWindow('${l.phone}','${l.name}','lead')">💬 Chat</button>
-      ${!['won','lost'].includes(l.stage)?(l.quotationId?`<button class="btn btn-sm btn-outline" style="color:var(--blue)" onclick="closeModal('modal-view-lead');goTo('quotations')">📋 View Quote</button>`:`<button class="btn btn-sm btn-green" onclick="createQuotationFromLead('${l.id}');closeModal('modal-view-lead');showToast('Quotation created!');goTo('quotations')">📋 Create Quote</button>`):''}
-      ${l.stage==='won'?`<button class="btn btn-sm btn-green" onclick="convertLeadToBooking('${l.id}')">🎫 Convert to Booking</button>`:''}
-      <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteLead('${l.id}')">🗑 Delete</button>
+      <button class="btn btn-sm btn-primary" onclick="editLead('${l.id}')">Edit</button>
+      <button class="btn btn-sm btn-outline" onclick="openSalesChatWindow('${l.phone}','${l.name}','lead')">Chat</button>
+      ${!['won','lost'].includes(l.stage)?(l.quotationId?`<button class="btn btn-sm btn-outline" style="color:var(--blue)" onclick="closeModal('modal-view-lead');goTo('quotations')">View Quote</button>`:`<button class="btn btn-sm btn-green" onclick="createQuotationFromLead('${l.id}');closeModal('modal-view-lead');showToast('Quotation created!');goTo('quotations')">Create Quote</button>`):''}
+      ${l.stage==='won'?`<button class="btn btn-sm btn-green" onclick="convertLeadToBooking('${l.id}')">Convert to Booking</button>`:''}
+      <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteLead('${l.id}')">Delete</button>
     </div>`;
   openModal('modal-view-lead');
 }
@@ -564,7 +565,7 @@ function findStaleLeads(){
   const cutoff=new Date(Date.now()-14*86400000).toISOString().slice(0,10);
   const stale=hScoped('leads').filter(l=>!['won','lost'].includes(l.stage)&&(l.createdAt||'').slice(0,10)<cutoff&&(!l.followup||l.followup<cutoff));
   const el=document.getElementById('stale-leads-result');
-  if(el)el.innerHTML=stale.length?`<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">⚠️ ${stale.length} stale leads found</div>`+stale.map(l=>`<div style="padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;font-size:12px"><strong>${l.name}</strong> — ${l.destination} — ${l.agent||'Unassigned'}</div>`).join(''):'<div style="color:var(--g600);font-size:12px">✅ No stale leads found!</div>';
+  if(el)el.innerHTML=stale.length?`<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">${stale.length} stale leads found</div>`+stale.map(l=>`<div style="padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;font-size:12px"><strong>${l.name}</strong> — ${l.destination} — ${l.agent||'Unassigned'}</div>`).join(''):'<div style="color:var(--g600);font-size:12px">No stale leads found!</div>';
 }
 function previewWABlast(){showToast('WhatsApp blast — go to WhatsApp page');}
 
@@ -589,7 +590,7 @@ function renderFollowUps(){
 function renderLeadBoard(){
   const STAGES=['new','contacted','follow_up','quoted','negotiation','won','lost'];
   const LABELS={new:'New',contacted:'Contacted',follow_up:'Follow-up',quoted:'Quoted',negotiation:'Negotiation',won:'Won',lost:'Lost'};
-  const EMOJI={new:'🔵',contacted:'📞',follow_up:'🔄',quoted:'📋',negotiation:'🤝',won:'✅',lost:'❌'};
+  const EMOJI={new:'',contacted:'',follow_up:'',quoted:'',negotiation:'',won:'',lost:''};
   const COLORS={new:'#1976d2',contacted:'#00796b',follow_up:'#f57c00',quoted:'#1a6341',negotiation:'#7c3aed',won:'#228050',lost:'#c62828'};
   const board=document.getElementById('kanban-board');if(!board)return;
   const agents=[...new Set(hScoped('leads').map(l=>l.agent).filter(Boolean))];
@@ -623,14 +624,14 @@ function renderLeadBoard(){
             return `<div class="kanban-card" draggable="true" ondragstart="wsKanbanDragStart(event,'${l.id}')" ondragend="this.style.opacity='1'" onclick="viewLead('${l.id}')" style="border-left:3px solid ${col};cursor:grab">
               <div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:7px">
                 <div style="width:26px;height:26px;border-radius:7px;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${ini}</div>
-                <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.name}${l.priority==='hot'?' 🔥':l.priority==='warm'?' 🌤️':''}</div><div style="font-size:10px;color:var(--textd)">📍 ${l.destination||'—'}</div></div>
+                <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.name}${l.priority==='hot'?`<span style="font-size:8.5px;font-weight:700;color:var(--red);background:rgba(220,38,38,.1);border-radius:3px;padding:1px 4px;margin-left:3px">Hot</span>`:l.priority==='warm'?`<span style="font-size:8.5px;font-weight:700;color:var(--amb);background:rgba(245,158,11,.1);border-radius:3px;padding:1px 4px;margin-left:3px">Warm</span>`:''}</div><div style="font-size:10px;color:var(--textd)">${l.destination||'—'}</div></div>
               </div>
               ${l.budget?`<div style="font-size:11.5px;font-weight:700;color:var(--g700);margin-bottom:5px">₹${Number(l.budget).toLocaleString('en-IN')}</div>`:''}
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:10px;color:var(--textd)">${l.agent||'Unassigned'}</span>${l.followup?`<span style="font-size:10px;font-weight:600;color:${ovd?'var(--red)':'var(--textd)'}">${ovd?'⚠️ ':' '}${formatDate(l.followup)}</span>`:''}</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:10px;color:var(--textd)">${l.agent||'Unassigned'}</span>${l.followup?`<span style="font-size:10px;font-weight:600;color:${ovd?'var(--red)':'var(--textd)'}">${ovd?'Overdue · ':''}${formatDate(l.followup)}</span>`:''}</div>
               <div style="display:flex;align-items:center;gap:4px;margin-bottom:7px"><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${score}%;background:${sc};border-radius:2px"></div></div><span style="font-size:9px;font-weight:700;color:${sc}">${score}</span></div>
               <div style="display:flex;gap:4px;border-top:1px solid var(--border);padding-top:6px">
                 <button onclick="event.stopPropagation();viewLead('${l.id}')" style="flex:1;background:var(--g50);border:1px solid var(--g200);color:var(--g700);border-radius:6px;padding:3px 0;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit">View</button>
-                <button onclick="event.stopPropagation();openSalesChatWindow('${l.phone}','${l.name}','lead')" style="background:#075e54;border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">💬</button>
+                <button onclick="event.stopPropagation();openSalesChatWindow('${l.phone}','${l.name}','lead')" style="background:#075e54;border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">WA</button>
                 ${s!=='won'&&s!=='lost'?`<button onclick="event.stopPropagation();boardAdvance('${l.id}')" title="Next stage" style="background:${col};border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">→</button>`:''}
               </div>
             </div>`;
@@ -665,17 +666,17 @@ window.wsKanbanDrop=function(e,stage){
 function openCSVImport(){
   openModal('modal-csv-import');
   document.getElementById('modal-csv-import-body').innerHTML=`
-    <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Step 1: Download the template</div><button class="btn btn-sm btn-outline" onclick="downloadCSVTemplate()">📄 Download Template</button></div>
+    <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Step 1: Download the template</div><button class="btn btn-sm btn-outline" onclick="downloadCSVTemplate()">Download Template</button></div>
     <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Step 2: Upload your filled CSV</div>
       <div onclick="document.getElementById('csv-file-inp').click()" style="border:2px dashed var(--border2);border-radius:10px;padding:24px;text-align:center;cursor:pointer;background:var(--cream)" onmouseover="this.style.borderColor='var(--g400)'" onmouseout="this.style.borderColor='var(--border2)'">
-        <div style="font-size:28px;margin-bottom:8px">📤</div><div style="font-size:13px;font-weight:600">Click to upload CSV</div><div style="font-size:11.5px;color:var(--textd);margin-top:4px">Supports .csv files only</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Click to upload CSV</div><div style="font-size:11.5px;color:var(--textd);margin-top:4px">Supports .csv files only</div>
       </div>
       <input type="file" id="csv-file-inp" accept=".csv" style="display:none" onchange="handleCSVFile(this)">
     </div>
     <div id="csv-preview-area"></div>
     <div class="modal-footer" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
       <button class="btn btn-outline" onclick="closeModal('modal-csv-import')">Cancel</button>
-      <button class="btn btn-primary" id="csv-import-btn" style="display:none" onclick="confirmCSVImport()">✅ Import Leads</button>
+      <button class="btn btn-primary" id="csv-import-btn" style="display:none" onclick="confirmCSVImport()">Import Leads</button>
     </div>`;
 }
 function downloadCSVTemplate(){
@@ -692,7 +693,7 @@ function handleCSVFile(input){
     _csvRows=[];
     for(let i=1;i<lines.length;i++){const vals=lines[i].split(',').map(v=>v.trim().replace(/^"|"$/g,''));if(!vals[0]?.trim())continue;const row={};headers.forEach((h,j)=>row[h]=vals[j]||'');_csvRows.push(row);}
     const prev=document.getElementById('csv-preview-area');if(!prev)return;
-    const btn=document.getElementById('csv-import-btn');if(btn){btn.style.display='';btn.textContent='✅ Import '+_csvRows.length+' Leads';}
+    const btn=document.getElementById('csv-import-btn');if(btn){btn.style.display='';btn.textContent='Import '+_csvRows.length+' Leads';}
     prev.innerHTML=`<div style="font-size:12.5px;font-weight:600;color:var(--g700);margin-bottom:8px">Found ${_csvRows.length} leads to import:</div><div style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr style="background:var(--cream)"><th style="padding:6px 10px;text-align:left">Name</th><th style="padding:6px 10px;text-align:left">Phone</th><th style="padding:6px 10px;text-align:left">Destination</th></tr></thead><tbody>${_csvRows.slice(0,8).map(r=>`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${r.name||'—'}</td><td style="padding:6px 10px">${r.phone||'—'}</td><td style="padding:6px 10px">${r.destination||'—'}</td></tr>`).join('')}${_csvRows.length>8?`<tr><td colspan="3" style="padding:6px 10px;color:var(--textd);text-align:center">...and ${_csvRows.length-8} more</td></tr>`:''}</tbody></table></div>`;
   };
   reader.readAsText(file);

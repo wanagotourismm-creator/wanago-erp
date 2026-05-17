@@ -119,12 +119,12 @@ function renderSalesReport(from, to) {
   const pendingDues = bookings.reduce((s,b)=>s+Number(b.pendingAmount||0),0);
 
   document.getElementById('rep-sales-cards').innerHTML = [
-    {l:'💰 Revenue Collected', v:formatMoney(revenue), s:payments.length+' payments', c:'stat-up'},
-    {l:'📊 Total Profit', v:formatMoney(profit), s:'From confirmed bookings', c:'stat-up'},
-    {l:'🗓️ Confirmed Bookings', v:confirmedBk, s:pendingBk+' pending', c:''},
-    {l:'🎯 Leads Generated', v:leads.length, s:cvr+'% conversion', c:''},
-    {l:'💵 Avg Booking Value', v:formatMoney(avgBooking), s:'Per confirmed booking', c:''},
-    {l:'⚠️ Pending Dues', v:formatMoney(pendingDues), s:'Outstanding balance', c:'stat-dn'},
+    {l:'Revenue Collected', v:formatMoney(revenue), s:payments.length+' payments', c:'stat-up'},
+    {l:'Total Profit', v:formatMoney(profit), s:'From confirmed bookings', c:'stat-up'},
+    {l:'Confirmed Bookings', v:confirmedBk, s:pendingBk+' pending', c:''},
+    {l:'Leads Generated', v:leads.length, s:cvr+'% conversion', c:''},
+    {l:'Avg Booking Value', v:formatMoney(avgBooking), s:'Per confirmed booking', c:''},
+    {l:'Pending Dues', v:formatMoney(pendingDues), s:'Outstanding balance', c:'stat-dn'},
   ].map(s=>`<div class="stat-card"><div class="stat-label">${s.l}</div><div class="stat-val ${s.c}">${s.v}</div><div class="stat-meta">${s.s}</div></div>`).join('');
 
   // Monthly trend chart
@@ -337,7 +337,7 @@ function renderAIIntelligence(from, to) {
     const nf = forecast[0];
     if (nf) cards.push(
       '<div style="background:linear-gradient(135deg,#134a32,#1e7a4e);border-radius:10px;padding:14px;color:#fff">' +
-        '<div style="font-size:10.5px;opacity:.75;margin-bottom:4px">📈 ' + nf.month + ' Forecast</div>' +
+        '<div style="font-size:10.5px;opacity:.75;margin-bottom:4px">' + nf.month + ' Forecast</div>' +
         '<div style="font-size:22px;font-weight:800;font-family:\'DM Serif Display\',serif">₹' + WanagoAI.fmt(nf.predicted) + '</div>' +
         '<div style="font-size:10px;opacity:.6;margin-top:4px">EMA ₹' + WanagoAI.fmt(ema) + '/mo</div>' +
         '<div style="font-size:9.5px;background:rgba(255,255,255,.15);border-radius:5px;padding:2px 7px;display:inline-block;margin-top:6px">' +
@@ -349,7 +349,7 @@ function renderAIIntelligence(from, to) {
     // Lead temperature
     cards.push(
       '<div style="background:#fde8e8;border:1px solid #e74c3c30;border-radius:10px;padding:14px">' +
-        '<div style="font-size:10.5px;color:#888;margin-bottom:6px">🔥 Lead Temperature</div>' +
+        '<div style="font-size:10.5px;color:#888;margin-bottom:6px">Lead Temperature</div>' +
         '<div style="font-size:26px;font-weight:800;color:#c0392b">' + hotPct + '%</div>' +
         '<div style="font-size:11px;color:#888;margin-top:2px">' + hot + ' hot leads (score ≥70)</div>' +
         '<div style="margin-top:8px;height:5px;background:#f4f4f4;border-radius:3px;overflow:hidden">' +
@@ -430,11 +430,11 @@ function renderLeadQuality(from, to) {
   const maxB = Math.max(...Object.values(buckets).map(b => b.length), 1);
   const avgScore = Math.round(leads.reduce((s, l) => s + WanagoAI.scoreLeadHeat(l), 0) / leads.length);
   const bucketCfg = [
-    { key:'hot',      label:'🔥 Hot',      color:'#e74c3c' },
-    { key:'warm',     label:'⚡ Warm',     color:'#e67e22' },
-    { key:'lukewarm', label:'😐 Lukewarm', color:'#d4ac0d' },
-    { key:'cold',     label:'❄️ Cold',     color:'#3498db' },
-    { key:'dormant',  label:'💤 Dormant',  color:'#95a5a6' },
+    { key:'hot',      label:'Hot',      color:'#e74c3c' },
+    { key:'warm',     label:'Warm',     color:'#e67e22' },
+    { key:'lukewarm', label:'Lukewarm', color:'#d4ac0d' },
+    { key:'cold',     label:'Cold',     color:'#3498db' },
+    { key:'dormant',  label:'Dormant',  color:'#95a5a6' },
   ];
 
   let html = '<div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:16px">' +
@@ -493,16 +493,16 @@ function renderQuotationsReport(from, to) {
 
   statsEl.innerHTML = [
     { l: 'Total Quotes', v: total, c: '' },
-    { l: '✅ Accepted', v: accepted, c: 'stat-up' },
-    { l: '🎉 Converted', v: converted, c: 'stat-up' },
-    { l: '📈 Conv. Rate', v: convRate + '%', c: Number(convRate) >= 30 ? 'stat-up' : '' },
+    { l: 'Accepted', v: accepted, c: 'stat-up' },
+    { l: 'Converted', v: converted, c: 'stat-up' },
+    { l: 'Conv. Rate', v: convRate + '%', c: Number(convRate) >= 30 ? 'stat-up' : '' },
   ].map(s => `<div class="stat-card" style="padding:10px 12px"><div class="stat-label" style="font-size:10.5px">${s.l}</div><div class="stat-val ${s.c}" style="font-size:18px">${s.v}</div></div>`).join('');
 
   const stages = [
-    { label: '📤 Sent',      count: sent,      color: 'var(--blue)' },
-    { label: '✅ Accepted',  count: accepted,  color: 'var(--g500)' },
-    { label: '🎉 Converted', count: converted, color: 'var(--g700)' },
-    { label: '⏰ Expired',   count: expired,   color: 'var(--red)'  },
+    { label: 'Sent',      count: sent,      color: 'var(--blue)' },
+    { label: 'Accepted',  count: accepted,  color: 'var(--g500)' },
+    { label: 'Converted', count: converted, color: 'var(--g700)' },
+    { label: 'Expired',   count: expired,   color: 'var(--red)'  },
   ];
   const maxC = Math.max(...stages.map(s => s.count), 1);
 
@@ -757,7 +757,7 @@ function renderOutstandingCollections(from, to) {
   );
 
   if (!bookings.length) {
-    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--textd);font-size:12px">✅ No outstanding collections — all cleared!</div>';
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--textd);font-size:12px">No outstanding collections — all cleared!</div>';
     return;
   }
 

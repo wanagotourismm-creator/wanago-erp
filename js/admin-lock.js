@@ -87,7 +87,7 @@
         .lock-av { width:36px;height:36px;border-radius:9px;background:#1a6341;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0; }
       </style>
       <div class="lock-box">
-        <div class="lock-icon">🔐</div>
+        <div class="lock-icon">Lock</div>
         <div class="lock-title">Admin Panel</div>
         <div class="lock-sub">Re-enter your password to access<br>the admin panel</div>
 
@@ -107,14 +107,14 @@
               onkeydown="if(event.key==='Enter')lockVerify()"
               style="margin-bottom:0;padding-right:44px">
             <button onclick="var i=document.getElementById('lock-password-input');i.type=i.type==='password'?'text':'password'" type="button"
-              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#888">👁</button>
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:11px;font-weight:600;color:#888">Show</button>
           </div>
         </div>
 
         <div class="lock-error" id="lock-error"></div>
         <div class="lock-success" id="lock-success"></div>
 
-        <button class="lock-btn" id="lock-verify-btn" onclick="lockVerify()">🔓 Unlock Admin Panel</button>
+        <button class="lock-btn" id="lock-verify-btn" onclick="lockVerify()">Unlock Admin Panel</button>
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
           <span style="font-size:12px;color:#aaa;cursor:pointer;text-decoration:underline" onclick="lockForgotPassword()">Forgot password?</span>
@@ -131,10 +131,10 @@
       var btn   = document.getElementById('lock-verify-btn');
       errEl.textContent = ''; sucEl.textContent = '';
 
-      if (!password) { errEl.textContent = '❌ Please enter your password.'; return; }
-      if (!userEmail) { errEl.textContent = '❌ No session found. Please log in again.'; return; }
+      if (!password) { errEl.textContent = 'Please enter your password.'; return; }
+      if (!userEmail) { errEl.textContent = 'No session found. Please log in again.'; return; }
 
-      btn.textContent = '⏳ Verifying...'; btn.disabled = true;
+      btn.textContent = 'Verifying...'; btn.disabled = true;
 
       // Verify using Firebase Auth REST API
       var url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + API_KEY;
@@ -145,7 +145,7 @@
         var res = {};
         try { res = JSON.parse(xhr.responseText); } catch(e) {}
         if (xhr.status === 200 && res.idToken) {
-          sucEl.textContent = '✅ Verified!';
+          sucEl.textContent = 'Verified!';
           setUnlocked();
           setTimeout(function() {
             overlay.remove();
@@ -153,20 +153,20 @@
           }, 400);
         } else {
           var fbErrs = {
-            'INVALID_PASSWORD':      '❌ Wrong password. Try again.',
-            'INVALID_EMAIL':         '❌ Invalid email in session.',
-            'USER_DISABLED':         '❌ Account disabled.',
-            'TOO_MANY_ATTEMPTS_TRY_LATER': '❌ Too many attempts. Try again later.',
-            'INVALID_LOGIN_CREDENTIALS': '❌ Wrong password. Try again.',
+            'INVALID_PASSWORD':      'Wrong password. Try again.',
+            'INVALID_EMAIL':         'Invalid email in session.',
+            'USER_DISABLED':         'Account disabled.',
+            'TOO_MANY_ATTEMPTS_TRY_LATER': 'Too many attempts. Try again later.',
+            'INVALID_LOGIN_CREDENTIALS': 'Wrong password. Try again.',
           };
           var msg = (res.error && res.error.message) || 'UNKNOWN';
-          errEl.textContent = fbErrs[msg] || ('❌ ' + msg);
-          btn.textContent = '🔓 Unlock Admin Panel'; btn.disabled = false;
+          errEl.textContent = fbErrs[msg] || msg;
+          btn.textContent = 'Unlock Admin Panel'; btn.disabled = false;
         }
       };
       xhr.onerror = function() {
-        errEl.textContent = '❌ Network error. Check your connection.';
-        btn.textContent = '🔓 Unlock Admin Panel'; btn.disabled = false;
+        errEl.textContent = 'Network error. Check your connection.';
+        btn.textContent = 'Unlock Admin Panel'; btn.disabled = false;
       };
       xhr.send(JSON.stringify({ email: userEmail, password: password, returnSecureToken: true }));
     };
@@ -174,16 +174,16 @@
     window.lockForgotPassword = function() {
       var errEl = document.getElementById('lock-error');
       var sucEl = document.getElementById('lock-success');
-      if (!userEmail) { errEl.textContent = '❌ No email in session.'; return; }
+      if (!userEmail) { errEl.textContent = 'No email in session.'; return; }
       var url = 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + API_KEY;
       var xhr = new XMLHttpRequest();
       xhr.open('POST', url, true);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.onload = function() {
         if (xhr.status === 200) {
-          sucEl.textContent = '✅ Reset email sent to ' + userEmail + '. Check your inbox!';
+          sucEl.textContent = 'Reset email sent to ' + userEmail + '. Check your inbox!';
         } else {
-          errEl.textContent = '❌ Could not send reset email.';
+          errEl.textContent = 'Could not send reset email.';
         }
       };
       xhr.send(JSON.stringify({ requestType: 'PASSWORD_RESET', email: userEmail }));

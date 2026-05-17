@@ -194,7 +194,7 @@ var WanagoSheets = (function () {
         DB.settings.googleSheets.lastSync = new Date().toISOString();
         if (typeof fsSaveSettings === 'function') fsSaveSettings().catch(function(){});
       }
-      if (!silent && typeof showToast === 'function') showToast('✅ Synced to Google Sheets!');
+      if (!silent && typeof showToast === 'function') showToast('Synced to Google Sheets!');
       return { ok: true };
     } catch (e) {
       console.warn('[WanagoSheets] sync failed:', e.message);

@@ -30,9 +30,9 @@
         <!-- Stats -->
         <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
           <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('all',document.querySelector('.chip'))"><div class="stat-label">Total Quotations</div><div class="stat-val" id="qstat-total">0</div></div>
-          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('draft',this)"><div class="stat-label">📤 Sent</div><div class="stat-val" id="qstat-sent">0</div></div>
-          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('converted',this)"><div class="stat-label">✅ Accepted</div><div class="stat-val stat-up" id="qstat-accepted">0</div></div><div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('converted',this)"><div class="stat-label">🎉 Booked</div><div class="stat-val" id="qstat-converted">0</div></div>
-          <div class="stat-card" style="padding:12px 14px"><div class="stat-label">💰 Total Value</div><div class="stat-val" id="qstat-value" style="font-size:17px">₹0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('draft',this)"><div class="stat-label">Sent</div><div class="stat-val" id="qstat-sent">0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('converted',this)"><div class="stat-label">Accepted</div><div class="stat-val stat-up" id="qstat-accepted">0</div></div><div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterQuotations('converted',this)"><div class="stat-label">Booked</div><div class="stat-val" id="qstat-converted">0</div></div>
+          <div class="stat-card" style="padding:12px 14px"><div class="stat-label">Total Value</div><div class="stat-val" id="qstat-value" style="font-size:17px">₹0</div></div>
         </div>
 
         <!-- AI Strip -->
@@ -43,9 +43,9 @@
           <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
             <div class="chip active" onclick="filterQuotations('all',this)">All</div>
             
-            <div class="chip" onclick="filterQuotations('sent',this)">📤 Sent</div>
-            <div class="chip" onclick="filterQuotations('converted',this)">✅ Converted</div>
-            <div class="chip" onclick="filterQuotations('expired',this)">⏰ Expired</div>
+            <div class="chip" onclick="filterQuotations('sent',this)">Sent</div>
+            <div class="chip" onclick="filterQuotations('converted',this)">Converted</div>
+            <div class="chip" onclick="filterQuotations('expired',this)">Expired</div>
           </div>
           <select id="quot-sort" onchange="renderQuotationsPage()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);background:var(--cream);font-family:inherit;cursor:pointer;outline:none">
             <option value="newest">Newest First</option>
@@ -78,10 +78,10 @@
     <div id="quotation-preview-body"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-view-quotation')">Close</button>
-      <button class="btn btn-green" onclick="printQuotation()">🖨 Print</button>
-      <button class="btn btn-outline" id="quot-wa-btn" onclick="whatsappQuotation()" style="background:#25d366;color:#fff;border-color:#25d366">💬 WhatsApp</button>
-      <button class="btn btn-blue" id="quot-accept-btn" onclick="acceptFromModal()" style="display:none">✅ Customer Accepted</button>
-      <button class="btn btn-primary" id="quot-convert-btn" onclick="convertFromModal()" style="display:none">🗓 Convert to Booking</button>
+      <button class="btn btn-green" onclick="printQuotation()">Print</button>
+      <button class="btn btn-outline" id="quot-wa-btn" onclick="whatsappQuotation()" style="background:#25d366;color:#fff;border-color:#25d366">WhatsApp</button>
+      <button class="btn btn-blue" id="quot-accept-btn" onclick="acceptFromModal()" style="display:none">Customer Accepted</button>
+      <button class="btn btn-primary" id="quot-convert-btn" onclick="convertFromModal()" style="display:none">Convert to Booking</button>
     </div>
   </div>
 </div>

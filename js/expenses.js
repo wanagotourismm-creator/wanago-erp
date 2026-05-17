@@ -38,15 +38,15 @@ window.goTo = goTo;
 let expFilter = 'all';
 
 const EXP_CAT = {
-  transportation: { label: 'Transportation',   emoji: '✈️',  color: 'var(--blue)'  },
-  hotel:          { label: 'Hotel & Stay',      emoji: '🏨',  color: 'var(--g600)'  },
-  visa:           { label: 'Visa & Docs',       emoji: '📋',  color: '#7c3aed'      },
-  marketing:      { label: 'Marketing',         emoji: '📢',  color: 'var(--amb)'   },
-  office:         { label: 'Office & Admin',    emoji: '🏢',  color: 'var(--g400)'  },
-  salary:         { label: 'Staff & Salary',    emoji: '👥',  color: '#e91e8c'      },
-  technology:     { label: 'Technology',        emoji: '💻',  color: '#2196f3'      },
-  vehicle:        { label: 'Vehicle & Fuel',    emoji: '🚗',  color: 'var(--amb)'   },
-  miscellaneous:  { label: 'Miscellaneous',     emoji: '📦',  color: 'var(--textd)' },
+  transportation: { label: 'Transportation',   color: 'var(--blue)'  },
+  hotel:          { label: 'Hotel & Stay',      color: 'var(--g600)'  },
+  visa:           { label: 'Visa & Docs',       color: '#7c3aed'      },
+  marketing:      { label: 'Marketing',         color: 'var(--amb)'   },
+  office:         { label: 'Office & Admin',    color: 'var(--g400)'  },
+  salary:         { label: 'Staff & Salary',    color: '#e91e8c'      },
+  technology:     { label: 'Technology',        color: '#2196f3'      },
+  vehicle:        { label: 'Vehicle & Fuel',    color: 'var(--amb)'   },
+  miscellaneous:  { label: 'Miscellaneous',     color: 'var(--textd)' },
 };
 
 // ── Stats ──
@@ -60,10 +60,10 @@ function renderExpStats() {
   const linkedToBooking = all.filter(e => e.bookingRef).length;
   const strip = document.getElementById('exp-stats');
   if (strip) strip.innerHTML = [
-    { label: '📅 This Month',     val: formatMoney(monthAmt),   meta: monthExp.length + ' expenses',          cls: 'stat-dn' },
-    { label: '💸 Total Paid',     val: formatMoney(totalAmt),   meta: all.filter(e=>e.status==='paid').length + ' transactions', cls: '' },
-    { label: '⏳ Pending',        val: formatMoney(pendingAmt), meta: all.filter(e=>e.status==='pending').length + ' unpaid',    cls: 'stat-dn' },
-    { label: '📎 Linked Booking', val: linkedToBooking,         meta: 'expenses tied to bookings',            cls: '' },
+    { label: 'This Month',     val: formatMoney(monthAmt),   meta: monthExp.length + ' expenses',          cls: 'stat-dn' },
+    { label: 'Total Paid',     val: formatMoney(totalAmt),   meta: all.filter(e=>e.status==='paid').length + ' transactions', cls: '' },
+    { label: 'Pending',        val: formatMoney(pendingAmt), meta: all.filter(e=>e.status==='pending').length + ' unpaid',    cls: 'stat-dn' },
+    { label: 'Linked Booking', val: linkedToBooking,         meta: 'expenses tied to bookings',            cls: '' },
   ].map(s => '<div class="stat-card"><div class="stat-label">' + s.label + '</div><div class="stat-val ' + s.cls + '">' + s.val + '</div><div class="stat-meta">' + s.meta + '</div></div>').join('');
 }
 
@@ -80,15 +80,13 @@ function renderExpAIStrip() {
   const pending = all.filter(e => e.status === 'pending');
   const cards = [];
   if (topCat) {
-    const m = EXP_CAT[topCat[0]] || { label: topCat[0], emoji: '📦', color: 'var(--textd)' };
-    cards.push('<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">' +
-      '<span style="font-size:20px">' + m.emoji + '</span>' +
+    const m = EXP_CAT[topCat[0]] || { label: topCat[0], color: 'var(--textd)' };
+    cards.push('<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 14px">' +
       '<div><div style="font-size:12.5px;font-weight:700">' + m.label + ' — Highest Spend</div><div style="font-size:11px;color:var(--textd)">' + formatMoney(topCat[1]) + ' total</div></div></div>');
   }
   if (pending.length) {
     const pAmt = pending.reduce((s,e) => s + Number(e.amount||0), 0);
-    cards.push('<div style="background:#fff8f0;border:1px solid var(--amb2,#fde8c8);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">' +
-      '<span style="font-size:20px">⚠️</span>' +
+    cards.push('<div style="background:#fff8f0;border:1px solid var(--amb2,#fde8c8);border-radius:10px;padding:10px 14px">' +
       '<div><div style="font-size:12.5px;font-weight:700">' + pending.length + ' Pending Expense' + (pending.length>1?'s':'') + '</div><div style="font-size:11px;color:var(--textd)">' + formatMoney(pAmt) + ' awaiting payment</div></div></div>');
   }
   if (monthAmt > 0) {
@@ -96,8 +94,7 @@ function renderExpAIStrip() {
     if (rev > 0) {
       const margin = rev > 0 ? Math.round(((rev - monthAmt) / rev) * 100) : 0;
       const ok = margin >= 20;
-      cards.push('<div style="background:' + (ok?'var(--g50)':'#fee2e2') + ';border:1px solid ' + (ok?'var(--g200)':'#fca5a5') + ';border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">' +
-        '<span style="font-size:20px">' + (ok?'📈':'⚡') + '</span>' +
+      cards.push('<div style="background:' + (ok?'var(--g50)':'#fee2e2') + ';border:1px solid ' + (ok?'var(--g200)':'#fca5a5') + ';border-radius:10px;padding:10px 14px">' +
         '<div><div style="font-size:12.5px;font-weight:700">This Month Margin: ' + margin + '%</div><div style="font-size:11px;color:var(--textd)">Revenue ' + formatMoney(rev) + ' · Expenses ' + formatMoney(monthAmt) + '</div></div></div>');
     }
   }
@@ -120,17 +117,17 @@ function renderExpenses(filter) {
   exps = [...exps].sort((a, b) => (b.date||'').localeCompare(a.date||''));
   const tbody = document.getElementById('exp-tbody'); if (!tbody) return;
   if (!exps.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--textd)"><div style="font-size:28px;margin-bottom:8px">💸</div><div style="font-weight:600;color:var(--text)">No expenses found</div><div style="font-size:12px;margin-top:4px">Click "+ Add Expense" to record your first expense</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--textd)"><div style="font-weight:600;color:var(--text)">No expenses found</div><div style="font-size:12px;margin-top:4px">Click "+ Add Expense" to record your first expense</div></td></tr>';
     return;
   }
   tbody.innerHTML = exps.map(e => {
-    const m = EXP_CAT[e.category] || { label: e.category||'—', emoji: '📦', color: 'var(--textd)' };
+    const m = EXP_CAT[e.category] || { label: e.category||'—', color: 'var(--textd)' };
     const statusPill = e.status === 'paid'
       ? '<span style="background:var(--g50);color:var(--g700);padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:600">✓ Paid</span>'
-      : '<span style="background:#fff8f0;color:var(--amb);padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:600;border:1px solid var(--amb2,#fde8c8)">⏳ Pending</span>';
+      : '<span style="background:#fff8f0;color:var(--amb);padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:600;border:1px solid var(--amb2,#fde8c8)">Pending</span>';
     return '<tr>' +
       '<td style="font-size:12px;white-space:nowrap">' + formatDate(e.date) + '</td>' +
-      '<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:' + m.color + '">' + m.emoji + ' ' + m.label + '</span></td>' +
+      '<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:' + m.color + '">' + m.label + '</span></td>' +
       '<td style="font-weight:600">' + (e.vendor||'—') + '</td>' +
       '<td style="font-size:12px;color:var(--textm)">' + (e.description||'—') + '</td>' +
       '<td style="font-family:JetBrains Mono,monospace;font-size:11px">' + (e.bookingRef ? '<a href="#" onclick="return false" style="color:var(--g700);font-weight:600">' + e.bookingRef + '</a>' : '<span style="color:var(--textd)">—</span>') + '</td>' +
@@ -235,7 +232,7 @@ function markExpPaid(id) {
   const e = (DB.expenses||[]).find(x => x.id === id); if (!e) return;
   e.status = 'paid';
   if (e && typeof dbSave === 'function') dbSave('expenses', e).catch(()=>{});
-  saveDB(); renderExpenses(); showToast('Expense marked as paid ✅');
+  saveDB(); renderExpenses(); showToast('Expense marked as paid');
 }
 
 function deleteExpense(id) {
@@ -284,9 +281,9 @@ function renderExpAnalytics() {
     const grandTotal = entries.reduce((s,[,v])=>s+v, 0) || 1;
     if (!entries.length) { cc.innerHTML = '<div style="color:var(--textd);font-size:12px;padding:20px;text-align:center">No data</div>'; }
     else cc.innerHTML = entries.map(([cat, amt]) => {
-      const m = EXP_CAT[cat] || { label: cat, emoji: '📦', color: 'var(--textd)' };
+      const m = EXP_CAT[cat] || { label: cat, color: 'var(--textd)' };
       const pct = Math.max(3, Math.round(amt/grandTotal*100));
-      return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span>' + m.emoji + ' ' + m.label + '</span><span style="font-weight:700">' + formatMoney(amt) + ' (' + Math.round(amt/grandTotal*100) + '%)</span></div><div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+m.color+';border-radius:4px"></div></div></div>';
+      return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span>' + m.label + '</span><span style="font-weight:700">' + formatMoney(amt) + ' (' + Math.round(amt/grandTotal*100) + '%)</span></div><div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+m.color+';border-radius:4px"></div></div></div>';
     }).join('');
   }
 
@@ -302,11 +299,11 @@ function renderExpAnalytics() {
     const tProfit = tRevenue - tExpenses;
     pnl.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
       '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--textd);margin-bottom:10px">This Month</div>' +
-      _pnlRow('💰 Revenue', mRevenue, 'var(--g600)') + _pnlRow('💸 Expenses', mExpenses, 'var(--red)') +
-      '<div style="border-top:2px solid var(--border);padding-top:8px;margin-top:8px">' + _pnlRow('📊 Net Profit', mProfit, mProfit>=0?'var(--g600)':'var(--red)') + '</div></div>' +
+      _pnlRow('Revenue', mRevenue, 'var(--g600)') + _pnlRow('Expenses', mExpenses, 'var(--red)') +
+      '<div style="border-top:2px solid var(--border);padding-top:8px;margin-top:8px">' + _pnlRow('Net Profit', mProfit, mProfit>=0?'var(--g600)':'var(--red)') + '</div></div>' +
       '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--textd);margin-bottom:10px">All Time</div>' +
-      _pnlRow('💰 Revenue', tRevenue, 'var(--g600)') + _pnlRow('💸 Expenses', tExpenses, 'var(--red)') +
-      '<div style="border-top:2px solid var(--border);padding-top:8px;margin-top:8px">' + _pnlRow('📊 Net Profit', tProfit, tProfit>=0?'var(--g600)':'var(--red)') + '</div></div>' +
+      _pnlRow('Revenue', tRevenue, 'var(--g600)') + _pnlRow('Expenses', tExpenses, 'var(--red)') +
+      '<div style="border-top:2px solid var(--border);padding-top:8px;margin-top:8px">' + _pnlRow('Net Profit', tProfit, tProfit>=0?'var(--g600)':'var(--red)') + '</div></div>' +
       '</div>';
   }
 

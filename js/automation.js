@@ -25,7 +25,7 @@ const WanagoAutomation = (function () {
       const fu = l.nextFollowUp || l.followUpDate || l.followup;
       return fu && fu < today;
     }).slice(0, 6).forEach(l => alerts.push({
-      icon:'⚠️', cls:'warn',
+      icon:'FU', cls:'warn',
       label:'Overdue follow-up: ' + (l.name || 'Lead'),
       sub:  'Stage: ' + (l.stage||'—') + ' · Was due: ' + (l.nextFollowUp||l.followup||'unknown'),
       page:'leads', _p:0,
@@ -39,7 +39,7 @@ const WanagoAutomation = (function () {
     }).forEach(b => {
       const d = Math.ceil((new Date(b.travelDate) - now) / 86400000);
       alerts.push({
-        icon:'✈️', cls:'danger',
+        icon:'Dep', cls:'danger',
         label:'Departure ' + (d === 0 ? 'TODAY' : 'in ' + d + ' day' + (d === 1 ? '' : 's')) + ': ' + (b.customerName||'Guest'),
         sub:  (b.destination||'TBD') + ' · ' + (b.ref||''),
         page:'bookings', _p:0,
@@ -50,7 +50,7 @@ const WanagoAutomation = (function () {
     invoices.filter(i =>
       i.status !== 'paid' && i.dueDate && i.dueDate < today
     ).slice(0, 5).forEach(i => alerts.push({
-      icon:'🧾', cls:'danger',
+      icon:'Inv', cls:'danger',
       label:'Overdue payment: ' + (i.invoiceNo||i.ref||'Invoice'),
       sub:  '₹' + Number(i.totalAmount||i.grandTotal||0).toLocaleString('en-IN') + ' · Due: ' + i.dueDate,
       page:'invoices', _p:0,
@@ -64,7 +64,7 @@ const WanagoAutomation = (function () {
     }).slice(0, 4).forEach(b => {
       const d = Math.ceil((new Date(b.travelDate) - now) / 86400000);
       alerts.push({
-        icon:'📅', cls:'info',
+        icon:'Dep', cls:'info',
         label:'Departure in ' + d + ' days: ' + (b.customerName||'Guest'),
         sub:  (b.ref||'') + (b.destination ? ' · ' + b.destination : ''),
         page:'bookings', _p:1,
@@ -78,7 +78,7 @@ const WanagoAutomation = (function () {
       if (!ts) return false;
       return Math.floor((Date.now() - new Date(ts)) / 86400000) >= 5;
     }).slice(0, 4).forEach(l => alerts.push({
-      icon:'🔕', cls:'warn',
+      icon:'Cold', cls:'warn',
       label:'Lead going cold: ' + (l.name||'Lead'),
       sub:  'No contact in 5+ days · ' + (l.destination||l.stage||''),
       page:'leads', _p:1,
@@ -91,7 +91,7 @@ const WanagoAutomation = (function () {
     if (pendingBooks.length > 0) {
       const tot = pendingBooks.reduce((s, b) => s + Number(b.pendingAmount||0), 0);
       alerts.push({
-        icon:'💰', cls:'warn',
+        icon:'Pay', cls:'warn',
         label: pendingBooks.length + ' confirmed booking' + (pendingBooks.length > 1 ? 's' : '') + ' with outstanding balance',
         sub:  '₹' + tot.toLocaleString('en-IN') + ' pending — send payment reminders',
         page:'payments', _p:1,
@@ -102,7 +102,7 @@ const WanagoAutomation = (function () {
     bookings.filter(b => b.visaExpiry).forEach(b => {
       const diff = Math.ceil((new Date(b.visaExpiry) - now) / 86400000);
       if (diff >= 0 && diff <= 30) alerts.push({
-        icon:'🛂', cls: diff <= 7 ? 'danger' : 'warn',
+        icon:'Visa', cls: diff <= 7 ? 'danger' : 'warn',
         label:'Visa expiring ' + (diff === 0 ? 'today' : 'in ' + diff + ' days') + ': ' + (b.customerName||''),
         sub:  (b.ref||'Booking') + ' · Exp: ' + b.visaExpiry,
         page:'bookings', _p: diff <= 7 ? 0 : 1,
@@ -117,8 +117,8 @@ const WanagoAutomation = (function () {
       const next = new Date(now.getFullYear(), bd.getMonth(), bd.getDate());
       if (next < now) next.setFullYear(now.getFullYear() + 1);
       const diff = Math.ceil((next - now) / 86400000);
-      if      (diff === 0) alerts.push({ icon:'🎂', cls:'ok',   label:'Birthday today: '     + (p.name||''), sub:'Send a personalised birthday wish!',    page:'customers', _p:2 });
-      else if (diff <= 3)  alerts.push({ icon:'🎉', cls:'info', label:'Birthday in ' + diff + 'd: ' + (p.name||''), sub:'Prepare a personalised message', page:'customers', _p:2 });
+      if      (diff === 0) alerts.push({ icon:'Bday', cls:'ok',   label:'Birthday today: '     + (p.name||''), sub:'Send a personalised birthday wish!',    page:'customers', _p:2 });
+      else if (diff <= 3)  alerts.push({ icon:'Bday', cls:'info', label:'Birthday in ' + diff + 'd: ' + (p.name||''), sub:'Prepare a personalised message', page:'customers', _p:2 });
     });
 
     /* ── RULE 9: Anniversaries within 3 days ─────────────── */
@@ -130,7 +130,7 @@ const WanagoAutomation = (function () {
       if (next < now) next.setFullYear(now.getFullYear() + 1);
       const diff = Math.ceil((next - now) / 86400000);
       if (diff <= 3) alerts.push({
-        icon:'💍', cls:'ok',
+        icon:'Ann', cls:'ok',
         label:(diff === 0 ? 'Anniversary today' : 'Anniversary in ' + diff + 'd') + ': ' + (p.name||''),
         sub:'Send an anniversary greeting',
         page:'customers', _p:2,

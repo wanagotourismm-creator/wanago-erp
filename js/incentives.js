@@ -92,7 +92,7 @@ function renderIncentiveDashboard() {
   document.getElementById('inc-team-profit').textContent = formatMoney(teamProfit);
   document.getElementById('inc-team-target').textContent = teamTarget > 0 ? formatMoney(teamTarget) : 'Not Set';
   document.getElementById('inc-team-pct').textContent = teamPct + '%';
-  document.getElementById('inc-team-bonus').textContent = teamBonusOn ? '✅ Active (+2%)' : '❌ Not Yet';
+  document.getElementById('inc-team-bonus').textContent = teamBonusOn ? 'Active (+2%)' : 'Not Yet';
   document.getElementById('inc-team-bonus').style.color = teamBonusOn ? 'var(--g600)' : 'var(--red)';
 
   // For agents, show personalized header instead
@@ -156,7 +156,7 @@ function renderIncentiveDashboard() {
 
   // Agent cards
   const grid = document.getElementById('inc-agents-grid');
-  if (!agents.length) { grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--textd);grid-column:1/-1"><div style="font-size:36px;margin-bottom:10px">🎯</div><div style="font-size:14px;font-weight:600">No agents with bookings this month</div><div style="font-size:12px;margin-top:4px">Set targets in the Settings tab and create confirmed bookings to see incentives here</div></div>'; return; }
+  if (!agents.length) { grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--textd);grid-column:1/-1"><div style="font-size:14px;font-weight:600">No agents with bookings this month</div><div style="font-size:12px;margin-top:4px">Set targets in the Settings tab and create confirmed bookings to see incentives here</div></div>'; return; }
 
   const agentData = agents.map(agent => {
     const profit = getAgentMonthlyProfit(agent, month);
@@ -183,7 +183,7 @@ function renderIncentiveDashboard() {
     return { agent, profit, target, pct, remaining, dailyNeeded, bookings: bookings.length, totalIncentive, totalBase, totalFast, totalHV, totalSelf, teamBonus, level, nextLevel, profitToNextLevel };
   }).sort((a,b) => b.profit - a.profit);
 
-  const medals = ['🥇','🥈','🥉'];
+  const medals = ['#1','#2','#3'];
   grid.innerHTML = agentData.map((d, i) => {
     const progressColor = d.pct >= 100 ? 'var(--g500)' : d.pct >= 70 ? 'var(--amb)' : d.pct >= 50 ? 'var(--blue)' : 'var(--red)';
     const levelColor = d.pct >= 100 ? 'var(--g700)' : d.pct >= 70 ? 'var(--amb)' : 'var(--textd)';
@@ -210,33 +210,32 @@ function renderIncentiveDashboard() {
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">' +
         '<div style="background:var(--g50);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:15px;font-weight:700;color:var(--g700)">' + formatMoney(d.profit) + '</div><div style="font-size:9px;color:var(--textd)">Achieved</div></div>' +
         '<div style="background:var(--cream);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:15px;font-weight:700">' + d.bookings + '</div><div style="font-size:9px;color:var(--textd)">Bookings</div></div>' +
-        '<div style="background:' + (d.remaining > 0 ? 'var(--red2)' : 'var(--g50)') + ';border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:15px;font-weight:700;color:' + (d.remaining > 0 ? 'var(--red)' : 'var(--g600)') + '">' + (d.remaining > 0 ? formatMoney(d.remaining) : '✅ Done') + '</div><div style="font-size:9px;color:var(--textd)">' + (d.remaining > 0 ? 'Still Needs' : 'Target Met!') + '</div></div>' +
+        '<div style="background:' + (d.remaining > 0 ? 'var(--red2)' : 'var(--g50)') + ';border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:15px;font-weight:700;color:' + (d.remaining > 0 ? 'var(--red)' : 'var(--g600)') + '">' + (d.remaining > 0 ? formatMoney(d.remaining) : 'Done') + '</div><div style="font-size:9px;color:var(--textd)">' + (d.remaining > 0 ? 'Still Needs' : 'Target Met!') + '</div></div>' +
       '</div>' +
 
       // Pressure zone — daily run rate + next level
       (d.remaining > 0 && isCurrentMonth ? '<div style="background:linear-gradient(135deg,#fff5f5,#fff0f0);border:1px solid rgba(192,57,43,.12);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center">' +
-          '<div><div style="font-size:9px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px">⏰ Daily Run Rate Needed</div><div style="font-size:18px;font-weight:900;color:var(--red);font-family:DM Serif Display,serif">' + formatMoney(d.dailyNeeded) + '<span style="font-size:11px;font-weight:500;color:var(--textd)">/day</span></div></div>' +
+          '<div><div style="font-size:9px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px">Daily Run Rate Needed</div><div style="font-size:18px;font-weight:900;color:var(--red);font-family:DM Serif Display,serif">' + formatMoney(d.dailyNeeded) + '<span style="font-size:11px;font-weight:500;color:var(--textd)">/day</span></div></div>' +
           '<div style="text-align:right"><div style="font-size:9px;color:var(--textd)">Days Left</div><div style="font-size:22px;font-weight:900;color:' + (daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? 'var(--amb)' : 'var(--g600)') + '">' + daysLeft + '</div></div>' +
         '</div>' +
       '</div>' : '') +
 
       // Next level motivation
       (d.nextLevel && d.profitToNextLevel > 0 ? '<div style="background:var(--amb2);border:1px solid rgba(214,137,16,.15);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">' +
-        '<span style="font-size:20px">🚀</span>' +
         '<div><div style="font-size:10px;font-weight:700;color:var(--amb);text-transform:uppercase;letter-spacing:.5px">Next Level Unlock</div><div style="font-size:12px;color:var(--textm)">Just <strong>' + formatMoney(d.profitToNextLevel) + '</strong> more profit to reach <strong>' + d.nextLevel + '</strong></div></div>' +
       '</div>' : '') +
 
       // Target met celebration
-      (d.pct >= 100 ? '<div style="background:linear-gradient(135deg,var(--g50),#e8f5e9);border:1px solid var(--g200);border-radius:10px;padding:10px 12px;margin-bottom:12px;text-align:center"><span style="font-size:20px">🎉</span> <span style="font-size:13px;font-weight:700;color:var(--g700)">TARGET ACHIEVED! Top Performer Level Unlocked!</span></div>' : '') +
+      (d.pct >= 100 ? '<div style="background:linear-gradient(135deg,var(--g50),#e8f5e9);border:1px solid var(--g200);border-radius:10px;padding:10px 12px;margin-bottom:12px;text-align:center"><span style="font-size:13px;font-weight:700;color:var(--g700)">TARGET ACHIEVED! Top Performer Level Unlocked!</span></div>' : '') +
 
       // Incentive breakdown pills
       '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
         (d.totalBase > 0 ? '<span style="background:var(--g50);color:var(--g700);border:1px solid var(--g200);font-size:10px;padding:2px 8px;border-radius:12px">Base: ' + formatMoney(d.totalBase) + '</span>' : '') +
-        (d.totalFast > 0 ? '<span style="background:var(--amb2);color:var(--amb);border:1px solid rgba(214,137,16,.2);font-size:10px;padding:2px 8px;border-radius:12px">⚡ Fast: ' + formatMoney(d.totalFast) + '</span>' : '') +
-        (d.totalHV > 0 ? '<span style="background:var(--gold2);color:#7a5800;border:1px solid rgba(201,168,76,.25);font-size:10px;padding:2px 8px;border-radius:12px">💎 HV: ' + formatMoney(d.totalHV) + '</span>' : '') +
-        (d.totalSelf > 0 ? '<span style="background:var(--blue2);color:var(--blue);border:1px solid rgba(37,99,235,.15);font-size:10px;padding:2px 8px;border-radius:12px">🔥 Self: ' + formatMoney(d.totalSelf) + '</span>' : '') +
-        (d.teamBonus > 0 ? '<span style="background:#f3e8ff;color:#7c3aed;border:1px solid rgba(124,58,237,.15);font-size:10px;padding:2px 8px;border-radius:12px">👥 Team: ' + formatMoney(d.teamBonus) + '</span>' : '') +
+        (d.totalFast > 0 ? '<span style="background:var(--amb2);color:var(--amb);border:1px solid rgba(214,137,16,.2);font-size:10px;padding:2px 8px;border-radius:12px">Fast: ' + formatMoney(d.totalFast) + '</span>' : '') +
+        (d.totalHV > 0 ? '<span style="background:var(--gold2);color:#7a5800;border:1px solid rgba(201,168,76,.25);font-size:10px;padding:2px 8px;border-radius:12px">HV: ' + formatMoney(d.totalHV) + '</span>' : '') +
+        (d.totalSelf > 0 ? '<span style="background:var(--blue2);color:var(--blue);border:1px solid rgba(37,99,235,.15);font-size:10px;padding:2px 8px;border-radius:12px">Self: ' + formatMoney(d.totalSelf) + '</span>' : '') +
+        (d.teamBonus > 0 ? '<span style="background:#f3e8ff;color:#7c3aed;border:1px solid rgba(124,58,237,.15);font-size:10px;padding:2px 8px;border-radius:12px">Team: ' + formatMoney(d.teamBonus) + '</span>' : '') +
       '</div>' +
 
       '</div></div>';
@@ -316,16 +315,16 @@ function renderIncAIStrip(month, teamProfit, teamTarget, daysPassed, daysTotal, 
   if (teamTarget > 0) {
     const gap = teamPct - monthProgress;
     if (gap >= 10) {
-      cards.push({ icon:'🚀', color:'#16a34a', bg:'#f0fdf4',
+      cards.push({ icon:'', color:'#16a34a', bg:'#f0fdf4',
         title: 'Team is Ahead of Pace! +'+gap+'%',
         sub: teamPct+'% target achieved with '+monthProgress+'% of month gone · '+formatMoney(teamProfit)+' profit so far' });
     } else if (gap >= -5) {
-      cards.push({ icon:'🎯', color:'#f59e0b', bg:'#fffbeb',
+      cards.push({ icon:'', color:'#f59e0b', bg:'#fffbeb',
         title: 'On Track — Stay Consistent',
         sub: teamPct+'% of target at '+monthProgress+'% of month · Need '+formatMoney(Math.max(0,teamTarget-teamProfit))+' more' });
     } else {
       const projectedEnd = daysTotal > 0 ? Math.round((teamProfit / daysPassed) * daysTotal) : teamProfit;
-      cards.push({ icon:'⚠️', color:'#dc2626', bg:'#fee2e2',
+      cards.push({ icon:'', color:'#dc2626', bg:'#fee2e2',
         title: 'Team Behind Pace — Action Needed',
         sub: 'At current pace: projected '+formatMoney(projectedEnd)+' vs target '+formatMoney(teamTarget)+' · Push harder the next '+daysLeft+'d' });
     }
@@ -341,7 +340,7 @@ function renderIncAIStrip(month, teamProfit, teamTarget, daysPassed, daysTotal, 
       return Math.round((p/t)*100) < 50;
     });
     if (atRisk.length) {
-      cards.push({ icon:'⚠️', color:'#f97316', bg:'#fff7ed',
+      cards.push({ icon:'', color:'#f97316', bg:'#fff7ed',
         title: atRisk.length+' Agent'+(atRisk.length>1?'s':'')+' Below 50% Target Mid-Month',
         sub: atRisk.join(', ')+' — coach and reassign leads to close the gap' });
     }
@@ -353,7 +352,7 @@ function renderIncAIStrip(month, teamProfit, teamTarget, daysPassed, daysTotal, 
     if (agents.length > 1) {
       const ranked = agents.map(a => ({ name:a, profit: getAgentMonthlyProfit(a, month) })).sort((a,b)=>b.profit-a.profit);
       if (ranked[0].profit > 0) {
-        cards.push({ icon:'🏆', color:'#b45309', bg:'#fffbeb',
+        cards.push({ icon:'', color:'#b45309', bg:'#fffbeb',
           title: ranked[0].name+' Leading This Month',
           sub: formatMoney(ranked[0].profit)+' profit · '+(ranked[1]?'2nd: '+ranked[1].name+' ('+formatMoney(ranked[1].profit)+')':'') });
       }
@@ -364,11 +363,10 @@ function renderIncAIStrip(month, teamProfit, teamTarget, daysPassed, daysTotal, 
 
   el.innerHTML =
     '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--sh)">'+
-      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">🤖 Incentive Intelligence <span style="font-size:10px;font-weight:400;color:var(--textd)">AI pace analysis</span></div>'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">Incentive Intelligence <span style="font-size:10px;font-weight:400;color:var(--textd)">AI pace analysis</span></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:9px">'+
         cards.map(c =>
-          '<div style="background:'+c.bg+';border:1px solid '+c.color+'22;border-radius:9px;padding:10px 12px;display:flex;gap:9px;align-items:flex-start">'+
-            '<span style="font-size:16px;flex-shrink:0">'+c.icon+'</span>'+
+          '<div style="background:'+c.bg+';border:1px solid '+c.color+'22;border-radius:9px;padding:10px 12px">'+
             '<div><div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.3">'+c.title+'</div>'+
             '<div style="font-size:10.5px;color:var(--textd);margin-top:2px;line-height:1.4">'+c.sub+'</div></div>'+
           '</div>'
@@ -423,7 +421,7 @@ function renderPayoutTab() {
         '<div style="background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:10px 16px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--g700)">' + formatMoney(totalPaid) + '</div><div style="font-size:10px;color:var(--textd);margin-top:2px">Already Paid</div></div>' +
         '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 16px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--text)">' + formatMoney(totalPayable + totalPaid) + '</div><div style="font-size:10px;color:var(--textd);margin-top:2px">Total This Month</div></div>' +
       '</div>' +
-      (isAdmin() ? '<button class="btn btn-primary" onclick="markAllPaid(\'' + month + '\')">✅ Mark All Pending as Paid</button>' : '') +
+      (isAdmin() ? '<button class="btn btn-primary" onclick="markAllPaid(\'' + month + '\')">Mark All Pending as Paid</button>' : '') +
     '</div>' +
 
     '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh)">' +
@@ -441,9 +439,9 @@ function renderPayoutTab() {
         '</tr></thead>' +
         '<tbody>' +
           rows.map((r, i) => {
-            const medals = ['🥇', '🥈', '🥉'];
+            const medals = ['#1', '#2', '#3'];
             return '<tr style="border-bottom:1px solid var(--border);' + (r.paid ? 'opacity:.65' : '') + '">' +
-              '<td style="padding:10px 14px;font-weight:600">' + (i < 3 ? medals[i] + ' ' : '') + r.agent + '</td>' +
+              '<td style="padding:10px 14px;font-weight:600">' + (i < 3 ? '<span style="font-size:10px;font-weight:800;color:var(--amb)">' + medals[i] + '</span> ' : '') + r.agent + '</td>' +
               '<td style="padding:10px 14px;text-align:right;font-size:13px">' + formatMoney(r.profit) + '</td>' +
               '<td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:700;color:' + (r.pct >= 100 ? 'var(--g600)' : r.pct >= 70 ? 'var(--amb)' : 'var(--red)') + '">' + r.pct + '%</td>' +
               '<td style="padding:10px 14px;text-align:right;font-size:13px">' + formatMoney(r.totalBase) + '</td>' +
@@ -452,11 +450,11 @@ function renderPayoutTab() {
               '<td style="padding:10px 14px;text-align:right;font-size:15px;font-weight:800;color:var(--g700)">' + formatMoney(r.totalIncentive) + '</td>' +
               '<td style="padding:10px 14px;text-align:center">' +
                 (r.paid
-                  ? '<span style="background:var(--g50);color:var(--g700);border:1px solid var(--g200);font-size:10px;padding:3px 8px;border-radius:20px">✅ Paid ' + (r.paidAt ? new Date(r.paidAt).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) : '') + '</span>'
-                  : '<span style="background:#fff5f5;color:var(--red);border:1px solid rgba(220,38,38,.2);font-size:10px;padding:3px 8px;border-radius:20px">⏳ Pending</span>') +
+                  ? '<span style="background:var(--g50);color:var(--g700);border:1px solid var(--g200);font-size:10px;padding:3px 8px;border-radius:20px">Paid ' + (r.paidAt ? new Date(r.paidAt).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) : '') + '</span>'
+                  : '<span style="background:#fff5f5;color:var(--red);border:1px solid rgba(220,38,38,.2);font-size:10px;padding:3px 8px;border-radius:20px">Pending</span>') +
               '</td>' +
               (isAdmin() ? '<td style="padding:10px 14px">' +
-                (!r.paid ? '<button class="btn btn-sm btn-outline" style="font-size:11px" onclick="markAgentPaid(\'' + r.agent + '\',\'' + month + '\',' + r.totalIncentive + ')">💸 Pay</button>' : '') +
+                (!r.paid ? '<button class="btn btn-sm btn-outline" style="font-size:11px" onclick="markAgentPaid(\'' + r.agent + '\',\'' + month + '\',' + r.totalIncentive + ')">Pay</button>' : '') +
               '</td>' : '') +
             '</tr>';
           }).join('') +
@@ -493,7 +491,7 @@ function markAgentPaid(agent, month, amount) {
   const session = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
   DB.incentiveLogs.push({ agent, month, amount, status: 'paid', paidAt: new Date().toISOString(), paidBy: session.name || session.email || 'Admin' });
   saveDB();
-  showToast('Payment of ' + formatMoney(amount) + ' recorded for ' + agent + ' ✅');
+  showToast('Payment of ' + formatMoney(amount) + ' recorded for ' + agent);
   renderPayoutTab();
 }
 
@@ -521,7 +519,7 @@ function markAllPaid(month) {
     DB.incentiveLogs.push({ agent, month, amount: total, status: 'paid', paidAt: new Date().toISOString(), paidBy: session.name || session.email || 'Admin' });
   });
   saveDB();
-  showToast(unpaid.length + ' agent(s) marked as paid ✅');
+  showToast(unpaid.length + ' agent(s) marked as paid');
   renderPayoutTab();
 }
 
@@ -533,7 +531,7 @@ function renderStructureTab() {
 
   el.innerHTML =
     '<div class="card" style="max-width:800px">' +
-      '<div class="card-header"><div><div class="card-title">📋 Incentive Structure Reference</div><div class="card-sub">As per current Wanago Sales Incentive Settings</div></div></div>' +
+      '<div class="card-header"><div><div class="card-title">Incentive Structure Reference</div><div class="card-sub">As per current Wanago Sales Incentive Settings</div></div></div>' +
       '<div class="form-section">Incentive Slabs (Profit-Based)</div>' +
       '<table style="width:100%;border-collapse:collapse;margin-bottom:20px">' +
         '<thead><tr style="background:var(--cream)"><th style="padding:10px 14px;text-align:left;font-size:11px">Target Achievement</th><th style="padding:10px 14px;text-align:left;font-size:11px">Performance Level</th><th style="padding:10px 14px;text-align:left;font-size:11px">Incentive %</th></tr></thead>' +
@@ -548,19 +546,19 @@ function renderStructureTab() {
       '</table>' +
       '<div class="form-section">Performance Boosters</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">' +
-        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--amb);margin-bottom:8px">⚡ Fast Closure Bonus</div><div style="font-size:12px;line-height:2">' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--amb);margin-bottom:8px">Fast Closure Bonus</div><div style="font-size:12px;line-height:2">' +
           s.fastClosureBonus.map(fc => 'Within ' + fc.withinHours + ' Hours → <strong>₹' + fc.amount + '</strong>').join('<br>') +
         '</div></div>' +
-        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">💎 High-Value Booking</div><div style="font-size:12px;line-height:2">Profit above ₹' + s.highValueThreshold.toLocaleString() + ' → <strong>₹' + s.highValueBonus + ' Bonus</strong></div></div>' +
-        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px">🔥 Self-Generated Lead</div><div style="font-size:12px;line-height:2">+' + s.selfGeneratedBonus + '% Additional on Profit</div></div>' +
-        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">👥 Team Bonus</div><div style="font-size:12px;line-height:2">Team hits target → +' + s.teamBonusPercent + '% for everyone</div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">High-Value Booking</div><div style="font-size:12px;line-height:2">Profit above ₹' + s.highValueThreshold.toLocaleString() + ' → <strong>₹' + s.highValueBonus + ' Bonus</strong></div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px">Self-Generated Lead</div><div style="font-size:12px;line-height:2">+' + s.selfGeneratedBonus + '% Additional on Profit</div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">Team Bonus</div><div style="font-size:12px;line-height:2">Team hits target → +' + s.teamBonusPercent + '% for everyone</div></div>' +
       '</div>' +
       '<div class="form-section">Monthly & Quarterly Rewards</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
-        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--g700);margin-bottom:8px">🏆 Monthly Rewards</div><div style="font-size:12px;line-height:2">' +
-          s.monthlyRewards.map((r, i) => ['🥇', '🥈', '🥉'][i] + ' ' + r.label + ' → <strong>₹' + r.amount.toLocaleString() + '</strong>').join('<br>') +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--g700);margin-bottom:8px">Monthly Rewards</div><div style="font-size:12px;line-height:2">' +
+          s.monthlyRewards.map((r, i) => ['#1', '#2', '#3'][i] + ' ' + r.label + ' → <strong>₹' + r.amount.toLocaleString() + '</strong>').join('<br>') +
         '</div></div>' +
-        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">🌟 Quarterly Reward</div><div style="font-size:12px;line-height:2">Top Performer (3 months) → <strong>' + (s.quarterlyRewardLabel || '₹' + s.quarterlyRewardAmount.toLocaleString()) + '</strong></div></div>' +
+        '<div style="background:var(--cream);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">Quarterly Reward</div><div style="font-size:12px;line-height:2">Top Performer (3 months) → <strong>' + (s.quarterlyRewardLabel || '₹' + s.quarterlyRewardAmount.toLocaleString()) + '</strong></div></div>' +
       '</div>' +
     '</div>';
 }

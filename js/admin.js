@@ -69,11 +69,11 @@ function admTab(name, el) {
   if (tab) tab.classList.add('active');
   // Update topbar title
   var titles = {
-    overview:'⚙️ Admin Panel', company:'🏢 Company Settings', team:'👥 Team Members',
-    offices:'🏢 Offices & Branches', settings:'⚙️ Settings', logins:'🔑 Team Logins',
-    cloudsync:'☁️ Cloud Sync', activity:'📋 Activity Log', backup:'💾 Backup & Restore',
-    integrations:'🔗 Integrations', attendance:'📅 Attendance & Leave',
-    notifications:'🔔 Notifications', rbac:'🔒 Access Control'
+    overview:'Admin Panel', company:'Company Settings', team:'Team Members',
+    offices:'Offices & Branches', settings:'Settings', logins:'Team Logins',
+    cloudsync:'Cloud Sync', activity:'Activity Log', backup:'Backup & Restore',
+    integrations:'Integrations', attendance:'Attendance & Leave',
+    notifications:'Notifications', rbac:'Access Control'
   };
   var subs = {
     overview:'Overview & quick actions', company:'Company info, bank details, GST',
@@ -187,12 +187,12 @@ function renderOverviewStats() {
   const activeLeads = leads.filter(l=>!['won','lost'].includes(l.stage)).length;
   const confirmedBk = bookings.filter(b=>b.status==='confirmed').length;
   el.innerHTML = [
-    {label:'Total Revenue',val:formatMoney(revenue),cls:'kpi-green',icon:'💰'},
-    {label:'Active Leads',val:activeLeads,cls:'kpi-blue',icon:'🎯'},
-    {label:'Bookings',val:confirmedBk+'/'+bookings.length,cls:'kpi-green',icon:'🗓'},
-    {label:'Customers',val:customers.length,cls:'kpi-amber',icon:'👤'},
-    {label:'Team Size',val:team.length,cls:'kpi-blue',icon:'👥'},
-  ].map(k => '<div class="admin-kpi-card '+k.cls+'"><div style="font-size:18px;margin-bottom:4px">'+k.icon+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--textd);font-weight:600;margin-bottom:6px">'+k.label+'</div><div style="font-size:20px;font-weight:800;color:var(--text);font-family:DM Serif Display,serif">'+k.val+'</div></div>').join('');
+    {label:'Total Revenue',val:formatMoney(revenue),cls:'kpi-green'},
+    {label:'Active Leads',val:activeLeads,cls:'kpi-blue'},
+    {label:'Bookings',val:confirmedBk+'/'+bookings.length,cls:'kpi-green'},
+    {label:'Customers',val:customers.length,cls:'kpi-amber'},
+    {label:'Team Size',val:team.length,cls:'kpi-blue'},
+  ].map(k => '<div class="admin-kpi-card '+k.cls+'"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--textd);font-weight:600;margin-bottom:6px">'+k.label+'</div><div style="font-size:20px;font-weight:800;color:var(--text);font-family:DM Serif Display,serif">'+k.val+'</div></div>').join('');
 
   renderDataHealth();
 }
@@ -243,18 +243,18 @@ function renderDataHealth() {
   const scoreColor = overall >= 80 ? '#16a34a' : overall >= 60 ? '#f59e0b' : '#dc2626';
   const scoreBg    = overall >= 80 ? '#f0fdf4' : overall >= 60 ? '#fffbeb' : '#fef2f2';
   const scoreLabel = overall >= 80 ? 'Healthy' : overall >= 60 ? 'Needs Attention' : 'Critical';
-  const scoreIcon  = overall >= 80 ? '🟢' : overall >= 60 ? '🟡' : '🔴';
+  const scoreIcon  = '';
 
   // Collect actionable issues
   const issues = [];
-  if (leadsIssues)   issues.push({ icon:'🎯', msg: leadsIssues+' lead'+(leadsIssues>1?'s':'')+' missing phone & email', page:'leads', cta:'Fix Leads' });
-  if (leadsNoSrc)    issues.push({ icon:'🎯', msg: leadsNoSrc+' lead'+(leadsNoSrc>1?'s':'')+' without a source', page:'leads', cta:'Fix Leads' });
-  if (bkNoPhone)     issues.push({ icon:'🗓', msg: bkNoPhone+' booking'+(bkNoPhone>1?'s':'')+' missing customer phone', page:'bookings', cta:'Fix Bookings' });
-  if (bkNoDate)      issues.push({ icon:'🗓', msg: bkNoDate+' booking'+(bkNoDate>1?'s':'')+' missing travel date', page:'bookings', cta:'Fix Bookings' });
-  if (custNoPhone)   issues.push({ icon:'👤', msg: custNoPhone+' customer'+(custNoPhone>1?'s':'')+' have no phone on file', page:'customers', cta:'Fix Customers' });
-  if (custNoEmail)   issues.push({ icon:'👤', msg: custNoEmail+' customer'+(custNoEmail>1?'s':'')+' have no email address', page:'customers', cta:'Fix Customers' });
-  if (quotExpired)   issues.push({ icon:'📋', msg: quotExpired+' quotation'+(quotExpired>1?'s':'')+' expired without conversion', page:'quotations', cta:'Review Quotes' });
-  if (invOverdue)    issues.push({ icon:'🧾', msg: invOverdue+' invoice'+(invOverdue>1?'s':'')+' are overdue', page:'invoices', cta:'View Invoices' });
+  if (leadsIssues)   issues.push({ msg: leadsIssues+' lead'+(leadsIssues>1?'s':'')+' missing phone & email', page:'leads', cta:'Fix Leads' });
+  if (leadsNoSrc)    issues.push({ msg: leadsNoSrc+' lead'+(leadsNoSrc>1?'s':'')+' without a source', page:'leads', cta:'Fix Leads' });
+  if (bkNoPhone)     issues.push({ msg: bkNoPhone+' booking'+(bkNoPhone>1?'s':'')+' missing customer phone', page:'bookings', cta:'Fix Bookings' });
+  if (bkNoDate)      issues.push({ msg: bkNoDate+' booking'+(bkNoDate>1?'s':'')+' missing travel date', page:'bookings', cta:'Fix Bookings' });
+  if (custNoPhone)   issues.push({ msg: custNoPhone+' customer'+(custNoPhone>1?'s':'')+' have no phone on file', page:'customers', cta:'Fix Customers' });
+  if (custNoEmail)   issues.push({ msg: custNoEmail+' customer'+(custNoEmail>1?'s':'')+' have no email address', page:'customers', cta:'Fix Customers' });
+  if (quotExpired)   issues.push({ msg: quotExpired+' quotation'+(quotExpired>1?'s':'')+' expired without conversion', page:'quotations', cta:'Review Quotes' });
+  if (invOverdue)    issues.push({ msg: invOverdue+' invoice'+(invOverdue>1?'s':'')+' are overdue', page:'invoices', cta:'View Invoices' });
 
   // Module bar
   const modules = [
@@ -279,7 +279,6 @@ function renderDataHealth() {
 
   const issueItems = issues.slice(0, 6).map(i =>
     '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--cream);border:1px solid var(--border);border-radius:8px">'+
-      '<span style="font-size:14px">'+i.icon+'</span>'+
       '<div style="flex:1;font-size:12px;color:var(--textm)">'+i.msg+'</div>'+
       '<button onclick="goTo(\''+i.page+'\')" style="font-size:10.5px;font-weight:700;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--g700);cursor:pointer;font-family:inherit;white-space:nowrap">'+i.cta+' →</button>'+
     '</div>'
@@ -288,7 +287,7 @@ function renderDataHealth() {
   el.innerHTML =
     '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--sh)">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
-        '<div style="font-size:13px;font-weight:700;color:var(--text)">🏥 Data Health Dashboard</div>'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text)">Data Health Dashboard</div>'+
         '<button onclick="renderDataHealth()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--cream);cursor:pointer;font-family:inherit;color:var(--textm)">↺ Refresh</button>'+
       '</div>'+
       '<div style="display:grid;grid-template-columns:140px 1fr;gap:20px;margin-bottom:'+(issues.length?'16px':'0')+'">'+
@@ -306,10 +305,10 @@ function renderDataHealth() {
       (issues.length ?
         '<div style="border-top:1px solid var(--border);padding-top:14px">'+
           '<div style="font-size:11px;font-weight:700;color:var(--textd);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">'+
-            '⚠️ '+issues.length+' Issue'+(issues.length!==1?'s':'')+' Requiring Attention</div>'+
+            issues.length+' Issue'+(issues.length!==1?'s':'')+' Requiring Attention</div>'+
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+issueItems+'</div>'+
         '</div>'
-      : '<div style="border-top:1px solid var(--border);padding-top:12px;text-align:center;font-size:12px;color:var(--g600);font-weight:600">✅ All modules look healthy!</div>')+
+      : '<div style="border-top:1px solid var(--border);padding-top:12px;text-align:center;font-size:12px;color:var(--g600);font-weight:600">All modules look healthy!</div>')+
     '</div>';
 }
 
@@ -326,7 +325,7 @@ function renderSetupChecklist() {
   wrap.style.display='block';
   document.getElementById('checklist-progress-bar').style.width = pct+'%';
   document.getElementById('checklist-progress-text').textContent = done+'/'+items.length+' complete';
-  document.getElementById('checklist-items').innerHTML = items.map(i=>'<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:'+(i.done?'var(--g50)':'#fff')+';border:1px solid '+(i.done?'var(--g200)':'var(--border)')+';border-radius:8px;font-size:12px;color:'+(i.done?'var(--g700)':'var(--textd)')+'">'+(i.done?'✅':'⬜')+' '+i.lbl+'</div>').join('');
+  document.getElementById('checklist-items').innerHTML = items.map(i=>'<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:'+(i.done?'var(--g50)':'#fff')+';border:1px solid '+(i.done?'var(--g200)':'var(--border)')+';border-radius:8px;font-size:12px;color:'+(i.done?'var(--g700)':'var(--textd)')+'">'+i.lbl+(i.done?' ✓':'')+'</div>').join('');
 }
 
 // ══════ TEAM MEMBERS ══════
@@ -338,7 +337,7 @@ function renderTeamMembers(filter) {
   if(!members.length) { tbody.innerHTML=emptyRow(8,'No team members found.'); return; }
   tbody.innerHTML = members.map(m => {
     const sr = ROLE_TO_SYSTEM_ROLE[m.role]||'employee';
-    const srLabel = {founder_ceo:'👑 CEO',admin:'🔑 Admin',reporting_manager:'📊 Manager',employee:'👤 Agent'}[sr]||sr;
+    const srLabel = {founder_ceo:'CEO',admin:'Admin',reporting_manager:'Manager',employee:'Agent'}[sr]||sr;
     return '<tr><td><div style="display:flex;align-items:center;gap:9px"><div style="width:32px;height:32px;border-radius:50%;background:'+(m.color||'var(--g600)')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">'+initials(m.name)+'</div><div><div style="font-weight:600">'+m.name+'</div><div style="font-size:10px;color:var(--textd)">'+(m.empId||'—')+'</div></div></div></td><td>'+(DEPT_LABELS[m.dept]||m.dept)+'</td><td>'+srLabel+'</td><td>'+(m.phone||'—')+'</td><td>'+(m.email||'—')+'</td><td>'+(m.officeId===OFFICE_ALL?'All Offices':(DB.settings.offices||[]).find(o=>o.id===m.officeId)?.name||'—')+'</td><td><button class="row-btn" onclick="editMember(\''+m.id+'\')">Edit</button></td></tr>';
   }).join('');
 }
@@ -349,36 +348,36 @@ function filterTeam(f,el) { document.querySelectorAll('#adm-team .chip').forEach
 // ══════ PERMISSIONS SYSTEM ══════
 
 const TM_PAGES = [
-  { id:'dashboard',      label:'Dashboard',    icon:'📊' },
-  { id:'leads',          label:'Leads',        icon:'🎯' },
-  { id:'customers',      label:'Customers',    icon:'👤' },
-  { id:'quotations',     label:'Quotations',   icon:'📋' },
-  { id:'packages',       label:'Packages',     icon:'📦' },
-  { id:'bookings',       label:'Bookings',     icon:'🗓️' },
-  { id:'invoices',       label:'Invoices',     icon:'🧾' },
-  { id:'payments',       label:'Payments',     icon:'💰' },
-  { id:'reports',        label:'Reports',      icon:'📈' },
-  { id:'hrms',           label:'HRMS',         icon:'👥' },
-  { id:'whatsapp',       label:'WhatsApp',     icon:'💬' },
-  { id:'incentives',     label:'Incentives',   icon:'🏆' },
-  { id:'admin',          label:'Admin Panel',  icon:'⚙️'  },
-  { id:'settings',       label:'Settings',     icon:'🔧' },
-  { id:'team-accounts',  label:'Team Accounts',icon:'🔑' },
+  { id:'dashboard',      label:'Dashboard'     },
+  { id:'leads',          label:'Leads'         },
+  { id:'customers',      label:'Customers'     },
+  { id:'quotations',     label:'Quotations'    },
+  { id:'packages',       label:'Packages'      },
+  { id:'bookings',       label:'Bookings'      },
+  { id:'invoices',       label:'Invoices'      },
+  { id:'payments',       label:'Payments'      },
+  { id:'reports',        label:'Reports'       },
+  { id:'hrms',           label:'HRMS'          },
+  { id:'whatsapp',       label:'WhatsApp'      },
+  { id:'incentives',     label:'Incentives'    },
+  { id:'admin',          label:'Admin Panel'   },
+  { id:'settings',       label:'Settings'      },
+  { id:'team-accounts',  label:'Team Accounts' },
 ];
 
 const TM_FEATURES = [
-  { id:'add_lead',       label:'Add Leads',        icon:'➕' },
-  { id:'edit_lead',      label:'Edit Any Lead',    icon:'✏️' },
-  { id:'delete_lead',    label:'Delete Leads',     icon:'🗑️' },
-  { id:'add_booking',    label:'Add Bookings',     icon:'➕' },
-  { id:'edit_booking',   label:'Edit Any Booking', icon:'✏️' },
-  { id:'delete_booking', label:'Delete Bookings',  icon:'🗑️' },
-  { id:'view_payments',  label:'View Payments',    icon:'💰' },
-  { id:'add_payment',    label:'Add Payments',     icon:'➕' },
-  { id:'view_reports',   label:'View Reports',     icon:'📈' },
-  { id:'export_data',    label:'Export Data',      icon:'📦' },
-  { id:'manage_team',    label:'Manage Team',      icon:'👥' },
-  { id:'view_all_leads', label:'View All Leads',   icon:'👁️' },
+  { id:'add_lead',       label:'Add Leads'        },
+  { id:'edit_lead',      label:'Edit Any Lead'    },
+  { id:'delete_lead',    label:'Delete Leads'     },
+  { id:'add_booking',    label:'Add Bookings'     },
+  { id:'edit_booking',   label:'Edit Any Booking' },
+  { id:'delete_booking', label:'Delete Bookings'  },
+  { id:'view_payments',  label:'View Payments'    },
+  { id:'add_payment',    label:'Add Payments'     },
+  { id:'view_reports',   label:'View Reports'     },
+  { id:'export_data',    label:'Export Data'      },
+  { id:'manage_team',    label:'Manage Team'      },
+  { id:'view_all_leads', label:'View All Leads'   },
 ];
 
 // Default permissions by role
@@ -408,7 +407,7 @@ function renderPermissionsPanel(existingPerms) {
       const allowed = perms.pages ? perms.pages.includes(p.id) : defaults.pages.includes(p.id);
       return `<label style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--cream);border:1px solid ${allowed?'var(--g200)':'var(--border)'};border-radius:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--g400)'" onmouseout="this.style.borderColor='${allowed?'var(--g200)':'var(--border)'}'">
         <input type="checkbox" id="perm-page-${p.id}" ${allowed?'checked':''} onchange="tmPermChanged(this)" style="width:14px;height:14px;accent-color:var(--g600);cursor:pointer">
-        <span style="font-size:12px">${p.icon} ${p.label}</span>
+        <span style="font-size:12px">${p.label}</span>
       </label>`;
     }).join('');
   }
@@ -420,7 +419,7 @@ function renderPermissionsPanel(existingPerms) {
       const allowed = perms.features ? perms.features.includes(f.id) : defaults.features.includes(f.id);
       return `<label style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--cream);border:1px solid ${allowed?'var(--g200)':'var(--border)'};border-radius:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--g400)'" onmouseout="this.style.borderColor='${allowed?'var(--g200)':'var(--border)'}'">
         <input type="checkbox" id="perm-feat-${f.id}" ${allowed?'checked':''} onchange="tmPermChanged(this)" style="width:14px;height:14px;accent-color:var(--g600);cursor:pointer">
-        <span style="font-size:12px">${f.icon} ${f.label}</span>
+        <span style="font-size:12px">${f.label}</span>
       </label>`;
     }).join('');
   }
@@ -554,18 +553,18 @@ function renderOfficesTab() {
   if (kpiEl) {
     const activeCount = offices.filter(o => o.active !== false).length;
     kpiEl.innerHTML = [
-      { label:'Total Offices', val:offices.length,         icon:'🏢', cls:'kpi-green' },
-      { label:'Active',        val:activeCount,            icon:'✅', cls:'kpi-green' },
-      { label:'Inactive',      val:offices.length-activeCount, icon:'🔴', cls:'kpi-amber' },
-      { label:'Total Team',    val:team.length,            icon:'👥', cls:'kpi-blue'  },
-    ].map(k => `<div class="admin-kpi-card ${k.cls}"><div style="font-size:18px;margin-bottom:4px">${k.icon}</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--textd);font-weight:600;margin-bottom:6px">${k.label}</div><div style="font-size:20px;font-weight:800;color:var(--text);font-family:'DM Serif Display',serif">${k.val}</div></div>`).join('');
+      { label:'Total Offices', val:offices.length,             cls:'kpi-green' },
+      { label:'Active',        val:activeCount,                cls:'kpi-green' },
+      { label:'Inactive',      val:offices.length-activeCount, cls:'kpi-amber' },
+      { label:'Total Team',    val:team.length,                cls:'kpi-blue'  },
+    ].map(k => `<div class="admin-kpi-card ${k.cls}"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--textd);font-weight:600;margin-bottom:6px">${k.label}</div><div style="font-size:20px;font-weight:800;color:var(--text);font-family:'DM Serif Display',serif">${k.val}</div></div>`).join('');
   }
 
   // Office cards grid
   const gridEl = document.getElementById('offices-grid');
   if (!gridEl) return;
   if (!offices.length) {
-    gridEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:56px;color:var(--textd)"><div style="font-size:48px;margin-bottom:14px">🏢</div><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No offices added yet</div><div style="font-size:12.5px;margin-bottom:20px">Add your office locations to start assigning staff and tracking performance</div><button class="btn btn-primary" onclick="openAddOfficeModal()">+ Add First Office</button></div>`;
+    gridEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:56px;color:var(--textd)"><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No offices added yet</div><div style="font-size:12.5px;margin-bottom:20px">Add your office locations to start assigning staff and tracking performance</div><button class="btn btn-primary" onclick="openAddOfficeModal()">+ Add First Office</button></div>`;
     return;
   }
 
@@ -591,18 +590,18 @@ function renderOfficesTab() {
         </div>
       </div>
       <div style="padding:14px 16px">
-        ${o.address ? `<div style="font-size:11.5px;color:var(--textd);margin-bottom:6px;line-height:1.5">📍 ${o.address}</div>` : ''}
-        ${o.phone   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">📞 ${o.phone}</div>` : ''}
-        ${o.email   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">✉️ ${o.email}</div>` : ''}
-        ${manager   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">👤 ${manager.name}</div>` : ''}
+        ${o.address ? `<div style="font-size:11.5px;color:var(--textd);margin-bottom:6px;line-height:1.5">${o.address}</div>` : ''}
+        ${o.phone   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">${o.phone}</div>` : ''}
+        ${o.email   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">${o.email}</div>` : ''}
+        ${manager   ? `<div style="font-size:11.5px;color:var(--textm);margin-bottom:4px">Manager: ${manager.name}</div>` : ''}
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0;padding:10px 8px;background:var(--cream);border-radius:8px">
           <div style="text-align:center"><div style="font-size:17px;font-weight:800;color:var(--text)">${officeTeam.length}</div><div style="font-size:9px;color:var(--textd);text-transform:uppercase;letter-spacing:.5px">Team</div></div>
           <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)"><div style="font-size:17px;font-weight:800;color:var(--text)">${officeLeads}</div><div style="font-size:9px;color:var(--textd);text-transform:uppercase;letter-spacing:.5px">Leads</div></div>
           <div style="text-align:center"><div style="font-size:17px;font-weight:800;color:var(--text)">${officeBk}</div><div style="font-size:9px;color:var(--textd);text-transform:uppercase;letter-spacing:.5px">Bookings</div></div>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-outline" style="flex:1" onclick="editOffice('${o.id}')">✏️ Edit</button>
-          <button class="btn btn-sm" style="flex:1;background:${isActive?'var(--red2)':'var(--g50)'};color:${isActive?'var(--red)':'var(--g700)'};border:1px solid ${isActive?'rgba(192,57,43,.2)':'var(--g200)'};border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit" onclick="toggleOfficeActive('${o.id}')">${isActive?'🔴 Deactivate':'✅ Activate'}</button>
+          <button class="btn btn-sm btn-outline" style="flex:1" onclick="editOffice('${o.id}')">Edit</button>
+          <button class="btn btn-sm" style="flex:1;background:${isActive?'var(--red2)':'var(--g50)'};color:${isActive?'var(--red)':'var(--g700)'};border:1px solid ${isActive?'rgba(192,57,43,.2)':'var(--g200)'};border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit" onclick="toggleOfficeActive('${o.id}')">${isActive?'Deactivate':'Activate'}</button>
         </div>
       </div>
     </div>`;
@@ -740,7 +739,7 @@ function recalcCustomerStats() {
     if (c) c.totalSpent = (c.totalSpent||0) + Number(p.amount||0);
   });
   saveDB();
-  showToast('Customer stats recalculated for '+custs.length+' customers ✅');
+  showToast('Customer stats recalculated for '+custs.length+' customers');
 }
 window.recalcCustomerStats = recalcCustomerStats;
 
@@ -751,17 +750,17 @@ function renderTeamLogins() {
   var withEmail = team.filter(function(m){ return m.email; });
   var el = document.getElementById('login-stats');
   if (el) el.innerHTML = [
-    {l:'👥 Total Team', v:team.length, m:'members'},
-    {l:'✅ Firebase Account', v:withFb.length, m:'can log in now'},
-    {l:'📧 Email Set', v:withEmail.length, m:'email on record'},
-    {l:'⏳ No Account', v:team.length-withFb.length, m:'needs setup'},
+    {l:'Total Team', v:team.length, m:'members'},
+    {l:'Firebase Account', v:withFb.length, m:'can log in now'},
+    {l:'Email Set', v:withEmail.length, m:'email on record'},
+    {l:'No Account', v:team.length-withFb.length, m:'needs setup'},
   ].map(function(s){ return '<div class="stat-card"><div class="stat-label">'+s.l+'</div><div class="stat-val">'+s.v+'</div><div class="stat-meta">'+s.m+'</div></div>'; }).join('');
 
   var tbody = document.getElementById('logins-tbody');
   if (!tbody) return;
   if (!team.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--textd)">No team members yet. Add from Team Members tab.</td></tr>'; return; }
 
-  var ROLE_LABELS = {founder:'👑 Founder',ceo:'👑 CEO',co_founder:'👑 Co-Founder',admin:'🔑 Admin',branch_manager:'📊 Branch Mgr',team_lead:'📊 Team Lead',sales_manager:'📊 Sales Mgr',operations_manager:'📊 Ops Mgr',finance_manager:'📊 Finance Mgr',marketing_manager:'📊 Mktg Mgr'};
+  var ROLE_LABELS = {founder:'Founder',ceo:'CEO',co_founder:'Co-Founder',admin:'Admin',branch_manager:'Branch Mgr',team_lead:'Team Lead',sales_manager:'Sales Mgr',operations_manager:'Ops Mgr',finance_manager:'Finance Mgr',marketing_manager:'Mktg Mgr'};
   tbody.innerHTML = team.map(function(m) {
     var hasFb = !!(m.firebaseUid || m.accountCreated);
     var hasEmail = !!m.email;
@@ -769,14 +768,14 @@ function renderTeamLogins() {
       ['branch_manager','team_lead','senior_manager','sales_manager','operations_manager','finance_manager','marketing_manager'].includes(m.role) ? 'Manager View' : 'Agent View';
     var accessColor = accessLevel==='Full Access'?'var(--g700)':accessLevel==='Manager View'?'var(--amb)':'var(--textd)';
     var statusBadge = hasFb
-      ? '<span style="background:#e8f5e9;color:#1a6341;border:1px solid #a5d6a7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✅ Active</span>'
+      ? '<span style="background:#e8f5e9;color:#1a6341;border:1px solid #a5d6a7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">Active</span>'
       : hasEmail
-        ? '<span style="background:#fff8e1;color:#7a5800;border:1px solid #ffd54f;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ No Account</span>'
-        : '<span style="background:#fce4ec;color:#b71c1c;border:1px solid #ef9a9a;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">❌ No Email</span>';
+        ? '<span style="background:#fff8e1;color:#7a5800;border:1px solid #ffd54f;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">No Account</span>'
+        : '<span style="background:#fce4ec;color:#b71c1c;border:1px solid #ef9a9a;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">No Email</span>';
     var actionBtns = hasFb
-      ? '<button class="row-btn" onclick="openResetPasswordModal(\'' + m.id + '\')" style="color:var(--amb)">🔄 Reset Password</button>'
+      ? '<button class="row-btn" onclick="openResetPasswordModal(\'' + m.id + '\')" style="color:var(--amb)">Reset Password</button>'
       : hasEmail
-        ? '<button class="row-btn btn-primary-sm" onclick="openCreateAccountModal(\'' + m.id + '\')">🔑 Create Account</button>'
+        ? '<button class="row-btn btn-primary-sm" onclick="openCreateAccountModal(\'' + m.id + '\')">Create Account</button>'
         : '<button class="row-btn" onclick="editMember(\'' + m.id + '\')" style="color:var(--textd)">Set Email First</button>';
     return '<tr>'
       + '<td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:8px;background:'+(m.color||'var(--g600)')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">'+(m.name||'?')[0].toUpperCase()+'</div><div><div style="font-weight:600;font-size:13px">'+m.name+'</div>'+(m.email?'<div style="font-size:11px;color:var(--textd)">'+m.email+'</div>':'')+'</div></div></td>'
@@ -801,7 +800,7 @@ window.openCreateAccountModal = function(memberId) {
   overlay.id = 'fb-create-overlay';
   overlay.innerHTML = '<style>#fb-create-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:inherit}</style>'
     + '<div style="background:#fff;border-radius:16px;padding:28px;width:420px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
-    + '<div style="font-size:18px;font-weight:800;margin-bottom:4px">🔑 Create Login Account</div>'
+    + '<div style="font-size:18px;font-weight:800;margin-bottom:4px">Create Login Account</div>'
     + '<div style="font-size:12.5px;color:var(--textd);margin-bottom:20px">Set up Firebase login for this team member</div>'
     + '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">'
     + '<div style="font-size:13px;font-weight:700">'+m.name+'</div>'
@@ -812,15 +811,15 @@ window.openCreateAccountModal = function(memberId) {
     + '<div style="margin-bottom:16px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Temporary Password *</label>'
     + '<div style="display:flex;gap:8px">'
     + '<input id="fbc-password" type="password" class="form-input" placeholder="Min 6 characters" style="flex:1">'
-    + '<button onclick="fbcGenPass()" class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">🎲 Generate</button>'
+    + '<button onclick="fbcGenPass()" class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">Generate</button>'
     + '</div>'
     + '<div id="fbc-gen-display" style="display:none;margin-top:6px;background:#f0f7f4;border:1px solid var(--g200);border-radius:6px;padding:8px 10px;font-family:monospace;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--g800)"></div>'
-    + '<div style="font-size:11px;color:var(--textd);margin-top:4px">⚠️ Share this with the agent securely. They should change it after first login.</div></div>'
+    + '<div style="font-size:11px;color:var(--textd);margin-top:4px">Share this with the agent securely. They should change it after first login.</div></div>'
     + '<div id="fbc-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>'
     + '<div id="fbc-success" style="display:none;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px;font-size:13px;color:var(--g700);margin-bottom:8px"></div>'
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">'
     + '<button class="btn btn-outline" onclick="document.getElementById(\'fb-create-overlay\').remove()">Cancel</button>'
-    + '<button id="fbc-submit" class="btn btn-primary" onclick="submitCreateFirebaseAccount(\'' + m.id + '\')">🔑 Create Account</button>'
+    + '<button id="fbc-submit" class="btn btn-primary" onclick="submitCreateFirebaseAccount(\'' + m.id + '\')">Create Account</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
 
@@ -849,7 +848,7 @@ window.submitCreateFirebaseAccount = function(memberId) {
 
   var team = DB.settings.team || [];
   var m = team.find(function(x){ return x.id === memberId; });
-  if (!m) { errEl.textContent='Member not found.'; errEl.style.display='block'; btn.textContent='🔑 Create Account'; btn.disabled=false; return; }
+  if (!m) { errEl.textContent='Member not found.'; errEl.style.display='block'; btn.textContent='Create Account'; btn.disabled=false; return; }
 
   // Use Firebase Auth REST API — works in plain <script> without import()
   var API_KEY = 'AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU';
@@ -867,22 +866,22 @@ window.submitCreateFirebaseAccount = function(memberId) {
       m.accountCreatedAt = new Date().toISOString();
       persistSettingsNow();
       if (typeof fsSaveSettings === 'function') fsSaveSettings();
-      sucEl.innerHTML = '✅ Account created for <strong>'+m.name+'</strong>!<br>Email: <strong>'+email+'</strong><br>They can now log in at the login page.';
+      sucEl.innerHTML = 'Account created for <strong>'+m.name+'</strong>!<br>Email: <strong>'+email+'</strong><br>They can now log in at the login page.';
       sucEl.style.display='block';
-      btn.textContent='✅ Done'; btn.disabled=false;
+      btn.textContent='Done'; btn.disabled=false;
       setTimeout(function(){ renderTeamLogins(); }, 600);
     } else {
       var fbErrs = {'EMAIL_EXISTS':'This email already has a Firebase account. Use Reset Password instead.','INVALID_EMAIL':'Invalid email address.','WEAK_PASSWORD : Password should be at least 6 characters':'Password too weak — use at least 6 characters.'};
       var msg = (res.error && res.error.message) || 'Unknown error';
       errEl.textContent = fbErrs[msg] || ('Firebase error: ' + msg);
       errEl.style.display='block';
-      btn.textContent='🔑 Create Account'; btn.disabled=false;
+      btn.textContent='Create Account'; btn.disabled=false;
     }
   };
   xhr.onerror = function() {
     errEl.textContent='Network error. Check your internet connection.';
     errEl.style.display='block';
-    btn.textContent='🔑 Create Account'; btn.disabled=false;
+    btn.textContent='Create Account'; btn.disabled=false;
   };
   xhr.send(JSON.stringify({email: email, password: password, returnSecureToken: false}));
 };
@@ -902,7 +901,7 @@ window.openResetPasswordModal = function(memberId) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML =
     '<div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:360px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18)">' +
-      '<div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:6px">🔄 Reset Password</div>' +
+      '<div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:6px">Reset Password</div>' +
       '<div style="font-size:13px;color:#64748b;margin-bottom:18px">A password reset link will be sent to:</div>' +
       '<div style="background:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:13.5px;font-weight:600;color:#1e293b;margin-bottom:20px;word-break:break-all">' + m.email + '</div>' +
       '<div id="reset-pw-msg" style="display:none;font-size:12.5px;border-radius:7px;padding:8px 12px;margin-bottom:14px"></div>' +
@@ -938,7 +937,7 @@ window.submitResetPassword = function(memberId) {
         msgEl.style.display = 'block';
         msgEl.style.background = '#dcfce7';
         msgEl.style.color = '#166534';
-        msgEl.textContent = '✅ Reset email sent to ' + m.email;
+        msgEl.textContent = 'Reset email sent to ' + m.email;
       }
       if (sendBtn) { sendBtn.style.display = 'none'; }
       if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.textContent = 'Close'; }
@@ -950,7 +949,7 @@ window.submitResetPassword = function(memberId) {
         msgEl.style.display = 'block';
         msgEl.style.background = '#fee2e2';
         msgEl.style.color = '#991b1b';
-        msgEl.textContent = '❌ Failed: ' + errMsg;
+        msgEl.textContent = 'Failed: ' + errMsg;
       }
       if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Retry'; }
       if (cancelBtn) { cancelBtn.disabled = false; }
@@ -961,7 +960,7 @@ window.submitResetPassword = function(memberId) {
       msgEl.style.display = 'block';
       msgEl.style.background = '#fee2e2';
       msgEl.style.color = '#991b1b';
-      msgEl.textContent = '❌ Network error. Check your connection.';
+      msgEl.textContent = 'Network error. Check your connection.';
     }
     if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Retry'; }
     if (cancelBtn) { cancelBtn.disabled = false; }
@@ -981,13 +980,13 @@ function renderCloudSync() {
     if (window._fsReady) {
       banner.style.background = 'linear-gradient(135deg,#e8f5e9,#f9fbe7)';
       banner.style.border = '1px solid #a5d6a7';
-      if (icon) icon.textContent = '✅';
+      if (icon) icon.textContent = 'OK';
       if (title) title.textContent = 'Firestore Connected';
       if (msg) msg.textContent = 'Data syncs automatically on every save.';
     } else {
       banner.style.background = '#fff8e1';
       banner.style.border = '1px solid #ffd54f';
-      if (icon) icon.textContent = '⚠️';
+      if (icon) icon.textContent = '!';
       if (title) title.textContent = 'Firebase Not Configured';
       if (msg) msg.textContent = 'Add your Firebase credentials to firebase/firebase-config.js to enable sync.';
     }
@@ -995,14 +994,14 @@ function renderCloudSync() {
 
   // Data summary
   var items = [
-    {l:'🎯 Leads', v:(DB.leads||[]).length},
-    {l:'👤 Customers', v:(DB.customers||[]).length},
-    {l:'🗓️ Bookings', v:(DB.bookings||[]).length},
-    {l:'💰 Payments', v:(DB.payments||[]).length},
-    {l:'📦 Packages', v:(DB.packages||[]).length},
-    {l:'🧾 Invoices', v:(DB.invoices||[]).length},
-    {l:'📋 Quotations', v:(DB.quotations||[]).length},
-    {l:'👥 Team', v:((DB.settings&&DB.settings.team)||[]).length},
+    {l:'Leads', v:(DB.leads||[]).length},
+    {l:'Customers', v:(DB.customers||[]).length},
+    {l:'Bookings', v:(DB.bookings||[]).length},
+    {l:'Payments', v:(DB.payments||[]).length},
+    {l:'Packages', v:(DB.packages||[]).length},
+    {l:'Invoices', v:(DB.invoices||[]).length},
+    {l:'Quotations', v:(DB.quotations||[]).length},
+    {l:'Team', v:((DB.settings&&DB.settings.team)||[]).length},
   ];
   var el = document.getElementById('fs-data-summary');
   if (el) el.innerHTML = items.map(function(i){
@@ -1013,20 +1012,20 @@ function renderCloudSync() {
 window.doSyncDown = function() {
   if (!window._fsReady) { showToast('Firebase not configured yet','error'); return; }
   showToast('Downloading from cloud...');
-  if (typeof fsSyncDown === 'function') fsSyncDown().then(function(){ renderCloudSync(); showToast('✅ Sync complete!'); });
+  if (typeof fsSyncDown === 'function') fsSyncDown().then(function(){ renderCloudSync(); showToast('Sync complete!'); });
 };
 window.doSyncUp = function() {
   if (!window._fsReady) { showToast('Firebase not configured yet','error'); return; }
   if (!confirm('Upload all local data to Firestore?')) return;
   showToast('Uploading...');
-  if (typeof fsSyncUp === 'function') fsSyncUp().then(function(){ showToast('✅ Upload complete!'); });
+  if (typeof fsSyncUp === 'function') fsSyncUp().then(function(){ showToast('Upload complete!'); });
 };
 window.doFullSync = function() {
   if (!window._fsReady) { showToast('Firebase not configured yet','error'); return; }
   showToast('Syncing...');
   if (typeof fsSyncUp === 'function') fsSyncUp().then(function(){
     if (typeof fsSyncDown === 'function') return fsSyncDown();
-  }).then(function(){ renderCloudSync(); showToast('✅ Full sync complete!'); });
+  }).then(function(){ renderCloudSync(); showToast('Full sync complete!'); });
 };
 
 
@@ -1186,7 +1185,7 @@ function saveAllSettings() {
     if (openEl) bh[day] = { open: openEl.checked, start: startEl?.value||'09:00', end: endEl?.value||'18:00' };
   });
   if (Object.keys(bh).length) s.businessHours = bh;
-  persistSettingsNow(); showToast('✅ Settings saved!');
+  persistSettingsNow(); showToast('Settings saved!');
 }
 function syncColorHex() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h) h.value=c.value; }
 function syncHexColor() { var c=document.getElementById('sett-brand-color'); var h=document.getElementById('sett-brand-hex'); if(c&&h&&h.value.length===7) c.value=h.value; }
@@ -1267,7 +1266,7 @@ function _updateIntegPills() {
   var gmlStat = document.getElementById('gmail-token-status');
   if (gmlStat) {
     if (gml.accessToken) {
-      gmlStat.textContent = '✅ Token active — Gmail ready to send';
+      gmlStat.textContent = 'Token active — Gmail ready to send';
       gmlStat.style.color = 'var(--g700)';
     } else {
       gmlStat.textContent = 'Not authorized yet. Click "Authorize Gmail" to connect.';
@@ -1309,7 +1308,7 @@ function saveIntegration(key) {
   persistSettingsNow();
   _updateIntegPills();
   var names = { meta: 'Meta Ads', whatsapp: 'WhatsApp', gmail: 'Gmail', googlesheets: 'Google Sheets', fcm: 'Push Notifications' };
-  showToast('✅ ' + (names[key] || key) + ' settings saved!');
+  showToast((names[key] || key) + ' settings saved!');
 }
 
 async function testIntegration(key) {
@@ -1333,7 +1332,7 @@ async function testIntegration(key) {
     if (key === 'meta') {
       saveIntegration('meta');
       var d = await window.WanagoIntegrations.Meta.verifyToken();
-      setResult(true, '✅ Connected! Token valid for: ' + (d.name || 'your account'));
+      setResult(true, 'Connected! Token valid for: ' + (d.name || 'your account'));
       showToast('Meta Ads connected: ' + (d.name || 'OK'));
 
     } else if (key === 'whatsapp') {
@@ -1341,12 +1340,12 @@ async function testIntegration(key) {
       var d2 = await window.WanagoIntegrations.WhatsApp.getProfile();
       var phone = d2.display_phone_number || 'Unknown';
       var vname = d2.verified_name ? ' (' + d2.verified_name + ')' : '';
-      setResult(true, '✅ Connected! Phone: ' + phone + vname);
+      setResult(true, 'Connected! Phone: ' + phone + vname);
       showToast('WhatsApp connected: ' + phone);
 
     } else if (key === 'gmail') {
       if (!window.WanagoIntegrations.Gmail.token) throw new Error('No access token. Authorize Gmail first.');
-      setResult(true, '✅ Gmail token is active and ready to send.');
+      setResult(true, 'Gmail token is active and ready to send.');
       showToast('Gmail token active');
 
     } else if (key === 'googlesheets') {
@@ -1354,14 +1353,14 @@ async function testIntegration(key) {
       if (!window.WanagoSheets) throw new Error('Google Sheets module not loaded — reload the page.');
       var r = await window.WanagoSheets.testConnection();
       if (r.ok) {
-        setResult(true, '✅ ' + (r.msg || 'Connected to Google Sheets!'));
+        setResult(true, r.msg || 'Connected to Google Sheets!');
         showToast('Google Sheets connected!');
       } else {
         throw new Error(r.msg || 'Cannot reach the Web App URL');
       }
     }
   } catch (e) {
-    setResult(false, '❌ ' + e.message);
+    setResult(false, e.message);
     showToast(e.message, 'error');
   }
 }
@@ -1385,8 +1384,8 @@ function revokeIntegration(key) {
 
 function toggleIntegCred(inputId, btn) {
   var inp = document.getElementById(inputId); if (!inp) return;
-  if (inp.type === 'password') { inp.type = 'text'; if (btn) btn.textContent = '🙈'; }
-  else                         { inp.type = 'password'; if (btn) btn.textContent = '👁'; }
+  if (inp.type === 'password') { inp.type = 'text'; if (btn) btn.textContent = 'Hide'; }
+  else                         { inp.type = 'password'; if (btn) btn.textContent = 'Show'; }
 }
 
 async function integGmailAuthorize() {
@@ -1394,7 +1393,7 @@ async function integGmailAuthorize() {
   saveIntegration('gmail');
   try {
     var token = await window.WanagoIntegrations.Gmail.authorize();
-    if (token) { showToast('✅ Gmail authorized!'); _updateIntegPills(); }
+    if (token) { showToast('Gmail authorized!'); _updateIntegPills(); }
   } catch (e) {
     showToast(e.message, 'error');
   }
@@ -1403,9 +1402,9 @@ async function integGmailAuthorize() {
 async function sheetsManualSync() {
   if (!window.WanagoSheets) { showToast('Google Sheets module not loaded', 'error'); return; }
   var btn = document.getElementById('sheets-sync-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
   await window.WanagoSheets.syncNow(false);
-  if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Now'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Sync Now'; }
   var lastEl = document.getElementById('integ-gs-lastsync');
   if (lastEl && window.WanagoSheets) lastEl.textContent = window.WanagoSheets.getLastSync();
 }
@@ -1415,22 +1414,22 @@ async function sheetsSetupTrigger() {
   saveIntegration('googlesheets');
   var btn = document.getElementById('eodr-trigger-btn');
   var res = document.getElementById('eodr-action-result');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Setting up…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Setting up…'; }
   if (res) { res.style.display = 'none'; }
 
   var hour = Number((document.getElementById('integ-gs-eod-hour')||{}).value || 19);
   var r = await window.WanagoSheets.sendAction('setupTrigger', { hour: hour });
 
-  if (btn) { btn.disabled = false; btn.textContent = '⏰ Setup Daily Trigger'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Setup Daily Trigger'; }
   if (res) {
     res.style.display = 'block';
     if (r.ok) {
       res.style.background = 'var(--g50)'; res.style.color = 'var(--g700)'; res.style.border = '1px solid var(--g200)';
-      res.textContent = '✅ ' + (r.msg || 'Daily EODR trigger set up successfully!');
-      showToast('✅ Daily EODR trigger active!');
+      res.textContent = r.msg || 'Daily EODR trigger set up successfully!';
+      showToast('Daily EODR trigger active!');
     } else {
       res.style.background = '#fee8e6'; res.style.color = '#c0392b'; res.style.border = '1px solid rgba(192,57,43,.2)';
-      res.textContent = '❌ ' + (r.error || r.msg || 'Failed to set up trigger');
+      res.textContent = r.error || r.msg || 'Failed to set up trigger';
       showToast(r.error || 'Trigger setup failed', 'error');
     }
   }
@@ -1440,23 +1439,23 @@ async function sheetsSendEODRNow() {
   if (!window.WanagoSheets) { showToast('Google Sheets module not loaded', 'error'); return; }
   var btn = document.getElementById('eodr-send-btn');
   var res = document.getElementById('eodr-action-result');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sending…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   if (res) { res.style.display = 'none'; }
 
   // First sync the latest data, then send EODR
   await window.WanagoSheets.syncNow(true);
   var r = await window.WanagoSheets.sendAction('sendEODR');
 
-  if (btn) { btn.disabled = false; btn.textContent = '📬 Send EODR Now'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Send EODR Now'; }
   if (res) {
     res.style.display = 'block';
     if (r.ok) {
       res.style.background = 'var(--g50)'; res.style.color = 'var(--g700)'; res.style.border = '1px solid var(--g200)';
-      res.textContent = '✅ ' + (r.msg || 'EODR sent successfully!');
-      showToast('✅ EODR reports sent!');
+      res.textContent = r.msg || 'EODR sent successfully!';
+      showToast('EODR reports sent!');
     } else {
       res.style.background = '#fee8e6'; res.style.color = '#c0392b'; res.style.border = '1px solid rgba(192,57,43,.2)';
-      res.textContent = '❌ ' + (r.error || r.msg || 'Send failed');
+      res.textContent = r.error || r.msg || 'Send failed';
       showToast(r.error || 'EODR send failed', 'error');
     }
   }

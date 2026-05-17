@@ -101,7 +101,7 @@ function saveAllSettings() {
   s.notifBirthday=document.getElementById('sett-notif-bday')?.checked||false;
   s.notifFollowup=document.getElementById('sett-notif-followup')?.checked||false;
   s.notifPassport=document.getElementById('sett-notif-passport')?.checked||false;
-  saveDB(); if(typeof fsSaveSettings==='function')fsSaveSettings().catch(()=>{}); showToast('Settings saved! ✅');
+  saveDB(); if(typeof fsSaveSettings==='function')fsSaveSettings().catch(()=>{}); showToast('Settings saved!');
 }
 
 function toggleGSTFields() {
@@ -119,7 +119,7 @@ function backupNow() {
 }
 
 function clearAllData() {
-  if(!confirm('⚠️ This will DELETE all leads, customers, bookings, payments and invoices.\n\nThis CANNOT be undone. Type "DELETE" to confirm.'))return;
+  if(!confirm('WARNING: This will DELETE all leads, customers, bookings, payments and invoices.\n\nThis CANNOT be undone. Type "DELETE" to confirm.'))return;
   const inp=prompt('Type DELETE to confirm:');if(inp!=='DELETE'){showToast('Cancelled','error');return;}
   DB.leads=[];DB.customers=[];DB.bookings=[];DB.payments=[];DB.invoices=[];DB.quotations=[];DB.activities=[];
   saveDB();showToast('All transaction data cleared');

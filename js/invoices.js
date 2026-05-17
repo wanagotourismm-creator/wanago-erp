@@ -129,7 +129,7 @@ function renderInvAIStrip() {
     const cust = (DB.customers||[]).find(c => c.id === inv.customerId || c.name === inv.customerName);
     const phone = ((cust&&cust.phone)||inv.customerPhone||'').replace(/\D/g,'').replace(/^0/,'91');
     const msg = 'Dear '+inv.customerName+', your invoice '+inv.ref+' for '+(inv.destination||'your booking')+' amounting to ₹'+Number(inv.amountDue).toLocaleString('en-IN')+' was due on '+formatDate(inv.dueDate)+'. Kindly clear the balance at the earliest. - '+companyName;
-    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="Send WhatsApp reminder" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:#dcfce7;color:#16a34a;text-decoration:none;flex-shrink:0;font-size:16px">💬</a>' : '';
+    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="Send WhatsApp reminder" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:#dcfce7;color:#16a34a;text-decoration:none;flex-shrink:0;font-size:11px;font-weight:700">WA</a>' : '';
     const urgColor = inv._days > 60 ? '#7f1d1d' : inv._days > 30 ? '#dc2626' : inv._days > 7 ? '#f97316' : '#f59e0b';
     return '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:10px">'+
       '<div style="flex:1;min-width:0">'+
@@ -150,7 +150,7 @@ function renderInvAIStrip() {
   el.innerHTML =
     '<div style="background:var(--white);border:1px solid rgba(192,57,43,.2);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
-        '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">🔍 Recovery Radar '+
+        '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">Recovery Radar '+
           '<span style="font-size:11px;font-weight:500;color:var(--textd)">'+overdue.length+' overdue invoice'+(overdue.length!==1?'s':'')+' · top '+top5.length+' by priority</span>'+
         '</div>'+
         '<div style="font-size:14px;font-weight:800;color:var(--red)">₹'+totalOverdue.toLocaleString('en-IN')+' at risk</div>'+
@@ -181,11 +181,11 @@ function renderInvoices(filter) {
 
   const strip = document.getElementById('inv-strip');
   if (strip) strip.innerHTML = [
-    {label:'📄 Total Invoiced',val:formatMoney(totalInv),meta:allInvs.length+' invoices'},
-    {label:'✅ Collected',val:formatMoney(totalPaid),meta:collRate+'% collection rate',cls:'stat-up'},
-    {label:'⏳ Pending',val:formatMoney(totalDue),meta:'balance outstanding',cls:'stat-dn'},
-    {label:'🔴 Overdue',val:formatMoney(overdueAmt),meta:overdueList.length+' invoices',cls:'stat-dn'},
-    {label:'✅ Paid',val:paidCount+'/'+allInvs.length,meta:'fully cleared',cls:'stat-up'},
+    {label:'Total Invoiced',val:formatMoney(totalInv),meta:allInvs.length+' invoices'},
+    {label:'Collected',val:formatMoney(totalPaid),meta:collRate+'% collection rate',cls:'stat-up'},
+    {label:'Pending',val:formatMoney(totalDue),meta:'balance outstanding',cls:'stat-dn'},
+    {label:'Overdue',val:formatMoney(overdueAmt),meta:overdueList.length+' invoices',cls:'stat-dn'},
+    {label:'Paid',val:paidCount+'/'+allInvs.length,meta:'fully cleared',cls:'stat-up'},
   ].map(s=>'<div class="stat-card" style="cursor:pointer"><div class="stat-label">'+s.label+'</div><div class="stat-val '+(s.cls||'')+'">'+s.val+'</div><div class="stat-meta">'+s.meta+'</div></div>').join('');
 
   renderInvAIStrip();
@@ -214,7 +214,7 @@ function renderInvoices(filter) {
   else if (sort==='due') invs.sort((a,b)=>(a.dueDate||'9').localeCompare(b.dueDate||'9'));
 
   const tbody = document.getElementById('invoices-tbody'); if(!tbody) return;
-  if (!invs.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:48px;color:var(--textd)"><div style="font-size:32px;margin-bottom:10px">🧾</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">No invoices found</div><div style="font-size:12px">Invoices are auto-generated from confirmed bookings</div></td></tr>'; return; }
+  if (!invs.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:48px;color:var(--textd)"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">No invoices found</div><div style="font-size:12px">Invoices are auto-generated from confirmed bookings</div></td></tr>'; return; }
 
   tbody.innerHTML = invs.map(inv => {
     const gt = Number(inv.grandTotal||0); const paid = Number(inv.amountPaid||0);
@@ -224,7 +224,7 @@ function renderInvoices(filter) {
     return '<tr style="'+rowBg+'">'+
       '<td><span style="font-family:JetBrains Mono,monospace;font-size:11px;font-weight:600;color:var(--g700)">'+inv.ref+'</span><div style="font-size:10px;color:var(--textd)">'+formatDate(inv.issueDate)+'</div></td>'+
       '<td style="font-family:JetBrains Mono,monospace;font-size:12px">'+(inv.bookingRef||'—')+'</td>'+
-      '<td><div style="font-weight:600">'+inv.customerName+'</div>'+(inv.destination?'<div style="font-size:10.5px;color:var(--textd)">📍 '+inv.destination+'</div>':'')+'</td>'+
+      '<td><div style="font-weight:600">'+inv.customerName+'</div>'+(inv.destination?'<div style="font-size:10.5px;color:var(--textd)">'+inv.destination+'</div>':'')+'</td>'+
       '<td style="font-weight:600">'+formatMoney(gt)+'</td>'+
       '<td><div style="font-weight:600;color:var(--g600)">'+formatMoney(paid)+'</div><div style="width:60px;height:4px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+(pct===100?'var(--g500)':pct>0?'var(--amb)':'var(--border2)')+';border-radius:2px"></div></div></td>'+
       '<td style="font-weight:600;color:'+(balance>0?(inv.status==='overdue'?'var(--red)':'var(--amb)'):'var(--g500)')+'">'+
@@ -235,9 +235,9 @@ function renderInvoices(filter) {
       '</td>'+
       '<td>'+stagePill(inv.status)+'</td>'+
       '<td style="white-space:nowrap">'+
-        '<button class="row-btn" onclick="viewInvoice(\''+inv.id+'\')">👁 View</button>'+
-        (inv.status!=='paid'?'<button class="row-btn" style="margin-left:3px;color:var(--g600);font-weight:600" onclick="quickMarkPaid(\''+inv.id+'\')">✅</button>':'')+
-        '<button class="row-btn" style="margin-left:3px" onclick="printInvoice(\''+inv.id+'\')">🖨</button>'+
+        '<button class="row-btn" onclick="viewInvoice(\''+inv.id+'\')">View</button>'+
+        (inv.status!=='paid'?'<button class="row-btn" style="margin-left:3px;color:var(--g600);font-weight:600" onclick="quickMarkPaid(\''+inv.id+'\')">Paid</button>':'')+
+        '<button class="row-btn" style="margin-left:3px" onclick="printInvoice(\''+inv.id+'\')">Print</button>'+
       '</td></tr>';
   }).join('');
 }
@@ -253,7 +253,7 @@ function quickMarkPaid(id) {
   const bk = DB.bookings.find(b=>b.id===inv.bookingId);
   if (bk) { bk.advancePaid = bk.totalAmount; bk.paidAmount = bk.totalAmount; bk.pendingAmount = 0; if(bk.status==='pending'){bk.status='confirmed';bk.confirmedAt=new Date().toISOString();} }
   if(typeof dbSave==='function'){dbSave('invoices',inv).catch(()=>{});if(bk)dbSave('bookings',bk).catch(()=>{});}
-  saveDB(); renderInvoices(); showToast(inv.ref+' marked as paid! ✅');
+  saveDB(); renderInvoices(); showToast(inv.ref+' marked as paid!');
 }
 
 function viewInvoice(id) {

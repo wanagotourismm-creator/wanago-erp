@@ -48,7 +48,7 @@ window.logActivity = async function(action, details, category) {
 window.renderActivityLog = async function() {
   const container = document.getElementById('activity-list');
   if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--textd)"><div style="font-size:24px;margin-bottom:8px">⏳</div>Loading activity...</div>';
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--textd)">Loading activity...</div>';
   try {
     const db = await _getDb();
     if (!db) { container.innerHTML = '<div style="padding:20px;color:var(--textd)">Firebase not connected</div>'; return; }
@@ -58,21 +58,21 @@ window.renderActivityLog = async function() {
     const logs = [];
     snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
     if (!logs.length) {
-      container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--textd)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px;font-weight:600">No activity yet</div><div style="font-size:12px;margin-top:4px">Activity will appear here as your team uses the system</div></div>';
+      container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--textd)"><div style="font-size:14px;font-weight:600">No activity yet</div><div style="font-size:12px;margin-top:4px">Activity will appear here as your team uses the system</div></div>';
       return;
     }
     const catColor = { login:'#2196f3', lead:'#4caf50', booking:'#ff9800', payment:'#9c27b0', team:'#f44336', settings:'#607d8b', general:'#795548' };
-    const catIcon  = { login:'🔐', lead:'👤', booking:'📋', payment:'💰', team:'👥', settings:'⚙️', general:'📝' };
+    const catIcon  = { login:'In', lead:'Ld', booking:'Bk', payment:'Pay', team:'Tm', settings:'Cfg', general:'Log' };
     container.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div style="font-size:15px;font-weight:800">📋 Activity Log <span style="font-size:12px;font-weight:400;color:var(--textd)">(Last 100 entries)</span></div>
+        <div style="font-size:15px;font-weight:800">Activity Log <span style="font-size:12px;font-weight:400;color:var(--textd)">(Last 100 entries)</span></div>
         <div style="display:flex;gap:6px" id="activity-filters">
           <button class="chip active" onclick="filterActivity('all',this)">All</button>
-          <button class="chip" onclick="filterActivity('login',this)">🔐 Login</button>
-          <button class="chip" onclick="filterActivity('lead',this)">👤 Leads</button>
-          <button class="chip" onclick="filterActivity('booking',this)">📋 Bookings</button>
-          <button class="chip" onclick="filterActivity('payment',this)">💰 Payments</button>
-          <button class="chip" onclick="filterActivity('team',this)">👥 Team</button>
+          <button class="chip" onclick="filterActivity('login',this)">Login</button>
+          <button class="chip" onclick="filterActivity('lead',this)">Leads</button>
+          <button class="chip" onclick="filterActivity('booking',this)">Bookings</button>
+          <button class="chip" onclick="filterActivity('payment',this)">Payments</button>
+          <button class="chip" onclick="filterActivity('team',this)">Team</button>
         </div>
       </div>
       <div id="activity-log-entries">
@@ -81,15 +81,15 @@ window.renderActivityLog = async function() {
           const timeStr = ts.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
           const cat = l.category || 'general';
           const color = catColor[cat] || '#607d8b';
-          const icon  = catIcon[cat]  || '📝';
+          const icon  = catIcon[cat]  || 'Log';
           return `<div class="activity-entry" data-cat="${cat}" style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background=''">
             <div style="width:32px;height:32px;border-radius:8px;background:${color}15;border:1px solid ${color}30;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px">${icon}</div>
             <div style="flex:1;min-width:0">
               <div style="font-size:13px;font-weight:600;color:var(--text)">${l.action || 'Action'}</div>
               <div style="font-size:12px;color:var(--textd);margin-top:2px">${l.details || ''}</div>
               <div style="display:flex;align-items:center;gap:10px;margin-top:5px">
-                <span style="font-size:11px;color:var(--textd)">👤 ${l.userName || 'Unknown'}</span>
-                <span style="font-size:11px;color:var(--textd)">🕐 ${timeStr}</span>
+                <span style="font-size:11px;color:var(--textd)">${l.userName || 'Unknown'}</span>
+                <span style="font-size:11px;color:var(--textd)">${timeStr}</span>
                 <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${color}15;color:${color};border:1px solid ${color}30">${cat}</span>
               </div>
             </div>
@@ -144,15 +144,15 @@ window.renderRBACTab = function() {
     roleGroups[r].push(m);
   });
   const ROLE_LABELS = {
-    founder:'👑 Founder', ceo:'👑 CEO', co_founder:'👑 Co-Founder', admin:'🔑 Admin',
-    branch_manager:'📊 Branch Manager', sales_manager:'📊 Sales Manager',
-    operations_manager:'📊 Operations Manager', finance_manager:'💰 Finance Manager',
-    marketing_manager:'📣 Marketing Manager', team_lead:'👥 Team Lead',
-    senior_manager:'📊 Senior Manager', sales_agent:'💼 Sales Agent', agent:'💼 Agent'
+    founder:'Founder', ceo:'CEO', co_founder:'Co-Founder', admin:'Admin',
+    branch_manager:'Branch Manager', sales_manager:'Sales Manager',
+    operations_manager:'Operations Manager', finance_manager:'Finance Manager',
+    marketing_manager:'Marketing Manager', team_lead:'Team Lead',
+    senior_manager:'Senior Manager', sales_agent:'Sales Agent', agent:'Agent'
   };
   container.innerHTML = `
     <div style="margin-bottom:20px">
-      <div style="font-size:15px;font-weight:800;margin-bottom:4px">🔒 Role-Based Access Control</div>
+      <div style="font-size:15px;font-weight:800;margin-bottom:4px">Role-Based Access Control</div>
       <div style="font-size:12px;color:var(--textd)">Each role has predefined access. Assign roles to team members in the Team tab.</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
@@ -181,17 +181,17 @@ window.showRoleDetail = function(role) {
   el.style.display = '';
   const isFullAccess = perms.pages.includes('*');
   el.innerHTML = `
-    <div style="font-size:14px;font-weight:800;margin-bottom:14px">🔍 ${role} — Permission Details</div>
+    <div style="font-size:14px;font-weight:800;margin-bottom:14px">${role} — Permission Details</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:8px">Pages Access</div>
-        ${isFullAccess ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">✅ All Pages</div>' :
-          perms.pages.map(p => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px"><span style="color:var(--g600)">✅</span>${p}</div>`).join('')}
+        ${isFullAccess ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">All Pages</div>' :
+          perms.pages.map(p => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px">${p}</div>`).join('')}
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:8px">Feature Access</div>
-        ${isFullAccess ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">✅ All Features</div>' :
-          perms.features.map(f => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px"><span style="color:var(--g600)">✅</span>${f.replace(/_/g,' ')}</div>`).join('')}
+        ${isFullAccess ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">All Features</div>' :
+          perms.features.map(f => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px">${f.replace(/_/g,' ')}</div>`).join('')}
       </div>
     </div>`;
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -225,23 +225,23 @@ window.renderAttendanceTab = async function() {
   container.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
-        <div style="font-size:15px;font-weight:800">📅 Attendance & Leave</div>
+        <div style="font-size:15px;font-weight:800">Attendance & Leave</div>
         <div style="font-size:12px;color:var(--textd);margin-top:2px">Today — ${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}</div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-sm btn-outline" onclick="exportAttendance()">📊 Export</button>
+        <button class="btn btn-sm btn-outline" onclick="exportAttendance()">Export</button>
         <button class="btn btn-sm btn-primary" onclick="openLeaveModal()">+ Add Leave</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-      ${[['✅ Present',presentCount,'var(--g500)'],['❌ Absent',absentCount,'var(--red)'],['🌴 On Leave',leaveCount,'var(--amb)'],['⬜ Unmarked',unmarkedCount,'var(--textd)']].map(([l,v,c])=>`
+      ${[['Present',presentCount,'var(--g500)'],['Absent',absentCount,'var(--red)'],['On Leave',leaveCount,'var(--amb)'],['Unmarked',unmarkedCount,'var(--textd)']].map(([l,v,c])=>`
         <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
           <div style="font-size:22px;font-weight:800;color:${c}">${v}</div>
           <div style="font-size:12px;color:var(--textd);margin-top:4px">${l}</div>
         </div>`).join('')}
     </div>
     <div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">📋 Today's Attendance</div>
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Today's Attendance</div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:var(--cream)">
           <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--textd);text-transform:uppercase;letter-spacing:.5px">Member</th>
@@ -255,7 +255,7 @@ window.renderAttendanceTab = async function() {
             const att = attendanceData[m.id] || {};
             const status = att.status || 'unmarked';
             const statusColors = { present:'var(--g500)', absent:'var(--red)', leave:'var(--amb)', unmarked:'var(--textd)', 'half-day':'#ff9800' };
-            const statusLabels = { present:'✅ Present', absent:'❌ Absent', leave:'🌴 Leave', unmarked:'⬜ Unmarked', 'half-day':'🌗 Half Day' };
+            const statusLabels = { present:'Present', absent:'Absent', leave:'Leave', unmarked:'Unmarked', 'half-day':'Half Day' };
             return `<tr style="border-bottom:1px solid var(--border)">
               <td style="padding:12px 16px">
                 <div style="font-size:13px;font-weight:600">${m.name}</div>
@@ -280,7 +280,7 @@ window.renderAttendanceTab = async function() {
       </table>
     </div>
     <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:14px">🌴 Pending Leave Requests</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px">Pending Leave Requests</div>
       <div id="leave-requests-list">Loading...</div>
     </div>`;
   loadLeaveRequests();
@@ -301,7 +301,7 @@ window.markAttendance = async function(memberId, status) {
       timestamp: serverTimestamp()
     });
     logActivity(`Marked attendance: ${status}`, `Member ID: ${memberId}`, 'team');
-    if (typeof showToast === 'function') showToast('Attendance marked ✅', 'success');
+    if (typeof showToast === 'function') showToast('Attendance marked', 'success');
     renderAttendanceTab();
   } catch(e) {
     if (typeof showToast === 'function') showToast('Failed to mark attendance', 'error');
@@ -318,15 +318,15 @@ window.loadLeaveRequests = async function() {
     const snap = await getDocs(q);
     const requests = [];
     snap.forEach(d => requests.push({ id: d.id, ...d.data() }));
-    if (!requests.length) { el.innerHTML = '<div style="color:var(--textd);font-size:12px;text-align:center;padding:20px">No pending leave requests ✅</div>'; return; }
+    if (!requests.length) { el.innerHTML = '<div style="color:var(--textd);font-size:12px;text-align:center;padding:20px">No pending leave requests</div>'; return; }
     el.innerHTML = requests.map(r => `
       <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600">${r.memberName}</div>
           <div style="font-size:11.5px;color:var(--textd);margin-top:2px">${r.fromDate} → ${r.toDate} · ${r.type||'Leave'} · <em>${r.reason||'—'}</em></div>
         </div>
-        <button onclick="approveLeave('${r.id}')" style="padding:5px 12px;background:var(--g50);border:1px solid var(--g200);color:var(--g700);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">✅ Approve</button>
-        <button onclick="rejectLeave('${r.id}')" style="padding:5px 12px;background:rgba(192,57,43,.05);border:1px solid rgba(192,57,43,.2);color:var(--red);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">❌ Reject</button>
+        <button onclick="approveLeave('${r.id}')" style="padding:5px 12px;background:var(--g50);border:1px solid var(--g200);color:var(--g700);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Approve</button>
+        <button onclick="rejectLeave('${r.id}')" style="padding:5px 12px;background:rgba(192,57,43,.05);border:1px solid rgba(192,57,43,.2);color:var(--red);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Reject</button>
       </div>`).join('');
   } catch(e) { el.innerHTML = '<div style="color:var(--red);font-size:12px">Error loading requests</div>'; }
 };
@@ -337,7 +337,7 @@ window.approveLeave = async function(id) {
     const { doc, updateDoc } = await import(FB_BASE + '/firebase-firestore.js');
     await updateDoc(doc(db, 'companies/wanago-erp/leave_requests', id), { status: 'approved' });
     logActivity('Leave approved', `Request ID: ${id}`, 'team');
-    if (typeof showToast === 'function') showToast('Leave approved ✅', 'success');
+    if (typeof showToast === 'function') showToast('Leave approved', 'success');
     loadLeaveRequests();
   } catch(e) { if (typeof showToast === 'function') showToast('Failed', 'error'); }
 };
@@ -380,7 +380,7 @@ window.submitLeaveRequest = async function() {
     });
     logActivity(`Leave request added for ${memberName}`, `${fromDate} → ${toDate} (${type})`, 'team');
     if (typeof closeModal === 'function') closeModal('modal-leave-request');
-    if (typeof showToast === 'function') showToast('Leave request added ✅', 'success');
+    if (typeof showToast === 'function') showToast('Leave request added', 'success');
     renderAttendanceTab();
   } catch(e) { if (typeof showToast === 'function') showToast('Failed: ' + e.message, 'error'); }
 };
@@ -400,7 +400,7 @@ window.renderNotificationsTab = async function() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
       <!-- Send Notification -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px">
-        <div style="font-size:14px;font-weight:800;margin-bottom:16px">📣 Send Notification</div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:16px">Send Notification</div>
         <div class="form-group" style="margin-bottom:12px">
           <label class="form-label">Title *</label>
           <input class="form-input" id="notif-title" placeholder="New lead assigned">
@@ -412,19 +412,19 @@ window.renderNotificationsTab = async function() {
         <div class="form-group" style="margin-bottom:12px">
           <label class="form-label">Type</label>
           <select class="form-select" id="notif-type">
-            <option value="info">ℹ️ Info</option>
-            <option value="success">✅ Success</option>
-            <option value="warning">⚠️ Warning</option>
-            <option value="alert">🚨 Alert</option>
+            <option value="info">Info</option>
+            <option value="success">Success</option>
+            <option value="warning">Warning</option>
+            <option value="alert">Alert</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom:16px">
           <label class="form-label">Send To</label>
           <select class="form-select" id="notif-target">
-            <option value="all">📢 All Team Members</option>
-            <option value="managers">👔 Managers Only</option>
-            <option value="agents">💼 Agents Only</option>
-            <option value="specific">👤 Specific Member</option>
+            <option value="all">All Team Members</option>
+            <option value="managers">Managers Only</option>
+            <option value="agents">Agents Only</option>
+            <option value="specific">Specific Member</option>
           </select>
         </div>
         <div id="notif-specific-member" style="display:none;margin-bottom:16px">
@@ -433,11 +433,11 @@ window.renderNotificationsTab = async function() {
             ${(DB.settings?.team||[]).map(m=>`<option value="${m.id}">${m.name}</option>`).join('')}
           </select>
         </div>
-        <button class="btn btn-primary" onclick="sendNotification()" style="width:100%">📤 Send Notification</button>
+        <button class="btn btn-primary" onclick="sendNotification()" style="width:100%">Send Notification</button>
       </div>
       <!-- Notification Rules -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px">
-        <div style="font-size:14px;font-weight:800;margin-bottom:16px">⚙️ Auto-Notification Rules</div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:16px">Auto-Notification Rules</div>
         ${[
           ['New Lead Created','Notify assigned agent + manager','new_lead',true],
           ['Booking Confirmed','Notify operations + finance','booking_confirmed',true],
@@ -457,12 +457,12 @@ window.renderNotificationsTab = async function() {
               <div style="width:18px;height:18px;background:#fff;border-radius:50%;position:absolute;top:2px;${def?'right:2px':'left:2px'};transition:.25s;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>
             </div>
           </div>`).join('')}
-        <button class="btn btn-primary" onclick="saveNotifRules()" style="width:100%;margin-top:16px">💾 Save Rules</button>
+        <button class="btn btn-primary" onclick="saveNotifRules()" style="width:100%;margin-top:16px">Save Rules</button>
       </div>
     </div>
     <!-- Recent Notifications -->
     <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;margin-top:20px">
-      <div style="font-size:14px;font-weight:800;margin-bottom:16px">🔔 Recent Notifications Sent</div>
+      <div style="font-size:14px;font-weight:800;margin-bottom:16px">Recent Notifications Sent</div>
       <div id="recent-notifications">Loading...</div>
     </div>`;
 
@@ -495,7 +495,7 @@ window.sendNotification = async function() {
       sentBy: sess.name, sentAt: serverTimestamp(), read: false
     });
     logActivity(`Notification sent: "${title}"`, `To: ${target}`, 'general');
-    if (typeof showToast === 'function') showToast('Notification sent ✅', 'success');
+    if (typeof showToast === 'function') showToast('Notification sent', 'success');
     document.getElementById('notif-title').value = '';
     document.getElementById('notif-message').value = '';
     loadRecentNotifications();
@@ -514,13 +514,13 @@ window.loadRecentNotifications = async function() {
     snap.forEach(d => notifs.push({ id: d.id, ...d.data() }));
     if (!notifs.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No notifications sent yet</div>'; return; }
     const typeColors = { info:'#2196f3', success:'#4caf50', warning:'#ff9800', alert:'#f44336' };
-    const typeIcons  = { info:'ℹ️', success:'✅', warning:'⚠️', alert:'🚨' };
+    const typeIcons  = { info:'i', success:'OK', warning:'!', alert:'!!' };
     el.innerHTML = `<div class="table-wrap" style="box-shadow:none;border:none"><table><thead><tr><th>Type</th><th>Title</th><th>Message</th><th>Sent To</th><th>Sent By</th><th>Time</th></tr></thead><tbody>
       ${notifs.map(n => {
         const ts = n.sentAt?.toDate ? n.sentAt.toDate() : new Date();
         const t = n.type || 'info';
         return `<tr>
-          <td><span style="font-size:13px">${typeIcons[t]||'📝'}</span></td>
+          <td><span style="font-size:11px;font-weight:700;color:${typeColors[t]||'#607d8b'}">${typeIcons[t]||t}</span></td>
           <td style="font-weight:600;font-size:13px">${n.title}</td>
           <td style="font-size:12px;color:var(--textd);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.message}</td>
           <td style="font-size:12px">${n.target||'all'}</td>
@@ -538,7 +538,7 @@ window.saveNotifRules = function() {
     rules[el.dataset.key] = el.dataset.on === '1';
   });
   localStorage.setItem('wanago_notif_rules', JSON.stringify(rules));
-  if (typeof showToast === 'function') showToast('Notification rules saved ✅', 'success');
+  if (typeof showToast === 'function') showToast('Notification rules saved', 'success');
 };
 
 // ── Team Accounts Firebase Creation ──
@@ -567,7 +567,7 @@ window.createFirebaseAccount = async function(memberId) {
     if (typeof saveDB === 'function') saveDB();
     if (typeof fsSaveSettings === 'function') fsSaveSettings();
     logActivity(`Firebase account created for ${m.name}`, email, 'team');
-    if (typeof showToast === 'function') showToast(`✅ Account created for ${m.name}`, 'success');
+    if (typeof showToast === 'function') showToast(`Account created for ${m.name}`, 'success');
     if (typeof renderTeamLogins === 'function') renderTeamLogins();
     if (typeof renderTeamMembers === 'function') renderTeamMembers('all');
   } catch(e) {
@@ -576,4 +576,4 @@ window.createFirebaseAccount = async function(memberId) {
   }
 };
 
-console.log('[admin-features] Loaded ✅');
+console.log('[admin-features] Loaded');

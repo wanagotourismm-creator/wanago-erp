@@ -67,11 +67,11 @@ const WanagoAI = (function () {
   }
 
   function heatLabel(score) {
-    if (score >= 82) return { label: '🔥 Hot',      color: '#e74c3c', bg: '#fde8e8' };
-    if (score >= 62) return { label: '⚡ Warm',     color: '#e67e22', bg: '#fef3e2' };
-    if (score >= 42) return { label: '😐 Lukewarm', color: '#f1c40f', bg: '#fffce0' };
-    if (score >= 20) return { label: '❄️ Cold',     color: '#3498db', bg: '#e8f4fd' };
-    return               { label: '💤 Dormant',  color: '#95a5a6', bg: '#f4f4f4' };
+    if (score >= 82) return { label: 'Hot',     color: '#e74c3c', bg: '#fde8e8' };
+    if (score >= 62) return { label: 'Warm',    color: '#e67e22', bg: '#fef3e2' };
+    if (score >= 42) return { label: 'Lukewarm',color: '#f1c40f', bg: '#fffce0' };
+    if (score >= 20) return { label: 'Cold',    color: '#3498db', bg: '#e8f4fd' };
+    return               { label: 'Dormant', color: '#95a5a6', bg: '#f4f4f4' };
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -200,38 +200,38 @@ const WanagoAI = (function () {
     if (lastMRev > 0) {
       const g = ((thisMRev - lastMRev) / lastMRev * 100);
       ins.push({
-        type: g >= 0 ? 'success' : 'warning', icon: g >= 0 ? '📈' : '📉',
+        type: g >= 0 ? 'success' : 'warning', icon: '',
         title: g >= 0 ? `Revenue up ${g.toFixed(1)}% vs last month` : `Revenue down ${Math.abs(g).toFixed(1)}% vs last month`,
         detail: `₹${fmt(thisMRev)} this month · ₹${fmt(lastMRev)} last month`,
         action: 'Payments', actionPage: 'payments',
       });
     } else if (thisMRev > 0) {
-      ins.push({ type:'success', icon:'💰', title:`₹${fmt(thisMRev)} collected this month`, detail:'Great start — keep the momentum going!', action:'Payments', actionPage:'payments' });
+      ins.push({ type:'success', icon:'', title:`₹${fmt(thisMRev)} collected this month`, detail:'Great start — keep the momentum going!', action:'Payments', actionPage:'payments' });
     }
 
     if (overdueFollowUps > 0) ins.push({
-      type:'danger', icon:'⚠️',
+      type:'danger', icon:'',
       title: `${overdueFollowUps} overdue follow-up${overdueFollowUps > 1 ? 's' : ''}`,
       detail: 'These leads risk going cold. Contact them today.',
       action: 'View Leads', actionPage: 'leads',
     });
 
     if (hotLeads > 0) ins.push({
-      type:'info', icon:'🔥',
+      type:'info', icon:'',
       title: `${hotLeads} hot lead${hotLeads > 1 ? 's' : ''} ready to close`,
       detail: 'High-scoring leads with strong conversion potential.',
       action: 'Open Leads', actionPage: 'leads',
     });
 
     if (dep7 > 0) ins.push({
-      type:'info', icon:'✈️',
+      type:'info', icon:'',
       title: `${dep7} departure${dep7 > 1 ? 's' : ''} within 7 days`,
       detail: 'Confirm hotels, transfers, and travel documents.',
       action: 'Bookings', actionPage: 'bookings',
     });
 
     if (overdueInv > 0) ins.push({
-      type:'danger', icon:'🧾',
+      type:'danger', icon:'',
       title: `${overdueInv} overdue invoice${overdueInv > 1 ? 's' : ''}`,
       detail: 'Send payment reminders or escalate collections.',
       action: 'Invoices', actionPage: 'invoices',
@@ -239,7 +239,7 @@ const WanagoAI = (function () {
 
     if (leads.length >= 5) ins.push({
       type: cvr >= 30 ? 'success' : cvr >= 15 ? 'warning' : 'danger',
-      icon: cvr >= 30 ? '🏆' : '🎯',
+      icon: '',
       title: `Lead conversion: ${cvr.toFixed(1)}%`,
       detail: cvr >= 30 ? 'Strong performance — keep following up fast!'
             : cvr >= 15 ? 'Moderate. Tighten your follow-up cadence.'
@@ -248,7 +248,7 @@ const WanagoAI = (function () {
     });
 
     if (pendingAmt > 0) ins.push({
-      type:'warning', icon:'💳',
+      type:'warning', icon:'',
       title: `₹${fmt(pendingAmt)} pending collection`,
       detail: 'Outstanding balance from confirmed bookings.',
       action: 'Payments', actionPage: 'payments',
@@ -275,7 +275,7 @@ const WanagoAI = (function () {
       .slice(0, 5);
 
     if (hotOnes.length > 0) recs.push({
-      priority: 'high', icon: '📞',
+      priority: 'high', icon: '',
       title: 'Priority follow-ups today',
       items: hotOnes.map(l => `${l.name || 'Lead'} — AI score ${l.score}`),
       action: 'Open Leads', actionPage: 'leads',
@@ -292,7 +292,7 @@ const WanagoAI = (function () {
     });
 
     if (celebs.length > 0) recs.push({
-      priority: 'medium', icon: '🎂',
+      priority: 'medium', icon: '',
       title: `${celebs.length} birthday/anniversary this week`,
       items: celebs.slice(0, 3).map(p => p.name || 'Customer'),
       action: 'View Customers', actionPage: 'customers',
@@ -306,7 +306,7 @@ const WanagoAI = (function () {
     });
 
     if (urgent.length > 0) recs.push({
-      priority: 'high', icon: '✈️',
+      priority: 'high', icon: '',
       title: `${urgent.length} departure${urgent.length > 1 ? 's' : ''} in 3 days`,
       items: urgent.map(b => `${b.customerName || 'Booking'} → ${b.destination || 'Destination TBD'}`),
       action: 'View Bookings', actionPage: 'bookings',

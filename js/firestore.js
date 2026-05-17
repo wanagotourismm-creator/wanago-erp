@@ -714,10 +714,14 @@ const _PAGE_RENDER_FNS = [
   'renderHRMSOverview','renderAllReports','renderDashboard','renderIncentiveDashboard',
   'mktRenderOverview','renderSupport','renderAdminPage',
 ];
+let _refreshDebounceTimer = null;
 function _fsRefreshPage() {
-  for (const fn of _PAGE_RENDER_FNS) {
-    if (typeof window[fn] === 'function') { window[fn](); return; }
-  }
+  clearTimeout(_refreshDebounceTimer);
+  _refreshDebounceTimer = setTimeout(function() {
+    for (const fn of _PAGE_RENDER_FNS) {
+      if (typeof window[fn] === 'function') { window[fn](); return; }
+    }
+  }, 80);
 }
 
 function _cleanForFirestore(value) {

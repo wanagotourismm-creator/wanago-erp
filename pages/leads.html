@@ -33,21 +33,21 @@
       <!-- STAT CARDS -->
       <div class="stats-grid" style="grid-template-columns:repeat(7,1fr);margin-bottom:16px">
         <div class="stat-card" onclick="filterLeads('all',document.querySelector('.filter-bar .chip'))" style="cursor:pointer"><div class="stat-label">Total Leads</div><div class="stat-val" id="lstat-total">0</div></div>
-        <div class="stat-card" onclick="filterLeads('all',document.querySelector('.filter-bar .chip'))" style="cursor:pointer"><div class="stat-label">🔥 Hot</div><div class="stat-val" id="lstat-hot" style="color:var(--red)">0</div></div>
-        <div class="stat-card" onclick="filterLeads('won',document.querySelectorAll('.filter-bar .chip')[6])" style="cursor:pointer"><div class="stat-label">✅ Won</div><div class="stat-val stat-up" id="lstat-won">0</div></div>
+        <div class="stat-card" onclick="filterLeads('all',document.querySelector('.filter-bar .chip'))" style="cursor:pointer"><div class="stat-label">Hot</div><div class="stat-val" id="lstat-hot" style="color:var(--red)">0</div></div>
+        <div class="stat-card" onclick="filterLeads('won',document.querySelectorAll('.filter-bar .chip')[6])" style="cursor:pointer"><div class="stat-label">Won</div><div class="stat-val stat-up" id="lstat-won">0</div></div>
         <div class="stat-card" style="cursor:default"><div class="stat-label">CVR</div><div class="stat-val" id="lstat-cvr">0%</div></div>
         <div class="stat-card" style="cursor:default"><div class="stat-label">Pipeline</div><div class="stat-val stat-up" id="lstat-pipeline">₹0</div></div>
-        <div class="stat-card" onclick="renderFollowUps();switchTab(document.querySelectorAll('.tab-bar .tab')[2],'leads-followups')" style="cursor:pointer"><div class="stat-label">⚠️ Overdue FU</div><div class="stat-val stat-dn" id="lstat-overdue">0</div></div>
-        <div class="stat-card" onclick="renderFollowUps();switchTab(document.querySelectorAll('.tab-bar .tab')[2],'leads-followups')" style="cursor:pointer"><div class="stat-label">📅 Due Today</div><div class="stat-val" id="lstat-today" style="color:var(--amb)">0</div></div>
+        <div class="stat-card" onclick="renderFollowUps();switchTab(document.querySelectorAll('.tab-bar .tab')[2],'leads-followups')" style="cursor:pointer"><div class="stat-label">Overdue FU</div><div class="stat-val stat-dn" id="lstat-overdue">0</div></div>
+        <div class="stat-card" onclick="renderFollowUps();switchTab(document.querySelectorAll('.tab-bar .tab')[2],'leads-followups')" style="cursor:pointer"><div class="stat-label">Due Today</div><div class="stat-val" id="lstat-today" style="color:var(--amb)">0</div></div>
       </div>
 
       <!-- TABS -->
       <div class="tab-bar">
-        <div class="tab active" onclick="switchTab(this,'leads-table')">📋 Table</div>
-        <div class="tab" onclick="switchTab(this,'leads-board');renderLeadBoard()">🗂️ Lead Board</div>
-        <div class="tab" onclick="switchTab(this,'leads-followups');renderFollowUps()">📞 Follow-ups</div>
-        <div class="tab" onclick="switchTab(this,'leads-analytics');renderLeadsAnalytics()">📊 Analytics</div>
-        <div class="tab" onclick="switchTab(this,'leads-bulk');populateBulkAgentSelects()">⚡ Bulk & Import</div>
+        <div class="tab active" onclick="switchTab(this,'leads-table')">Table</div>
+        <div class="tab" onclick="switchTab(this,'leads-board');renderLeadBoard()">Lead Board</div>
+        <div class="tab" onclick="switchTab(this,'leads-followups');renderFollowUps()">Follow-ups</div>
+        <div class="tab" onclick="switchTab(this,'leads-analytics');renderLeadsAnalytics()">Analytics</div>
+        <div class="tab" onclick="switchTab(this,'leads-bulk');populateBulkAgentSelects()">Bulk & Import</div>
       </div>
 
       <!-- ── TABLE VIEW ── -->
@@ -55,25 +55,25 @@
         <!-- Filters row -->
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
           <select class="form-select" id="leads-agent-filter" onchange="renderLeads()" style="width:140px;padding:7px 10px;font-size:12px"><option value="">All Agents</option></select>
-          <select class="form-select" id="leads-priority-filter" onchange="renderLeads()" style="width:130px;padding:7px 10px;font-size:12px"><option value="">All Priorities</option><option value="hot">🔥 Hot</option><option value="warm">🌤 Warm</option><option value="cold">❄️ Cold</option></select>
+          <select class="form-select" id="leads-priority-filter" onchange="renderLeads()" style="width:130px;padding:7px 10px;font-size:12px"><option value="">All Priorities</option><option value="hot">Hot</option><option value="warm">Warm</option><option value="cold">Cold</option></select>
           <select class="form-select" id="leads-source-filter" onchange="renderLeads()" style="width:130px;padding:7px 10px;font-size:12px"><option value="">All Sources</option></select>
           <select class="form-select" id="leads-pkg-filter" onchange="renderLeads()" style="width:150px;padding:7px 10px;font-size:12px"><option value="">All Packages</option></select>
           <input type="date" id="leads-date-from" onchange="renderLeads()" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:11px;background:var(--cream);font-family:inherit;outline:none;color:var(--text)" title="Created from date">
           <span style="font-size:11px;color:var(--textd)">→</span>
           <input type="date" id="leads-date-to" onchange="renderLeads()" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:11px;background:var(--cream);font-family:inherit;outline:none;color:var(--text)" title="Created to date">
           <button class="btn btn-sm btn-outline" onclick="document.getElementById('leads-date-from').value='';document.getElementById('leads-date-to').value='';renderLeads();" style="padding:5px 8px;font-size:11px" title="Clear date filter">✕</button>
-          <button id="ai-sort-btn" class="btn btn-sm btn-outline" onclick="toggleAiSort()" title="Sort leads by AI heat score — hottest first" style="font-size:11.5px;padding:6px 12px;white-space:nowrap">🤖 AI Sort</button>
+          <button id="ai-sort-btn" class="btn btn-sm btn-outline" onclick="toggleAiSort()" title="Sort leads by AI heat score — hottest first" style="font-size:11.5px;padding:6px 12px;white-space:nowrap">AI Sort</button>
         </div>
         <!-- Stage filter chips -->
         <div class="filter-bar" style="margin-bottom:10px">
           <div class="chip active" onclick="filterLeads('all',this)">All</div>
-          <div class="chip" onclick="filterLeads('new',this)">🔵 New</div>
-          <div class="chip" onclick="filterLeads('contacted',this)">📞 Contacted</div>
-          <div class="chip" onclick="filterLeads('follow_up',this)">🔄 Follow-up</div>
-          <div class="chip" onclick="filterLeads('quoted',this)">📋 Quoted</div>
-          <div class="chip" onclick="filterLeads('negotiation',this)">🤝 Negotiation</div>
-          <div class="chip" onclick="filterLeads('won',this)">✅ Won</div>
-          <div class="chip" onclick="filterLeads('lost',this)">❌ Lost</div>
+          <div class="chip" onclick="filterLeads('new',this)">New</div>
+          <div class="chip" onclick="filterLeads('contacted',this)">Contacted</div>
+          <div class="chip" onclick="filterLeads('follow_up',this)">Follow-up</div>
+          <div class="chip" onclick="filterLeads('quoted',this)">Quoted</div>
+          <div class="chip" onclick="filterLeads('negotiation',this)">Negotiation</div>
+          <div class="chip" onclick="filterLeads('won',this)">Won</div>
+          <div class="chip" onclick="filterLeads('lost',this)">Lost</div>
         </div>
         <!-- Bulk action bar -->
         <div id="leads-bulk-bar" style="display:none;padding:10px 16px;background:var(--g800);color:#fff;border-radius:var(--radius) var(--radius) 0 0;align-items:center;gap:8px;flex-wrap:wrap">
@@ -81,11 +81,11 @@
           <div style="display:flex;gap:6px;margin-left:8px;flex-wrap:wrap">
             <button onclick="bulkStageChange('contacted')" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;font-size:11px">→ Contacted</button>
             <button onclick="bulkStageChange('quoted')" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;font-size:11px">→ Quoted</button>
-            <button onclick="bulkStageChange('won')" class="btn btn-sm" style="background:var(--g500);color:#fff;border:none;font-size:11px">✅ Won</button>
-            <button onclick="bulkStageChange('lost')" class="btn btn-sm" style="background:var(--red);color:#fff;border:none;font-size:11px">❌ Lost</button>
-            <button onclick="bulkAssignAgent()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;font-size:11px">👤 Assign</button>
-            <button onclick="bulkExport()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;font-size:11px">📦 Export</button>
-            <button onclick="bulkDelete()" class="btn btn-sm" style="background:rgba(192,57,43,.5);color:#fff;border:none;font-size:11px">🗑 Delete</button>
+            <button onclick="bulkStageChange('won')" class="btn btn-sm" style="background:var(--g500);color:#fff;border:none;font-size:11px">Won</button>
+            <button onclick="bulkStageChange('lost')" class="btn btn-sm" style="background:var(--red);color:#fff;border:none;font-size:11px">Lost</button>
+            <button onclick="bulkAssignAgent()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;font-size:11px">Assign</button>
+            <button onclick="bulkExport()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;font-size:11px">Export</button>
+            <button onclick="bulkDelete()" class="btn btn-sm" style="background:rgba(192,57,43,.5);color:#fff;border:none;font-size:11px">Delete</button>
           </div>
           <button onclick="clearBulkSelection()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:16px">✕</button>
         </div>
@@ -106,7 +106,7 @@
             <input class="search-inp" id="board-search" style="width:100%;padding-left:30px;font-size:12px" placeholder="Search leads on board..." autocomplete="off" oninput="renderLeadBoard()">
           </div>
           <select class="form-select" id="board-agent-filter" onchange="renderLeadBoard()" style="width:140px;padding:7px 10px;font-size:12px"><option value="">All Agents</option></select>
-          <select class="form-select" id="board-priority-filter" onchange="renderLeadBoard()" style="width:130px;padding:7px 10px;font-size:12px"><option value="">All Priorities</option><option value="hot">🔥 Hot</option><option value="warm">🌤️ Warm</option><option value="cold">❄️ Cold</option></select>
+          <select class="form-select" id="board-priority-filter" onchange="renderLeadBoard()" style="width:130px;padding:7px 10px;font-size:12px"><option value="">All Priorities</option><option value="hot">Hot</option><option value="warm">Warm</option><option value="cold">Cold</option></select>
           <div id="board-stats" style="font-size:12px;color:var(--textd);margin-left:auto"></div>
         </div>
         <div id="kanban-board" style="overflow-x:auto"></div>
@@ -128,12 +128,12 @@
       <!-- ── ANALYTICS ── -->
       <div class="tab-content" id="leads-analytics">
         <div class="two-col-eq" style="margin-bottom:18px">
-          <div class="card"><div class="card-header"><div class="card-title">🔻 Lead Funnel</div></div><div id="leads-funnel-wrap"></div></div>
-          <div class="card"><div class="card-header"><div class="card-title">📡 Leads by Source</div></div><div id="leads-source-chart"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Lead Funnel</div></div><div id="leads-funnel-wrap"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Leads by Source</div></div><div id="leads-source-chart"></div></div>
         </div>
         <div class="two-col-eq">
-          <div class="card"><div class="card-header"><div class="card-title">🏆 Agent Leaderboard</div></div><div id="leads-agent-table"></div></div>
-          <div class="card"><div class="card-header"><div class="card-title">📈 Monthly Trend</div></div><div id="leads-monthly-chart" style="color:var(--textd);font-size:12px;padding:20px;text-align:center">Add more leads to see trend</div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Agent Leaderboard</div></div><div id="leads-agent-table"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Monthly Trend</div></div><div id="leads-monthly-chart" style="color:var(--textd);font-size:12px;padding:20px;text-align:center">Add more leads to see trend</div></div>
         </div>
       </div>
 
@@ -142,42 +142,42 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
           <!-- CSV Import -->
           <div class="card" style="box-shadow:none;border:1px solid var(--border)">
-            <div class="card-header"><div><div class="card-title">📥 Import Leads from CSV</div><div class="card-sub">Upload a spreadsheet to bulk add leads</div></div></div>
+            <div class="card-header"><div><div class="card-title">Import Leads from CSV</div><div class="card-sub">Upload a spreadsheet to bulk add leads</div></div></div>
             <div style="font-size:12.5px;color:var(--textd);line-height:1.6;margin-bottom:12px">Download our template, fill your leads data, then upload below.</div>
-            <button class="btn btn-sm btn-outline" onclick="downloadCSVTemplate()" style="margin-bottom:10px">📄 Download CSV Template</button>
+            <button class="btn btn-sm btn-outline" onclick="downloadCSVTemplate()" style="margin-bottom:10px">Download CSV Template</button>
             <div onclick="document.getElementById('csv-quick-file').click()" style="border:2px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:var(--cream)" onmouseover="this.style.borderColor='var(--g400)'" onmouseout="this.style.borderColor='var(--border2)'">
-              <div style="font-size:28px;margin-bottom:6px">📤</div>
+              <div style="font-size:28px;margin-bottom:6px"></div>
               <div style="font-size:13px;font-weight:600">Click to upload CSV</div>
               <div style="font-size:11px;color:var(--textd);margin-top:3px">or use Import Wizard below</div>
             </div>
             <input type="file" id="csv-quick-file" accept=".csv" style="display:none" onchange="handleCSVFile(this);openCSVImport()">
-            <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="openCSVImport()">📥 Open Import Wizard</button>
+            <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="openCSVImport()">Open Import Wizard</button>
           </div>
           <!-- Export -->
           <div class="card" style="box-shadow:none;border:1px solid var(--border)">
-            <div class="card-header"><div><div class="card-title">📦 Export Leads</div><div class="card-sub">Download as spreadsheet</div></div></div>
+            <div class="card-header"><div><div class="card-title">Export Leads</div><div class="card-sub">Download as spreadsheet</div></div></div>
             <div style="display:flex;flex-direction:column;gap:8px">
-              <button class="btn btn-outline" onclick="exportAllLeads()">📦 Export All Leads</button>
-              <button class="btn btn-outline" onclick="exportFilteredLeads()">🔍 Export Filtered Leads</button>
-              <button class="btn btn-outline" onclick="exportSelectedLeads()">✅ Export Selected Leads</button>
+              <button class="btn btn-outline" onclick="exportAllLeads()">Export All Leads</button>
+              <button class="btn btn-outline" onclick="exportFilteredLeads()">Export Filtered Leads</button>
+              <button class="btn btn-outline" onclick="exportSelectedLeads()">Export Selected Leads</button>
             </div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <!-- Bulk Stage Update -->
           <div class="card" style="box-shadow:none;border:1px solid var(--border)">
-            <div class="card-header"><div><div class="card-title">⚡ Bulk Stage Update</div><div class="card-sub">Move multiple leads at once</div></div></div>
+            <div class="card-header"><div><div class="card-title">Bulk Stage Update</div><div class="card-sub">Move multiple leads at once</div></div></div>
             <div class="form-group" style="margin-bottom:10px"><label class="form-label">From Stage</label>
               <select class="form-select" id="bulk-from-stage"><option value="">All stages</option><option value="new">New</option><option value="contacted">Contacted</option><option value="follow_up">Follow-up</option><option value="quoted">Quoted</option></select>
             </div>
             <div class="form-group" style="margin-bottom:14px"><label class="form-label">Move To Stage</label>
               <select class="form-select" id="bulk-to-stage"><option value="contacted">Contacted</option><option value="follow_up">Follow-up</option><option value="quoted">Quoted</option><option value="negotiation">Negotiation</option><option value="won">Won</option><option value="lost">Lost</option></select>
             </div>
-            <button class="btn btn-primary" onclick="runBulkStageUpdate()">⚡ Run Bulk Update</button>
+            <button class="btn btn-primary" onclick="runBulkStageUpdate()">Run Bulk Update</button>
           </div>
           <!-- Bulk Assign -->
           <div class="card" style="box-shadow:none;border:1px solid var(--border)">
-            <div class="card-header"><div><div class="card-title">👤 Bulk Assign Agent</div><div class="card-sub">Reassign leads to a different agent</div></div></div>
+            <div class="card-header"><div><div class="card-title">Bulk Assign Agent</div><div class="card-sub">Reassign leads to a different agent</div></div></div>
             <div class="form-group" style="margin-bottom:10px"><label class="form-label">From Agent</label>
               <select class="form-select" id="bulk-from-agent" onchange="previewBulkAssign()"><option value="">Any agent</option></select>
             </div>
@@ -185,12 +185,12 @@
               <select class="form-select" id="bulk-to-agent"><option value="">Select agent</option></select>
             </div>
             <div id="bulk-assign-preview" style="font-size:12px;color:var(--textd);margin-bottom:10px"></div>
-            <button class="btn btn-primary" onclick="runBulkAssign()">👤 Run Bulk Assign</button>
+            <button class="btn btn-primary" onclick="runBulkAssign()">Run Bulk Assign</button>
           </div>
         </div>
         <!-- Stale Leads -->
         <div class="card" style="box-shadow:none;border:1px solid var(--border);margin-top:16px">
-          <div class="card-header"><div><div class="card-title">🕸️ Find Stale Leads</div><div class="card-sub">Leads with no activity in 14+ days</div></div><button class="btn btn-sm btn-outline" onclick="findStaleLeads()">🔍 Find Stale</button></div>
+          <div class="card-header"><div><div class="card-title">Find Stale Leads</div><div class="card-sub">Leads with no activity in 14+ days</div></div><button class="btn btn-sm btn-outline" onclick="findStaleLeads()">Find Stale</button></div>
           <div id="stale-leads-result" style="font-size:12.5px;color:var(--textd);padding:4px 0">Click "Find Stale" to scan your leads.</div>
         </div>
       </div>
@@ -221,12 +221,12 @@
     <div class="form-section">Trip Details</div>
     <div class="form-grid">
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">🔗 Link to Package <span style="font-size:10px;color:var(--textd)">(optional — auto-fills destination & amount)</span></label>
+        <label class="form-label">Link to Package <span style="font-size:10px;color:var(--textd)">(optional — auto-fills destination & amount)</span></label>
         <select class="form-select" id="l-package" onchange="onLeadPackageSelect()"><option value="">No Package — Enter manually</option></select>
       </div>
       <div class="form-group"><label class="form-label">Destination *</label><input class="form-input" id="l-dest" placeholder="Bali, Europe, Maldives..."></div>
       <div class="form-group"><label class="form-label">Trip Type</label>
-        <select class="form-select" id="l-triptype"><option value="domestic">🇮🇳 Domestic</option><option value="international">✈️ International</option></select>
+        <select class="form-select" id="l-triptype"><option value="domestic">Domestic</option><option value="international">International</option></select>
       </div>
       <div class="form-group"><label class="form-label">Travel Date</label><input class="form-input" id="l-traveldate" type="date"></div>
       <div class="form-group"><label class="form-label">No. of Pax</label><input class="form-input" id="l-pax" type="number" min="1" value="2"></div>
@@ -238,7 +238,7 @@
     <div class="form-grid">
       <div class="form-group"><label class="form-label">Assign Agent</label><select class="form-select" id="l-agent"><option value="">Unassigned</option></select></div>
       <div class="form-group"><label class="form-label">Priority</label>
-        <select class="form-select" id="l-priority"><option value="warm">🌤 Warm</option><option value="hot">🔥 Hot</option><option value="cold">❄️ Cold</option></select>
+        <select class="form-select" id="l-priority"><option value="warm">Warm</option><option value="hot">Hot</option><option value="cold">Cold</option></select>
       </div>
       <div class="form-group"><label class="form-label">Stage</label>
         <select class="form-select" id="l-stage"><option value="new">New</option><option value="contacted">Contacted</option><option value="follow_up">Follow-up</option><option value="quoted">Quoted</option><option value="negotiation">Negotiation</option></select>
@@ -269,7 +269,7 @@
 <!-- ══ CSV IMPORT MODAL ══ -->
 <div class="modal-overlay" id="modal-csv-import">
   <div class="modal modal-lg">
-    <div class="modal-title">📥 Import Leads from CSV</div>
+    <div class="modal-title">Import Leads from CSV</div>
     <div id="modal-csv-import-body"></div>
   </div>
 </div>

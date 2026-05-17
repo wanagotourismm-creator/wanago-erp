@@ -185,7 +185,7 @@
       var due = inv.dueDate ? new Date(inv.dueDate) : null;
       var od  = due && due < today;
       list.push({
-        icon: od ? '⚠️' : '🧾', cls: od ? 'danger' : 'warn',
+        icon: od ? 'Inv' : 'Pay', cls: od ? 'danger' : 'warn',
         label: (od ? 'Overdue: ' : 'Payment due: ') + _e(inv.ref || 'Invoice'),
         sub: '₹' + Number(inv.total||inv.amount||0).toLocaleString('en-IN') + (due ? ' · Due ' + due.toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : ''),
         page: 'invoices'
@@ -198,7 +198,7 @@
       var diff = Math.ceil((new Date(bk.travelDate) - today) / 86400000);
       if (diff >= 0 && diff <= 7) {
         list.push({
-          icon:'📅', cls:'info',
+          icon:'Dep', cls:'info',
           label: 'Departure in ' + diff + ' day' + (diff===1?'':'s') + ': ' + _e(bk.customerName||'Customer'),
           sub: (bk.ref||'') + (bk.destination ? ' · ' + bk.destination : ''),
           page: 'bookings'
@@ -214,8 +214,8 @@
       var next = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
       if (next < today) next.setFullYear(today.getFullYear()+1);
       var diff = Math.ceil((next - today) / 86400000);
-      if (diff === 0) list.push({icon:'🎂',cls:'ok',  label:'Birthday today: '+_e(p.name),sub:'Send a birthday wish!',page:'customers'});
-      else if (diff <= 3) list.push({icon:'🎉',cls:'info',label:'Birthday in '+diff+'d: '+_e(p.name),sub:'Prepare a personalised message',page:'customers'});
+      if (diff === 0) list.push({icon:'Bday',cls:'ok',  label:'Birthday today: '+_e(p.name),sub:'Send a birthday wish!',page:'customers'});
+      else if (diff <= 3) list.push({icon:'Bday',cls:'info',label:'Birthday in '+diff+'d: '+_e(p.name),sub:'Prepare a personalised message',page:'customers'});
     });
 
     // Anniversaries
@@ -225,7 +225,7 @@
       var next = new Date(today.getFullYear(), ad.getMonth(), ad.getDate());
       if (next < today) next.setFullYear(today.getFullYear()+1);
       var diff = Math.ceil((next - today) / 86400000);
-      if (diff <= 3) list.push({icon:'💍',cls:'ok',label:(diff===0?'Anniversary today':'Anniversary in '+diff+'d')+': '+_e(p.name),sub:'Send an anniversary greeting',page:'customers'});
+      if (diff <= 3) list.push({icon:'Ann',cls:'ok',label:(diff===0?'Anniversary today':'Anniversary in '+diff+'d')+': '+_e(p.name),sub:'Send an anniversary greeting',page:'customers'});
     });
 
     return list;
@@ -240,7 +240,7 @@
     if (_tab === 'alerts') {
       var al = _alerts();
       if (!al.length) {
-        scroll.innerHTML = '<div id="np-empty">✅ No alerts right now</div>';
+        scroll.innerHTML = '<div id="np-empty">No alerts right now</div>';
       } else {
         scroll.innerHTML = al.map(function(a) {
           return '<div class="np-alert">'

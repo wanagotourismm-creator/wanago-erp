@@ -109,7 +109,7 @@ window.enablePushNotifications = async function() {
   localStorage.setItem('wg_push_enabled', '1');
   const token = await _initFCM();
   if (typeof window.showToast === 'function') {
-    window.showToast(token ? 'Push notifications enabled ✅' : 'Push enabled (VAPID key not configured — set in Admin → Integrations)');
+    window.showToast(token ? 'Push notifications enabled' : 'Push enabled (VAPID key not configured — set in Admin → Integrations)');
   }
   _syncPushBtn();
   _syncAdminPushUI();
@@ -126,7 +126,7 @@ function _syncPushBtn() {
   var btn = document.getElementById('notif-push-btn');
   if (!btn) return;
   var on = localStorage.getItem('wg_push_enabled') === '1' && Notification.permission === 'granted';
-  btn.textContent = on ? '🔔 Push On' : '🔕 Push Off';
+  btn.textContent = on ? 'Push On' : 'Push Off';
   btn.style.color = on ? 'var(--g600)' : '';
   btn.onclick = on ? window.disablePushNotifications : window.enablePushNotifications;
 }
@@ -142,7 +142,7 @@ function _syncAdminPushUI() {
   list.innerHTML = '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--textd);margin-bottom:8px">' + tokens.length + ' Registered Device' + (tokens.length > 1 ? 's' : '') + '</div>' +
     tokens.map(function(t) {
       return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">' +
-        '<span style="font-size:16px">' + (t.device === 'mobile' ? '📱' : '💻') + '</span>' +
+        '<span style="font-size:11px;font-weight:600;color:var(--textd)">' + (t.device === 'mobile' ? 'Mobile' : 'Desktop') + '</span>' +
         '<div style="flex:1"><div style="font-size:13px;font-weight:600">' + (t.userName || 'Unknown') + '</div><div style="font-size:10px;color:var(--textd)">' + (t.registeredAt ? new Date(t.registeredAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '') + '</div></div>' +
         '<button style="font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;padding:0" onclick="window._removeFCMToken(\'' + t.token.slice(-8) + '\')">✕</button>' +
       '</div>';

@@ -19,7 +19,7 @@
 
       <!-- Overdue Banner -->
       <div id="inv-overdue-banner" style="display:none;background:linear-gradient(135deg,#fff0f0,#fff5f5);border:1px solid rgba(192,57,43,.25);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;align-items:center;gap:10px">
-        <span style="font-size:18px">🔴</span>
+        <span style="font-size:18px;color:var(--red)">!</span>
         <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:var(--red)" id="inv-overdue-msg"></div><div style="font-size:11px;color:var(--textd);margin-top:1px">Click 'Overdue' filter to view</div></div>
         <button class="btn btn-sm btn-danger" onclick="filterInvoices('overdue',document.querySelectorAll('.page .chip')[5])">View Overdue</button>
       </div>
@@ -31,10 +31,10 @@
       <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--sh)">
         <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
           <div class="chip active" onclick="filterInvoices('all',this)">All</div>
-          <div class="chip" onclick="filterInvoices('draft',this)">📝 Draft</div>
-          <div class="chip" onclick="filterInvoices('unpaid',this)">⏳ Unpaid</div>
-          <div class="chip" onclick="filterInvoices('paid',this)">✅ Paid</div>
-          <div class="chip" onclick="filterInvoices('overdue',this)">🔴 Overdue</div>
+          <div class="chip" onclick="filterInvoices('draft',this)">Draft</div>
+          <div class="chip" onclick="filterInvoices('unpaid',this)">Unpaid</div>
+          <div class="chip" onclick="filterInvoices('paid',this)">Paid</div>
+          <div class="chip" onclick="filterInvoices('overdue',this)">Overdue</div>
         </div>
         <select id="inv-sort" onchange="renderInvoices()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:11.5px;background:var(--cream);font-family:inherit;cursor:pointer;outline:none"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="amount-desc">Amount ↓</option><option value="amount-asc">Amount ↑</option><option value="due">Due Date</option></select>
         <input type="date" id="inv-date-from" onchange="renderInvoices()" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:11px;background:var(--cream);font-family:inherit;outline:none" title="From">
@@ -57,7 +57,7 @@
   <div class="modal modal-lg">
     <div class="modal-title" id="vi-title">Invoice</div>
     <div id="vi-body"></div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-view-invoice')">Close</button><button class="btn btn-green" onclick="printInvoice(document.getElementById('modal-view-invoice')._invId)">🖨 Print</button><button class="btn btn-outline" onclick="whatsappInvoice(document.getElementById('modal-view-invoice')._invId)" style="background:#25d366;color:#fff;border-color:#25d366">💬 WhatsApp</button></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-view-invoice')">Close</button><button class="btn btn-green" onclick="printInvoice(document.getElementById('modal-view-invoice')._invId)">Print</button><button class="btn btn-outline" onclick="whatsappInvoice(document.getElementById('modal-view-invoice')._invId)" style="background:#25d366;color:#fff;border-color:#25d366">WhatsApp</button></div>
   </div>
 </div>
 

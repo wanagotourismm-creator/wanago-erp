@@ -68,7 +68,7 @@ function renderHRMSAIStrip() {
       const perf = WanagoAI.getTopPerformers();
       if (perf && perf.length) {
         const top = perf[0];
-        cards.push({ icon:'🏆', color:'#b45309', bg:'#fffbeb',
+        cards.push({ icon:'Top', color:'#b45309', bg:'#fffbeb',
           title: top.name + ' — Top Performer',
           sub: formatMoney(top.revenue)+' revenue · '+top.bookings+' booking'+(top.bookings!==1?'s':'')+' this month' });
       }
@@ -79,7 +79,7 @@ function renderHRMSAIStrip() {
   const attToday = DB.hrmsAttendance || {};
   const absentToday = active.filter(e => !attToday[e.id+'_'+todayStr]?.checkIn);
   if (absentToday.length) {
-    cards.push({ icon:'📋', color:'#dc2626', bg:'#fee2e2',
+    cards.push({ icon:'Att', color:'#dc2626', bg:'#fee2e2',
       title: absentToday.length+' Employee'+(absentToday.length>1?'s':'')+' Not Marked Today',
       sub: absentToday.slice(0,3).map(e=>e.name).join(', ')+(absentToday.length>3?' +'+( absentToday.length-3)+' more':'') });
   }
@@ -87,7 +87,7 @@ function renderHRMSAIStrip() {
   // 3. Pending leave requests
   const pendLeaves = (DB.hrmsLeaves||[]).filter(l => l.status === 'pending');
   if (pendLeaves.length) {
-    cards.push({ icon:'🏖️', color:'#f97316', bg:'#fff7ed',
+    cards.push({ icon:'Lve', color:'#f97316', bg:'#fff7ed',
       title: pendLeaves.length+' Leave Request'+(pendLeaves.length>1?'s':'')+' Awaiting Approval',
       sub: pendLeaves.slice(0,3).map(l=>l.employeeName||'—').join(', ')+(pendLeaves.length>3?' +more':'') });
   }
@@ -100,7 +100,7 @@ function renderHRMSAIStrip() {
     return bd >= today7 && bd <= endWeek;
   });
   if (bdaysSoon.length) {
-    cards.push({ icon:'🎂', color:'var(--g700)', bg:'var(--g50)',
+    cards.push({ icon:'Bday', color:'var(--g700)', bg:'var(--g50)',
       title: bdaysSoon.length+' Birthday'+(bdaysSoon.length>1?'s':'')+' This Week',
       sub: bdaysSoon.map(e=>e.name).join(', ') });
   }
@@ -109,11 +109,10 @@ function renderHRMSAIStrip() {
 
   el.innerHTML =
     '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--sh)">'+
-      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">🤖 HR Intelligence <span style="font-size:10px;font-weight:400;color:var(--textd)">today\'s alerts</span></div>'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">HR Intelligence <span style="font-size:10px;font-weight:400;color:var(--textd)">today\'s alerts</span></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:9px">'+
         cards.map(c =>
-          '<div style="background:'+c.bg+';border:1px solid '+c.color+'22;border-radius:9px;padding:10px 12px;display:flex;gap:9px;align-items:flex-start">'+
-            '<span style="font-size:16px;flex-shrink:0">'+c.icon+'</span>'+
+          '<div style="background:'+c.bg+';border:1px solid '+c.color+'22;border-radius:9px;padding:10px 12px">'+
             '<div><div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.3">'+c.title+'</div>'+
             '<div style="font-size:10.5px;color:var(--textd);margin-top:2px;line-height:1.4">'+c.sub+'</div></div>'+
           '</div>'
@@ -131,18 +130,18 @@ function renderHRMSOverview() {
 
   const strip = document.getElementById('hrms-overview-strip');
   if (strip) strip.innerHTML = [
-    {label:'👥 Total Employees',val:emps.length,meta:active.length+' active'},
-    {label:'✅ Present Today',val:todayAtt,meta:'checked in today',cls:'stat-up'},
-    {label:'🏖️ On Leave',val:onLeave,meta:'approved leave today',cls:'stat-dn'},
-    {label:'📋 Leave Requests',val:pendLeave,meta:'pending approval',cls:pendLeave>0?'stat-dn':''},
-    {label:'💰 Dept Count',val:[...new Set(active.map(e=>e.department||e.dept))].filter(Boolean).length,meta:'departments'},
+    {label:'Total Employees',val:emps.length,meta:active.length+' active'},
+    {label:'Present Today',val:todayAtt,meta:'checked in today',cls:'stat-up'},
+    {label:'On Leave',val:onLeave,meta:'approved leave today',cls:'stat-dn'},
+    {label:'Leave Requests',val:pendLeave,meta:'pending approval',cls:pendLeave>0?'stat-dn':''},
+    {label:'Dept Count',val:[...new Set(active.map(e=>e.department||e.dept))].filter(Boolean).length,meta:'departments'},
   ].map(s=>'<div class="stat-card" style="cursor:pointer"><div class="stat-label">'+s.label+'</div><div class="stat-val '+(s.cls||'')+'">'+s.val+'</div><div class="stat-meta">'+s.meta+'</div></div>').join('');
 
   // Quick birthday alerts
   const bdays = emps.filter(e=>e.dob&&e.dob.slice(5)===today().slice(5));
   const bdayEl = document.getElementById('hrms-bday-alert');
   if (bdayEl) bdayEl.style.display = bdays.length ? '' : 'none';
-  if (bdays.length && bdayEl) bdayEl.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffd54f;border-radius:var(--radius)"><span style="font-size:22px">🎂</span><div><div style="font-size:13px;font-weight:700;color:#f57f17">Birthday Today!</div><div style="font-size:12px;color:var(--textd)">'+bdays.map(e=>e.name).join(', ')+'</div></div></div>';
+  if (bdays.length && bdayEl) bdayEl.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffd54f;border-radius:var(--radius)"><div><div style="font-size:13px;font-weight:700;color:#f57f17">Birthday Today!</div><div style="font-size:12px;color:var(--textd)">'+bdays.map(e=>e.name).join(', ')+'</div></div></div>';
 
   renderHRMSAIStrip();
   renderEmployeeGrid();
@@ -160,7 +159,7 @@ function renderEmployeeGrid() {
   if (q) list = list.filter(e=>(e.name||'').toLowerCase().includes(q)||(e.empId||'').toLowerCase().includes(q)||(e.role||'').toLowerCase().includes(q));
 
   const grid = document.getElementById('emp-grid'); if(!grid) return;
-  if (!list.length) { grid.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--textd);grid-column:1/-1"><div style="font-size:40px;margin-bottom:12px">👥</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">No employees found</div><button class="btn btn-primary" style="margin-top:12px" onclick="openAddEmpModal()">+ Add Employee</button></div>'; return; }
+  if (!list.length) { grid.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--textd);grid-column:1/-1"><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">No employees found</div><button class="btn btn-primary" style="margin-top:12px" onclick="openAddEmpModal()">+ Add Employee</button></div>'; return; }
 
   const todayAtt = DB.hrmsAttendance || {};
   grid.innerHTML = list.map(e => {
@@ -184,8 +183,8 @@ function renderEmployeeGrid() {
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
           '<span style="font-size:10px;color:var(--textd)">Today</span>'+
           '<span style="font-size:11px;font-weight:600;color:'+(att?.checkIn?'var(--g600)':'var(--textd)')+'">'+
-            (att?.checkIn ? '✅ '+att.checkIn+(att.checkOut?' → '+att.checkOut:'') : '⬜ Not checked in')+
-            (att?.checkInLat ? ' <span title="Location: '+att.checkInLat+', '+att.checkInLng+'" style="font-size:10px;cursor:default">📍</span>' : '')+
+            (att?.checkIn ? att.checkIn+(att.checkOut?' → '+att.checkOut:'') : 'Not checked in')+
+            (att?.checkInLat ? ' <span title="Location: '+att.checkInLat+', '+att.checkInLng+'" style="font-size:10px;cursor:default;color:var(--textd)">[loc]</span>' : '')+
           '</span>'+
         '</div>'+
         '<div style="display:flex;gap:6px">'+
@@ -387,7 +386,7 @@ function renderLeavePage() {
       '<td>'+stagePill(l.status)+'</td>'+
       '<td style="white-space:nowrap">'+
         (l.status==='pending'?
-          '<button class="row-btn" style="color:var(--g600)" onclick="approveLeave(\''+l.id+'\')">✅ Approve</button>'+
+          '<button class="row-btn" style="color:var(--g600)" onclick="approveLeave(\''+l.id+'\')">Approve</button>'+
           '<button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="rejectLeave(\''+l.id+'\')">✕ Reject</button>'
         :'<span style="font-size:11px;color:var(--textd)">'+(l.approvedBy?'by '+l.approvedBy:'—')+'</span>')+
       '</td></tr>';
@@ -508,12 +507,12 @@ function renderLocApprovals() {
       '<td><div style="font-weight:600">'+r.empName+'</div><div style="font-size:10px;color:var(--textd)">'+r.empRole+'</div></td>'+
       '<td>'+r.date+'</td>'+
       '<td>'+(r.time||'—')+'</td>'+
-      '<td>'+(mapsUrl?'<a href="'+mapsUrl+'" target="_blank" style="color:var(--g600);font-size:11px">📍 View Map</a>':'<span style="color:var(--textd)">—</span>')+(r.photo?'<br><button class="row-btn" onclick="showLocPhoto(\''+r.id+'\')">📷 Photo</button>':'')+'</td>'+
+      '<td>'+(mapsUrl?'<a href="'+mapsUrl+'" target="_blank" style="color:var(--g600);font-size:11px">View Map</a>':'<span style="color:var(--textd)">—</span>')+(r.photo?'<br><button class="row-btn" onclick="showLocPhoto(\''+r.id+'\')">Photo</button>':'')+'</td>'+
       '<td style="font-size:11.5px;color:var(--textd);max-width:160px">'+r.reason+'</td>'+
       '<td>'+PILL[isReg?'amber':'blue'](isReg?'Regularize':'Loc Request')+'</td>'+
       '<td>'+stagePill(r.status)+'</td>'+
       '<td style="white-space:nowrap">'+(r.status==='pending'?
-        '<button class="row-btn" style="color:var(--g600)" onclick="approveLocRequest(\''+r.id+'\')">✅ Approve</button>'+
+        '<button class="row-btn" style="color:var(--g600)" onclick="approveLocRequest(\''+r.id+'\')">Approve</button>'+
         '<button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="rejectLocRequest(\''+r.id+'\')">✕ Reject</button>'
         :'<span style="font-size:11px;color:var(--textd)">'+(r.approvedBy||'—')+'</span>')+
       '</td></tr>';
@@ -574,7 +573,7 @@ function renderOfficeLocations() {
   el.innerHTML=locs.map(loc=>`
     <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--sh)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-size:14px;font-weight:700">🏢 ${loc.name}</div>
+        <div style="font-size:14px;font-weight:700">${loc.name}</div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-sm btn-outline" onclick="editOfficeLoc('${loc.id}')">Edit</button>
           <button class="btn btn-sm" style="background:var(--red2);color:var(--red);border:1px solid rgba(192,57,43,.2)" onclick="deleteOfficeLoc('${loc.id}')">Delete</button>
@@ -635,9 +634,9 @@ function useMyLocation() {
       const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
       const latEl=document.getElementById('ol-lat');const lngEl=document.getElementById('ol-lng');
       if(latEl)latEl.value=lat;if(lngEl)lngEl.value=lng;
-      if(statusEl)statusEl.textContent='✅ Location captured: '+lat+', '+lng+' (accuracy: '+Math.round(pos.coords.accuracy)+'m)';
+      if(statusEl)statusEl.textContent='Location captured: '+lat+', '+lng+' (accuracy: '+Math.round(pos.coords.accuracy)+'m)';
     },
-    ()=>{if(statusEl)statusEl.textContent='⚠ Could not get location. Please enter manually.';},
+    ()=>{if(statusEl)statusEl.textContent='Could not get location. Please enter manually.';},
     {timeout:8000}
   );
 }

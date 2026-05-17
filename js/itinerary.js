@@ -27,27 +27,27 @@ window.handleLogout = handleLogout;
 window.goTo = goTo;
 
 const SERVICE_TYPES = {
-  flight:      { label:'Flight',      emoji:'✈️',  color:'#dbeafe', text:'#1e40af', group:'fg-flight'   },
-  hotel:       { label:'Hotel',       emoji:'🏨',  color:'#dcfce7', text:'#166534', group:'fg-hotel'    },
-  transfer:    { label:'Transfer',    emoji:'🚗',  color:'#fef9c3', text:'#854d0e', group:'fg-transfer'  },
-  activity:    { label:'Activity',    emoji:'🎯',  color:'#ede9fe', text:'#5b21b6', group:'fg-activity'  },
-  sightseeing: { label:'Sightseeing', emoji:'🗺️',  color:'#fce7f3', text:'#9d174d', group:'fg-activity'  },
-  meal:        { label:'Meal',        emoji:'🍽️',  color:'#fff7ed', text:'#9a3412', group:'fg-meal'     },
-  visa:        { label:'Visa',        emoji:'📋',  color:'#f0f9ff', text:'#0c4a6e', group:'fg-misc',
+  flight:      { label:'Flight',      color:'#dbeafe', text:'#1e40af', group:'fg-flight'   },
+  hotel:       { label:'Hotel',       color:'#dcfce7', text:'#166534', group:'fg-hotel'    },
+  transfer:    { label:'Transfer',    color:'#fef9c3', text:'#854d0e', group:'fg-transfer'  },
+  activity:    { label:'Activity',    color:'#ede9fe', text:'#5b21b6', group:'fg-activity'  },
+  sightseeing: { label:'Sightseeing', color:'#fce7f3', text:'#9d174d', group:'fg-activity'  },
+  meal:        { label:'Meal',        color:'#fff7ed', text:'#9a3412', group:'fg-meal'     },
+  visa:        { label:'Visa',        color:'#f0f9ff', text:'#0c4a6e', group:'fg-misc',
     miscConfig:{ title:'Visa Details',       f1:'Country',        f2:'Visa Type',     f3:'Application Date', f4:'Collection Date' } },
-  insurance:   { label:'Insurance',   emoji:'🛡️',  color:'#f0fdf4', text:'#14532d', group:'fg-misc',
+  insurance:   { label:'Insurance',   color:'#f0fdf4', text:'#14532d', group:'fg-misc',
     miscConfig:{ title:'Insurance Details',  f1:'Provider',       f2:'Policy No',     f3:'Type',             f4:'Valid Till' } },
-  bus:         { label:'Bus',         emoji:'🚌',  color:'#fefce8', text:'#713f12', group:'fg-misc',
+  bus:         { label:'Bus',         color:'#fefce8', text:'#713f12', group:'fg-misc',
     miscConfig:{ title:'Bus Details',        f1:'Operator',       f2:'From',          f3:'To',               f4:'Seat Nos' } },
-  train:       { label:'Train',       emoji:'🚂',  color:'#fef2f2', text:'#7f1d1d', group:'fg-misc',
+  train:       { label:'Train',       color:'#fef2f2', text:'#7f1d1d', group:'fg-misc',
     miscConfig:{ title:'Train Details',      f1:'Train Name / No',f2:'From Station',  f3:'To Station',       f4:'Class / Berth' } },
-  car:         { label:'Car Rental',  emoji:'🚙',  color:'#f9fafb', text:'#374151', group:'fg-transfer'  },
-  cruise:      { label:'Cruise',      emoji:'🚢',  color:'#e0f2fe', text:'#0c4a6e', group:'fg-misc',
+  car:         { label:'Car Rental',  color:'#f9fafb', text:'#374151', group:'fg-transfer'  },
+  cruise:      { label:'Cruise',      color:'#e0f2fe', text:'#0c4a6e', group:'fg-misc',
     miscConfig:{ title:'Cruise Details',     f1:'Cruise Line',    f2:'Ship Name',     f3:'Embark Port',      f4:'Disembark Port' } },
-  ferry:       { label:'Ferry',       emoji:'⛴️',  color:'#cffafe', text:'#164e63', group:'fg-misc',
+  ferry:       { label:'Ferry',       color:'#cffafe', text:'#164e63', group:'fg-misc',
     miscConfig:{ title:'Ferry Details',      f1:'Operator',       f2:'From',          f3:'To',               f4:'Vessel' } },
-  taxi:        { label:'Taxi',        emoji:'🚕',  color:'#fef9c3', text:'#78350f', group:'fg-transfer'  },
-  note:        { label:'Note',        emoji:'📝',  color:'#f8fafc', text:'#64748b', group:null             },
+  taxi:        { label:'Taxi',        color:'#fef9c3', text:'#78350f', group:'fg-transfer'  },
+  note:        { label:'Note',        color:'#f8fafc', text:'#64748b', group:null             },
 };
 
 let _openItinId = null;
@@ -325,7 +325,7 @@ function _renderCostStrip(itin) {
   Object.entries(breakdown).forEach(([type, amt]) => {
     if (amt > 0) {
       const t = SERVICE_TYPES[type];
-      html += `<div class="cost-item">${t ? t.emoji : '•'} ${t ? t.label : type}: <strong>₹${_fmtNum(amt)}</strong></div>`;
+      html += `<div class="cost-item">${t ? t.label : type}: <strong>₹${_fmtNum(amt)}</strong></div>`;
     }
   });
   strip.innerHTML = html;
@@ -372,7 +372,7 @@ function _renderItemCard(item, di, ii) {
     ondragleave="this.classList.remove('drag-over-item')"
     ondrop="onItemDrop(event,${di},${ii})">
     <span class="drag-handle">⠿</span>
-    <div class="item-type-icon" style="background:${t.color};color:${t.text}">${t.emoji}</div>
+    <div class="item-type-icon" style="background:${t.color};color:${t.text};font-size:10px;font-weight:700">${t.label.slice(0,3).toUpperCase()}</div>
     <div class="item-time-col">
       ${item.time || '—'}
       ${item.endTime ? `<div class="item-time-end">${item.endTime}</div>` : ''}
@@ -397,7 +397,7 @@ function _buildSubRow(item) {
     case 'hotel':
       return [item.htCity, item.htRoom, item.htMeal].filter(Boolean).join(' · ');
     case 'transfer': case 'car': case 'taxi':
-      return [item.trFrom && item.trTo ? `${item.trFrom} → ${item.trTo}` : null, item.trVehicle, item.trDriver ? '🚗 '+item.trDriver : null].filter(Boolean).join(' · ');
+      return [item.trFrom && item.trTo ? `${item.trFrom} → ${item.trTo}` : null, item.trVehicle, item.trDriver ? 'Driver: '+item.trDriver : null].filter(Boolean).join(' · ');
     case 'activity': case 'sightseeing':
       return [item.acLoc, item.acDuration, item.acVendor].filter(Boolean).join(' · ');
     case 'meal':
@@ -449,7 +449,7 @@ function _buildTypeGrid() {
   if (!grid) return;
   grid.innerHTML = Object.entries(SERVICE_TYPES).map(([key, t]) =>
     `<div class="type-btn" id="type-btn-${key}" onclick="selectItemType('${key}')">
-      <span class="type-emoji">${t.emoji}</span>${t.label}
+      ${t.label}
     </div>`
   ).join('');
 }
@@ -882,7 +882,7 @@ function shareItineraryWhatsApp() {
     (day.items || []).forEach(item => {
       const t   = SERVICE_TYPES[item.type];
       const sub = _buildSubRow(item);
-      let line  = `${t ? t.emoji : '•'} `;
+      let line  = `${t ? t.label : '•'} - `;
       if (item.time) line += `${item.time} — `;
       line += `*${item.title}*`;
       if (sub) line += `\n   _${sub}_`;

@@ -294,7 +294,7 @@ function renderMyAttendanceCalendar(month) {
       const isT = day.isToday;
       const canCI  = isT && !day.att?.checkIn;
       const canCO  = isT && day.att?.checkIn && !day.att?.checkOut;
-      const locIcon = day.locData ? `<span class="att-loc-icon" title="Lat:${day.locData.lat}, Lng:${day.locData.lng}">📍</span>` : '';
+      const locIcon = day.locData ? `<span class="att-loc-icon" title="Lat:${day.locData.lat}, Lng:${day.locData.lng}">GPS</span>` : '';
       const photoEl = day.photoSrc ? `<img class="att-photo-thumb" src="${day.photoSrc}" alt="photo">` : '';
       return `<td class="${isT?'att-today':''}${day.status?' att-'+day.status:''}">
         <div class="att-day-num">${isT?`<span class="att-today-ring">${day.d}</span>`:day.d}</div>
@@ -321,7 +321,7 @@ function renderMyAttendanceCalendar(month) {
         <td style="padding:9px;font-size:12px">${day.checkOutTime||'—'}</td>
         <td style="padding:9px;font-size:12px;font-weight:700">${day.totalHours||'—'}</td>
         <td style="padding:9px">${sb.label?`<span class="att-status-badge ${sb.cls}">${sb.label}</span>`:'—'}</td>
-        <td style="padding:9px">${day.locData?`<span style="font-size:11px;color:#134a32">📍 ${day.locData.lat}, ${day.locData.lng}</span>`:'—'}</td>
+        <td style="padding:9px">${day.locData?`<span style="font-size:11px;color:#134a32">${day.locData.lat}, ${day.locData.lng}</span>`:'—'}</td>
       </tr>`;
     }).filter(Boolean).join('');
   }
@@ -347,7 +347,7 @@ function openCheckInModal(isCheckIn = null) {
   _pendingPhoto = null; _pendingLat = null; _pendingLng = null;
 
   const title = document.getElementById('checkin-modal-title');
-  if (title) title.textContent = _checkingIn ? '📷 Check In' : '🔴 Check Out';
+  if (title) title.textContent = _checkingIn ? 'Check In' : 'Check Out';
 
   const timeInfo = document.getElementById('checkin-time-info');
   if (timeInfo) timeInfo.textContent = 'Time: ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
@@ -446,10 +446,10 @@ function enableConfirmBtn() {
 function detectLocation() {
   const locEl = document.getElementById('checkin-loc-status');
   const detEl = document.getElementById('checkin-loc-detail');
-  if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>📍 Detecting location…</span>'; }
+  if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>Detecting location…</span>'; }
 
   if (!navigator.geolocation) {
-    if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>📍 Location not available</span>'; }
+    if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>Location not available</span>'; }
     return;
   }
 
@@ -461,21 +461,21 @@ function detectLocation() {
       const pill = document.getElementById('self-loc-pill');
 
       if (!geo.office) {
-        if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>📍 Location detected (no office set)</span>'; }
-        if (pill) { pill.style.display = ''; pill.style.background = '#f3f4f6'; pill.style.color = '#6b7280'; pill.textContent = '📍 GPS OK'; }
+        if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>Location detected (no office set)</span>'; }
+        if (pill) { pill.style.display = ''; pill.style.background = '#f3f4f6'; pill.style.color = '#6b7280'; pill.textContent = 'GPS OK'; }
       } else if (geo.allowed) {
-        if (locEl) { locEl.className = 'hs-loc-status at-office'; locEl.innerHTML = `<span>✅ At ${geo.office.name} (${geo.distance}m away)</span>`; }
-        if (pill) { pill.style.display = ''; pill.style.background = '#dcfce7'; pill.style.color = '#166534'; pill.textContent = '✅ At Office'; }
+        if (locEl) { locEl.className = 'hs-loc-status at-office'; locEl.innerHTML = `<span>At ${geo.office.name} (${geo.distance}m away)</span>`; }
+        if (pill) { pill.style.display = ''; pill.style.background = '#dcfce7'; pill.style.color = '#166534'; pill.textContent = 'At Office'; }
         if (detEl) detEl.textContent = `Within ${geo.radius}m geofence`;
       } else {
-        if (locEl) { locEl.className = 'hs-loc-status outside'; locEl.innerHTML = `<span>⚠ ${geo.distance}m from ${geo.office.name} (allowed: ${geo.radius}m)</span>`; }
-        if (pill) { pill.style.display = ''; pill.style.background = '#fee2e2'; pill.style.color = '#991b1b'; pill.textContent = '⚠ Outside Office'; }
+        if (locEl) { locEl.className = 'hs-loc-status outside'; locEl.innerHTML = `<span>${geo.distance}m from ${geo.office.name} (allowed: ${geo.radius}m)</span>`; }
+        if (pill) { pill.style.display = ''; pill.style.background = '#fee2e2'; pill.style.color = '#991b1b'; pill.textContent = 'Outside Office'; }
         if (detEl) detEl.textContent = 'Outside office — you can still check in or request approval.';
       }
       enableConfirmBtn();
     },
     () => {
-      if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>📍 Location unavailable</span>'; }
+      if (locEl) { locEl.className = 'hs-loc-status unknown'; locEl.innerHTML = '<span>Location unavailable</span>'; }
       enableConfirmBtn();
     },
     { timeout: 8000, maximumAge: 30000 }
@@ -491,8 +491,8 @@ function checkCurrentLocStatus() {
     if (!pill) return;
     if (!geo.office) { pill.style.display = 'none'; return; }
     pill.style.display = '';
-    if (geo.allowed) { pill.style.background='#dcfce7';pill.style.color='#166534';pill.textContent='✅ At Office'; }
-    else             { pill.style.background='#fee2e2';pill.style.color='#991b1b';pill.textContent='⚠ Outside Office'; }
+    if (geo.allowed) { pill.style.background='#dcfce7';pill.style.color='#166534';pill.textContent='At Office'; }
+    else             { pill.style.background='#fee2e2';pill.style.color='#991b1b';pill.textContent='Outside Office'; }
   }, () => {}, { timeout: 6000, maximumAge: 60000 });
 }
 
@@ -542,7 +542,7 @@ function _doSaveCheckIn() {
 
   stopCamera();
   if (typeof closeModal === 'function') closeModal('modal-self-checkin');
-  if (typeof showToast === 'function') showToast('✅ Checked in at ' + timeStr);
+  if (typeof showToast === 'function') showToast('Checked in at ' + timeStr);
   renderSelfSidebar();
   renderMyAttendanceCalendar(_selfMonth);
 }
@@ -567,7 +567,7 @@ function _doSaveCheckOut() {
 
   stopCamera();
   if (typeof closeModal === 'function') closeModal('modal-self-checkin');
-  if (typeof showToast === 'function') showToast('🔴 Checked out at ' + timeStr);
+  if (typeof showToast === 'function') showToast('Checked out at ' + timeStr);
   renderSelfSidebar();
   renderMyAttendanceCalendar(_selfMonth);
 }
@@ -616,11 +616,11 @@ function renderMyLeaveBalance() {
   approvedLeaves.forEach(l => { usedByType[l.leaveType] = (usedByType[l.leaveType] || 0) + Number(l.days || 1); });
 
   const types = [
-    { key:'casual',   icon:'🌴', label:'Casual Leave',   total:12 },
-    { key:'sick',     icon:'🤒', label:'Sick Leave',      total:7  },
-    { key:'earned',   icon:'⭐', label:'Earned Leave',    total:annualLeave },
-    { key:'maternity',icon:'🤱', label:'Maternity Leave', total:26 },
-    { key:'unpaid',   icon:'📋', label:'Unpaid Leave',    total:999 },
+    { key:'casual',   label:'Casual Leave',   total:12 },
+    { key:'sick',     label:'Sick Leave',      total:7  },
+    { key:'earned',   label:'Earned Leave',    total:annualLeave },
+    { key:'maternity',label:'Maternity Leave', total:26 },
+    { key:'unpaid',   label:'Unpaid Leave',    total:999 },
   ];
 
   const balEl = document.getElementById('leave-balance-cards');
@@ -628,7 +628,6 @@ function renderMyLeaveBalance() {
     const used = usedByType[t.key] || 0;
     const bal  = t.total === 999 ? '—' : Math.max(0, t.total - used);
     return `<div class="hs-leave-card">
-      <div class="hs-leave-card-icon">${t.icon}</div>
       <div class="hs-leave-card-type">${t.label}</div>
       <div class="hs-leave-card-val">${bal}</div>
       <div class="hs-leave-card-sub">${used} used${t.total!==999?' / '+t.total+' total':''}</div>

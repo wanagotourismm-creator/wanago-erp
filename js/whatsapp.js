@@ -65,7 +65,7 @@ async function sendWAAPI(phone, message) {
       body: JSON.stringify({ messaging_product: 'whatsapp', to: n, type: 'text', text: { body: message } })
     });
     const data = await res.json();
-    if (data.messages) { logActivity('WhatsApp API sent to ' + phone, 'whatsapp'); showToast('WhatsApp sent! ✅'); return true; }
+    if (data.messages) { logActivity('WhatsApp API sent to ' + phone, 'whatsapp'); showToast('WhatsApp sent!'); return true; }
     else { showToast('API Error: ' + (data.error?.message || 'Unknown error'), 'error'); return false; }
   } catch(e) { showToast('API failed. Opening WhatsApp Web.', 'error'); openWAWeb(phone, message); return false; }
 }
@@ -205,9 +205,9 @@ function showWAPreview(phone, name, message, type) {
   document.getElementById('wa-preview-name').textContent = name || 'Customer';
   document.getElementById('wa-preview-msg').value = message;
   document.getElementById('wa-preview-type').textContent = {
-    quotation:'📋 Quotation', booking:'✅ Booking Confirmation',
-    payment_reminder:'💰 Payment Reminder', birthday:'🎂 Birthday',
-    anniversary:'💕 Anniversary', custom:'💬 Custom'
+    quotation:'Quotation', booking:'Booking Confirmation',
+    payment_reminder:'Payment Reminder', birthday:'Birthday',
+    anniversary:'Anniversary', custom:'Custom'
   }[type] || type;
   openModal('modal-wa-preview');
 }
@@ -283,9 +283,9 @@ function openSalesChat(phone, name, context) {
   // Show context info
   if (context && pcontext) {
     let ctxHtml = '';
-    if (context.type === 'lead') ctxHtml = `<span class="pill pill-amber">🎯 Lead</span> ${context.destination||''} ${context.amount ? '· ₹'+Number(context.amount).toLocaleString('en-IN') : ''}`;
-    else if (context.type === 'booking') ctxHtml = `<span class="pill pill-green">📅 Booking</span> ${context.ref||''} · ${context.destination||''}`;
-    else if (context.type === 'customer') ctxHtml = `<span class="pill pill-blue">👤 Customer</span> ${context.destination||''}`;
+    if (context.type === 'lead') ctxHtml = `<span class="pill pill-amber">Lead</span> ${context.destination||''} ${context.amount ? '· ₹'+Number(context.amount).toLocaleString('en-IN') : ''}`;
+    else if (context.type === 'booking') ctxHtml = `<span class="pill pill-green">Booking</span> ${context.ref||''} · ${context.destination||''}`;
+    else if (context.type === 'customer') ctxHtml = `<span class="pill pill-blue">Customer</span> ${context.destination||''}`;
     pcontext.innerHTML = ctxHtml;
   }
 
@@ -334,16 +334,16 @@ function buildSalesChatPanel() {
       </div>
       <div id="swp-context" style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:8px"></div>
       <div id="swp-agent-bar" style="background:rgba(0,0,0,.2);border-radius:8px;padding:7px 10px;font-size:11px;display:flex;align-items:center;gap:6px">
-        <span>📱</span><span id="swp-agent-phone-lbl" style="color:rgba(255,255,255,.85);flex:1">Your WhatsApp: <strong id="swp-my-num">Not registered</strong></span>
-        <button onclick="swpRegisterMyNumber()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer">✏️ Set</button>
+        <span id="swp-agent-phone-lbl" style="color:rgba(255,255,255,.85);flex:1">Your WhatsApp: <strong id="swp-my-num">Not registered</strong></span>
+        <button onclick="swpRegisterMyNumber()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer">Set</button>
       </div>
     </div>
 
     <!-- Tabs inside panel -->
     <div style="display:flex;background:#f0f2f5;border-bottom:1px solid #ddd;flex-shrink:0">
-      <button onclick="swpTab(this,'swp-compose')" class="swp-tab-btn" style="flex:1;padding:10px;border:none;background:transparent;font-size:11.5px;font-weight:600;color:#128c7e;cursor:pointer;border-bottom:2px solid #128c7e">✏️ Compose</button>
-      <button onclick="swpTab(this,'swp-templates')" class="swp-tab-btn" style="flex:1;padding:10px;border:none;background:transparent;font-size:11.5px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent">📋 Templates</button>
-      <button onclick="swpTab(this,'swp-history')" class="swp-tab-btn" style="flex:1;padding:10px;border:none;background:transparent;font-size:11.5px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent">📜 History</button>
+      <button onclick="swpTab(this,'swp-compose')" class="swp-tab-btn" style="flex:1;padding:10px;border:none;background:transparent;font-size:11.5px;font-weight:600;color:#128c7e;cursor:pointer;border-bottom:2px solid #128c7e">Compose</button>
+      <button onclick="swpTab(this,'swp-templates')" class="swp-tab-btn" style="flex:1;padding:10px;border:none;background:transparent;font-size:11.5px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent">Templates</button>
+      <button onclick="swpTab(this,'swp-history')" class="swp-tab-btn" style="flex:1;padding:10px;border:none;background:transparent;font-size:11.5px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent">History</button>
     </div>
 
     <!-- Compose tab -->
@@ -355,11 +355,11 @@ function buildSalesChatPanel() {
         <textarea id="swp-custom-msg" style="width:100%;min-height:120px;border:1px solid #ddd;border-radius:10px;padding:10px;font-size:12.5px;font-family:inherit;resize:vertical;outline:none" placeholder="Type your message here..."></textarea>
       </div>
       <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:8px 10px;font-size:11px;color:#2e7d32">
-        <strong>📱 Sends from YOUR personal WhatsApp</strong><br>
+        <strong>Sends from YOUR personal WhatsApp</strong><br>
         <span style="color:#555">Register your number above to track chats per agent</span>
       </div>
       <button onclick="swpSendCustom()" style="background:#25d366;color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;width:100%">
-        📱 Open My WhatsApp
+        Open My WhatsApp
       </button>
     </div>
 
@@ -427,14 +427,14 @@ function renderAllSalesTemplates() {
   const el = document.getElementById('swp-all-templates'); if (!el) return;
   const c = window._swpCurrent;
   el.innerHTML = [
-    { label:'🎯 New Lead Intro', msg:`Hi *${c?.name||'there'}*! I'm from Wanago Travel & Co. I'll help you plan your dream trip!` },
-    { label:'📋 Send Quotation', msg:`Hi *${c?.name||'there'}*! I'm sharing your travel quotation. Please review and let me know!` },
-    { label:'✅ Booking Confirmed', msg:`Great news *${c?.name||'there'}*! Your booking is confirmed! 🎉` },
-    { label:'💰 Payment Reminder', msg:`Hi *${c?.name||'there'}*! Gentle reminder about your pending payment. Please complete it at your earliest.` },
-    { label:'🎂 Birthday Wish', msg:`🎂 Happy Birthday *${c?.name||'there'}*! Wishing you an amazing day full of joy!` },
-    { label:'💕 Anniversary Wish', msg:`💕 Happy Anniversary *${c?.name||'there'}*! Wishing you both a wonderful day!` },
-    { label:'⭐ Feedback Request', msg:`Hi *${c?.name||'there'}*! Hope you had an amazing trip! Could you share your feedback? It means a lot to us! 🙏` },
-    { label:'🔔 New Package Alert', msg:`Hi *${c?.name||'there'}*! We have an exciting new package that might interest you. Interested? 🌍` },
+    { label:'New Lead Intro', msg:`Hi *${c?.name||'there'}*! I'm from Wanago Travel & Co. I'll help you plan your dream trip!` },
+    { label:'Send Quotation', msg:`Hi *${c?.name||'there'}*! I'm sharing your travel quotation. Please review and let me know!` },
+    { label:'Booking Confirmed', msg:`Great news *${c?.name||'there'}*! Your booking is confirmed!` },
+    { label:'Payment Reminder', msg:`Hi *${c?.name||'there'}*! Gentle reminder about your pending payment. Please complete it at your earliest.` },
+    { label:'Birthday Wish', msg:`Happy Birthday *${c?.name||'there'}*! Wishing you an amazing day full of joy!` },
+    { label:'Anniversary Wish', msg:`Happy Anniversary *${c?.name||'there'}*! Wishing you both a wonderful day!` },
+    { label:'Feedback Request', msg:`Hi *${c?.name||'there'}*! Hope you had an amazing trip! Could you share your feedback? It means a lot to us!` },
+    { label:'New Package Alert', msg:`Hi *${c?.name||'there'}*! We have an exciting new package that might interest you. Interested?` },
   ].map((t, i) => `<div style="border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;cursor:pointer;background:#fafafa" onclick="swpSetMsg('${t.msg.replace(/'/g,"\\'")}')"><div style="font-size:11.5px;font-weight:700;color:#075e54;margin-bottom:2px">${t.label}</div><div style="font-size:11px;color:#555;line-height:1.4">${t.msg.slice(0,80)}...</div></div>`).join('');
 }
 
@@ -464,7 +464,7 @@ function swpSendCustom() {
   const url = 'https://wa.me/' + c.num + '?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
   logActivity('Sales WhatsApp to ' + c.name + ': ' + msg.slice(0,50), 'whatsapp', c.phone);
-  showToast('Opening WhatsApp — send from YOUR personal number! 📱');
+  showToast('Opening WhatsApp — send from YOUR personal number!');
 }
 
 function closeSalesChat() {
@@ -479,7 +479,7 @@ function salesChatBtn(phone, name, context) {
   const safePhone = String(phone || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const safeName = String(name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const safeContext = JSON.stringify(context || {}).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `<button class="btn btn-sm" style="background:#075e54;color:#fff;border:none;border-radius:7px;font-size:11px;padding:4px 8px;cursor:pointer" onclick="openSalesChat('${safePhone}','${safeName}',${safeContext})" title="Chat on WhatsApp">💬</button>`;
+  return `<button class="btn btn-sm" style="background:#075e54;color:#fff;border:none;border-radius:7px;font-size:11px;padding:4px 8px;cursor:pointer" onclick="openSalesChat('${safePhone}','${safeName}',${safeContext})" title="Chat on WhatsApp">WA</button>`;
 }
 
 // ── Agent registers their personal WhatsApp number ──

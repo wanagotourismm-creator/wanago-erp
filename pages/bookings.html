@@ -22,9 +22,9 @@
 
       <!-- Tabs -->
       <div class="tab-bar">
-        <div class="tab active" onclick="switchBkTab(this,'bk-table')">📋 All Bookings</div>
-        <div class="tab" onclick="switchBkTab(this,'bk-timeline')">📅 Timeline</div>
-        <div class="tab" onclick="switchBkTab(this,'bk-kanban')">🗂️ Pipeline</div>
+        <div class="tab active" onclick="switchBkTab(this,'bk-table')">All Bookings</div>
+        <div class="tab" onclick="switchBkTab(this,'bk-timeline')">Timeline</div>
+        <div class="tab" onclick="switchBkTab(this,'bk-kanban')">Pipeline</div>
       </div>
 
       <!-- TABLE -->
@@ -33,15 +33,15 @@
           <div class="table-toolbar" style="flex-wrap:wrap;gap:8px">
             <div class="filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
               <div class="chip active" onclick="filterBookings('all',this)">All</div>
-              <div class="chip" onclick="filterBookings('pending',this)">⏳ Pending</div>
-              <div class="chip" onclick="filterBookings('confirmed',this)">✅ Confirmed</div>
-              <div class="chip" onclick="filterBookings('completed',this)">🏁 Completed</div>
-              <div class="chip" onclick="filterBookings('cancelled',this)">❌ Cancelled</div>
+              <div class="chip" onclick="filterBookings('pending',this)">Pending</div>
+              <div class="chip" onclick="filterBookings('confirmed',this)">Confirmed</div>
+              <div class="chip" onclick="filterBookings('completed',this)">Completed</div>
+              <div class="chip" onclick="filterBookings('cancelled',this)">Cancelled</div>
             </div>
             <select id="bk-agent-filter" class="form-select" style="width:140px;font-size:11.5px;padding:6px 10px" onchange="renderBookings()"><option value="">All Agents</option></select>
             <select id="bk-pay-filter" class="form-select" style="width:130px;font-size:11.5px;padding:6px 10px" onchange="renderBookings()"><option value="">All Payments</option><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Fully Paid</option></select>
-            <button id="bk-urgency-btn" class="btn btn-sm btn-outline" onclick="toggleBkUrgencySort()" title="Sort by departure urgency — soonest first" style="font-size:11.5px;padding:6px 12px;white-space:nowrap">🚨 Sort Urgent</button>
-            <button class="btn btn-sm btn-outline" onclick="exportBookingsCSV()" style="font-size:11.5px;padding:6px 12px;white-space:nowrap">⬇ Export CSV</button>
+            <button id="bk-urgency-btn" class="btn btn-sm btn-outline" onclick="toggleBkUrgencySort()" title="Sort by departure urgency — soonest first" style="font-size:11.5px;padding:6px 12px;white-space:nowrap">Sort Urgent</button>
+            <button class="btn btn-sm btn-outline" onclick="exportBookingsCSV()" style="font-size:11.5px;padding:6px 12px;white-space:nowrap">Export CSV</button>
           </div>
           <table><thead><tr><th>Ref</th><th>Customer</th><th>Destination</th><th>Travel Date</th><th>Pax</th><th>Amount</th><th>Paid</th><th>Balance</th><th>Profit</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="bookings-tbody"></tbody></table>
         </div>
@@ -49,7 +49,7 @@
 
       <!-- TIMELINE -->
       <div class="tab-content" id="bk-timeline">
-        <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div class="card-title">🗓️ Upcoming Departures</div><input type="month" id="bk-tl-month" class="form-input" style="width:150px;font-size:12px;padding:6px 10px" oninput="renderBkTimeline()"></div><div id="bk-timeline-grid"></div></div>
+        <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div class="card-title">Upcoming Departures</div><input type="month" id="bk-tl-month" class="form-input" style="width:150px;font-size:12px;padding:6px 10px" oninput="renderBkTimeline()"></div><div id="bk-timeline-grid"></div></div>
       </div>
 
       <!-- KANBAN -->
@@ -68,7 +68,7 @@
     <div id="vb-body"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-view-booking')">Close</button>
-      <button class="btn btn-outline" onclick="viewBookingInvoice(document.getElementById('modal-view-booking')._bookingId)" id="vb-inv-btn">🧾 Invoice</button>
+      <button class="btn btn-outline" onclick="viewBookingInvoice(document.getElementById('modal-view-booking')._bookingId)" id="vb-inv-btn">Invoice</button>
     </div>
   </div>
 </div>

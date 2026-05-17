@@ -29,12 +29,12 @@
         <!-- Stats -->
         <div class="stats-grid" style="grid-template-columns:repeat(7,1fr);margin-bottom:16px">
           <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('all',document.querySelector('.chip'))"><div class="stat-label">Total Customers</div><div class="stat-val" id="cstat-total">0</div></div>
-          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('vip',this)"><div class="stat-label" style="color:var(--gold)">⭐ VIP</div><div class="stat-val" id="cstat-vip">0</div></div>
-          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('repeat',this)"><div class="stat-label">🔁 Repeat</div><div class="stat-val stat-up" id="cstat-repeat">0</div><div class="stat-meta">2+ bookings</div></div>
-          <div class="stat-card" style="padding:12px 14px"><div class="stat-label">💰 Total Revenue</div><div class="stat-val" id="cstat-revenue" style="font-size:17px">₹0</div></div>
-          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('passport_alert',this)"><div class="stat-label" style="color:var(--red)">🛂 Passport Expiring</div><div class="stat-val stat-dn" id="cstat-passport">0</div><div class="stat-meta">Within 6 months</div></div>
-          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('quoted',this)"><div class="stat-label" style="color:var(--blue)">📄 Quoted</div><div class="stat-val" id="cstat-quoted">0</div></div>
-          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('not_quoted',this)"><div class="stat-label" style="color:var(--textd)">🔲 Not Quoted</div><div class="stat-val" id="cstat-notquoted">0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('vip',this)"><div class="stat-label" style="color:var(--gold)">VIP</div><div class="stat-val" id="cstat-vip">0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('repeat',this)"><div class="stat-label">Repeat</div><div class="stat-val stat-up" id="cstat-repeat">0</div><div class="stat-meta">2+ bookings</div></div>
+          <div class="stat-card" style="padding:12px 14px"><div class="stat-label">Total Revenue</div><div class="stat-val" id="cstat-revenue" style="font-size:17px">₹0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('passport_alert',this)"><div class="stat-label" style="color:var(--red)">Passport Expiring</div><div class="stat-val stat-dn" id="cstat-passport">0</div><div class="stat-meta">Within 6 months</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('quoted',this)"><div class="stat-label" style="color:var(--blue)">Quoted</div><div class="stat-val" id="cstat-quoted">0</div></div>
+          <div class="stat-card" style="padding:12px 14px;cursor:pointer" onclick="filterCustomers('not_quoted',this)"><div class="stat-label" style="color:var(--textd)">Not Quoted</div><div class="stat-val" id="cstat-notquoted">0</div></div>
         </div>
 
         <!-- AI Segment Strip -->
@@ -55,16 +55,16 @@
           <div class="table-toolbar">
             <div class="filter-bar" style="margin:0;flex:1">
               <div class="chip active" onclick="filterCustomers('all',this)">All</div>
-              <div class="chip" onclick="filterCustomers('vip',this)">⭐ VIP</div>
+              <div class="chip" onclick="filterCustomers('vip',this)">VIP</div>
               <div class="chip" onclick="filterCustomers('corporate',this)">Corporate</div>
               <div class="chip" onclick="filterCustomers('honeymoon',this)">Honeymoon</div>
-              <div class="chip" onclick="filterCustomers('repeat',this)">🔁 Repeat</div>
-              <div class="chip" onclick="filterCustomers('passport_alert',this)">🛂 Passport Alert</div>
-              <div class="chip" onclick="filterCustomers('quoted',this)">📄 Quoted</div>
-              <div class="chip" onclick="filterCustomers('not_quoted',this)">🔲 Not Quoted</div>
-              <div class="chip" onclick="filterCustomers('at_risk',this)">⚠️ At Risk</div>
-              <div class="chip" onclick="filterCustomers('loyal',this)">🔁 Loyal</div>
-              <div class="chip" onclick="filterCustomers('inactive',this)">💤 Inactive</div>
+              <div class="chip" onclick="filterCustomers('repeat',this)">Repeat</div>
+              <div class="chip" onclick="filterCustomers('passport_alert',this)">Passport Alert</div>
+              <div class="chip" onclick="filterCustomers('quoted',this)">Quoted</div>
+              <div class="chip" onclick="filterCustomers('not_quoted',this)">Not Quoted</div>
+              <div class="chip" onclick="filterCustomers('at_risk',this)">At Risk</div>
+              <div class="chip" onclick="filterCustomers('loyal',this)">Loyal</div>
+              <div class="chip" onclick="filterCustomers('inactive',this)">Inactive</div>
             </div>
             <button class="btn btn-sm btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button>
           </div>
@@ -103,7 +103,7 @@
     <div class="form-grid">
       <div class="form-group"><label class="form-label">Passport Number</label><input class="form-input" id="c-passport-no" placeholder="A1234567"></div>
       <div class="form-group"><label class="form-label">Passport Expiry</label><input class="form-input" id="c-passport" type="date"></div>
-      <div class="form-group"><label class="form-label">Tag</label><select class="form-select" id="c-tag"><option value="regular">Regular</option><option value="vip">⭐ VIP</option><option value="corporate">Corporate</option></select></div>
+      <div class="form-group"><label class="form-label">Tag</label><select class="form-select" id="c-tag"><option value="regular">Regular</option><option value="vip">VIP</option><option value="corporate">Corporate</option></select></div>
       <div class="form-group"><label class="form-label">WhatsApp Opt-in</label><select class="form-select" id="c-wa-optin"><option value="yes">Yes — Send updates</option><option value="no">No — Do not contact</option></select></div>
       <div class="form-group" style="grid-column:1/-1"><label class="form-label">Notes</label><textarea class="form-textarea" id="c-notes" rows="2" placeholder="Special requirements, preferences..."></textarea></div>
     </div>
@@ -119,8 +119,8 @@
     <div id="vc-body"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-view-customer')">Close</button>
-      <button class="btn btn-outline" id="vc-edit-btn" onclick="closeModal('modal-view-customer');editCustomer(document.getElementById('modal-view-customer')._custId)">✏️ Edit</button>
-      <button class="btn btn-outline" id="vc-wa-btn" onclick="custWhatsApp(document.getElementById('modal-view-customer')._custId)" style="background:#25d366;color:#fff;border-color:#25d366">💬 WhatsApp</button>
+      <button class="btn btn-outline" id="vc-edit-btn" onclick="closeModal('modal-view-customer');editCustomer(document.getElementById('modal-view-customer')._custId)">Edit</button>
+      <button class="btn btn-outline" id="vc-wa-btn" onclick="custWhatsApp(document.getElementById('modal-view-customer')._custId)" style="background:#25d366;color:#fff;border-color:#25d366">WhatsApp</button>
     </div>
   </div>
 </div>

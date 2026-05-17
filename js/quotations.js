@@ -109,7 +109,7 @@ function renderQuotAIStrip() {
     const expStyle = dte <= 3 ? 'color:var(--red);font-weight:600' : 'color:var(--textd)';
     const phone = (q.customerPhone||'').replace(/\D/g,'').replace(/^0/,'91');
     const msg = 'Hi '+q.customerName+', following up on your quotation ('+q.id+') for '+(q.destination||'your upcoming trip')+' worth '+formatMoney(Number(q.grandTotal||q.amount||0))+'. This quote is valid until '+formatDate(q._expiry.toISOString().slice(0,10))+'. Would you like to proceed? - '+companyName;
-    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="WhatsApp follow-up" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:var(--blue2);color:var(--blue);text-decoration:none;flex-shrink:0;font-size:16px">💬</a>' : '';
+    const waBtn = phone ? '<a href="https://wa.me/'+phone+'?text='+encodeURIComponent(msg)+'" target="_blank" title="WhatsApp follow-up" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:var(--blue2);color:var(--blue);text-decoration:none;flex-shrink:0;font-size:11px;font-weight:700">WA</a>' : '';
     return '<div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:10px">'+
       '<div style="flex:1;min-width:0">'+
         '<div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">'+
@@ -134,13 +134,13 @@ function renderQuotAIStrip() {
   el.innerHTML =
     '<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sh)">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
-        '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">🎯 Quote Intelligence '+
+        '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">Quote Intelligence '+
           '<span style="font-size:11px;font-weight:500;color:var(--textd)">'+listLabel+'</span>'+
         '</div>'+
         '<div style="display:flex;gap:14px;align-items:center">'+
           '<div style="text-align:right"><div style="font-size:12px;font-weight:800;color:var(--g700)">'+formatMoney(pipelineValue)+'</div><div style="font-size:10px;color:var(--textd)">pipeline</div></div>'+
           '<div style="text-align:right"><div style="font-size:12px;font-weight:800;color:'+(convRate>=30?'var(--g600)':convRate>=15?'#f59e0b':'var(--red)')+'">'+convRate+'%</div><div style="font-size:10px;color:var(--textd)">conv. rate</div></div>'+
-          (expiringSoon.length ? '<span style="font-size:11px;font-weight:700;color:var(--red);background:#fee2e2;padding:3px 10px;border-radius:20px">⏰ '+expiringSoon.length+' expiring soon</span>' : '')+
+          (expiringSoon.length ? '<span style="font-size:11px;font-weight:700;color:var(--red);background:#fee2e2;padding:3px 10px;border-radius:20px">'+expiringSoon.length+' expiring soon</span>' : '')+
         '</div>'+
       '</div>'+
       '<div style="display:grid;gap:7px">'+cards+'</div>'+
@@ -197,11 +197,11 @@ function renderQuotationsPage() {
   }
 
   const STATUS_PILL = {
-    sent: '<span class="pill pill-amb">📤 Sent</span>',
-    accepted: '<span class="pill pill-blue">✅ Accepted</span>',
-    converted: '<span class="pill pill-green">🎉 Booked</span>',
-    rejected: '<span class="pill pill-red">✕ Rejected</span>',
-    expired: '<span class="pill pill-gray">⏰ Expired</span>',
+    sent: '<span class="pill pill-amb">Sent</span>',
+    accepted: '<span class="pill pill-blue">Accepted</span>',
+    converted: '<span class="pill pill-green">Booked</span>',
+    rejected: '<span class="pill pill-red">Rejected</span>',
+    expired: '<span class="pill pill-gray">Expired</span>',
   };
 
   tbody.innerHTML = items.map(q => {
@@ -217,7 +217,7 @@ function renderQuotationsPage() {
         <div style="font-weight:600">${q.customerName}</div>
         <div style="font-size:10.5px;color:var(--textd)">${q.customerPhone}</div>
       </td>
-      <td>${q.destination}<br><span style="font-size:10px;color:var(--textd)">${q.tripType==='international'?'✈️ Intl':'🇮🇳 Dom'}</span></td>
+      <td>${q.destination}<br><span style="font-size:10px;color:var(--textd)">${q.tripType==='international'?'Intl':'Dom'}</span></td>
       <td style="text-align:center">${q.pax || '—'}</td>
       <td><strong>${formatMoney(amt)}</strong></td>
       <td>${formatDate(q.createdAt)}</td>
@@ -225,10 +225,10 @@ function renderQuotationsPage() {
       <td>${q.agent || '—'}</td>
       <td>${pill}${q.bookingRef ? '<div style="font-size:9.5px;color:var(--g600);font-weight:700;margin-top:2px">→ '+q.bookingRef+'</div>' : ''}</td>
       <td style="white-space:nowrap">
-        <button class="row-btn" onclick="viewQuotation('${q.id}')">📄 View</button>
-        ${canAccept ? `<button class="row-btn" style="margin-left:3px;background:var(--g50);color:var(--g700);border-color:var(--g300)" onclick="acceptQuotation('${q.id}')">✅ Accept</button>
+        <button class="row-btn" onclick="viewQuotation('${q.id}')">View</button>
+        ${canAccept ? `<button class="row-btn" style="margin-left:3px;background:var(--g50);color:var(--g700);border-color:var(--g300)" onclick="acceptQuotation('${q.id}')">Accept</button>
         <button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="rejectQuotation('${q.id}')">✕</button>` : ''}
-        ${canConvert ? `<button class="btn btn-sm btn-primary" style="margin-left:3px" onclick="convertToBooking('${q.id}')">🗓 Convert to Booking</button>` : ''}
+        ${canConvert ? `<button class="btn btn-sm btn-primary" style="margin-left:3px" onclick="convertToBooking('${q.id}')">Convert to Booking</button>` : ''}
       </td>
     </tr>`;
   }).join('');

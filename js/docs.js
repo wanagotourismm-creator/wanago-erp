@@ -28,13 +28,13 @@ window.goTo = goTo;
 
 // ── Checklist definition ──────────────────────────────────────────
 const DOC_ITEMS = [
-  { key:'passportReceived', emoji:'📄', label:'Passport Copy Received'     },
-  { key:'visaApplied',      emoji:'🛂', label:'Visa Applied'               },
-  { key:'visaReceived',     emoji:'✅', label:'Visa Received'              },
-  { key:'ticketsIssued',    emoji:'✈️', label:'Flight / Train Tickets Issued' },
-  { key:'hotelVouchers',    emoji:'🏨', label:'Hotel Vouchers Ready'       },
-  { key:'insurance',        emoji:'🛡️', label:'Travel Insurance Done'      },
-  { key:'welcomeLetter',    emoji:'📬', label:'Welcome Letter Sent'        },
+  { key:'passportReceived', label:'Passport Copy Received'     },
+  { key:'visaApplied',      label:'Visa Applied'               },
+  { key:'visaReceived',     label:'Visa Received'              },
+  { key:'ticketsIssued',    label:'Flight / Train Tickets Issued' },
+  { key:'hotelVouchers',    label:'Hotel Vouchers Ready'       },
+  { key:'insurance',        label:'Travel Insurance Done'      },
+  { key:'welcomeLetter',    label:'Welcome Letter Sent'        },
 ];
 
 // ── State ─────────────────────────────────────────────────────────
@@ -112,10 +112,10 @@ function renderDocList() {
         <span>·</span>
         <span>${_fmtDate(b.date)}</span>
         <span class="chip ${statusClass}" style="font-size:10px;padding:1px 7px">${_esc(b.status)}</span>
-        ${pnrCount ? `<span style="font-size:10px;color:#6366f1">✈️ ${pnrCount} PNR</span>` : ''}
+        ${pnrCount ? `<span style="font-size:10px;color:#6366f1">${pnrCount} PNR</span>` : ''}
       </div>
       <div class="doc-progress-bar"><div class="doc-progress-fill" style="width:${pct}%;background:${color}"></div></div>
-      <div class="doc-progress-label">${s.done}/${s.total} docs complete${pct === 100 ? ' ✓' : ''}</div>
+      <div class="doc-progress-label">${s.done}/${s.total} docs complete</div>
     </div>`;
   }).join('');
 }
@@ -168,14 +168,13 @@ function renderPanel(bookingId) {
 
       <!-- Document Checklist -->
       <div class="panel-section">
-        <div class="panel-section-title">📋 Document Checklist</div>
+        <div class="panel-section-title">Document Checklist</div>
         <div class="checklist">
           ${DOC_ITEMS.map(d => {
             const checked = !!cl[d.key];
             const dateStr = cl[d.key + '_date'] ? `<span class="check-date">${_fmtDate(cl[d.key + '_date'])}</span>` : '';
             return `<div class="checklist-item${checked ? ' done' : ''}" onclick="toggleDocItem('${_esc(b.id)}','${d.key}')">
               <div class="check-box">${checked ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>
-              <span class="check-emoji">${d.emoji}</span>
               <span class="check-label">${d.label}</span>
               ${dateStr}
             </div>`;
@@ -189,7 +188,7 @@ function renderPanel(bookingId) {
 
       <!-- PNR Records -->
       <div class="panel-section">
-        <div class="panel-section-title">✈️ PNR / Ticket Records</div>
+        <div class="panel-section-title">PNR / Ticket Records</div>
         ${pnrList.length ? `
           <div style="overflow-x:auto;border:1px solid #e8ecf0;border-radius:10px">
             <table class="pnr-table">
@@ -227,7 +226,7 @@ function renderPanel(bookingId) {
 
       <!-- Notes -->
       <div class="panel-section">
-        <div class="panel-section-title">📝 Document Notes</div>
+        <div class="panel-section-title">Document Notes</div>
         <textarea class="form-input" id="doc-notes-${_esc(b.id)}" rows="3" placeholder="Add any document-related notes…" style="resize:vertical;font-family:inherit">${_esc(b.docNotes || '')}</textarea>
         <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveDocNotes('${_esc(b.id)}')">Save Notes</button>
       </div>

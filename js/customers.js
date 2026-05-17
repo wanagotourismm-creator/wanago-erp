@@ -51,7 +51,7 @@ window.goTo = goTo;
 
 let custFilter = 'all';
 let custSearchQuery = '';
-const TRAVEL_TYPE_LABELS = { honeymoon:'💑 Honeymoon', family:'👨‍👩‍👧 Family', corporate:'💼 Corporate', adventure:'🏔 Adventure', group:'👥 Group', solo:'🧳 Solo' };
+const TRAVEL_TYPE_LABELS = { honeymoon:'Honeymoon', family:'Family', corporate:'Corporate', adventure:'Adventure', group:'Group', solo:'Solo' };
 
 function custJsArg(value) {
   return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -85,10 +85,10 @@ function renderCustAIStrip() {
     const segs = WanagoAI.segmentCustomers();
     const vipC = segs.vip.length, atRiskC = segs.at_risk.length, inactiveC = segs.inactive.length, newC = segs.new.length;
     const items = [];
-    if (vipC > 0) items.push('<div style="background:#fff3cd;border-left:3px solid #f0ad4e;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#b7860d">⭐ ' + vipC + ' VIP Customer' + (vipC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">High-value relationships</div></div>');
-    if (atRiskC > 0) items.push('<div style="background:#fde8e8;border-left:3px solid #e74c3c;border-radius:8px;padding:9px 12px;cursor:pointer" onclick="filterCustomers(\'at_risk\',document.querySelector(\'.filter-bar .chip\'))"><div style="font-size:12px;font-weight:700;color:#c0392b">⚠️ ' + atRiskC + ' At-Risk Customer' + (atRiskC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">No booking in 12+ months — needs outreach</div></div>');
-    if (newC > 0) items.push('<div style="background:#e8f4fd;border-left:3px solid #3498db;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#1565c0">✨ ' + newC + ' New Customer' + (newC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">Joined in the last 30 days</div></div>');
-    if (inactiveC > 0) items.push('<div style="background:#f8f8f8;border-left:3px solid #aaa;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#666">💤 ' + inactiveC + ' Inactive</div><div style="font-size:10.5px;color:#888;margin-top:1px">Never booked — consider an outreach campaign</div></div>');
+    if (vipC > 0) items.push('<div style="background:#fff3cd;border-left:3px solid #f0ad4e;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#b7860d">' + vipC + ' VIP Customer' + (vipC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">High-value relationships</div></div>');
+    if (atRiskC > 0) items.push('<div style="background:#fde8e8;border-left:3px solid #e74c3c;border-radius:8px;padding:9px 12px;cursor:pointer" onclick="filterCustomers(\'at_risk\',document.querySelector(\'.filter-bar .chip\'))"><div style="font-size:12px;font-weight:700;color:#c0392b">' + atRiskC + ' At-Risk Customer' + (atRiskC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">No booking in 12+ months — needs outreach</div></div>');
+    if (newC > 0) items.push('<div style="background:#e8f4fd;border-left:3px solid #3498db;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#1565c0">' + newC + ' New Customer' + (newC > 1 ? 's' : '') + '</div><div style="font-size:10.5px;color:#888;margin-top:1px">Joined in the last 30 days</div></div>');
+    if (inactiveC > 0) items.push('<div style="background:#f8f8f8;border-left:3px solid #aaa;border-radius:8px;padding:9px 12px"><div style="font-size:12px;font-weight:700;color:#666">' + inactiveC + ' Inactive</div><div style="font-size:10.5px;color:#888;margin-top:1px">Never booked — consider an outreach campaign</div></div>');
     if (!items.length) { el.style.display = 'none'; return; }
     el.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px';
     el.innerHTML = items.join('');
@@ -120,8 +120,8 @@ function renderCustomers(filter) {
   if(budgetF) custs=custs.filter(c=>c.budgetRange===budgetF);
   const tbody=document.getElementById('customers-tbody');
   if(!custs.length){tbody.innerHTML=emptyRow(11,'No customers match your filters.');return;}
-  const tagPill={vip:'<span class="pill pill-gold">⭐ VIP</span>',corporate:'<span class="pill pill-blue">Corporate</span>',regular:'<span class="pill pill-green">Regular</span>'};
-  const SEG_PILL={vip:'<span style="font-size:9.5px;font-weight:700;color:#b7860d;background:#fff3cd;border-radius:5px;padding:2px 7px">⭐ VIP</span>',loyal:'<span style="font-size:9.5px;font-weight:700;color:#1a7a4a;background:#f0faf4;border-radius:5px;padding:2px 7px">🔁 Loyal</span>',regular:'<span style="font-size:9.5px;color:#555;background:#f4f4f4;border-radius:5px;padding:2px 7px">Regular</span>',at_risk:'<span style="font-size:9.5px;font-weight:700;color:#c0392b;background:#fde8e8;border-radius:5px;padding:2px 7px">⚠️ At Risk</span>',new:'<span style="font-size:9.5px;font-weight:700;color:#1565c0;background:#e8f4fd;border-radius:5px;padding:2px 7px">✨ New</span>',inactive:'<span style="font-size:9.5px;color:#888;background:#f4f4f4;border-radius:5px;padding:2px 7px">💤 Inactive</span>'};
+  const tagPill={vip:'<span class="pill pill-gold">VIP</span>',corporate:'<span class="pill pill-blue">Corporate</span>',regular:'<span class="pill pill-green">Regular</span>'};
+  const SEG_PILL={vip:'<span style="font-size:9.5px;font-weight:700;color:#b7860d;background:#fff3cd;border-radius:5px;padding:2px 7px">VIP</span>',loyal:'<span style="font-size:9.5px;font-weight:700;color:#1a7a4a;background:#f0faf4;border-radius:5px;padding:2px 7px">Loyal</span>',regular:'<span style="font-size:9.5px;color:#555;background:#f4f4f4;border-radius:5px;padding:2px 7px">Regular</span>',at_risk:'<span style="font-size:9.5px;font-weight:700;color:#c0392b;background:#fde8e8;border-radius:5px;padding:2px 7px">At Risk</span>',new:'<span style="font-size:9.5px;font-weight:700;color:#1565c0;background:#e8f4fd;border-radius:5px;padding:2px 7px">New</span>',inactive:'<span style="font-size:9.5px;color:#888;background:#f4f4f4;border-radius:5px;padding:2px 7px">Inactive</span>'};
   const today6m=new Date(Date.now()+180*86400*1000);
   tbody.innerHTML=custs.map(c=>{
     const passWarn=c.passportExpiry&&new Date(c.passportExpiry)<today6m&&new Date(c.passportExpiry)>new Date();
@@ -132,10 +132,10 @@ function renderCustomers(filter) {
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:9px">
         <div style="width:34px;height:34px;border-radius:50%;background:${c.color||'var(--g600)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${initials(c.name)}</div>
-        <div><div style="font-weight:600">${c.name} ${isBday?'🎂':''} ${isAnniv?'💕':''}</div>
-        ${custIsQuoted(c)?'<div style="font-size:9.5px;color:var(--blue);font-weight:700">📄 Quoted</div>':'<div style="font-size:9.5px;color:var(--textd)">🔲 Not Quoted</div>'}
+        <div><div style="font-weight:600">${c.name}</div>
+        ${custIsQuoted(c)?'<div style="font-size:9.5px;color:var(--blue);font-weight:700">Quoted</div>':'<div style="font-size:9.5px;color:var(--textd)">Not Quoted</div>'}
         <div style="font-size:10.5px;color:var(--textd)">${c.email||'—'}</div>
-        ${(c.bookingsCount||0)>=2?'<div style="font-size:9.5px;color:var(--g600);font-weight:700">🔁 Repeat</div>':''}
+        ${(c.bookingsCount||0)>=2?'<div style="font-size:9.5px;color:var(--g600);font-weight:700">Repeat</div>':''}
         </div></div></td>
       <td>${c.phone}</td><td style="font-size:12px;color:var(--textd)">${c.city||'—'}</td>
       <td>${tagPill[c.tag]||tagPill.regular}</td>
@@ -144,11 +144,11 @@ function renderCustomers(filter) {
       <td style="font-weight:600;text-align:center">${c.bookingsCount||0}</td>
       <td style="font-weight:600">${formatMoney(c.totalSpent||0)}</td>
       <td style="color:var(--textd);font-size:11.5px">${avg>0?formatMoney(avg):'—'}</td>
-      <td style="${passExpired?'color:var(--red);font-weight:700':passWarn?'color:var(--amb);font-weight:600':''}">${c.passportExpiry?formatDate(c.passportExpiry)+(passExpired?' ✗':passWarn?' ⚠':''):'—'}</td>
+      <td style="${passExpired?'color:var(--red);font-weight:700':passWarn?'color:var(--amb);font-weight:600':''}">${c.passportExpiry?formatDate(c.passportExpiry)+(passExpired?' Exp':passWarn?' Soon':''):'—'}</td>
       <td style="white-space:nowrap">
         <button class="row-btn" onclick="viewCustomer('${c.id}')">View</button>
-        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${custJsArg(c.phone)}','${custJsArg(c.name)}','customer')" title="Sales Chat">💬</button>
-        <button class="row-btn" style="margin-left:3px;color:var(--g700)" onclick="editCustomer('${c.id}')">✏</button>
+        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${custJsArg(c.phone)}','${custJsArg(c.name)}','customer')" title="Sales Chat">WA</button>
+        <button class="row-btn" style="margin-left:3px;color:var(--g700)" onclick="editCustomer('${c.id}')">Edit</button>
         <button class="row-btn btn-danger" style="margin-left:3px" onclick="deleteCustomer('${c.id}')">✕</button>
       </td></tr>`;
   }).join('');
@@ -170,11 +170,11 @@ function viewCustomer(id){
   const custQuots=hScoped('quotations').filter(q=>q.customerId===id||q.customerPhone===c.phone||q.customerName===c.name);
   const custInvoices=hScoped('invoices').filter(i=>i.customerId===id||i.customerPhone===c.phone||i.customerName===c.name);
   const invRow=i=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px">'+
-    '<div style="flex:1"><div style="font-weight:600;font-size:13px">🧾 '+(i.id||'')+'</div>'+
+    '<div style="flex:1"><div style="font-weight:600;font-size:13px">'+(i.id||'')+'</div>'+
     '<div style="font-size:11px;color:var(--textd)">'+(i.dueDate?'Due '+formatDate(i.dueDate):'—')+'</div></div>'+
     '<div style="text-align:right"><div style="font-weight:700;color:var(--g700)">'+formatMoney(i.total||0)+'</div>'+stagePill(i.status)+'</div></div>';
   const quotRow=q=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px">'+
-    '<div style="flex:1"><div style="font-weight:600;font-size:13px">📄 '+(q.id||'')+' · '+(q.destination||'')+'</div>'+
+    '<div style="flex:1"><div style="font-weight:600;font-size:13px">'+(q.id||'')+' · '+(q.destination||'')+'</div>'+
     '<div style="font-size:11px;color:var(--textd)">'+(q.pax?q.pax+' pax · ':'')+formatMoney(q.grandTotal||q.amount||0)+'</div></div>'+
     stagePill(q.status||'draft')+'</div>';
   document.getElementById('vc-body').innerHTML=`
@@ -184,7 +184,7 @@ function viewCustomer(id){
         <div style="font-size:16px;font-weight:700">${c.name}</div>
         <div style="font-size:12px;color:var(--textd);margin-top:2px">${c.phone} ${c.email?'· '+c.email:''}</div>
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-          ${c.tag==='vip'?'<span class="pill pill-gold">⭐ VIP</span>':''}
+          ${c.tag==='vip'?'<span class="pill pill-gold">VIP</span>':''}
           ${c.travelType?`<span class="pill pill-blue">${TRAVEL_TYPE_LABELS[c.travelType]||c.travelType}</span>`:''}
           ${c.budgetRange?`<span class="pill pill-gray">${BUDGET_LABELS[c.budgetRange]||c.budgetRange}</span>`:''}
         </div>
@@ -202,19 +202,19 @@ function viewCustomer(id){
       <div><div class="form-label">Anniversary</div><div style="font-size:12.5px;margin-top:4px">${c.anniversary?formatDate(c.anniversary):'—'}</div></div>
       <div><div class="form-label">Address</div><div style="font-size:12.5px;margin-top:4px">${c.address||'—'}</div></div>
       <div><div class="form-label">Passport No.</div><div style="font-size:12.5px;margin-top:4px;font-family:monospace;font-weight:600">${c.passportNo||'—'}</div></div>
-      <div><div class="form-label">Passport Expiry</div><div style="font-size:12.5px;margin-top:4px;color:${passExpired?'var(--red)':passWarn?'var(--amb)':'inherit'};font-weight:${passWarn||passExpired?'700':'400'}">${c.passportExpiry?formatDate(c.passportExpiry)+(passExpired?' ✗ EXPIRED':passWarn?' ⚠ Expiring Soon':''):'—'}</div></div>
+      <div><div class="form-label">Passport Expiry</div><div style="font-size:12.5px;margin-top:4px;color:${passExpired?'var(--red)':passWarn?'var(--amb)':'inherit'};font-weight:${passWarn||passExpired?'700':'400'}">${c.passportExpiry?formatDate(c.passportExpiry)+(passExpired?' EXPIRED':passWarn?' Expiring Soon':''):'—'}</div></div>
       ${c.prefDest?`<div style="grid-column:1/-1"><div class="form-label">Preferred Destinations</div><div style="font-size:12.5px;margin-top:4px">${c.prefDest}</div></div>`:''}
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn btn-sm btn-outline" onclick="custWhatsApp('${c.id}')">💬 WhatsApp</button>
-      <button class="btn btn-sm btn-outline" onclick="closeModal('modal-view-customer');editCustomer('${c.id}')">✏️ Edit</button>
+      <button class="btn btn-sm btn-outline" onclick="custWhatsApp('${c.id}')">WhatsApp</button>
+      <button class="btn btn-sm btn-outline" onclick="closeModal('modal-view-customer');editCustomer('${c.id}')">Edit</button>
       <button class="btn btn-sm btn-green" onclick="newLeadFromCustomer('${c.id}')">+ New Lead</button>
-      <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteCustomer('${c.id}')">🗑 Delete</button>
+      <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteCustomer('${c.id}')">Delete</button>
     </div>
-    ${custBookings.length?`<div class="form-section">✈️ Bookings (${custBookings.length})</div>${custBookings.map(b=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">✈️ '+b.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(b.ref||'')+' · '+formatDate(b.travelDate)+'</div></div><div style="text-align:right"><div style="font-weight:700;color:var(--g700)">'+formatMoney(b.totalAmount||0)+'</div>'+stagePill(b.status)+'</div></div>').join('')}`:''}
-    ${custQuots.length?`<div class="form-section">📄 Quotations (${custQuots.length})</div>${custQuots.map(quotRow).join('')}`:''}
-    ${custInvoices.length?`<div class="form-section">🧾 Invoices (${custInvoices.length})</div>${custInvoices.map(invRow).join('')}`:''}
-    ${custLeads.length?`<div class="form-section">🎯 Leads (${custLeads.length})</div>${custLeads.map(l=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">🎯 '+l.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(l.source||'')+' · '+(l.agent||'Unassigned')+'</div></div>'+stagePill(l.stage)+'</div>').join('')}`:''}
+    ${custBookings.length?`<div class="form-section">Bookings (${custBookings.length})</div>${custBookings.map(b=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">'+b.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(b.ref||'')+' · '+formatDate(b.travelDate)+'</div></div><div style="text-align:right"><div style="font-weight:700;color:var(--g700)">'+formatMoney(b.totalAmount||0)+'</div>'+stagePill(b.status)+'</div></div>').join('')}`:''}
+    ${custQuots.length?`<div class="form-section">Quotations (${custQuots.length})</div>${custQuots.map(quotRow).join('')}`:''}
+    ${custInvoices.length?`<div class="form-section">Invoices (${custInvoices.length})</div>${custInvoices.map(invRow).join('')}`:''}
+    ${custLeads.length?`<div class="form-section">Leads (${custLeads.length})</div>${custLeads.map(l=>'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--cream);border-radius:10px;border:1px solid var(--border);margin-bottom:6px"><div style="flex:1"><div style="font-weight:600;font-size:13px">'+l.destination+'</div><div style="font-size:11px;color:var(--textd)">'+(l.source||'')+' · '+(l.agent||'Unassigned')+'</div></div>'+stagePill(l.stage)+'</div>').join('')}`:''}
     ${c.notes?`<div class="form-section">Notes</div><div style="font-size:13px;color:var(--textm);background:var(--cream);border-radius:10px;padding:12px;line-height:1.6">${c.notes}</div>`:''}`;
   openModal('modal-view-customer');
 }
@@ -264,7 +264,7 @@ function deleteCustomer(id){
   const ov=document.createElement('div');ov.id='del-cust-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
   ov.innerHTML=`<div style="background:#fff;border-radius:14px;padding:26px 24px 20px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px">🗑 Delete Customer</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">Delete Customer</div>
     <div style="font-size:13px;color:var(--textd);margin-bottom:18px">Remove <strong>${c.name}</strong>? This cannot be undone.</div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('del-cust-overlay').remove()">Cancel</button>
