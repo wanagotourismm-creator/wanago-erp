@@ -152,7 +152,9 @@
       const userId = sess.uid;
       if (!userId) return;
 
-      const col   = collection(db, 'companies/wanago-erp/notifications');
+      // FIXED: use dynamic compId from firestore.js; fallback to hardcoded
+      const _notifyCompId = (typeof window._fsCompId === 'function' ? window._fsCompId() : null) || 'wanago-erp';
+      const col   = collection(db, \`companies/\${_notifyCompId}/notifications\`);
       const q     = query(col, orderBy('sentAt', 'desc'), limit(50));
 
       _offListener = onSnapshot(q, function(snap) {
@@ -198,7 +200,8 @@
       const app  = apps.length ? apps[0] : initializeApp(FB_CFG);
       const db   = getFirestore(app);
       const sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
-      await addDoc(collection(db, 'companies/wanago-erp/notifications'), {
+      const _notifyCompId2 = (typeof window._fsCompId === 'function' ? window._fsCompId() : null) || 'wanago-erp';
+      await addDoc(collection(db, \`companies/\${_notifyCompId2}/notifications\`), {
         title:          opts.title || 'Notification',
         message:        opts.message || '',
         type:           opts.type || 'info',

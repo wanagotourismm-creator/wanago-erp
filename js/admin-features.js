@@ -1,24 +1,60 @@
 // ═══════════════════════════════════════════════════════════════
-//  WANAGO ERP — Admin Features: Activity Log, RBAC, Attendance,
-//  Notifications — Full Firebase Integration
+//  WANAGO ERP — Admin Features v2 (Path-Fixed)
+//
+//  FIXES:
+//  1. Removed hardcoded 'wanago-erp' project ID — now uses
+//     window._fsCompId() from firestore.js (dynamic, correct)
+//  2. All collection() paths use the centralised _af_path() helper
+//     which delegates to window._fsDataPath() from firestore.js
+//  3. Eliminated duplicate Firebase app initialisation —
+//     reuses the already-initialised app from firestore.js
+//     via getApps()[0], avoiding a second Firestore instance
 // ═══════════════════════════════════════════════════════════════
 
 const FB_BASE = 'https://www.gstatic.com/firebasejs/10.12.0';
-const FB_CFG = { apiKey:"AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU", authDomain:"wanago-erp.firebaseapp.com", projectId:"wanago-erp", storageBucket:"wanago-erp.firebasestorage.app", messagingSenderId:"445920648182", appId:"1:445920648182:web:2ef6f9110767bc9f36c5d7" };
 
+// ── Reuse the Firebase app already created by firestore.js ──
+// This avoids a duplicate-app warning and ensures we share the same
+// Firestore instance (and thus its offline cache + listeners).
 let _af_db = null;
 async function _getDb() {
   if (_af_db) return _af_db;
   try {
-    const [{ initializeApp, getApps }, { getFirestore }] = await Promise.all([
+    const [{ getApps, initializeApp }, { getFirestore }] = await Promise.all([
       import(FB_BASE + '/firebase-app.js'),
-      import(FB_BASE + '/firebase-firestore.js')
+      import(FB_BASE + '/firebase-firestore.js'),
     ]);
+    // Use existing app if firestore.js already initialised it; otherwise init.
     const apps = getApps();
-    const app = apps.length ? apps[0] : initializeApp(FB_CFG);
+    const app  = apps.length ? apps[0] : initializeApp({
+      apiKey:            "AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU",
+      authDomain:        "wanago-erp.firebaseapp.com",
+      projectId:         "wanago-erp",
+      storageBucket:     "wanago-erp.firebasestorage.app",
+      messagingSenderId: "445920648182",
+      appId:             "1:445920648182:web:2ef6f9110767bc9f36c5d7",
+    });
     _af_db = getFirestore(app);
     return _af_db;
-  } catch(e) { console.warn('[admin-features] Firebase init failed:', e.message); return null; }
+  } catch(e) {
+    console.warn('[admin-features] Firebase init failed:', e.message);
+    return null;
+  }
+}
+
+/**
+ * Returns the Firestore collection path for a named sub-collection.
+ * Uses the dynamic compId from firestore.js so this always matches
+ * the project the main data layer is connected to.
+ *
+ * e.g. _af_path('activity_log') → "companies/wanago-erp/activity_log"
+ * = 3 segments (ODD) → valid collection() argument ✓
+ */
+function _af_path(sub) {
+  // Prefer the live compId from firestore.js; fall back to hard-coded value.
+  const compId = (typeof window._fsCompId === 'function' ? window._fsCompId() : null)
+               || 'wanago-erp';
+  return `companies/${compId}/${sub}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -30,17 +66,18 @@ window.logActivity = async function(action, details, category) {
     const db = await _getDb(); if (!db) return;
     const sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
     const { collection, addDoc, serverTimestamp } = await import(FB_BASE + '/firebase-firestore.js');
-    await addDoc(collection(db, 'companies/wanago-erp/activity_log'), {
-      action: action || 'unknown',
-      details: details || '',
-      category: category || 'general',
-      userId: sess.uid || 'unknown',
-      userName: sess.name || 'Unknown',
+    // FIXED: _af_path() instead of hardcoded 'companies/wanago-erp/activity_log'
+    await addDoc(collection(db, _af_path('activity_log')), {
+      action:    action    || 'unknown',
+      details:   details   || '',
+      category:  category  || 'general',
+      userId:    sess.uid  || 'unknown',
+      userName:  sess.name || 'Unknown',
       userEmail: sess.email || '',
-      userRole: sess.role || '',
+      userRole:  sess.role  || '',
       timestamp: serverTimestamp(),
-      page: window.location.pathname.split('/').pop(),
-      ip: 'client'
+      page:      window.location.pathname.split('/').pop(),
+      ip:        'client',
     });
   } catch(e) { console.warn('[activity log] Failed:', e.message); }
 };
@@ -53,7 +90,8 @@ window.renderActivityLog = async function() {
     const db = await _getDb();
     if (!db) { container.innerHTML = '<div style="padding:20px;color:var(--textd)">Firebase not connected</div>'; return; }
     const { collection, getDocs, query, orderBy, limit } = await import(FB_BASE + '/firebase-firestore.js');
-    const q = query(collection(db, 'companies/wanago-erp/activity_log'), orderBy('timestamp', 'desc'), limit(100));
+    // FIXED: _af_path() instead of hardcoded path
+    const q = query(collection(db, _af_path('activity_log')), orderBy('timestamp', 'desc'), limit(100));
     const snap = await getDocs(q);
     const logs = [];
     snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
@@ -138,17 +176,13 @@ window.renderRBACTab = function() {
   if (!container) return;
   const team = DB.settings?.team || [];
   const roleGroups = {};
-  team.forEach(m => {
-    const r = m.role || 'agent';
-    if (!roleGroups[r]) roleGroups[r] = [];
-    roleGroups[r].push(m);
-  });
+  team.forEach(m => { const r = m.role || 'agent'; if (!roleGroups[r]) roleGroups[r] = []; roleGroups[r].push(m); });
   const ROLE_LABELS = {
     founder:'Founder', ceo:'CEO', co_founder:'Co-Founder', admin:'Admin',
     branch_manager:'Branch Manager', sales_manager:'Sales Manager',
     operations_manager:'Operations Manager', finance_manager:'Finance Manager',
     marketing_manager:'Marketing Manager', team_lead:'Team Lead',
-    senior_manager:'Senior Manager', sales_agent:'Sales Agent', agent:'Agent'
+    senior_manager:'Senior Manager', sales_agent:'Sales Agent', agent:'Agent',
   };
   container.innerHTML = `
     <div style="margin-bottom:20px">
@@ -162,11 +196,11 @@ window.renderRBACTab = function() {
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer" onclick="showRoleDetail('${role}')">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div style="font-size:13px;font-weight:700">${ROLE_LABELS[role] || role}</div>
-            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${isFullAccess?'var(--g50)':'#e3f2fd'};color:${isFullAccess?'var(--g700)':'#1565c0'}">${isFullAccess?'Full Access':'Limited'}</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${isFullAccess ? 'var(--g50)' : '#e3f2fd'};color:${isFullAccess ? 'var(--g700)' : '#1565c0'}">${isFullAccess ? 'Full Access' : 'Limited'}</span>
           </div>
           <div style="font-size:11.5px;color:var(--textd);margin-bottom:8px">${isFullAccess ? 'All pages & features' : `${perms.pages.length} pages · ${perms.features.length} features`}</div>
-          <div style="font-size:11px;color:var(--textm)">${members.length} member${members.length!==1?'s':''} assigned</div>
-          ${members.slice(0,3).map(m=>`<div style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;margin-right:4px;padding:2px 8px;background:var(--cream);border:1px solid var(--border);border-radius:10px;font-size:11px">${m.name}</div>`).join('')}
+          <div style="font-size:11px;color:var(--textm)">${members.length} member${members.length !== 1 ? 's' : ''} assigned</div>
+          ${members.slice(0,3).map(m => `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;margin-right:4px;padding:2px 8px;background:var(--cream);border:1px solid var(--border);border-radius:10px;font-size:11px">${m.name}</div>`).join('')}
         </div>`;
       }).join('')}
     </div>
@@ -185,13 +219,15 @@ window.showRoleDetail = function(role) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:8px">Pages Access</div>
-        ${isFullAccess ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">All Pages</div>' :
-          perms.pages.map(p => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px">${p}</div>`).join('')}
+        ${isFullAccess
+          ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">All Pages</div>'
+          : perms.pages.map(p => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px">${p}</div>`).join('')}
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:8px">Feature Access</div>
-        ${isFullAccess ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">All Features</div>' :
-          perms.features.map(f => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px">${f.replace(/_/g,' ')}</div>`).join('')}
+        ${isFullAccess
+          ? '<div style="padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;color:var(--g700);font-weight:600">All Features</div>'
+          : perms.features.map(f => `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px">${f.replace(/_/g,' ')}</div>`).join('')}
       </div>
     </div>`;
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -204,14 +240,15 @@ window.showRoleDetail = function(role) {
 window.renderAttendanceTab = async function() {
   const container = document.getElementById('adm-tab-attendance');
   if (!container) return;
-  const today = new Date().toISOString().split('T')[0];
-  const team = DB.settings?.team || [];
+  const today    = new Date().toISOString().split('T')[0];
+  const team     = DB.settings?.team || [];
   let attendanceData = {};
   try {
     const db = await _getDb();
     if (db) {
       const { collection, getDocs, query, where } = await import(FB_BASE + '/firebase-firestore.js');
-      const q = query(collection(db, 'companies/wanago-erp/attendance'), where('date', '==', today));
+      // FIXED: _af_path() instead of hardcoded path
+      const q = query(collection(db, _af_path('attendance')), where('date', '==', today));
       const snap = await getDocs(q);
       snap.forEach(d => { const data = d.data(); attendanceData[data.memberId] = data; });
     }
@@ -263,9 +300,7 @@ window.renderAttendanceTab = async function() {
               </td>
               <td style="padding:12px 16px;font-size:12px;color:var(--textm)">${m.dept||'—'}</td>
               <td style="padding:12px 16px;font-size:12px;color:var(--textm)">${att.checkIn||'—'}</td>
-              <td style="padding:12px 16px">
-                <span style="font-size:11.5px;font-weight:700;color:${statusColors[status]}">${statusLabels[status]||status}</span>
-              </td>
+              <td style="padding:12px 16px"><span style="font-size:11.5px;font-weight:700;color:${statusColors[status]}">${statusLabels[status]||status}</span></td>
               <td style="padding:12px 16px">
                 <div style="display:flex;gap:4px">
                   <button onclick="markAttendance('${m.id}','present')" style="padding:3px 8px;font-size:11px;border-radius:6px;border:1px solid var(--g200);background:var(--g50);color:var(--g700);cursor:pointer;font-family:inherit;font-weight:600">P</button>
@@ -290,15 +325,16 @@ window.markAttendance = async function(memberId, status) {
   try {
     const db = await _getDb(); if (!db) return;
     const { collection, doc, setDoc, serverTimestamp } = await import(FB_BASE + '/firebase-firestore.js');
-    const today = new Date().toISOString().split('T')[0];
-    const sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
-    await setDoc(doc(collection(db, 'companies/wanago-erp/attendance'), `${today}_${memberId}`), {
+    const today   = new Date().toISOString().split('T')[0];
+    const sess    = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+    // FIXED: _af_path() + docId form = 4 segs = EVEN = valid doc ✓
+    await setDoc(doc(collection(db, _af_path('attendance')), `${today}_${memberId}`), {
       memberId, status, date: today,
-      checkIn: status === 'present' ? timeStr : null,
-      markedBy: sess.uid, markedByName: sess.name,
-      timestamp: serverTimestamp()
+      checkIn:       status === 'present' ? timeStr : null,
+      markedBy:      sess.uid,
+      markedByName:  sess.name,
+      timestamp:     serverTimestamp(),
     });
     logActivity(`Marked attendance: ${status}`, `Member ID: ${memberId}`, 'team');
     if (typeof showToast === 'function') showToast('Attendance marked', 'success');
@@ -312,13 +348,18 @@ window.loadLeaveRequests = async function() {
   const el = document.getElementById('leave-requests-list');
   if (!el) return;
   try {
-    const db = await _getDb(); if (!db) { el.innerHTML = '<div style="color:var(--textd);font-size:12px">Firebase not connected</div>'; return; }
+    const db = await _getDb();
+    if (!db) { el.innerHTML = '<div style="color:var(--textd);font-size:12px">Firebase not connected</div>'; return; }
     const { collection, getDocs, query, where, orderBy } = await import(FB_BASE + '/firebase-firestore.js');
-    const q = query(collection(db, 'companies/wanago-erp/leave_requests'), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
+    // FIXED: _af_path()
+    const q = query(collection(db, _af_path('leave_requests')), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
     const requests = [];
     snap.forEach(d => requests.push({ id: d.id, ...d.data() }));
-    if (!requests.length) { el.innerHTML = '<div style="color:var(--textd);font-size:12px;text-align:center;padding:20px">No pending leave requests</div>'; return; }
+    if (!requests.length) {
+      el.innerHTML = '<div style="color:var(--textd);font-size:12px;text-align:center;padding:20px">No pending leave requests</div>';
+      return;
+    }
     el.innerHTML = requests.map(r => `
       <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
         <div style="flex:1">
@@ -326,7 +367,7 @@ window.loadLeaveRequests = async function() {
           <div style="font-size:11.5px;color:var(--textd);margin-top:2px">${r.fromDate} → ${r.toDate} · ${r.type||'Leave'} · <em>${r.reason||'—'}</em></div>
         </div>
         <button onclick="approveLeave('${r.id}')" style="padding:5px 12px;background:var(--g50);border:1px solid var(--g200);color:var(--g700);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Approve</button>
-        <button onclick="rejectLeave('${r.id}')" style="padding:5px 12px;background:rgba(192,57,43,.05);border:1px solid rgba(192,57,43,.2);color:var(--red);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Reject</button>
+        <button onclick="rejectLeave('${r.id}')"  style="padding:5px 12px;background:rgba(192,57,43,.05);border:1px solid rgba(192,57,43,.2);color:var(--red);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Reject</button>
       </div>`).join('');
   } catch(e) { el.innerHTML = '<div style="color:var(--red);font-size:12px">Error loading requests</div>'; }
 };
@@ -335,7 +376,8 @@ window.approveLeave = async function(id) {
   try {
     const db = await _getDb(); if (!db) return;
     const { doc, updateDoc } = await import(FB_BASE + '/firebase-firestore.js');
-    await updateDoc(doc(db, 'companies/wanago-erp/leave_requests', id), { status: 'approved' });
+    // FIXED: _af_path('leave_requests') = 3 segs collection, id = docId → 4 segs EVEN ✓
+    await updateDoc(doc(db, _af_path('leave_requests'), id), { status: 'approved' });
     logActivity('Leave approved', `Request ID: ${id}`, 'team');
     if (typeof showToast === 'function') showToast('Leave approved', 'success');
     loadLeaveRequests();
@@ -346,7 +388,8 @@ window.rejectLeave = async function(id) {
   try {
     const db = await _getDb(); if (!db) return;
     const { doc, updateDoc } = await import(FB_BASE + '/firebase-firestore.js');
-    await updateDoc(doc(db, 'companies/wanago-erp/leave_requests', id), { status: 'rejected' });
+    // FIXED: _af_path() + docId = 4 segs EVEN ✓
+    await updateDoc(doc(db, _af_path('leave_requests'), id), { status: 'rejected' });
     logActivity('Leave rejected', `Request ID: ${id}`, 'team');
     if (typeof showToast === 'function') showToast('Leave rejected', 'success');
     loadLeaveRequests();
@@ -354,7 +397,7 @@ window.rejectLeave = async function(id) {
 };
 
 window.openLeaveModal = function() {
-  const team = DB.settings?.team || [];
+  const team  = DB.settings?.team || [];
   const modal = document.getElementById('modal-leave-request');
   if (!modal) return;
   const sel = document.getElementById('leave-member-select');
@@ -363,20 +406,23 @@ window.openLeaveModal = function() {
 };
 
 window.submitLeaveRequest = async function() {
-  const sel = document.getElementById('leave-member-select');
-  const memberId = sel?.value;
+  const sel        = document.getElementById('leave-member-select');
+  const memberId   = sel?.value;
   const memberName = sel?.options[sel?.selectedIndex]?.dataset?.name;
-  const fromDate = document.getElementById('leave-from-date')?.value;
-  const toDate = document.getElementById('leave-to-date')?.value;
-  const type = document.getElementById('leave-type')?.value;
-  const reason = document.getElementById('leave-reason')?.value;
-  if (!memberId || !fromDate || !toDate) { if (typeof showToast === 'function') showToast('Fill all required fields', 'error'); return; }
+  const fromDate   = document.getElementById('leave-from-date')?.value;
+  const toDate     = document.getElementById('leave-to-date')?.value;
+  const type       = document.getElementById('leave-type')?.value;
+  const reason     = document.getElementById('leave-reason')?.value;
+  if (!memberId || !fromDate || !toDate) {
+    if (typeof showToast === 'function') showToast('Fill all required fields', 'error'); return;
+  }
   try {
     const db = await _getDb(); if (!db) return;
     const { collection, addDoc, serverTimestamp } = await import(FB_BASE + '/firebase-firestore.js');
-    await addDoc(collection(db, 'companies/wanago-erp/leave_requests'), {
+    // FIXED: _af_path()
+    await addDoc(collection(db, _af_path('leave_requests')), {
       memberId, memberName, fromDate, toDate, type: type||'casual', reason: reason||'',
-      status: 'pending', createdAt: serverTimestamp()
+      status: 'pending', createdAt: serverTimestamp(),
     });
     logActivity(`Leave request added for ${memberName}`, `${fromDate} → ${toDate} (${type})`, 'team');
     if (typeof closeModal === 'function') closeModal('modal-leave-request');
@@ -398,7 +444,6 @@ window.renderNotificationsTab = async function() {
   if (!container) return;
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-      <!-- Send Notification -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px">
         <div style="font-size:14px;font-weight:800;margin-bottom:16px">Send Notification</div>
         <div class="form-group" style="margin-bottom:12px">
@@ -435,7 +480,6 @@ window.renderNotificationsTab = async function() {
         </div>
         <button class="btn btn-primary" onclick="sendNotification()" style="width:100%">Send Notification</button>
       </div>
-      <!-- Notification Rules -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px">
         <div style="font-size:14px;font-weight:800;margin-bottom:16px">Auto-Notification Rules</div>
         ${[
@@ -460,7 +504,6 @@ window.renderNotificationsTab = async function() {
         <button class="btn btn-primary" onclick="saveNotifRules()" style="width:100%;margin-top:16px">Save Rules</button>
       </div>
     </div>
-    <!-- Recent Notifications -->
     <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;margin-top:20px">
       <div style="font-size:14px;font-weight:800;margin-bottom:16px">Recent Notifications Sent</div>
       <div id="recent-notifications">Loading...</div>
@@ -480,23 +523,24 @@ window.toggleNotifRule = function(key, el) {
 };
 
 window.sendNotification = async function() {
-  const title = document.getElementById('notif-title')?.value?.trim();
+  const title   = document.getElementById('notif-title')?.value?.trim();
   const message = document.getElementById('notif-message')?.value?.trim();
-  const type = document.getElementById('notif-type')?.value;
-  const target = document.getElementById('notif-target')?.value;
+  const type    = document.getElementById('notif-type')?.value;
+  const target  = document.getElementById('notif-target')?.value;
   if (!title || !message) { if (typeof showToast === 'function') showToast('Fill title and message', 'error'); return; }
   try {
     const db = await _getDb(); if (!db) return;
     const { collection, addDoc, serverTimestamp } = await import(FB_BASE + '/firebase-firestore.js');
     const sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
-    await addDoc(collection(db, 'companies/wanago-erp/notifications'), {
+    // FIXED: _af_path()
+    await addDoc(collection(db, _af_path('notifications')), {
       title, message, type: type||'info', target,
       targetMemberId: target === 'specific' ? document.getElementById('notif-member-id')?.value : null,
-      sentBy: sess.name, sentAt: serverTimestamp(), read: false
+      sentBy: sess.name, sentAt: serverTimestamp(), read: false,
     });
     logActivity(`Notification sent: "${title}"`, `To: ${target}`, 'general');
     if (typeof showToast === 'function') showToast('Notification sent', 'success');
-    document.getElementById('notif-title').value = '';
+    document.getElementById('notif-title').value   = '';
     document.getElementById('notif-message').value = '';
     loadRecentNotifications();
   } catch(e) { if (typeof showToast === 'function') showToast('Failed: ' + e.message, 'error'); }
@@ -506,19 +550,26 @@ window.loadRecentNotifications = async function() {
   const el = document.getElementById('recent-notifications');
   if (!el) return;
   try {
-    const db = await _getDb(); if (!db) { el.innerHTML = '<div style="color:var(--textd);font-size:12px">Firebase not connected</div>'; return; }
+    const db = await _getDb();
+    if (!db) { el.innerHTML = '<div style="color:var(--textd);font-size:12px">Firebase not connected</div>'; return; }
     const { collection, getDocs, query, orderBy, limit } = await import(FB_BASE + '/firebase-firestore.js');
-    const q = query(collection(db, 'companies/wanago-erp/notifications'), orderBy('sentAt', 'desc'), limit(20));
+    // FIXED: _af_path()
+    const q = query(collection(db, _af_path('notifications')), orderBy('sentAt', 'desc'), limit(20));
     const snap = await getDocs(q);
     const notifs = [];
     snap.forEach(d => notifs.push({ id: d.id, ...d.data() }));
-    if (!notifs.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No notifications sent yet</div>'; return; }
+    if (!notifs.length) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--textd);font-size:12px">No notifications sent yet</div>';
+      return;
+    }
     const typeColors = { info:'#2196f3', success:'#4caf50', warning:'#ff9800', alert:'#f44336' };
     const typeIcons  = { info:'i', success:'OK', warning:'!', alert:'!!' };
-    el.innerHTML = `<div class="table-wrap" style="box-shadow:none;border:none"><table><thead><tr><th>Type</th><th>Title</th><th>Message</th><th>Sent To</th><th>Sent By</th><th>Time</th></tr></thead><tbody>
+    el.innerHTML = `<div class="table-wrap" style="box-shadow:none;border:none"><table><thead><tr>
+      <th>Type</th><th>Title</th><th>Message</th><th>Sent To</th><th>Sent By</th><th>Time</th>
+    </tr></thead><tbody>
       ${notifs.map(n => {
         const ts = n.sentAt?.toDate ? n.sentAt.toDate() : new Date();
-        const t = n.type || 'info';
+        const t  = n.type || 'info';
         return `<tr>
           <td><span style="font-size:11px;font-weight:700;color:${typeColors[t]||'#607d8b'}">${typeIcons[t]||t}</span></td>
           <td style="font-weight:600;font-size:13px">${n.title}</td>
@@ -534,9 +585,7 @@ window.loadRecentNotifications = async function() {
 
 window.saveNotifRules = function() {
   const rules = {};
-  document.querySelectorAll('[data-key]').forEach(el => {
-    rules[el.dataset.key] = el.dataset.on === '1';
-  });
+  document.querySelectorAll('[data-key]').forEach(el => { rules[el.dataset.key] = el.dataset.on === '1'; });
   localStorage.setItem('wanago_notif_rules', JSON.stringify(rules));
   if (typeof showToast === 'function') showToast('Notification rules saved', 'success');
 };
@@ -545,35 +594,43 @@ window.saveNotifRules = function() {
 window.createFirebaseAccount = async function(memberId) {
   const m = (DB.settings?.team||[]).find(x => x.id === memberId);
   if (!m) return;
-  const email = prompt('Enter email for ' + m.name + ':', m.email || '');
+  const email    = prompt('Enter email for ' + m.name + ':', m.email || '');
   if (!email) return;
   const password = prompt('Enter temporary password (min 6 chars):');
   if (!password || password.length < 6) { alert('Password must be at least 6 characters'); return; }
   try {
-    const [{ initializeApp, getApps }, { getAuth, createUserWithEmailAndPassword, updateProfile }] = await Promise.all([
+    const [{ getApps, initializeApp }, { getAuth, createUserWithEmailAndPassword, updateProfile }] = await Promise.all([
       import(FB_BASE + '/firebase-app.js'),
-      import(FB_BASE + '/firebase-auth.js')
+      import(FB_BASE + '/firebase-auth.js'),
     ]);
     const apps = getApps();
-    const app = apps.length ? apps[0] : initializeApp(FB_CFG);
+    const app  = apps.length ? apps[0] : initializeApp({
+      apiKey:"AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU", authDomain:"wanago-erp.firebaseapp.com",
+      projectId:"wanago-erp", storageBucket:"wanago-erp.firebasestorage.app",
+      messagingSenderId:"445920648182", appId:"1:445920648182:web:2ef6f9110767bc9f36c5d7",
+    });
     const auth = getAuth(app);
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: m.name });
-    // Update team member in DB
-    m.firebaseUid = cred.user.uid;
-    m.email = email;
-    m.accountCreated = true;
-    m.accountCreatedAt = new Date().toISOString();
+
+    m.firebaseUid       = cred.user.uid;
+    m.email             = email;
+    m.accountCreated    = true;
+    m.accountCreatedAt  = new Date().toISOString();
     if (typeof saveDB === 'function') saveDB();
     if (typeof fsSaveSettings === 'function') fsSaveSettings();
+
     logActivity(`Firebase account created for ${m.name}`, email, 'team');
     if (typeof showToast === 'function') showToast(`Account created for ${m.name}`, 'success');
     if (typeof renderTeamLogins === 'function') renderTeamLogins();
     if (typeof renderTeamMembers === 'function') renderTeamMembers('all');
   } catch(e) {
-    const errs = { 'auth/email-already-in-use': 'Email already has a Firebase account.', 'auth/weak-password': 'Password too weak.' };
+    const errs = {
+      'auth/email-already-in-use': 'Email already has a Firebase account.',
+      'auth/weak-password':        'Password too weak.',
+    };
     alert(errs[e.code] || e.message);
   }
 };
 
-console.log('[admin-features] Loaded');
+console.log('[admin-features v2] Loaded — path-fixed');

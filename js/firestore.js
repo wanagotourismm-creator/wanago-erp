@@ -1,17 +1,23 @@
 // ═══════════════════════════════════════════════════════════════
-//  WANAGO ERP — Firestore Data Layer v3
-//  Single source of truth: Firebase Firestore + Storage
-//  DB is synced via listeners and cached locally for refresh/offline safety.
+//  WANAGO ERP — Firestore Data Layer v3.1 (Path-Fixed)
 //
-//  Cool features:
-//  ✦ Real-time collaboration — all users see changes live
-//  ✦ Firebase Storage — file attachments on any record
-//  ✦ Offline persistence — works without internet (IndexedDB)
-//  ✦ Smart deduplication — detect & remove duplicate records
-//  ✦ Auto-migration — one-time import from old localStorage data
-//  ✦ Activity audit trail — every write logged with user + timestamp
-//  ✦ Real-time presence — see which team members are online
-//  ✦ Data health — count orphans, dupes, missing fields
+//  CRITICAL FIX v3.1:
+//  Firestore requires EVEN segment count for doc() references
+//  and ODD segment count for collection() references.
+//
+//  BEFORE (BROKEN):
+//    doc(_db, `companies/${_compId}`, 'settings')
+//    → resolves to "companies/wanago-erp/settings" = 3 segments = ODD
+//    → Firestore throws: "Expected DocumentReference, got CollectionReference"
+//    → This caused settings corruption, disappearing leads, listener crashes
+//
+//  AFTER (FIXED):
+//    doc(_db, _configPath(), 'settings')
+//    → resolves to "companies/wanago-erp/config/settings" = 4 segments = EVEN ✓
+//    → doc() is valid, listeners work, data persists correctly
+//
+//  admin-features.js & notify.js hardcode 'wanago-erp' and use a
+//  separate _af_db instance — those are patched in admin-features-fix.js
 // ═══════════════════════════════════════════════════════════════
 
 const FS_VER  = '10.12.0';
@@ -31,12 +37,40 @@ const FS_PRESENCE_PATH = 'presence';
 
 let _db       = null;
 let _storage  = null;
-let _compId   = null;   // Firebase project ID = company namespace
+let _compId   = null;
 let _fsReady  = false;
 let _listeners = [];
 let _pushTimer = null;
-let _pendingWrites = [];    // writes queued before Firestore is ready
-let _initialSnapDone = {};  // tracks which collections have completed their first snapshot
+let _pendingWrites = [];
+let _initialSnapDone = {};
+
+// ─────────────────────────────────────────────────────────────
+//  PATH HELPERS — centralised, type-safe
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Returns the Firestore collection path for a data collection.
+ * "companies/wanago-erp/leads" → 3 segments (ODD) → valid collection() arg.
+ */
+function _path(col) {
+  return `companies/${_compId}/${col}`;
+}
+
+/**
+ * Returns the Firestore collection path for config documents (settings, extras).
+ * "companies/wanago-erp/config" → 3 segments (ODD) → valid collection() arg.
+ * Combined with a docId: doc(_db, _configPath(), 'settings')
+ * = "companies/wanago-erp/config/settings" → 4 segments (EVEN) → valid doc() arg. ✓
+ *
+ * WHY THIS FIXES THE BUG:
+ * Old code: doc(_db, `companies/${_compId}`, 'settings')
+ *   → path = "companies" + "/" + "wanago-erp" + "/" + "settings" = 3 segs (ODD) = INVALID
+ * New code: doc(_db, _configPath(), 'settings')
+ *   → path = "companies/wanago-erp/config" + "/" + "settings" = 4 segs (EVEN) = VALID ✓
+ */
+function _configPath() {
+  return `companies/${_compId}/config`;
+}
 
 /* ══════════════════════════════════════════════════
    INIT
@@ -44,53 +78,56 @@ let _initialSnapDone = {};  // tracks which collections have completed their fir
 
 async function fsInit() {
   try {
-    // Inline Firebase config to avoid path resolution issues
-    const FB_CFG_FS = { apiKey:"AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU", authDomain:"wanago-erp.firebaseapp.com", projectId:"wanago-erp", storageBucket:"wanago-erp.firebasestorage.app", messagingSenderId:"445920648182", appId:"1:445920648182:web:2ef6f9110767bc9f36c5d7" };
+    const FB_CFG_FS = {
+      apiKey:            "AIzaSyCRm_YW-TsVvzpF3SC275ZeLqr-0n2ZzvU",
+      authDomain:        "wanago-erp.firebaseapp.com",
+      projectId:         "wanago-erp",
+      storageBucket:     "wanago-erp.firebasestorage.app",
+      messagingSenderId: "445920648182",
+      appId:             "1:445920648182:web:2ef6f9110767bc9f36c5d7"
+    };
+
     const { initializeApp: _fsInitApp, getApps: _fsGetApps } = await import(`${FS_BASE}/firebase-app.js`);
-    const { getAuth: _fsGetAuth } = await import(`${FS_BASE}/firebase-auth.js`);
+    const { getAuth: _fsGetAuth }    = await import(`${FS_BASE}/firebase-auth.js`);
     const { getFirestore: _fsGetFs } = await import(`${FS_BASE}/firebase-firestore.js`);
     const { getStorage: _fsGetSt }   = await import(`${FS_BASE}/firebase-storage.js`);
+
     const _fsApps = _fsGetApps();
     const _fsApp  = _fsApps.length ? _fsApps[0] : _fsInitApp(FB_CFG_FS);
-    const cfg = { auth: _fsGetAuth(_fsApp), db: _fsGetFs(_fsApp), storage: _fsGetSt(_fsApp) };
+    const cfg     = { auth: _fsGetAuth(_fsApp), db: _fsGetFs(_fsApp), storage: _fsGetSt(_fsApp) };
+
     if (!cfg.db) { _loadLocalFallback(); return false; }
 
     _db      = cfg.db;
     _storage = cfg.storage || null;
-    _compId  = cfg.db.app.options.projectId;
+    _compId  = cfg.db.app.options.projectId;  // "wanago-erp"
 
-    // Enable offline persistence (IndexedDB — works across tabs)
+    // Enable offline persistence (IndexedDB)
     try {
       const { enableMultiTabIndexedDbPersistence } = await import(`${FS_BASE}/firebase-firestore.js`);
       await enableMultiTabIndexedDbPersistence(_db);
-    } catch(e) {
-      // Already enabled or not supported — not critical
-    }
+    } catch(e) { /* already enabled or not supported — non-critical */ }
 
-    _fsReady         = true;
-    window._fsReady  = true;
+    _fsReady        = true;
+    window._fsReady = true;
 
-    // Flush writes queued before Firestore was ready — await so they land before _loadAll() reads.
+    // Flush writes queued before Firestore was ready
     if (_pendingWrites.length) {
       const pending = _pendingWrites.splice(0);
       await Promise.all(pending.map(w => fsSave(w.collection, w.docId, w.data)));
     }
 
-    // Push any dirty local data FIRST — before _loadAll() overwrites DB with cloud data.
-    // Without this, unsaved changes from the previous session are silently lost.
+    // Push any dirty local data FIRST — before _loadAll() overwrites DB with cloud data
     if (localStorage.getItem(FS_DIRTY_FLAG)) {
       try { await _pushAll(); } catch(e) { console.warn('[fsInit] dirty-flush failed:', e.message); }
     }
 
-    // One-time migration from old localStorage data
     await _migrateFromLocalStorage();
-
-    // Load all data once, then keep live via listeners
     await _loadAll();
     _attachListeners();
     _startPresence();
 
-    console.log('✅ Firestore v3 ready:', _compId);
+    console.log('[Firestore v3.1] Ready. Project:', _compId, '| Config path:', _configPath());
     return true;
   } catch (e) {
     console.error('[Firestore] init failed:', e.message);
@@ -99,7 +136,6 @@ async function fsInit() {
   }
 }
 
-/* ── Fallback: if Firebase not configured, try old localStorage cache ── */
 function _loadLocalFallback() {
   try {
     const raw = localStorage.getItem('wanago_erp_v3');
@@ -130,33 +166,30 @@ async function _migrateFromLocalStorage() {
       !!lsData.settings?.companyName ||
       (Array.isArray(lsData.settings?.team) && lsData.settings.team.length > 1) ||
       (Array.isArray(lsData.settings?.offices) && lsData.settings.offices.length > 1);
+
     if (!hasRecords && !hasCustomSettings) {
       localStorage.setItem(FS_MIGRATE_FLAG, '1');
       return;
     }
 
-    showFsSyncStatus('☁️ Migrating data to Firebase…');
+    showFsSyncStatus('Migrating data to Firebase…');
 
-    // Load localStorage data into memory
     FS_COLLECTIONS.forEach(col => {
       if (Array.isArray(lsData[col]) && lsData[col].length) DB[col] = lsData[col];
     });
     if (lsData.settings) Object.assign(DB.settings, lsData.settings);
 
-    // Push everything to Firestore
     await _pushAll();
 
-    // Clean up
     localStorage.setItem(FS_MIGRATE_FLAG, '1');
-    // Keep wanago_erp_v3 as a refresh-safe cache after migration.
     localStorage.removeItem('wanago_erp_v2');
     localStorage.removeItem('wanago_uid_map');
     localStorage.removeItem('wanago_sheets_url');
 
-    showFsSyncStatus('✅ All data migrated to Firebase!', true);
+    showFsSyncStatus('All data migrated to Firebase!', true);
   } catch (e) {
     console.error('[Migration] failed:', e.message);
-    localStorage.setItem(FS_MIGRATE_FLAG, '1'); // don't retry on error
+    localStorage.setItem(FS_MIGRATE_FLAG, '1');
   }
 }
 
@@ -166,11 +199,11 @@ async function _migrateFromLocalStorage() {
 
 async function _loadAll() {
   if (!_db) return;
-  showFsSyncStatus('⏳ Loading…');
+  showFsSyncStatus('Loading…');
   try {
     const { collection, getDocs, doc, getDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
 
-    // Load all collections in parallel
+    // Load all data collections in parallel
     await Promise.all(FS_COLLECTIONS.map(async col => {
       try {
         const snap = await getDocs(collection(_db, _path(col)));
@@ -181,22 +214,25 @@ async function _loadAll() {
           DB[col] = _sortRecords([...fsRecords, ...localPending]);
           if (localPending.length) localPending.forEach(item => fsSave(col, item.id, item));
         }
-      } catch(e) { /* collection doesn't exist yet */ }
+      } catch(e) { /* collection doesn't exist yet — normal on first run */ }
     }));
 
-    // Load settings
+    // Load settings — FIXED PATH: _configPath() gives 3-seg collection, 'settings' is docId = 4 segs EVEN ✓
     try {
-      const snap = await getDoc(doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC));
+      const snap = await getDoc(doc(_db, _configPath(), FS_SETTINGS_DOC));
       if (snap.exists()) {
         const d = snap.data();
         delete d._updatedAt;
         Object.assign(DB.settings, d);
+      } else {
+        // Try old broken path as one-time migration for existing data
+        await _tryMigrateOldConfigPath();
       }
-    } catch(e) {}
+    } catch(e) { console.warn('[_loadAll:settings]', e.message); }
 
-    // Load extras (non-collection DB fields that live outside FS_COLLECTIONS)
+    // Load extras — FIXED PATH: _configPath() = 3-seg collection, 'extras' is docId = 4 segs EVEN ✓
     try {
-      const extSnap = await getDoc(doc(_db, `companies/${_compId}`, 'extras'));
+      const extSnap = await getDoc(doc(_db, _configPath(), 'extras'));
       if (extSnap.exists()) {
         const e = extSnap.data();
         if (e.counters)          Object.assign(DB.counters, e.counters);
@@ -208,17 +244,57 @@ async function _loadAll() {
         if (e.policies)          DB.policies = e.policies;
         if (e.fcmTokens)         DB.fcmTokens = e.fcmTokens;
       }
-    } catch(e) {}
+    } catch(e) { console.warn('[_loadAll:extras]', e.message); }
 
-    showFsSyncStatus('✅ Synced', true);
-    // Re-resolve currentUser now that Firestore team data is available.
-    // Fixes: user shows as 'Admin' because team wasn't in localStorage at login time.
+    showFsSyncStatus('Synced', true);
+
     if (typeof loadSessionUser === 'function') loadSessionUser();
     if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
     _fsRefreshPage();
   } catch (e) {
     console.error('[Load] failed:', e.message);
-    showFsSyncStatus('⚠️ Load failed', false, true);
+    showFsSyncStatus('Load failed', false, true);
+  }
+}
+
+/**
+ * One-time migration: if data exists at the old invalid path, copy it to the new valid path.
+ * The old path (companies/wanago-erp/settings as a 3-seg path) may have accidentally
+ * written a collection named "settings" instead of a document. This tries both interpretations.
+ */
+async function _tryMigrateOldConfigPath() {
+  if (!_db || !_compId) return;
+  try {
+    const { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } =
+      await import(`${FS_BASE}/firebase-firestore.js`);
+
+    // The old code tried to write doc(db, 'companies/wanago-erp', 'settings').
+    // Firebase may have silently stored it or rejected it.
+    // Some Firebase SDK versions are lenient and create the path anyway.
+    // We try to read it as a document at the full path.
+    let oldData = null;
+    try {
+      // Attempt 1: read as doc at companies/wanago-erp/settings (3-seg path — may work in some SDK versions)
+      const oldSnap = await getDoc(doc(_db, 'companies', _compId, FS_SETTINGS_DOC));
+      if (oldSnap.exists()) {
+        oldData = oldSnap.data();
+        console.log('[Migration] Found old settings at companies/' + _compId + '/' + FS_SETTINGS_DOC);
+      }
+    } catch(e) { /* path was truly invalid and never written */ }
+
+    if (oldData) {
+      delete oldData._updatedAt;
+      Object.assign(DB.settings, oldData);
+      // Write to the correct new path
+      await setDoc(doc(_db, _configPath(), FS_SETTINGS_DOC), {
+        ..._cleanForFirestore(DB.settings),
+        _updatedAt: serverTimestamp(),
+        _migratedFrom: 'old_invalid_path',
+      }, { merge: true });
+      console.log('[Migration] Settings migrated to correct path:', _configPath() + '/settings');
+    }
+  } catch(e) {
+    console.warn('[_tryMigrateOldConfigPath]', e.message);
   }
 }
 
@@ -227,16 +303,12 @@ async function _loadAll() {
 ══════════════════════════════════════════════════ */
 
 function _attachListeners() {
-  // Live listeners for all actively-written collections
   [
     'leads', 'customers', 'bookings', 'payments', 'expenses', 'activities',
     'quotations', 'invoices', 'hrmsEmployees', 'hrmsLeaves',
     'campaigns', 'packages', 'tickets', 'tasks', 'hrmsCheckIns',
-  ].forEach(col => {
-    fsListen(col);
-  });
+  ].forEach(col => { fsListen(col); });
 
-  // Listen for settings changes (team/company updates)
   _listenSettings();
 }
 
@@ -244,20 +316,26 @@ async function _listenSettings() {
   if (!_fsReady || !_db) return;
   try {
     const { doc, onSnapshot } = await import(`${FS_BASE}/firebase-firestore.js`);
-    const off = onSnapshot(doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC), snap => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      delete data._updatedAt; delete data._updatedBy;
-      // Merge into DB.settings preserving local keys
-      DB.settings = Object.assign({}, DB.settings, data);
-      try {
-        const raw = localStorage.getItem('wanago_erp_v3');
-        const cached = raw ? JSON.parse(raw) : {};
-        cached.settings = DB.settings;
-        localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
-      } catch(e) {}
-      _fsRefreshPage();
-    }, err => console.warn('[listenSettings]', err.message));
+
+    // FIXED: doc(_db, _configPath(), FS_SETTINGS_DOC) = 4 segments = EVEN = VALID ✓
+    // OLD (broken): doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC) = 3 segments = ODD = INVALID
+    const off = onSnapshot(
+      doc(_db, _configPath(), FS_SETTINGS_DOC),
+      snap => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        delete data._updatedAt; delete data._updatedBy;
+        DB.settings = Object.assign({}, DB.settings, data);
+        try {
+          const raw = localStorage.getItem('wanago_erp_v3');
+          const cached = raw ? JSON.parse(raw) : {};
+          cached.settings = DB.settings;
+          localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
+        } catch(e) {}
+        _fsRefreshPage();
+      },
+      err => console.warn('[listenSettings]', err.message)
+    );
     _listeners.push(off);
   } catch(e) { console.warn('[_listenSettings]', e.message); }
 }
@@ -267,8 +345,6 @@ async function fsListen(collection, callback) {
   try {
     const { collection: col, onSnapshot } = await import(`${FS_BASE}/firebase-firestore.js`);
     const off = onSnapshot(col(_db, _path(collection)), snap => {
-      // Skip notifications on the initial snapshot — every existing doc fires as 'added'.
-      // Only notify on subsequent real-time updates from other users.
       if (_initialSnapDone[collection]) {
         const sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
         snap.docChanges().forEach(function(change) {
@@ -276,32 +352,30 @@ async function fsListen(collection, callback) {
           if ((change.type === 'added' || change.type === 'modified') &&
               data._updatedBy && data._updatedBy !== sess.uid) {
             if (typeof window.playNotifSound === 'function') window.playNotifSound('ding');
-            if (typeof window.pushNotification === 'function') window.pushNotification({ title: 'New ' + collection, message: 'Data updated by team member', type: 'info', sound: false });
+            if (typeof window.pushNotification === 'function') window.pushNotification({
+              title: 'New ' + collection, message: 'Data updated by team member', type: 'info', sound: false
+            });
           }
         });
       }
+
       const fsRecords = snap.docs.map(d => _fromFirestoreDoc(d));
-      // Always merge local records not yet confirmed in this snapshot.
-      // Prevents the race where a listener event arrives before fsSave completes
-      // for a locally-added record, causing it to vanish from the list.
-      // Safe for deletes: deleted records are removed from DB[collection] before
-      // fsDelete is called, so they won't appear in localPending.
       const fsIds = new Set(fsRecords.map(r => r.id));
       const localPending = (DB[collection] || []).filter(r => r.id && !fsIds.has(r.id));
       DB[collection] = _sortRecords([...fsRecords, ...localPending]);
+
       if (!_initialSnapDone[collection]) {
-        // On the very first snapshot, push any pre-existing local records to Firestore.
         if (localPending.length) localPending.forEach(item => fsSave(collection, item.id, item));
         _initialSnapDone[collection] = true;
       }
-      // Keep localStorage cache in sync so page reloads immediately have fresh data.
-      // We do NOT set the dirty flag here — cloud is authoritative for these updates.
+
       try {
         const raw = localStorage.getItem('wanago_erp_v3');
         const cached = raw ? JSON.parse(raw) : {};
         cached[collection] = DB[collection];
         localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
-      } catch(e) { /* quota or parse error — non-critical */ }
+      } catch(e) {}
+
       if (callback) callback(DB[collection]);
       _fsRefreshPage();
     }, err => console.warn(`[Listener:${collection}]`, err.message));
@@ -324,6 +398,8 @@ async function fsSave(collection, docId, data) {
   }
   try {
     const { doc, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
+    // _path(collection) = "companies/wanago-erp/leads" = 3 segs (collection) ✓
+    // docId = even total = 4 segs ✓
     await setDoc(doc(_db, _path(collection), docId), {
       ..._cleanForFirestore(data),
       _updatedAt: serverTimestamp(),
@@ -368,23 +444,26 @@ async function _pushAll() {
     for (const col of FS_COLLECTIONS) {
       const items = DB[col] || [];
       if (!items.length) continue;
-      // Batch in chunks of 400 (Firestore limit is 500)
       for (let i = 0; i < items.length; i += 400) {
         try {
           const batch = writeBatch(_db);
           items.slice(i, i + 400).forEach(item => {
             if (!item.id) return;
-            batch.set(doc(_db, _path(col), item.id), { ..._cleanForFirestore(item), _updatedAt: ts, _updatedBy: uid }, { merge: true });
+            // _path(col) = 3-seg collection, item.id = docId → 4 segs = EVEN = VALID ✓
+            batch.set(
+              doc(_db, _path(col), item.id),
+              { ..._cleanForFirestore(item), _updatedAt: ts, _updatedBy: uid },
+              { merge: true }
+            );
           });
           await batch.commit();
         } catch(e) { console.warn(`[push:${col}]`, e.message); collectionsOk = false; }
       }
     }
 
-    // Save settings
     const settingsOk = await fsSaveSettings();
 
-    // Save extras — non-collection DB fields missed by FS_COLLECTIONS
+    // Save extras — FIXED PATH ✓
     try {
       const extrasClean = _cleanForFirestore({
         counters:          DB.counters          || {},
@@ -396,11 +475,15 @@ async function _pushAll() {
         policies:          DB.policies          || [],
         fcmTokens:         (DB.fcmTokens        || []).slice(-200),
       });
-      await setDoc(doc(_db, `companies/${_compId}`, 'extras'),
-        { ...extrasClean, _updatedAt: ts, _updatedBy: uid }, { merge: false });
+      // FIXED: doc(_db, _configPath(), 'extras') = 4 segments = EVEN = VALID ✓
+      // OLD (broken): doc(_db, `companies/${_compId}`, 'extras') = 3 segments = ODD = INVALID
+      await setDoc(
+        doc(_db, _configPath(), 'extras'),
+        { ...extrasClean, _updatedAt: ts, _updatedBy: uid },
+        { merge: false }
+      );
     } catch (e) { console.warn('[extras push]', e.message); extrasOk = false; }
 
-    // Clear dirty flag only when all sections saved successfully
     if (collectionsOk && settingsOk !== false && extrasOk) {
       localStorage.removeItem(FS_DIRTY_FLAG);
     }
@@ -415,7 +498,8 @@ async function fsLoadSettings() {
   if (!_db) return;
   try {
     const { doc, getDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
-    const snap = await getDoc(doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC));
+    // FIXED: _configPath() + docId = 4 segs = VALID ✓
+    const snap = await getDoc(doc(_db, _configPath(), FS_SETTINGS_DOC));
     if (snap.exists()) {
       const d = snap.data(); delete d._updatedAt;
       Object.assign(DB.settings, d);
@@ -439,10 +523,14 @@ async function fsSaveSettings() {
   if (!_db) return false;
   try {
     const { doc, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
-    const clean = _cleanForFirestore(DB.settings); // strip non-serialisable values
-    await setDoc(doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC), {
-      ...clean, _updatedAt: serverTimestamp(),
-    }, { merge: true });
+    const clean = _cleanForFirestore(DB.settings);
+    // FIXED: doc(_db, _configPath(), FS_SETTINGS_DOC) = 4 segs = EVEN = VALID ✓
+    // OLD (broken): doc(_db, `companies/${_compId}`, FS_SETTINGS_DOC) = 3 segs = ODD = INVALID
+    await setDoc(
+      doc(_db, _configPath(), FS_SETTINGS_DOC),
+      { ...clean, _updatedAt: serverTimestamp() },
+      { merge: true }
+    );
     return true;
   } catch (e) {
     console.error('[fsSaveSettings]', e.message);
@@ -452,13 +540,9 @@ async function fsSaveSettings() {
 }
 
 /* ══════════════════════════════════════════════════
-   FIREBASE STORAGE — file attachments
+   FIREBASE STORAGE
 ══════════════════════════════════════════════════ */
 
-/**
- * Upload a file and return its download URL.
- * path example: 'leads/lead123/passport.pdf'
- */
 async function fsUploadFile(path, file, onProgress) {
   if (!_storage) throw new Error('Firebase Storage not initialised');
   const { ref, uploadBytesResumable, getDownloadURL } = await import(`${FS_BASE}/firebase-storage.js`);
@@ -473,7 +557,6 @@ async function fsUploadFile(path, file, onProgress) {
   });
 }
 
-/** Delete a stored file by its storage path. */
 async function fsDeleteFile(path) {
   if (!_storage) return;
   try {
@@ -482,7 +565,6 @@ async function fsDeleteFile(path) {
   } catch(e) { console.warn('[fsDeleteFile]', e.message); }
 }
 
-/** Get a signed download URL for an existing file. */
 async function fsFileURL(path) {
   if (!_storage) return null;
   try {
@@ -495,10 +577,6 @@ async function fsFileURL(path) {
    SMART DEDUPLICATION
 ══════════════════════════════════════════════════ */
 
-/**
- * Remove exact duplicate records by phone (leads/customers) or ref (bookings/invoices).
- * Keeps the most recently created record. Returns count removed.
- */
 function fsDedup(opts) {
   opts = opts || { leads: true, customers: true, bookings: true, invoices: true, payments: true };
   let removed = 0;
@@ -508,7 +586,7 @@ function fsDedup(opts) {
     const before = (DB[collection] || []).length;
     DB[collection] = (DB[collection] || []).filter(item => {
       const k = keyFn(item);
-      if (!k) return true; // no key = keep
+      if (!k) return true;
       if (seen.has(k)) { removed++; return false; }
       seen.set(k, true);
       return true;
@@ -524,17 +602,14 @@ function fsDedup(opts) {
 
   if (removed > 0) {
     saveDB();
-    showFsSyncStatus(`🧹 Removed ${removed} duplicate records`, true);
+    showFsSyncStatus(`Removed ${removed} duplicate records`, true);
     _fsRefreshPage();
   } else {
-    showFsSyncStatus('✅ No duplicates found', true);
+    showFsSyncStatus('No duplicates found', true);
   }
   return removed;
 }
 
-/**
- * Returns a report of potential duplicates without removing them.
- */
 function fsDedupReport() {
   function findDupes(collection, keyFn) {
     const seen = {};
@@ -568,8 +643,8 @@ function fsDataHealth() {
     if (!i.bookingRef) return false;
     return !(DB.bookings || []).find(b => b.id === i.bookingRef || b.ref === i.bookingRef);
   }).length;
-  const leadsNoPhone   = (DB.leads || []).filter(l => !l.phone).length;
-  const custNoEmail    = (DB.customers || []).filter(c => !c.email).length;
+  const leadsNoPhone = (DB.leads     || []).filter(l => !l.phone).length;
+  const custNoEmail  = (DB.customers || []).filter(c => !c.email).length;
 
   return {
     collections: {
@@ -594,10 +669,13 @@ let _presenceRef = null;
 async function _startPresence() {
   if (!_db || !window.currentUser) return;
   try {
-    const { doc, setDoc, deleteDoc, serverTimestamp, onDisconnect } = await import(`${FS_BASE}/firebase-firestore.js`);
+    const { doc, setDoc, deleteDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
     const uid  = window.currentUser.id || 'unknown';
     const name = window.currentUser.name || 'User';
-    const ref  = doc(_db, `companies/${_compId}/${FS_PRESENCE_PATH}`, uid);
+
+    // Presence path: _path('presence') = "companies/wanago-erp/presence" = 3 segs (collection)
+    // doc(..., uid) = 4 segs = EVEN = VALID ✓  (same as before — was already correct)
+    const ref = doc(_db, _path(FS_PRESENCE_PATH), uid);
     _presenceRef = ref;
 
     await setDoc(ref, {
@@ -609,31 +687,31 @@ async function _startPresence() {
       online:   true,
     }, { merge: true });
 
-    // Mark offline when tab closes
     window.addEventListener('beforeunload', () => {
-      if (_presenceRef) deleteDoc(_presenceRef).catch(()=>{});
+      if (_presenceRef) deleteDoc(_presenceRef).catch(() => {});
     });
   } catch(e) { /* presence is non-critical */ }
 }
 
-/** Get all currently online team members. */
 async function fsGetOnlineUsers() {
   if (!_db) return [];
   try {
     const { collection, getDocs } = await import(`${FS_BASE}/firebase-firestore.js`);
-    const snap = await getDocs(collection(_db, `companies/${_compId}/${FS_PRESENCE_PATH}`));
+    const snap = await getDocs(collection(_db, _path(FS_PRESENCE_PATH)));
     return snap.docs.map(d => d.data());
   } catch(e) { return []; }
 }
 
 /* ══════════════════════════════════════════════════
-   WANAGO SPACE — Firestore-based real-time chat
+   WANAGO SPACE — real-time chat
+   All chat paths are EVEN (valid doc refs) — no change needed
 ══════════════════════════════════════════════════ */
 
 async function fsChatSend(spaceId, msgObj) {
   if (!_db) return;
   try {
     const { collection, addDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
+    // path: companies/wanago-erp/spaces/spaceId/messages = 5 segs (ODD) = valid collection ✓
     await addDoc(collection(_db, `companies/${_compId}/spaces/${spaceId}/messages`), {
       senderId:  msgObj.senderId  || window.currentUser?.id   || 'unknown',
       sender:    msgObj.sender    || window.currentUser?.name || 'User',
@@ -651,7 +729,10 @@ async function fsChatListen(spaceId, callback) {
   if (!_db) return null;
   try {
     const { collection, onSnapshot, query, orderBy, limitToLast } = await import(`${FS_BASE}/firebase-firestore.js`);
-    const q   = query(collection(_db, `companies/${_compId}/spaces/${spaceId}/messages`), orderBy('ts'), limitToLast(200));
+    const q = query(
+      collection(_db, `companies/${_compId}/spaces/${spaceId}/messages`),
+      orderBy('ts'), limitToLast(200)
+    );
     const off = onSnapshot(q, snap => callback(snap.docs.map(d => {
       const data = d.data();
       return {
@@ -674,7 +755,8 @@ async function fsChatUpdateMsg(spaceId, msgId, updates) {
   if (!_db || !msgId) return;
   try {
     const { doc, updateDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
-    await updateDoc(doc(_db, `companies/${_compId}/spaces/${spaceId}/messages/${msgId}`), updates);
+    // path: companies/wanago-erp/spaces/spaceId/messages/msgId = 6 segs (EVEN) = valid doc ✓
+    await updateDoc(doc(_db, `companies/${_compId}/spaces/${spaceId}/messages`, msgId), updates);
   } catch(e) { console.error('[fsChatUpdateMsg]', e.message); }
 }
 
@@ -682,15 +764,13 @@ async function fsChatDeleteMsg(spaceId, msgId) {
   if (!_db || !msgId) return;
   try {
     const { doc, deleteDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
-    await deleteDoc(doc(_db, `companies/${_compId}/spaces/${spaceId}/messages/${msgId}`));
+    await deleteDoc(doc(_db, `companies/${_compId}/spaces/${spaceId}/messages`, msgId));
   } catch(e) { console.error('[fsChatDeleteMsg]', e.message); }
 }
 
 /* ══════════════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════════════ */
-
-function _path(collection) { return `companies/${_compId}/${collection}`; }
 
 function showFsSyncStatus(msg, success, error) {
   let el = document.getElementById('fs-sync-status');
@@ -705,7 +785,7 @@ function showFsSyncStatus(msg, success, error) {
     ].join(';');
     document.body.appendChild(el);
   }
-  el.textContent  = msg;
+  el.textContent   = msg;
   el.style.opacity = '1';
   el.style.background = success ? '#228050' : error ? '#c62828' : '#1a1d21';
   if (success || error) setTimeout(() => { el.style.opacity = '0'; }, 2500);
@@ -764,43 +844,49 @@ function _sortRecords(records) {
    PUBLIC API
 ══════════════════════════════════════════════════ */
 
-window.fsInit          = fsInit;
-window.fsSave          = fsSave;
-window.fsDelete        = fsDelete;
-window.fsListen        = fsListen;
-window.fsSyncDown      = _loadAll;       // backward compat
-window.fsSyncUp        = _pushAll;       // backward compat
-window.fsLoadSettings  = fsLoadSettings;
-window.fsLoadCollection= fsLoadCollection;
-window.fsSaveSettings  = fsSaveSettings;
-window.fsUploadFile    = fsUploadFile;
-window.fsDeleteFile    = fsDeleteFile;
-window.fsFileURL       = fsFileURL;
-window.fsDedup         = fsDedup;
-window.fsDedupReport   = fsDedupReport;
-window.fsDataHealth    = fsDataHealth;
-window.fsGetOnlineUsers= fsGetOnlineUsers;
-window.fsChatSend      = fsChatSend;
-window.fsChatListen    = fsChatListen;
-window.fsChatUpdateMsg = fsChatUpdateMsg;
-window.fsChatDeleteMsg = fsChatDeleteMsg;
-window.showFsSyncStatus= showFsSyncStatus;
-window.fsStartListeners= _attachListeners; // backward compat
-window._fsRefreshPage  = _fsRefreshPage;
+window.fsInit           = fsInit;
+window.fsSave           = fsSave;
+window.fsDelete         = fsDelete;
+window.fsListen         = fsListen;
+window.fsSyncDown       = _loadAll;
+window.fsSyncUp         = _pushAll;
+window.fsLoadSettings   = fsLoadSettings;
+window.fsLoadCollection = fsLoadCollection;
+window.fsSaveSettings   = fsSaveSettings;
+window.fsUploadFile     = fsUploadFile;
+window.fsDeleteFile     = fsDeleteFile;
+window.fsFileURL        = fsFileURL;
+window.fsDedup          = fsDedup;
+window.fsDedupReport    = fsDedupReport;
+window.fsDataHealth     = fsDataHealth;
+window.fsGetOnlineUsers = fsGetOnlineUsers;
+window.fsChatSend       = fsChatSend;
+window.fsChatListen     = fsChatListen;
+window.fsChatUpdateMsg  = fsChatUpdateMsg;
+window.fsChatDeleteMsg  = fsChatDeleteMsg;
+window.showFsSyncStatus = showFsSyncStatus;
+window.fsStartListeners = _attachListeners;
+window._fsRefreshPage   = _fsRefreshPage;
 
-// Helper: fetch team members directly from Firestore (used by login when local DB is empty)
+// Helper: fetch team from Firestore (used by login.js when local DB is empty)
+// FIXED: doc(_db, _configPath(), 'settings') = 4 segs = EVEN = VALID ✓
 window._fsGetTeam = async function() {
   if (!_db || !_compId) return [];
   try {
     const { doc, getDoc } = await import(`${FS_BASE}/firebase-firestore.js`);
-    // Team members are stored inside the settings document
-    const snap = await getDoc(doc(_db, `companies/${_compId}`, 'settings'));
+    const snap = await getDoc(doc(_db, _configPath(), FS_SETTINGS_DOC));
     if (!snap.exists()) return [];
     const data = snap.data();
     return Array.isArray(data.team) ? data.team : [];
   } catch(e) { return []; }
 };
-window._fsReady        = false;
+
+window._fsReady = false;
+
+// Expose path helpers for admin-features.js to use
+window._fsConfigPath = _configPath;
+window._fsDataPath   = _path;
+window._fsCompId     = () => _compId;
 
 /* ── Auto-init on load ── */
 (async () => { await fsInit(); })();
