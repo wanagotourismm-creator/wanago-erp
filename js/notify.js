@@ -154,7 +154,7 @@
 
       // FIXED: use dynamic compId from firestore.js; fallback to hardcoded
       const _notifyCompId = (typeof window._fsCompId === 'function' ? window._fsCompId() : null) || 'wanago-erp';
-      const col   = collection(db, \`companies/\${_notifyCompId}/notifications\`);
+      const col   = collection(db, `companies/${_notifyCompId}/notifications`);
       const q     = query(col, orderBy('sentAt', 'desc'), limit(50));
 
       _offListener = onSnapshot(q, function(snap) {
@@ -201,7 +201,7 @@
       const db   = getFirestore(app);
       const sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
       const _notifyCompId2 = (typeof window._fsCompId === 'function' ? window._fsCompId() : null) || 'wanago-erp';
-      await addDoc(collection(db, \`companies/\${_notifyCompId2}/notifications\`), {
+      await addDoc(collection(db, `companies/${_notifyCompId2}/notifications`), {
         title:          opts.title || 'Notification',
         message:        opts.message || '',
         type:           opts.type || 'info',
