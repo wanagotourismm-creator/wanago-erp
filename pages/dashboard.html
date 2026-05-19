@@ -6,6 +6,7 @@
   <title>Wanago™ ERP — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
 </head>
 <body>
 
@@ -24,6 +25,9 @@
   <!-- MAIN -->
   <div id="main">
     <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title">Dashboard</div>
       <div class="topbar-actions">
         <div class="search-wrap">

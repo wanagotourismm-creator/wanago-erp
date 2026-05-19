@@ -331,3 +331,44 @@ window.sumBy = function(arr, field) {
 };
 
 console.log('[helpers.js] Shared helpers loaded');
+
+// ── Mobile Sidebar Toggle ─────────────────────────────────────
+
+window.toggleSidebar = function() {
+  var sidebar  = document.getElementById('sidebar');
+  var body     = document.body;
+  if (!sidebar) return;
+
+  var isOpen = sidebar.classList.toggle('open');
+  body.classList.toggle('sidebar-open', isOpen);
+
+  // Create/remove backdrop
+  var backdrop = document.getElementById('sidebar-backdrop');
+  if (isOpen) {
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'sidebar-backdrop';
+      backdrop.className = 'sidebar-backdrop';
+      backdrop.onclick = window.toggleSidebar;
+      document.body.appendChild(backdrop);
+    }
+    setTimeout(function() { backdrop.classList.add('show'); }, 10);
+  } else {
+    if (backdrop) {
+      backdrop.classList.remove('show');
+      setTimeout(function() { backdrop.remove(); }, 250);
+    }
+  }
+};
+
+// Close sidebar on nav item click (mobile)
+document.addEventListener('click', function(e) {
+  var navItem = e.target.closest('.nav-item');
+  if (navItem && window.innerWidth <= 768) {
+    var sidebar = document.getElementById('sidebar');
+    if (sidebar && sidebar.classList.contains('open')) {
+      window.toggleSidebar();
+    }
+  }
+});
+

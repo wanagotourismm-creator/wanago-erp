@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Advanced CRM — Wanago ERP</title>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
   <style>
     /* ── tabs ── */
     .crm-tabs{display:flex;gap:6px;background:#f1f5f9;border-radius:10px;padding:4px;margin:14px 24px 0;width:fit-content}
@@ -138,6 +139,9 @@
 
     <!-- Topbar -->
     <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title">Advanced CRM</div>
       <div class="topbar-actions">
         <button class="btn btn-primary btn-sm" onclick="goTo('leads')">+ New Lead</button>

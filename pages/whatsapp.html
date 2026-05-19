@@ -5,6 +5,7 @@
   <title>Wanago™ ERP — WhatsApp</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
   <style>
     .wa-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--sh);cursor:pointer;transition:.2s}
     .wa-card:hover{box-shadow:var(--sh2);transform:translateY(-2px)}
@@ -22,7 +23,10 @@
   <aside id="sidebar"></aside>
 
   <div id="main">
-    <div class="topbar"><div class="topbar-title">💬 WhatsApp Hub</div><div class="topbar-actions"><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
+    <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button><div class="topbar-title">💬 WhatsApp Hub</div><div class="topbar-actions"><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
     <div id="content"><div class="page active" id="wa-page-content" style="opacity:0">
 
       <!-- Two system explainer -->

@@ -5,6 +5,7 @@
   <title>Wanago™ ERP — Leads</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
 </head>
 <body>
 <div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div><div class="loader-text">Loading…</div></div>
@@ -16,6 +17,9 @@
   <!-- MAIN -->
   <div id="main">
     <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title">Lead Management</div>
       <div class="topbar-actions">
         <div class="search-wrap">

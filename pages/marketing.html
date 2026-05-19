@@ -5,6 +5,7 @@
   <title>Wanago™ — Marketing Hub</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
   <style>
     .int-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
     .int-pill.on{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
@@ -55,6 +56,9 @@
   <aside id="sidebar"></aside>
   <div id="main">
     <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title">📣 Marketing Hub</div>
       <div class="topbar-actions">
         <span id="wa-status-pill" class="int-pill off" style="margin-right:2px">💬 WA</span>

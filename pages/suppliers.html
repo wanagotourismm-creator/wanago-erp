@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Suppliers & Hotels — Wanago ERP</title>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
   <style>
     /* ── stats ── */
     .sup-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px 24px 0}
@@ -110,6 +111,9 @@
 
     <!-- Topbar -->
     <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title">Suppliers & Hotels</div>
       <div class="topbar-actions">
         <button class="btn btn-primary btn-sm" onclick="openSupplierModal(null)">+ Add Supplier</button>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Cancellations & Rescheduling — Wanago ERP</title>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
   <style>
     /* ── stats ── */
     .cn-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 24px 0}
@@ -100,6 +101,9 @@
 
     <!-- Topbar -->
     <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title">Cancellations & Rescheduling</div>
       <div class="topbar-actions">
         <button class="btn btn-sm btn-outline" onclick="openCancelModal(null)">+ Cancel Booking</button>

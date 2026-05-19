@@ -5,13 +5,17 @@
   <title>Wanago™ — Firestore Sync</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
 </head>
 <body>
 <div id="page-loader"><div class="loader-spinner"></div><div class="loader-brand"><span class="w">wana</span><span class="g">go</span><span class="tm">™</span></div></div>
 <div class="app">
   <aside id="sidebar"></aside>
   <div id="main">
-    <div class="topbar"><div class="topbar-title">☁️ Firestore Sync</div><div class="topbar-actions"><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
+    <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button><div class="topbar-title">☁️ Firestore Sync</div><div class="topbar-actions"><div id="topbar-user" style="font-size:12px;color:var(--textd);padding:0 8px"></div></div></div>
     <div id="content"><div class="page active" id="fs-page" style="opacity:0">
 
       <!-- Status Banner -->

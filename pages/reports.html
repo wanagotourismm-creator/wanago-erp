@@ -5,6 +5,7 @@
   <title>Wanago™ ERP — Reports & Analytics</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../styles/main.css"/>
+  <link rel="stylesheet" href="../styles/design-system.css"/>
   <style>
     @media print { .sidebar,.topbar,.rep-toolbar { display:none!important } #main { margin:0!important } }
     .rep-section { background:var(--white); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--sh); margin-bottom:16px; }
@@ -21,6 +22,9 @@
 
   <div id="main">
     <div class="topbar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title">📊 Reports & Analytics</div>
       <div class="topbar-actions">
         <button class="btn btn-sm btn-outline" onclick="exportReport()">📦 Export CSV</button>
