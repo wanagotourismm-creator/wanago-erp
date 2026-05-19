@@ -118,15 +118,29 @@ function hasAllOfficesAccess(user) {
 
 function scoped(collection) {
   const data = DB[collection] || [];
+  // No office filter = show everything
   if (!currentOfficeId || currentOfficeId === OFFICE_ALL) return data;
-  const defaultOid = (DB.settings.offices || [])[0]?.id || null;
-  return data.filter(r => { const oid = r.officeId || defaultOid; return oid === currentOfficeId; });
+
+  const offices  = DB.settings.offices || [];
+  const defaultOid = offices[0]?.id || 'o1';
+  const validOids  = new Set(offices.map(o => o.id));
+
+  return data.filter(r => {
+    const oid = r.officeId || defaultOid;
+    // Fix: if the record's officeId no longer exists in offices list
+    // (e.g. office was deleted or renamed), show it anyway — never lose data.
+    if (!validOids.has(oid)) return true;
+    return oid === currentOfficeId;
+  });
 }
 
 function officeIdForNewRecord() {
+  // Fix: never return null — always fall back to first available office
   if (currentOfficeId && currentOfficeId !== OFFICE_ALL) return currentOfficeId;
-  const firstActive = (DB.settings.offices || []).find(o => o.active) || (DB.settings.offices || [])[0];
-  return firstActive ? firstActive.id : null;
+  const offices = DB.settings.offices || [];
+  const firstActive = offices.find(o => o.active) || offices[0];
+  // If no offices configured yet (e.g. Firestore not loaded), return safe default
+  return firstActive ? firstActive.id : 'o1';
 }
 
 // ── HIERARCHY ──
@@ -158,10 +172,30 @@ function hScoped(collection) {
   if (isHierarchyUnrestricted(currentUser)) return officeData;
   const ids = visibleMemberIds();
   if (!ids) return officeData;
+
   if (collection === 'hrmsEmployees') return officeData.filter(e => ids.has(e.id));
   if (collection === 'hrmsLeaves')    return officeData.filter(l => ids.has(l.empId));
   if (collection === 'hrmsPayroll')   return officeData.filter(p => ids.has(p.empId));
-  return officeData.filter(r => !r.createdBy || ids.has(r.createdBy));
+
+  // Fix: also match by agent name (for records created before Firebase UID was stored),
+  // by firebaseUid (for records migrated from localStorage with old team member IDs),
+  // and by assignedTo field. This prevents disappearing leads after data migration.
+  const agentName    = currentUser.name  || '';
+  const firebaseUid  = currentUser.firebaseUid || '';
+
+  return officeData.filter(r => {
+    // No creator stamp = visible to all (unassigned records)
+    if (!r.createdBy) return true;
+    // Direct match by team member ID
+    if (ids.has(r.createdBy)) return true;
+    // Match by Firebase UID (pre-migration records)
+    if (firebaseUid && r.createdBy === firebaseUid) return true;
+    // Match by agent name (fallback for very old records)
+    if (agentName && r.agent === agentName) return true;
+    // Match by assignedTo field
+    if (r.assignedTo && ids.has(r.assignedTo)) return true;
+    return false;
+  });
 }
 
 function createdByStamp() { return currentUser ? currentUser.id : null; }
@@ -333,7 +367,13 @@ window.saveDB = saveDB;
 window.hScoped = hScoped;
 window.scoped = scoped;
 window.currentUser = currentUser;
-window.currentOfficeId = currentOfficeId;
+// Fix: use a getter so window.currentOfficeId always reflects
+// the current value of the local variable, not a stale copy.
+Object.defineProperty(window, 'currentOfficeId', {
+  get: function() { return currentOfficeId; },
+  set: function(v) { currentOfficeId = v; },
+  configurable: true,
+});
 window.OFFICE_ALL = OFFICE_ALL;
 window.today = today;
 window.getCurrentMonth = getCurrentMonth;

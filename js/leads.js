@@ -126,7 +126,15 @@ function populateLeadFilters() {
 function renderLeads(filter) {
   if(filter) leadsFilter=filter;
   renderLeadsStats(); populateLeadFilters();
-  let leads=hScoped('leads');
+  // Safety: if hScoped returns nothing but DB.leads has records,
+  // it means filtering is too aggressive — show all leads as fallback.
+  let leads = hScoped('leads');
+  if (!leads.length && (DB.leads || []).length > 0) {
+    // Only fall back to unfiltered if user is admin/founder
+    if (!currentUser || isHierarchyUnrestricted(currentUser)) {
+      leads = DB.leads || [];
+    }
+  }
   if(leadsFilter!=='all') leads=leads.filter(l=>l.stage===leadsFilter);
   const q=leadsSearchQuery.toLowerCase();
   if(q) leads=leads.filter(l=>l.name.toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.destination||'').toLowerCase().includes(q)||(l.email||'').toLowerCase().includes(q));
@@ -253,11 +261,31 @@ function saveLead(){
     customerId:existingCust?.id||null,
   };
   if(editId){
-    const idx=DB.leads.findIndex(l=>l.id===editId);
-    if(idx>-1){ Object.assign(DB.leads[idx],data); dbSave('leads', DB.leads[idx]); }
+    const idx = DB.leads.findIndex(l => l.id === editId);
+    if (idx > -1) {
+      // Preserve officeId and createdBy — never overwrite on edit
+      const existing = DB.leads[idx];
+      DB.leads[idx] = {
+        ...existing,
+        ...data,
+        officeId:  existing.officeId  || officeIdForNewRecord() || 'o1',
+        createdBy: existing.createdBy || createdByStamp() || 'system',
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.id || 'system',
+      };
+      dbSave('leads', DB.leads[idx]);
+    }
     showToast(name+' updated!');
   } else {
-    const _newLead = {id:uid(),...data,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
+    // Fix: ensure officeId is never null when saving a new lead
+    const _safeOfficeId = officeIdForNewRecord() || (DB.settings.offices?.[0]?.id) || 'o1';
+    const _newLead = {
+      id:        uid(),
+      ...data,
+      officeId:  _safeOfficeId,
+      createdBy: createdByStamp() || currentUser?.id || 'system',
+      createdAt: new Date().toISOString(),
+    };
     DB.leads.unshift(_newLead);
     dbSave('leads', _newLead);
     if (typeof notifyEvent === 'function') notifyEvent('lead_created', _newLead);
@@ -788,6 +816,53 @@ function deleteLeadFile(leadId, idx) {
   saveDB();
   viewLead(leadId);
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+//  LEAD RECOVERY TOOL
+//  Finds leads hidden by office/scope filtering and fixes them.
+//  Run from browser console: recoverHiddenLeads()
+// ═══════════════════════════════════════════════════════════════
+
+window.recoverHiddenLeads = function() {
+  const allLeads     = DB.leads || [];
+  const visibleLeads = hScoped('leads');
+  const visibleIds   = new Set(visibleLeads.map(l => l.id));
+  const hidden       = allLeads.filter(l => !visibleIds.has(l.id));
+
+  if (!hidden.length) {
+    showToast('No hidden leads found — all leads are visible!');
+    return { hidden: 0, fixed: 0 };
+  }
+
+  const offices      = DB.settings.offices || [];
+  const defaultOid   = offices[0]?.id || 'o1';
+  let fixed          = 0;
+
+  hidden.forEach(lead => {
+    // Fix 1: null/invalid officeId
+    const validOids = new Set(offices.map(o => o.id));
+    if (!lead.officeId || !validOids.has(lead.officeId)) {
+      lead.officeId = defaultOid;
+      dbSave('leads', lead);
+      fixed++;
+      return;
+    }
+    // Fix 2: createdBy mismatch — reassign to current user if admin
+    if (currentUser && isHierarchyUnrestricted(currentUser)) {
+      // Admin viewing — just show it; no fix needed for admin
+      // The render fallback guard already handles this
+    }
+  });
+
+  saveDB();
+  renderLeads();
+
+  const msg = `Recovered ${fixed} leads. ${hidden.length - fixed} leads need manual review.`;
+  showToast(msg);
+  console.log('[recoverHiddenLeads]', { total: allLeads.length, visible: visibleLeads.length, hidden: hidden.length, fixed });
+  return { hidden: hidden.length, fixed };
+};
 
 // ── Expose all to window ──
 window.renderLeads=renderLeads;window.filterLeads=filterLeads;window.searchLeads=searchLeads;
