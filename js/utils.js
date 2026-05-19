@@ -901,3 +901,83 @@ function enforcePagePermission(page) {
 
 window.checkPagePermission = checkPagePermission;
 window.enforcePagePermission = enforcePagePermission;
+
+// ═══════════════════════════════════════════════════════════════
+//  SECURE initPage — Session + RBAC + Expiry
+//  Overrides per-page initPage definitions.
+// ═══════════════════════════════════════════════════════════════
+
+window.initPage = function initPage(renderFn) {
+
+  // ── 1. Session guard ──
+  var session = sessionStorage.getItem('wanago_session');
+  if (!session) { window.location.href = '../index.html'; return; }
+
+  // ── 2. Session expiry (8 hours) ──
+  try {
+    var s = JSON.parse(session);
+    var SESSION_TTL = 8 * 60 * 60 * 1000;
+    if (s.loginTime && (Date.now() - new Date(s.loginTime).getTime()) > SESSION_TTL) {
+      sessionStorage.removeItem('wanago_session');
+      window.location.href = '../index.html';
+      return;
+    }
+  } catch(e) {}
+
+  // ── 3. Resolve current user ──
+  if (typeof loadSessionUser === 'function') loadSessionUser();
+
+  // ── 4. Update UI ──
+  try {
+    var s2   = JSON.parse(session);
+    var name = (window.currentUser && window.currentUser.name) || s2.name || 'User';
+    var av   = document.getElementById('user-avatar');
+    var un   = document.getElementById('user-name');
+    var tu   = document.getElementById('topbar-user');
+    if (av) av.textContent = name[0].toUpperCase();
+    if (un) un.textContent = name;
+    if (tu) tu.textContent = s2.email || '';
+    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
+  } catch(ex) {}
+
+  // ── 5. Fade loader ──
+  function fadeLoader() {
+    var l = document.getElementById('page-loader');
+    var a = document.querySelector('.app');
+    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
+    if (a) a.classList.add('loaded');
+  }
+
+  // ── 6. RBAC page access check ──
+  var pageName = window.location.pathname.split('/').pop().replace('.html', '');
+  var restricted = ['admin','settings','reports','payments','invoices','expenses',
+                    'hrms','marketing','team-accounts','firestore-sync','incentives'];
+
+  if (restricted.indexOf(pageName) !== -1 && window.currentUser) {
+    if (typeof canUserSeePage === 'function' && !canUserSeePage(pageName)) {
+      var main = document.getElementById('main') || document.body;
+      main.innerHTML = [
+        '<div style="display:flex;flex-direction:column;align-items:center;',
+        'justify-content:center;min-height:80vh;text-align:center;padding:40px">',
+        '<div style="font-size:48px;margin-bottom:16px">&#128274;</div>',
+        '<div style="font-size:20px;font-weight:800;color:#0d3223;margin-bottom:8px">',
+        'Access Restricted</div>',
+        '<div style="font-size:13px;color:#888;max-width:360px;line-height:1.7;margin-bottom:24px">',
+        'You do not have permission to access this page.',
+        '<br>Contact your administrator to request access.</div>',
+        '<button onclick="window.location.href='dashboard.html'" ',
+        'style="padding:12px 28px;background:#1a6341;color:#fff;border:none;',
+        'border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;',
+        'font-family:inherit">&#8592; Back to Dashboard</button></div>',
+      ].join('');
+      fadeLoader();
+      return;
+    }
+  }
+
+  // ── 7. Render ──
+  setTimeout(function() {
+    try { if (renderFn) renderFn(); } catch(e) { console.error('[initPage] render error:', e); }
+    fadeLoader();
+  }, 20);
+};

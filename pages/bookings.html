@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+    // Session guard — redirect to login if not authenticated
+    (function() {
+      var sess = sessionStorage.getItem('wanago_session');
+      if (!sess) { window.location.replace('../index.html'); }
+    })();
+  </script>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Wanago™ ERP — Bookings</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -81,7 +88,7 @@
 <script src="../js/services.js"></script>
 <script src="../js/rbac.js"></script>
 <script src="../js/whatsapp.js"></script>
-<script src="../js/bookings.js"></script>
+<script type="module" src="../js/bookings.js"></script>
 <script src="../js/wanago-space.js"></script>
 <script src="../js/notify.js"></script>
 <script src="../js/scheduler.js"></script>

@@ -16,15 +16,41 @@
 
   function isUnlocked() {
     try {
+      // Check 1: unlock token exists and not expired
       var data = JSON.parse(sessionStorage.getItem(UNLOCK_KEY) || 'null');
       if (!data) return false;
-      if (Date.now() - data.time > UNLOCK_EXPIRY) { sessionStorage.removeItem(UNLOCK_KEY); return false; }
+      if (Date.now() - data.time > UNLOCK_EXPIRY) {
+        sessionStorage.removeItem(UNLOCK_KEY);
+        return false;
+      }
+      // Check 2: current user must be an admin role
+      // This prevents sessionStorage tampering — even if someone sets
+      // wanago_admin_unlocked manually, they still need an admin session
+      try {
+        var sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}');
+        var adminRoles = ['founder','ceo','co_founder','director','admin'];
+        if (!sess || !sess.role) return false;
+        if (adminRoles.indexOf(sess.role) === -1) {
+          sessionStorage.removeItem(UNLOCK_KEY);
+          return false;
+        }
+        // Check 3: unlock token must have been issued for this user
+        if (data.uid && sess.uid && data.uid !== sess.uid) {
+          sessionStorage.removeItem(UNLOCK_KEY);
+          return false;
+        }
+      } catch(e) { return false; }
       return true;
     } catch(e) { return false; }
   }
 
   function setUnlocked() {
-    sessionStorage.setItem(UNLOCK_KEY, JSON.stringify({ time: Date.now() }));
+    var sess = {};
+    try { sess = JSON.parse(sessionStorage.getItem('wanago_session') || '{}'); } catch(e) {}
+    sessionStorage.setItem(UNLOCK_KEY, JSON.stringify({
+      time: Date.now(),
+      uid:  sess.uid || null,   // bind token to specific user
+    }));
   }
 
   window.adminLockNow = function() {
