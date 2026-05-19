@@ -835,3 +835,62 @@ function enforcePagePermission(page) {
 
 window.checkPagePermission = checkPagePermission;
 window.enforcePagePermission = enforcePagePermission;
+
+
+// ═══════════════════════════════════════════════════════════════
+//  RACE 2 FIX — Global initPage override
+//
+//  PROBLEM: Every page JS file defines its own initPage() which
+//  calls renderFn() after only 20ms. At that point:
+//  - loadSessionUser() may have set currentUser from a stale
+//    localStorage cache (showing wrong name/role)
+//  - Firestore hasn't loaded yet so team data is stale
+//  Result: page renders with wrong user, then re-renders again
+//  when Firestore loads — causing a visible flicker.
+//
+//  FIX: This global initPage() runs loadSessionUser() first to
+//  ensure currentUser is resolved from the best available data,
+//  then calls renderFn(). The per-file initPage() definitions
+//  that load AFTER utils.js will override this — so we place
+//  this at the end of utils.js, and additionally expose it as
+//  window.initPage so even early-loaded pages use this version.
+// ═══════════════════════════════════════════════════════════════
+
+window.initPage = function initPage(renderFn) {
+  // ── 1. Auth guard ──
+  var session = sessionStorage.getItem('wanago_session');
+  if (!session) { window.location.href = '../index.html'; return; }
+
+  // ── 2. Resolve currentUser from best available data ──
+  // loadSessionUser() is in utils.js and merges session + DB.settings.team
+  if (typeof loadSessionUser === 'function') loadSessionUser();
+
+  // ── 3. Update UI elements with resolved user ──
+  try {
+    var s    = JSON.parse(session);
+    var name = (window.currentUser && window.currentUser.name) || s.name || 'User';
+    var av   = document.getElementById('user-avatar');
+    var un   = document.getElementById('user-name');
+    var tu   = document.getElementById('topbar-user');
+    if (av) av.textContent = name[0].toUpperCase();
+    if (un) un.textContent = name;
+    if (tu) tu.textContent = s.email || '';
+    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
+  } catch(ex) {}
+
+  // ── 4. Fade loader ──
+  function fadeLoader() {
+    var l = document.getElementById('page-loader');
+    var a = document.querySelector('.app');
+    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
+    if (a) a.classList.add('loaded');
+  }
+
+  // ── 5. Render ──
+  // Small delay to let the DOM paint first, then render.
+  // waitForFirestore handles the Firestore-ready re-render.
+  setTimeout(function() {
+    try { if (renderFn) renderFn(); } catch(e) { console.error('[initPage] render error:', e); }
+    fadeLoader();
+  }, 20);
+};

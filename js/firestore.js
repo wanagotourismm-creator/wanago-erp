@@ -44,6 +44,13 @@ let _pushTimer = null;
 let _pendingWrites = [];
 let _initialSnapDone = {};
 
+// ── Race 3 Fix: in-flight write tracking ──────────────────────
+// When fsSave() is called for a record, we track its ID here.
+// fsListen()'s onSnapshot will NOT overwrite a record that has
+// a pending write — preventing the "save then immediately lost" bug.
+const _inflightWrites = new Map(); // collection → Set of ids
+
+
 // ─────────────────────────────────────────────────────────────
 //  PATH HELPERS — centralised, type-safe
 // ─────────────────────────────────────────────────────────────
@@ -128,6 +135,8 @@ async function fsInit() {
     _startPresence();
 
     console.log('[Firestore v3.1] Ready. Project:', _compId, '| Config path:', _configPath());
+    // Signal all waitForFirestore() callbacks to fire now
+    if (typeof window._onFirestoreReady === 'function') window._onFirestoreReady();
     return true;
   } catch (e) {
     console.error('[Firestore] init failed:', e.message);
@@ -362,7 +371,22 @@ async function fsListen(collection, callback) {
       const fsRecords = snap.docs.map(d => _fromFirestoreDoc(d));
       const fsIds = new Set(fsRecords.map(r => r.id));
       const localPending = (DB[collection] || []).filter(r => r.id && !fsIds.has(r.id));
-      DB[collection] = _sortRecords([...fsRecords, ...localPending]);
+
+      // Race 3 Fix: for records with an in-flight write, keep the LOCAL
+      // version instead of the Firestore snapshot version.
+      // This prevents the "save → immediately disappears" bug where the
+      // snapshot arrives before Firestore confirms our write.
+      const inflight = _inflightWrites.get(collection) || new Set();
+      const mergedRecords = fsRecords.map(r => {
+        if (inflight.has(r.id)) {
+          // Keep local version — our write is still in flight
+          const local = (DB[collection] || []).find(x => x.id === r.id);
+          return local || r;
+        }
+        return r;
+      });
+
+      DB[collection] = _sortRecords([...mergedRecords, ...localPending]);
 
       if (!_initialSnapDone[collection]) {
         if (localPending.length) localPending.forEach(item => fsSave(collection, item.id, item));
@@ -402,16 +426,25 @@ async function fsSave(collection, docId, data) {
     _pendingWrites.push({ collection, docId, data });
     return;
   }
+  // Race 3 Fix: mark this record as in-flight so the onSnapshot
+  // callback does not overwrite it before Firestore confirms the write.
+  if (!_inflightWrites.has(collection)) _inflightWrites.set(collection, new Set());
+  _inflightWrites.get(collection).add(docId);
+
   try {
     const { doc, setDoc, serverTimestamp } = await import(`${FS_BASE}/firebase-firestore.js`);
-    // _path(collection) = "companies/wanago-erp/leads" = 3 segs (collection) ✓
-    // docId = even total = 4 segs ✓
     await setDoc(doc(_db, _path(collection), docId), {
       ..._cleanForFirestore(data),
       _updatedAt: serverTimestamp(),
       _updatedBy: window.currentUser?.id || 'system',
     }, { merge: true });
-  } catch (e) { console.error('[fsSave]', e.message); }
+  } catch (e) {
+    console.error('[fsSave]', e.message);
+  } finally {
+    // Unmark in-flight after write completes (success or fail)
+    const s = _inflightWrites.get(collection);
+    if (s) { s.delete(docId); if (!s.size) _inflightWrites.delete(collection); }
+  }
 }
 
 async function fsDelete(collection, docId) {

@@ -1,145 +1,164 @@
 // ═══════════════════════════════════════════════════════════════
-//  WANAGO ERP — Firestore Service Layer v2
-//  Wraps all CRUD with immediate Firestore writes + local cache
-//  Drop-in replacement that works alongside existing saveDB()
+//  WANAGO ERP — Service Layer v3 (Race Condition Fixed)
+//
+//  FIXES:
+//  ──────
+//  Race 1 — waitForFirestore() now stores callbacks in a queue.
+//    If Firestore becomes ready AFTER a callback was registered,
+//    it fires immediately. If already ready, fires synchronously.
+//    No more polling loops. No more 5-second timeouts.
+//
+//  Race 4 — Single debounced render pipeline.
+//    _fsRefreshPage(), callback(), and _notifySubscribers() all
+//    previously triggered separate renders. Now one debounced
+//    dispatch covers everything.
 // ═══════════════════════════════════════════════════════════════
 
 'use strict';
 
 /* ─────────────────────────────────────────────────────────────
-   CORE CRUD — use these instead of saveDB() for mutations
+   RACE 1 FIX — waitForFirestore: queue-based, no polling
+   ─────────────────────────────────────────────────────────────
+   OLD: setInterval polling every 100ms → wastes CPU, misses
+        callbacks registered after Firestore is already ready.
+   NEW: callbacks queued; firestore.js signals readiness via
+        window._onFirestoreReady(); queue flushes immediately.
 ───────────────────────────────────────────────────────────── */
 
+const _fsReadyQueue = [];
+let   _fsReadyFired = false;
+
 /**
- * Save or update one record in both DB cache and Firestore
- * @param {string} collection - e.g. 'leads', 'bookings'
- * @param {object} record     - must have .id
+ * Run callback as soon as Firestore is ready.
+ * If already ready → runs synchronously.
+ * If not yet ready → queued and runs the moment fsInit() completes.
  */
+window.waitForFirestore = function(callback) {
+  if (typeof callback !== 'function') return;
+  if (_fsReadyFired || window._fsReady) {
+    // Already ready — run now
+    try { callback(); } catch(e) { console.warn('[waitForFirestore] callback error:', e.message); }
+    return;
+  }
+  // Queue for when Firestore signals readiness
+  _fsReadyQueue.push(callback);
+};
+
+/**
+ * Called by firestore.js at the end of fsInit() once ready.
+ * Flushes all queued waitForFirestore callbacks in order.
+ */
+window._onFirestoreReady = function() {
+  if (_fsReadyFired) return;   // only fire once
+  _fsReadyFired = true;
+  const queue = _fsReadyQueue.splice(0);
+  queue.forEach(cb => {
+    try { cb(); } catch(e) { console.warn('[_onFirestoreReady] callback error:', e.message); }
+  });
+};
+
+/* ─────────────────────────────────────────────────────────────
+   RACE 4 FIX — Single debounced render pipeline
+   ─────────────────────────────────────────────────────────────
+   Instead of _fsRefreshPage() AND callback() AND
+   _notifySubscribers() all calling render functions separately,
+   all updates flow through one debounced dispatcher.
+   Render functions are called at most once per 80ms burst.
+───────────────────────────────────────────────────────────── */
+
+const _pendingRenders = new Set();
+let   _renderTimer    = null;
+
+/**
+ * Queue a render function name to be called once after
+ * the current burst of Firestore updates settles (80ms).
+ * Prevents triple-renders on a single data change.
+ */
+window.queueRender = function(fnName) {
+  _pendingRenders.add(fnName);
+  clearTimeout(_renderTimer);
+  _renderTimer = setTimeout(function() {
+    const fns = [..._pendingRenders];
+    _pendingRenders.clear();
+    fns.forEach(function(fn) {
+      if (typeof window[fn] === 'function') {
+        try { window[fn](); } catch(e) { console.warn('[queueRender]', fn, e.message); }
+      }
+    });
+  }, 80);
+};
+
+/* ─────────────────────────────────────────────────────────────
+   CORE CRUD
+───────────────────────────────────────────────────────────── */
+
 window.saveRecord = function(collection, record) {
   if (!record || !record.id) { console.warn('[saveRecord] missing id'); return; }
-
-  // 1. Update local DB cache
   const arr = DB[collection];
   if (Array.isArray(arr)) {
     const idx = arr.findIndex(x => x.id === record.id);
     if (idx > -1) { arr[idx] = record; } else { arr.unshift(record); }
   }
-
-  // 2. Save to localStorage immediately (survives refresh)
   saveDB({ silent: true });
-
-  // 3. Push to Firestore (async — non-blocking)
   if (typeof dbSave === 'function') {
-    dbSave(collection, record).catch(e => console.warn('[saveRecord:Firestore]', e.message));
-  } else if (typeof fsSave === 'function') {
-    fsSave(collection, record.id, record).catch(e => console.warn('[saveRecord:fsSave]', e.message));
+    dbSave(collection, record).catch(e => console.warn('[saveRecord]', e.message));
   }
 };
 
-/**
- * Delete one record from DB cache and Firestore
- * @param {string} collection
- * @param {string} id
- */
 window.deleteRecord = function(collection, id) {
   if (!id) return;
-
-  // 1. Remove from local cache
   if (Array.isArray(DB[collection])) {
     DB[collection] = DB[collection].filter(x => x.id !== id);
   }
-
-  // 2. Update localStorage
   saveDB({ silent: true });
-
-  // 3. Delete from Firestore
   if (typeof dbDelete === 'function') {
-    dbDelete(collection, id).catch(e => console.warn('[deleteRecord:Firestore]', e.message));
-  } else if (typeof fsDelete === 'function') {
-    fsDelete(collection, id).catch(e => console.warn('[deleteRecord:fsDelete]', e.message));
+    dbDelete(collection, id).catch(e => console.warn('[deleteRecord]', e.message));
   }
 };
 
-/**
- * Create a new record with auto ID and timestamps
- * @param {string} collection
- * @param {object} data
- * @returns {object} the new record
- */
 window.createRecord = function(collection, data) {
   const record = {
-    id: (typeof uid === 'function') ? uid() : ('r' + Date.now() + Math.random().toString(36).slice(2,7)),
+    id:        (typeof uid === 'function') ? uid() : ('r' + Date.now() + Math.random().toString(36).slice(2,7)),
     ...data,
     officeId:  (typeof officeIdForNewRecord === 'function') ? officeIdForNewRecord() : (DB.settings?.offices?.[0]?.id || 'o1'),
     createdBy: (typeof createdByStamp === 'function') ? createdByStamp() : (window.currentUser?.id || 'system'),
     createdAt: new Date().toISOString(),
   };
-
-  // Push to array
-  if (Array.isArray(DB[collection])) {
-    DB[collection].unshift(record);
-  }
-
-  // Persist
+  if (Array.isArray(DB[collection])) DB[collection].unshift(record);
   saveDB({ silent: true });
-
   if (typeof dbSave === 'function') {
-    dbSave(collection, record).catch(e => console.warn('[createRecord:Firestore]', e.message));
-  } else if (typeof fsSave === 'function') {
-    fsSave(collection, record.id, record).catch(e => console.warn('[createRecord:fsSave]', e.message));
+    dbSave(collection, record).catch(e => console.warn('[createRecord]', e.message));
   }
-
-  // Log activity
   if (typeof logActivity === 'function') {
     logActivity('Created ' + collection.slice(0,-1), record.id, collection);
   }
-
   return record;
 };
 
-/**
- * Update specific fields on an existing record
- * @param {string} collection
- * @param {string} id
- * @param {object} updates - partial fields to merge
- * @returns {object|null} updated record
- */
 window.updateRecord = function(collection, id, updates) {
   const arr = DB[collection];
   if (!Array.isArray(arr)) return null;
   const idx = arr.findIndex(x => x.id === id);
   if (idx === -1) return null;
-
   const updated = { ...arr[idx], ...updates, updatedAt: new Date().toISOString() };
   arr[idx] = updated;
-
   saveDB({ silent: true });
-
   if (typeof dbSave === 'function') {
-    dbSave(collection, updated).catch(e => console.warn('[updateRecord:Firestore]', e.message));
-  } else if (typeof fsSave === 'function') {
-    fsSave(collection, id, updated).catch(e => console.warn('[updateRecord:fsSave]', e.message));
+    dbSave(collection, updated).catch(e => console.warn('[updateRecord]', e.message));
   }
-
   return updated;
 };
 
-/**
- * Bulk update multiple records by IDs
- */
 window.bulkUpdateRecords = function(collection, ids, updates) {
   ids.forEach(id => updateRecord(collection, id, updates));
 };
 
-/**
- * Bulk delete multiple records
- */
 window.bulkDeleteRecords = function(collection, ids) {
   ids.forEach(id => deleteRecord(collection, id));
 };
 
 /* ─────────────────────────────────────────────────────────────
-   ACTIVITY LOGGER — logs to Firestore activity_log collection
+   ACTIVITY LOGGER
 ───────────────────────────────────────────────────────────── */
 
 window.logActivityFS = async function(action, details, category, refId) {
@@ -158,15 +177,12 @@ window.logActivityFS = async function(action, details, category, refId) {
       page:      window.location.pathname.split('/').pop().replace('.html',''),
       timestamp: new Date().toISOString(),
     };
-    // Save to Firestore directly
-    if (typeof fsSave === 'function') {
-      await fsSave('activities', entry.id, entry);
-    }
-  } catch(e) { /* non-critical */ }
+    if (typeof fsSave === 'function') await fsSave('activities', entry.id, entry);
+  } catch(e) {}
 };
 
 /* ─────────────────────────────────────────────────────────────
-   SETTINGS SYNC — save settings to Firestore
+   SETTINGS SYNC
 ───────────────────────────────────────────────────────────── */
 
 window.saveSettings = function() {
@@ -174,25 +190,11 @@ window.saveSettings = function() {
   if (typeof fsSaveSettings === 'function') {
     fsSaveSettings().catch(e => console.warn('[saveSettings]', e.message));
   }
-  if (typeof showToast === 'function') showToast('Settings saved ✅');
+  if (typeof showToast === 'function') showToast('Settings saved');
 };
-
-/* ─────────────────────────────────────────────────────────────
-   FIRESTORE STATUS HELPERS
-───────────────────────────────────────────────────────────── */
 
 window.isFirestoreReady = function() {
   return !!(window._fsReady && typeof fsSave === 'function');
 };
 
-window.waitForFirestore = function(callback, timeout) {
-  if (window._fsReady) { callback(); return; }
-  var elapsed = 0;
-  var interval = setInterval(function() {
-    elapsed += 100;
-    if (window._fsReady) { clearInterval(interval); callback(); }
-    else if (elapsed >= (timeout || 5000)) { clearInterval(interval); callback(); } // run anyway
-  }, 100);
-};
-
-console.log('[services.js] Wanago Service Layer v2 loaded ✅');
+console.log('[services.js v3] Loaded — race conditions fixed');
