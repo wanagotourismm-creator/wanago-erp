@@ -376,6 +376,12 @@ async function fsListen(collection, callback) {
         localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
       } catch(e) {}
 
+      // Notify all dbSubscribe() callbacks registered for this collection.
+      // This is the single dispatch point — no other onSnapshot should exist
+      // for this collection (dbSubscribe no longer creates its own).
+      if (typeof window._notifySubscribers === 'function') {
+        window._notifySubscribers(collection);
+      }
       if (callback) callback(DB[collection]);
       _fsRefreshPage();
     }, err => console.warn(`[Listener:${collection}]`, err.message));
