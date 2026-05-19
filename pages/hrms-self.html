@@ -475,11 +475,14 @@
 
 <div id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
 <script src="../js/sidebar.js"></script>
-<script src="../js/utils.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/constants.js"></script>
+  <script src="../js/helpers.js"></script>
+  <script src="../js/utils.js"></script>
 <script src="../js/firestore.js"></script>
 <script src="../js/db.js"></script>
 <script src="../js/rbac.js"></script>
-<script src="../js/hrms-self.js"></script>
+<script type="module" src="../js/hrms-self.js"></script>
 <script>
 function handleLogout(){sessionStorage.removeItem('wanago_session');window.location.href='../index.html';}
 function toggleMobileSidebar(){document.getElementById('hs-sidebar').classList.toggle('open');document.getElementById('hs-overlay').classList.toggle('show');}
