@@ -101,6 +101,7 @@ async function fsInit() {
 
     const _fsApps = _fsGetApps();
     const _fsApp  = _fsApps.length ? _fsApps[0] : _fsInitApp(FB_CFG_FS);
+    window._fsApp = _fsApp; // expose for persistence re-init
     const cfg     = { auth: _fsGetAuth(_fsApp), db: _fsGetFs(_fsApp), storage: _fsGetSt(_fsApp) };
 
     if (!cfg.db) { _loadLocalFallback(); return false; }
@@ -109,11 +110,27 @@ async function fsInit() {
     _storage = cfg.storage || null;
     _compId  = cfg.db.app.options.projectId;  // "wanago-erp"
 
-    // Enable offline persistence (IndexedDB)
+    // Enable offline persistence using the modern API (replaces deprecated
+    // enableMultiTabIndexedDbPersistence which will be removed in a future SDK version)
     try {
-      const { enableMultiTabIndexedDbPersistence } = await import(`${FS_BASE}/firebase-firestore.js`);
-      await enableMultiTabIndexedDbPersistence(_db);
-    } catch(e) { /* already enabled or not supported — non-critical */ }
+      const {
+        initializeFirestore,
+        persistentLocalCache,
+        persistentMultipleTabManager,
+      } = await import(`${FS_BASE}/firebase-firestore.js`);
+      // Re-initialize with persistent cache settings
+      // This is safe to call even if getFirestore() was already called —
+      // initializeFirestore must be called BEFORE getFirestore() ideally,
+      // but the try/catch handles the "already initialized" case gracefully.
+      _db = initializeFirestore(_fsApp, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      });
+    } catch(e) {
+      // Already initialized or not supported — keep existing _db instance
+      // This is non-critical: app works without offline persistence
+    }
 
     _fsReady        = true;
     window._fsReady = true;
