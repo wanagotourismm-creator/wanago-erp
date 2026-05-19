@@ -172,8 +172,8 @@ function renderLeads(filter) {
     const rowBg=isSelected?'background:var(--g50)':fuOverdue?'background:rgba(220,38,38,.05);':fuToday?'background:rgba(245,158,11,.06);':'';
     return `<tr id="lrow-${l.id}" style="${rowBg}">
       <td><input type="checkbox" class="lead-checkbox" data-id="${l.id}" ${isSelected?'checked':''} onchange="toggleLeadSelect(this)" style="cursor:pointer"></td>
-      <td><div style="font-weight:600">${l.name} ${priIcon[l.priority]?`<span style="font-size:9.5px;font-weight:700;color:${priColor[l.priority]};background:${priColor[l.priority]}18;border-radius:4px;padding:1px 5px">${priIcon[l.priority]}</span>`:''}</div><div style="font-size:10.5px;color:var(--textd)">${l.phone}</div></td>
-      <td>${l.destination}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'Intl':'Dom'}</span></td>
+      <td><div style="font-weight:600">${esc(l.name)} ${priIcon[l.priority]?`<span style="font-size:9.5px;font-weight:700;color:${priColor[l.priority]};background:${priColor[l.priority]}18;border-radius:4px;padding:1px 5px">${priIcon[l.priority]}</span>`:''}</div><div style="font-size:10.5px;color:var(--textd)">${esc(l.phone)}</div></td>
+      <td>${esc(l.destination)}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'Intl':'Dom'}</span></td>
       <td>${pkg?`<div style="font-size:11px;font-weight:600;color:var(--g700)">${pkg.name}</div>`:`<span style="color:var(--textd);font-size:11px">—</span>`}</td>
       <td><span class="pill pill-gray" style="font-size:9.5px">${l.source||'—'}</span></td>
       <td>${stagePill(l.stage)}</td>
@@ -593,7 +593,7 @@ function findStaleLeads(){
   const cutoff=new Date(Date.now()-14*86400000).toISOString().slice(0,10);
   const stale=hScoped('leads').filter(l=>!['won','lost'].includes(l.stage)&&(l.createdAt||'').slice(0,10)<cutoff&&(!l.followup||l.followup<cutoff));
   const el=document.getElementById('stale-leads-result');
-  if(el)el.innerHTML=stale.length?`<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">${stale.length} stale leads found</div>`+stale.map(l=>`<div style="padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;font-size:12px"><strong>${l.name}</strong> — ${l.destination} — ${l.agent||'Unassigned'}</div>`).join(''):'<div style="color:var(--g600);font-size:12px">No stale leads found!</div>';
+  if(el)el.innerHTML=stale.length?`<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">${stale.length} stale leads found</div>`+stale.map(l=>`<div style="padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;font-size:12px"><strong>${esc(l.name)}</strong> — ${esc(l.destination)} — ${esc(l.agent||'Unassigned')}</div>`).join(''):'<div style="color:var(--g600);font-size:12px">No stale leads found!</div>';
 }
 function previewWABlast(){showToast('WhatsApp blast — go to WhatsApp page');}
 

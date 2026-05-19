@@ -64,6 +64,42 @@ function findTeamMember(uid, email) {
 }
 
 // ── Main login handler ──
+
+// ── Brute force protection: max 5 attempts per 15 minutes ──
+const _MAX_ATTEMPTS = 5;
+const _LOCKOUT_MS   = 15 * 60 * 1000; // 15 minutes
+
+function checkLoginRateLimit() {
+  try {
+    const raw      = localStorage.getItem('wanago_login_attempts') || '{}';
+    const attempts = JSON.parse(raw);
+    const now      = Date.now();
+    // Clean old attempts
+    Object.keys(attempts).forEach(k => { if (now - attempts[k].time > _LOCKOUT_MS) delete attempts[k]; });
+    const key      = 'attempt_count';
+    const current  = attempts[key] || { count: 0, time: now };
+    if (current.count >= _MAX_ATTEMPTS && (now - current.time) < _LOCKOUT_MS) {
+      const remaining = Math.ceil((_LOCKOUT_MS - (now - current.time)) / 60000);
+      return { locked: true, remaining };
+    }
+    return { locked: false };
+  } catch(e) { return { locked: false }; }
+}
+
+function recordLoginAttempt(success) {
+  try {
+    const raw      = localStorage.getItem('wanago_login_attempts') || '{}';
+    const attempts = JSON.parse(raw);
+    if (success) {
+      delete attempts['attempt_count'];
+    } else {
+      const current = attempts['attempt_count'] || { count: 0, time: Date.now() };
+      attempts['attempt_count'] = { count: current.count + 1, time: current.time };
+    }
+    localStorage.setItem('wanago_login_attempts', JSON.stringify(attempts));
+  } catch(e) {}
+}
+
 async function handleLogin() {
   var email = (document.getElementById('login-email')?.value || '').trim();
   var password = document.getElementById('login-password')?.value || '';
@@ -71,6 +107,13 @@ async function handleLogin() {
 
   if (!email || !password) {
     showMsg('Please enter email and password.', false);
+    return;
+  }
+
+  // ── Brute force check ──
+  var rateCheck = checkLoginRateLimit();
+  if (rateCheck.locked) {
+    showMsg('Too many failed attempts. Try again in ' + rateCheck.remaining + ' minutes.', false);
     return;
   }
 
@@ -158,6 +201,7 @@ function doLogin(member, email, btn) {
     loginTime: new Date().toISOString()
   };
   sessionStorage.setItem('wanago_session', JSON.stringify(session));
+  recordLoginAttempt(true);
   showMsg('Welcome ' + session.name + '!', true);
   setTimeout(function () { window.location.href = 'pages/dashboard.html'; }, 500);
 }

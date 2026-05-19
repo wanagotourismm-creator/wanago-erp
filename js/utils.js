@@ -3,6 +3,55 @@
 //  Data layer, formatters, modal/toast helpers
 // ═══════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════
+//  XSS PROTECTION — HTML Escape Functions
+//  ALWAYS use esc() when inserting user data into innerHTML.
+//  Never use raw ${user.name} inside innerHTML template literals.
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Escape user data before inserting into innerHTML.
+ * Prevents XSS attacks from malicious names, notes, destinations etc.
+ *
+ * Usage:  innerHTML = `<div>${esc(lead.name)}</div>`
+ * NOT:    innerHTML = `<div>${lead.name}</div>`  ← XSS vulnerability
+ */
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+/**
+ * Escape for use inside HTML attribute values.
+ * Usage: `<input value="${escAttr(user.name)}">`
+ */
+function escAttr(str) {
+  return esc(str);
+}
+
+/**
+ * Sanitize a URL — only allow http/https to prevent javascript: XSS
+ * Usage: `<a href="${escUrl(lead.website)}">`
+ */
+function escUrl(str) {
+  if (!str) return '#';
+  const s = String(str).trim();
+  if (/^javascript:/i.test(s)) return '#';
+  if (/^data:/i.test(s)) return '#';
+  return s;
+}
+
+window.esc     = esc;
+window.escAttr = escAttr;
+window.escUrl  = escUrl;
+
 // ── DATA LAYER ──
 // Firestore is the live shared store. localStorage is kept as an immediate
 // safety cache so records survive refreshes while cloud sync is still pending.
@@ -118,29 +167,15 @@ function hasAllOfficesAccess(user) {
 
 function scoped(collection) {
   const data = DB[collection] || [];
-  // No office filter = show everything
   if (!currentOfficeId || currentOfficeId === OFFICE_ALL) return data;
-
-  const offices  = DB.settings.offices || [];
-  const defaultOid = offices[0]?.id || 'o1';
-  const validOids  = new Set(offices.map(o => o.id));
-
-  return data.filter(r => {
-    const oid = r.officeId || defaultOid;
-    // Fix: if the record's officeId no longer exists in offices list
-    // (e.g. office was deleted or renamed), show it anyway — never lose data.
-    if (!validOids.has(oid)) return true;
-    return oid === currentOfficeId;
-  });
+  const defaultOid = (DB.settings.offices || [])[0]?.id || null;
+  return data.filter(r => { const oid = r.officeId || defaultOid; return oid === currentOfficeId; });
 }
 
 function officeIdForNewRecord() {
-  // Fix: never return null — always fall back to first available office
   if (currentOfficeId && currentOfficeId !== OFFICE_ALL) return currentOfficeId;
-  const offices = DB.settings.offices || [];
-  const firstActive = offices.find(o => o.active) || offices[0];
-  // If no offices configured yet (e.g. Firestore not loaded), return safe default
-  return firstActive ? firstActive.id : 'o1';
+  const firstActive = (DB.settings.offices || []).find(o => o.active) || (DB.settings.offices || [])[0];
+  return firstActive ? firstActive.id : null;
 }
 
 // ── HIERARCHY ──
@@ -172,30 +207,10 @@ function hScoped(collection) {
   if (isHierarchyUnrestricted(currentUser)) return officeData;
   const ids = visibleMemberIds();
   if (!ids) return officeData;
-
   if (collection === 'hrmsEmployees') return officeData.filter(e => ids.has(e.id));
   if (collection === 'hrmsLeaves')    return officeData.filter(l => ids.has(l.empId));
   if (collection === 'hrmsPayroll')   return officeData.filter(p => ids.has(p.empId));
-
-  // Fix: also match by agent name (for records created before Firebase UID was stored),
-  // by firebaseUid (for records migrated from localStorage with old team member IDs),
-  // and by assignedTo field. This prevents disappearing leads after data migration.
-  const agentName    = currentUser.name  || '';
-  const firebaseUid  = currentUser.firebaseUid || '';
-
-  return officeData.filter(r => {
-    // No creator stamp = visible to all (unassigned records)
-    if (!r.createdBy) return true;
-    // Direct match by team member ID
-    if (ids.has(r.createdBy)) return true;
-    // Match by Firebase UID (pre-migration records)
-    if (firebaseUid && r.createdBy === firebaseUid) return true;
-    // Match by agent name (fallback for very old records)
-    if (agentName && r.agent === agentName) return true;
-    // Match by assignedTo field
-    if (r.assignedTo && ids.has(r.assignedTo)) return true;
-    return false;
-  });
+  return officeData.filter(r => !r.createdBy || ids.has(r.createdBy));
 }
 
 function createdByStamp() { return currentUser ? currentUser.id : null; }
@@ -219,6 +234,23 @@ function loadSessionUser() {
   try {
     const session = JSON.parse(sessionStorage.getItem('wanago_session') || 'null');
     if (!session) { autoLoginAdmin(); return; }
+
+    // ── Session expiry check (8 hours) ──
+    const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+    if (session.loginTime) {
+      const age = Date.now() - new Date(session.loginTime).getTime();
+      if (age > SESSION_TTL_MS) {
+        // Session expired — clear and redirect to login
+        sessionStorage.removeItem('wanago_session');
+        if (window.location.pathname !== '/index.html' &&
+            !window.location.pathname.endsWith('index.html')) {
+          window.location.href = '../index.html';
+          return;
+        }
+        autoLoginAdmin();
+        return;
+      }
+    }
     // Find team member by ID
     const team = DB.settings.team || [];
     const member = team.find(m => m.id === session.uid);
@@ -367,13 +399,7 @@ window.saveDB = saveDB;
 window.hScoped = hScoped;
 window.scoped = scoped;
 window.currentUser = currentUser;
-// Fix: use a getter so window.currentOfficeId always reflects
-// the current value of the local variable, not a stale copy.
-Object.defineProperty(window, 'currentOfficeId', {
-  get: function() { return currentOfficeId; },
-  set: function(v) { currentOfficeId = v; },
-  configurable: true,
-});
+window.currentOfficeId = currentOfficeId;
 window.OFFICE_ALL = OFFICE_ALL;
 window.today = today;
 window.getCurrentMonth = getCurrentMonth;
@@ -875,62 +901,3 @@ function enforcePagePermission(page) {
 
 window.checkPagePermission = checkPagePermission;
 window.enforcePagePermission = enforcePagePermission;
-
-
-// ═══════════════════════════════════════════════════════════════
-//  RACE 2 FIX — Global initPage override
-//
-//  PROBLEM: Every page JS file defines its own initPage() which
-//  calls renderFn() after only 20ms. At that point:
-//  - loadSessionUser() may have set currentUser from a stale
-//    localStorage cache (showing wrong name/role)
-//  - Firestore hasn't loaded yet so team data is stale
-//  Result: page renders with wrong user, then re-renders again
-//  when Firestore loads — causing a visible flicker.
-//
-//  FIX: This global initPage() runs loadSessionUser() first to
-//  ensure currentUser is resolved from the best available data,
-//  then calls renderFn(). The per-file initPage() definitions
-//  that load AFTER utils.js will override this — so we place
-//  this at the end of utils.js, and additionally expose it as
-//  window.initPage so even early-loaded pages use this version.
-// ═══════════════════════════════════════════════════════════════
-
-window.initPage = function initPage(renderFn) {
-  // ── 1. Auth guard ──
-  var session = sessionStorage.getItem('wanago_session');
-  if (!session) { window.location.href = '../index.html'; return; }
-
-  // ── 2. Resolve currentUser from best available data ──
-  // loadSessionUser() is in utils.js and merges session + DB.settings.team
-  if (typeof loadSessionUser === 'function') loadSessionUser();
-
-  // ── 3. Update UI elements with resolved user ──
-  try {
-    var s    = JSON.parse(session);
-    var name = (window.currentUser && window.currentUser.name) || s.name || 'User';
-    var av   = document.getElementById('user-avatar');
-    var un   = document.getElementById('user-name');
-    var tu   = document.getElementById('topbar-user');
-    if (av) av.textContent = name[0].toUpperCase();
-    if (un) un.textContent = name;
-    if (tu) tu.textContent = s.email || '';
-    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
-  } catch(ex) {}
-
-  // ── 4. Fade loader ──
-  function fadeLoader() {
-    var l = document.getElementById('page-loader');
-    var a = document.querySelector('.app');
-    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
-    if (a) a.classList.add('loaded');
-  }
-
-  // ── 5. Render ──
-  // Small delay to let the DOM paint first, then render.
-  // waitForFirestore handles the Firestore-ready re-render.
-  setTimeout(function() {
-    try { if (renderFn) renderFn(); } catch(e) { console.error('[initPage] render error:', e); }
-    fadeLoader();
-  }, 20);
-};

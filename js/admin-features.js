@@ -135,7 +135,7 @@ window.renderActivityLog = async function() {
         }).join('')}
       </div>`;
   } catch(e) {
-    container.innerHTML = `<div style="padding:20px;color:var(--red)">Error loading activity: ${e.message}</div>`;
+    container.innerHTML = `<div style="padding:20px;color:var(--red)">Error loading activity: ${typeof esc==='function'?esc(e.message):e.message}</div>`;
   }
 };
 
@@ -401,7 +401,7 @@ window.openLeaveModal = function() {
   const modal = document.getElementById('modal-leave-request');
   if (!modal) return;
   const sel = document.getElementById('leave-member-select');
-  if (sel) sel.innerHTML = team.map(m => `<option value="${m.id}" data-name="${m.name}">${m.name}</option>`).join('');
+  if (sel) sel.innerHTML = team.map(m => `<option value="${typeof esc==='function'?esc(m.id):m.id}" data-name="${typeof esc==='function'?esc(m.name):m.name}">${typeof esc==='function'?esc(m.name):m.name}</option>`).join('');
   if (typeof openModal === 'function') openModal('modal-leave-request');
 };
 
@@ -580,7 +580,7 @@ window.loadRecentNotifications = async function() {
         </tr>`;
       }).join('')}
     </tbody></table></div>`;
-  } catch(e) { el.innerHTML = `<div style="color:var(--red);font-size:12px">Error: ${e.message}</div>`; }
+  } catch(e) { el.innerHTML = `<div style="color:var(--red);font-size:12px">Error: ${typeof esc==='function'?esc(e.message):e.message}</div>`; }
 };
 
 window.saveNotifRules = function() {
