@@ -2,15 +2,46 @@
   "name": "Wanago ERP",
   "short_name": "Wanago",
   "description": "AI-powered Travel ERP — Internal Company System",
-  "start_url": "/pages/dashboard.html",
+  "start_url": "/pages/dashboard.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#071c12",
   "theme_color": "#134a32",
   "lang": "en",
+  "dir": "ltr",
   "categories": ["business", "productivity"],
   "icons": [
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "72x72",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "96x96",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "128x128",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "144x144",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "152x152",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
     {
       "src": "/assets/logo.jpeg",
       "sizes": "192x192",
@@ -19,17 +50,48 @@
     },
     {
       "src": "/assets/logo.jpeg",
-      "sizes": "512x512",
+      "sizes": "384x384",
       "type": "image/jpeg",
       "purpose": "any"
+    },
+    {
+      "src": "/assets/logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
-    { "name": "Dashboard",  "url": "/pages/dashboard.html",  "description": "Open Dashboard"  },
-    { "name": "Leads",      "url": "/pages/leads.html",      "description": "View Leads"       },
-    { "name": "Bookings",   "url": "/pages/bookings.html",   "description": "View Bookings"    },
-    { "name": "Payments",   "url": "/pages/payments.html",   "description": "View Payments"    }
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "url": "/pages/dashboard.html",
+      "description": "Open Dashboard",
+      "icons": [{ "src": "/assets/logo.jpeg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Leads",
+      "short_name": "Leads",
+      "url": "/pages/leads.html",
+      "description": "View & manage leads",
+      "icons": [{ "src": "/assets/logo.jpeg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Bookings",
+      "short_name": "Bookings",
+      "url": "/pages/bookings.html",
+      "description": "View bookings",
+      "icons": [{ "src": "/assets/logo.jpeg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Payments",
+      "short_name": "Payments",
+      "url": "/pages/payments.html",
+      "description": "Track payments",
+      "icons": [{ "src": "/assets/logo.jpeg", "sizes": "96x96" }]
+    }
   ],
   "screenshots": [],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "related_applications": []
 }
