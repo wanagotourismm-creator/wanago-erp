@@ -284,8 +284,8 @@ function renderFinanceReport(from, to) {
     </div>`;
   }).join('') || '<div style="color:var(--textd);font-size:12px;text-align:center;padding:20px">No payment data</div>';
 
-  document.getElementById('rep-finance-total').textContent = formatMoney(total);
-  document.getElementById('rep-finance-txns').textContent = payments.length+' transactions';
+  var _el_rep_finance_total=document.getElementById('rep-finance-total');if(_el_rep_finance_total){_el_rep_finance_total.textContent=formatMoney(total)}
+  var _el_rep_finance_txns=document.getElementById('rep-finance-txns');if(_el_rep_finance_txns){_el_rep_finance_txns.textContent=payments.length+' transactions'}
 }
 
 // ══════ 5. DESTINATION REPORT ══════

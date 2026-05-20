@@ -161,7 +161,7 @@ function custWhatsApp(id){const c=DB.customers.find(x=>x.id===id);if(!c)return;i
 
 function viewCustomer(id){
   const c=DB.customers.find(x=>x.id===id);if(!c)return;
-  document.getElementById('vc-title').textContent=c.name;
+  var _el_vc_title=document.getElementById('vc-title');if(_el_vc_title){_el_vc_title.textContent=c.name}
   document.getElementById('modal-view-customer')._custId=id;
   const passExpired=c.passportExpiry&&new Date(c.passportExpiry)<new Date();
   const passWarn=c.passportExpiry&&!passExpired&&new Date(c.passportExpiry)<new Date(Date.now()+180*86400*1000);
@@ -221,7 +221,7 @@ function viewCustomer(id){
 
 function openAddCustomerModal(){
   document.getElementById('c-edit-id').value='';
-  document.getElementById('cust-modal-title').textContent='Add New Customer';
+  var _el_cust_modal_title=document.getElementById('cust-modal-title');if(_el_cust_modal_title){_el_cust_modal_title.textContent='Add New Customer'}
   ['c-name','c-phone','c-email','c-dob','c-city','c-address','c-pref-dest','c-anniversary','c-passport-no','c-passport','c-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const t=document.getElementById('c-type');if(t)t.value='';
   const b=document.getElementById('c-budget');if(b)b.value='';
@@ -234,7 +234,7 @@ function openAddCustomerModal(){
 function editCustomer(id){
   const c=DB.customers.find(x=>x.id===id);if(!c)return;
   document.getElementById('c-edit-id').value=id;
-  document.getElementById('cust-modal-title').textContent='Edit Customer';
+  var _el_cust_modal_title=document.getElementById('cust-modal-title');if(_el_cust_modal_title){_el_cust_modal_title.textContent='Edit Customer'}
   const s=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val||'';};
   s('c-name',c.name);s('c-phone',c.phone);s('c-email',c.email);s('c-dob',c.dob);s('c-city',c.city);s('c-address',c.address);s('c-pref-dest',c.prefDest);s('c-anniversary',c.anniversary);s('c-passport-no',c.passportNo);s('c-passport',c.passportExpiry);s('c-notes',c.notes);
   const sel=(elId,val)=>{const el=document.getElementById(elId);if(el&&val)el.value=val;};
@@ -252,7 +252,7 @@ function saveCustomer(){
   const fields={name,phone,email:document.getElementById('c-email').value,dob:document.getElementById('c-dob').value,city:document.getElementById('c-city').value,address:document.getElementById('c-address').value,travelType:document.getElementById('c-type').value,budgetRange:document.getElementById('c-budget').value,prefDest:document.getElementById('c-pref-dest').value,anniversary:document.getElementById('c-anniversary').value,passportNo:document.getElementById('c-passport-no').value,passportExpiry:document.getElementById('c-passport').value,tag:document.getElementById('c-tag').value||'regular',waOptin:document.getElementById('c-wa-optin').value,notes:document.getElementById('c-notes').value};
   if(editId){const c=DB.customers.find(x=>x.id===editId);if(c){Object.assign(c,fields);if(typeof dbSave==='function')dbSave('customers',c).catch(()=>{});}saveDB();closeModal('modal-add-customer');renderCustomers();showToast(`${name} updated`);}
   else{const color=['#134a32','#1976d2','#f57c00','#7b1fa2','#c9a84c','#d32f2f','#00796b'][Math.floor(Math.random()*7)];const cust={id:uid(),...fields,color,bookingsCount:0,totalSpent:0,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};DB.customers.unshift(cust);if(typeof dbSave==='function')dbSave('customers',cust).catch(()=>{});saveDB();logActivity(`New customer: ${name}`,'customer');closeModal('modal-add-customer');renderCustomers();showToast(`${name} added!`);}
-  document.getElementById('c-edit-id').value='';document.getElementById('cust-modal-title').textContent='Add New Customer';
+  document.getElementById('c-edit-id').value='';var _el_cust_modal_title=document.getElementById('cust-modal-title');if(_el_cust_modal_title){_el_cust_modal_title.textContent='Add New Customer'}
   const errEl=document.getElementById('c-error');if(errEl){errEl.style.display='none';errEl.textContent='';}
   ['c-name','c-phone','c-email','c-dob','c-city','c-address','c-pref-dest','c-anniversary','c-passport-no','c-passport','c-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }

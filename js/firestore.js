@@ -392,18 +392,10 @@ async function fsListen(collection, callback) {
 
       const fsRecords = snap.docs.map(d => _fromFirestoreDoc(d));
 
-      // CRITICAL FIX: Never wipe existing data with an empty snapshot.
-      // Empty snapshots happen when: security rules deny mid-session,
-      // auth token expires, or network blips. This was causing ALL data
-      // to disappear on every page after the initial load.
-      const _existingData = DB[collection] || [];
-      if (snap.empty && _existingData.length > 0) {
-        _fsRefreshPage();
-        return;
-      }
-
+      // Trust Firestore completely - if collection is empty, it's empty
+      // (user may have deleted data from Firebase Console)
       const fsIds = new Set(fsRecords.map(r => r.id));
-      const localPending = _existingData.filter(r => r.id && !fsIds.has(r.id));
+      const localPending = (DB[collection] || []).filter(r => r.id && !fsIds.has(r.id));
 
       // Race 3 Fix: for records with an in-flight write, keep the LOCAL
       // version instead of the Firestore snapshot version.
@@ -426,12 +418,11 @@ async function fsListen(collection, callback) {
         _initialSnapDone[collection] = true;
       }
 
-      // Write-only cache: save to localStorage for offline fallback
-      // but NEVER read from it on startup
+      // Sync localStorage cache with Firestore data
       try {
         const raw = localStorage.getItem('wanago_erp_v3');
         const cached = raw ? JSON.parse(raw) : {};
-        cached[collection] = DB[collection];
+        cached[collection] = DB[collection]; // Will be [] if Firestore deleted it
         localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
       } catch(e) {}
 

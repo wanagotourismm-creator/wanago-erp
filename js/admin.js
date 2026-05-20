@@ -324,7 +324,7 @@ function renderSetupChecklist() {
   if (pct===100) { wrap.style.display='none'; return; }
   wrap.style.display='block';
   document.getElementById('checklist-progress-bar').style.width = pct+'%';
-  document.getElementById('checklist-progress-text').textContent = done+'/'+items.length+' complete';
+  var _el_checklist_progress_text=document.getElementById('checklist-progress-text');if(_el_checklist_progress_text){_el_checklist_progress_text.textContent=done+'/'+items.length+' complete'}
   document.getElementById('checklist-items').innerHTML = items.map(i=>'<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:'+(i.done?'var(--g50)':'#fff')+';border:1px solid '+(i.done?'var(--g200)':'var(--border)')+';border-radius:8px;font-size:12px;color:'+(i.done?'var(--g700)':'var(--textd)')+'">'+i.lbl+(i.done?' ✓':'')+'</div>').join('');
 }
 
@@ -474,7 +474,7 @@ window.tmSetAllPermissions = tmSetAllPermissions;
 window.tmPermChanged = tmPermChanged;
 
 function openAddMemberModal() {
-  document.getElementById('tm-edit-id').value=''; document.getElementById('tm-modal-title').textContent='Add Team Member';
+  document.getElementById('tm-edit-id').value=''; var _el_tm_modal_title=document.getElementById('tm-modal-title');if(_el_tm_modal_title){_el_tm_modal_title.textContent='Add Team Member'}
   ['tm-name','tm-phone','tm-email','tm-empid','tm-joindate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('tm-dept').value=''; document.getElementById('tm-role').value='';
   // Render default permissions
@@ -491,7 +491,7 @@ function openAddMemberModal() {
 function editMember(elOrId) { var id = (typeof elOrId === "string") ? elOrId : elOrId.dataset.id;
   const m=(DB.settings.team||[]).find(x=>x.id===id); if(!m) return;
   openAddMemberModal();
-  document.getElementById('tm-edit-id').value=id; document.getElementById('tm-modal-title').textContent='Edit Member';
+  document.getElementById('tm-edit-id').value=id; var _el_tm_modal_title=document.getElementById('tm-modal-title');if(_el_tm_modal_title){_el_tm_modal_title.textContent='Edit Member'}
   const s=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val||'';};
   s('tm-name',m.name);s('tm-phone',m.phone);s('tm-email',m.email);s('tm-empid',m.empId);s('tm-dept',m.dept);s('tm-role',m.role);s('tm-office',m.officeId||'*');s('tm-manager',m.managerId);s('tm-joindate',m.joinDate);
   setTimeout(()=>{ renderPermissionsPanel(m.permissions||null); const roleEl=document.getElementById('tm-role'); if(roleEl) roleEl.onchange=()=>renderPermissionsPanel(null); },50);

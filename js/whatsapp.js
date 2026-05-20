@@ -202,13 +202,13 @@ function waCustom(phone, name) {
 // ══════════════════════════════════════════════
 function showWAPreview(phone, name, message, type) {
   document.getElementById('wa-preview-phone').value = phone || '';
-  document.getElementById('wa-preview-name').textContent = name || 'Customer';
+  var _el_wa_preview_name=document.getElementById('wa-preview-name');if(_el_wa_preview_name){_el_wa_preview_name.textContent=name || 'Customer'}
   document.getElementById('wa-preview-msg').value = message;
-  document.getElementById('wa-preview-type').textContent = {
+  var _el_wa_preview_type=document.getElementById('wa-preview-type');if(_el_wa_preview_type){_el_wa_preview_type.textContent={
     quotation:'Quotation', booking:'Booking Confirmation',
     payment_reminder:'Payment Reminder', birthday:'Birthday',
     anniversary:'Anniversary', custom:'Custom'
-  }[type] || type;
+  }[type] || type}
   openModal('modal-wa-preview');
 }
 

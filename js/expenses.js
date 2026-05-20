@@ -159,7 +159,7 @@ function clearExpFilters() {
 // ── Add / Edit ──
 function openAddExpenseModal() {
   document.getElementById('exp-edit-id').value = '';
-  document.getElementById('exp-modal-title').textContent = 'Add Expense';
+  var _el_exp_modal_title=document.getElementById('exp-modal-title');if(_el_exp_modal_title){_el_exp_modal_title.textContent='Add Expense'}
   document.getElementById('exp-date').value = today();
   document.getElementById('exp-category').value = '';
   document.getElementById('exp-amount').value = '';
@@ -176,7 +176,7 @@ function openAddExpenseModal() {
 function editExpense(id) {
   const e = (DB.expenses||[]).find(x => x.id === id); if (!e) return;
   document.getElementById('exp-edit-id').value = id;
-  document.getElementById('exp-modal-title').textContent = 'Edit Expense';
+  var _el_exp_modal_title=document.getElementById('exp-modal-title');if(_el_exp_modal_title){_el_exp_modal_title.textContent='Edit Expense'}
   document.getElementById('exp-date').value = e.date || today();
   document.getElementById('exp-category').value = e.category || '';
   document.getElementById('exp-amount').value = e.amount || '';

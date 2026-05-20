@@ -210,8 +210,15 @@ function officeIdForNewRecord() {
 let currentUser = null;
 
 function isHierarchyUnrestricted(user) {
-  if (!user) return true; // No user yet = show all (safer than hiding)
-  return user.systemRole === 'founder_ceo' || user.systemRole === 'admin';
+  if (!user) return true; // No user yet = show all
+  // Check systemRole
+  if (['founder_ceo','admin'].includes(user.systemRole)) return true;
+  // Also check role directly — covers all admin/management roles
+  if (['founder','ceo','co_founder','director','admin',
+       'branch_manager','sales_manager','operations_manager',
+       'finance_manager','marketing_manager','senior_manager',
+       'team_lead','reporting_manager'].includes(user.role)) return true;
+  return false;
 }
 
 function getSubordinateIds(managerId, teamList, visited = new Set()) {
@@ -247,13 +254,25 @@ function hScoped(collection) {
   const offices = DB.settings && DB.settings.offices;
   if (!offices || !offices.length) return allData;
 
+  // Return all records in the office — createdBy filter removed
+  // because it was hiding leads created by team members whose IDs
+  // changed after migration or Firebase account creation
   const officeData = scoped(collection);
-  const ids = visibleMemberIds();
-  if (!ids) return officeData;
-  if (collection === 'hrmsEmployees') return officeData.filter(e => ids.has(e.id));
-  if (collection === 'hrmsLeaves')    return officeData.filter(l => ids.has(l.empId));
-  if (collection === 'hrmsPayroll')   return officeData.filter(p => ids.has(p.empId));
-  return officeData.filter(r => !r.createdBy || ids.has(r.createdBy));
+  if (collection === 'hrmsEmployees') {
+    const ids = visibleMemberIds();
+    return ids ? officeData.filter(e => ids.has(e.id)) : officeData;
+  }
+  if (collection === 'hrmsLeaves') {
+    const ids = visibleMemberIds();
+    return ids ? officeData.filter(l => ids.has(l.empId)) : officeData;
+  }
+  if (collection === 'hrmsPayroll') {
+    const ids = visibleMemberIds();
+    return ids ? officeData.filter(p => ids.has(p.empId)) : officeData;
+  }
+  // For all other collections (leads, bookings, customers etc)
+  // return ALL records in the office — no createdBy filtering
+  return officeData;
 }
 
 function createdByStamp() { return currentUser ? currentUser.id : null; }

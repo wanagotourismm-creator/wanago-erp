@@ -167,7 +167,7 @@ function filterTickets(f, el) {
 // ── Add / Edit ──
 function openNewTicketModal() {
   document.getElementById('tkt-edit-id').value = '';
-  document.getElementById('tkt-modal-title').textContent = 'New Support Ticket';
+  var _el_tkt_modal_title=document.getElementById('tkt-modal-title');if(_el_tkt_modal_title){_el_tkt_modal_title.textContent='New Support Ticket'}
   document.getElementById('tkt-customer').value = '';
   document.getElementById('tkt-phone').value = '';
   document.getElementById('tkt-bkref').value = '';
@@ -184,7 +184,7 @@ function openNewTicketModal() {
 function editTicket(id) {
   const t = (DB.tickets||[]).find(x => x.id === id); if (!t) return;
   document.getElementById('tkt-edit-id').value = id;
-  document.getElementById('tkt-modal-title').textContent = 'Edit Ticket';
+  var _el_tkt_modal_title=document.getElementById('tkt-modal-title');if(_el_tkt_modal_title){_el_tkt_modal_title.textContent='Edit Ticket'}
   document.getElementById('tkt-customer').value = t.customerName || '';
   document.getElementById('tkt-phone').value = t.customerPhone || '';
   document.getElementById('tkt-bkref').value = t.bookingRef || '';
@@ -260,7 +260,7 @@ function viewTicket(id) {
   const tp = TKT_TYPES[t.type] || { label: t.type||'—', emoji: '❓', color: 'var(--textd)' };
   const pr = TKT_PRIORITY[t.priority] || { label: '—', color: 'var(--textd)', bg: 'var(--cream)' };
   const st = TKT_STATUS[t.status] || { label: '—', color: 'var(--textd)', bg: 'var(--cream)' };
-  document.getElementById('vt-title').textContent = (t.ticketId||'Ticket') + ' — ' + t.customerName;
+  var _el_vt_title=document.getElementById('vt-title');if(_el_vt_title){_el_vt_title.textContent=(t.ticketId||'Ticket') + ' — ' + t.customerName}
   document.getElementById('vt-body').innerHTML =
     '<div style="background:linear-gradient(135deg,var(--g800),var(--g600));border-radius:12px;padding:16px 18px;color:#fff;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">' +
       '<div><div style="font-size:17px;font-weight:800;font-family:DM Serif Display,serif">' + t.customerName + '</div>' +

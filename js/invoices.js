@@ -193,7 +193,7 @@ function renderInvoices(filter) {
   // Overdue banner
   const banner = document.getElementById('inv-overdue-banner');
   if (banner) {
-    if (overdueList.length) { banner.style.display='flex'; document.getElementById('inv-overdue-msg').textContent = overdueList.length+' invoice'+(overdueList.length>1?'s':'')+' overdue — '+formatMoney(overdueAmt)+' pending'; }
+    if (overdueList.length) { banner.style.display='flex'; var _el_inv_overdue_msg=document.getElementById('inv-overdue-msg');if(_el_inv_overdue_msg){_el_inv_overdue_msg.textContent=overdueList.length+' invoice'+(overdueList.length>1?'s':'')+' overdue — '+formatMoney(overdueAmt)+' pending'} }
     else banner.style.display='none';
   }
 
@@ -260,7 +260,7 @@ function viewInvoice(id) {
   const inv = DB.invoices.find(i=>i.id===id); if(!inv) return;
   const s = DB.settings;
   const gt = Number(inv.grandTotal||0); const paid = Number(inv.amountPaid||0); const balance = Math.max(0,gt-paid);
-  document.getElementById('vi-title').textContent = inv.ref;
+  var _el_vi_title=document.getElementById('vi-title');if(_el_vi_title){_el_vi_title.textContent=inv.ref}
   document.getElementById('vi-body').innerHTML =
     '<div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:24px;background:#fff">'+
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px"><div><img src="../assets/logo-transparent.png" alt="Wanago" style="width:140px;height:auto;margin-bottom:8px"><div style="font-size:11px;color:#666">'+(s.address||'')+'</div><div style="font-size:11px;color:#666">'+(s.phone||'')+' · '+(s.email||'')+'</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:900;color:#134a32">INVOICE</div><div style="font-size:13px;font-weight:700;color:#134a32;margin-top:4px">'+inv.ref+'</div><div style="font-size:11px;color:#666;margin-top:6px">Date: '+formatDate(inv.issueDate)+'</div><div style="font-size:11px;color:#666">Due: '+formatDate(inv.dueDate)+'</div></div></div>'+

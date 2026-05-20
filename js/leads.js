@@ -193,7 +193,7 @@ function isOverdue(d){return d&&d<today();}
 // ── Add Lead ──
 function openAddLeadModal(){
   document.getElementById('l-edit-id').value='';
-  document.getElementById('leads-modal-title').textContent='Add New Lead';
+  var _el_leads_modal_title=document.getElementById('leads-modal-title');if(_el_leads_modal_title){_el_leads_modal_title.textContent='Add New Lead'}
   ['l-name','l-phone','l-email','l-dest','l-budget','l-advance','l-balance','l-pax','l-notes','l-traveldate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['l-source','l-triptype','l-priority','l-stage'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const agentSel=document.getElementById('l-agent');
@@ -225,9 +225,7 @@ function populateLeadPackageSelect(){
 }
 
 function saveLead(){
-  var _saveBtn = document.getElementById('save-lead-btn') || document.getElementById('lead-save-btn') || document.querySelector('[onclick*="saveLead"]');
-  var _restoreBtn = (typeof setBtnLoading === 'function' && _saveBtn) ? setBtnLoading(_saveBtn) : function(){};
-  if(!currentUser){showToast('Not authenticated','error');_restoreBtn();return;}
+  if(!currentUser){showToast('Not authenticated','error');return;}
   const name=document.getElementById('l-name').value.trim();
   const phone=document.getElementById('l-phone').value.trim();
   const dest=document.getElementById('l-dest').value.trim();
@@ -267,7 +265,6 @@ function saveLead(){
     logActivity('New lead: '+name+' → '+dest,'lead');
   }
   saveDB(); closeModal('modal-add-lead'); renderLeads();
-  _restoreBtn();
 }
 
 // ── Bulk selection ──
@@ -354,7 +351,7 @@ function bulkExportSelected(){bulkExport();}
 // ── View Lead ──
 function viewLead(id){
   const l=DB.leads.find(x=>x.id===id); if(!l) return;
-  document.getElementById('vl-title').textContent=l.name;
+  var _el_vl_title=document.getElementById('vl-title');if(_el_vl_title){_el_vl_title.textContent=l.name}
   document.getElementById('modal-view-lead')._leadId=id;
   const pkg=l.packageId?(DB.packages||[]).find(p=>p.id===l.packageId):null;
   document.getElementById('vl-body').innerHTML=`
@@ -459,7 +456,7 @@ function editLead(id){
   const l=DB.leads.find(x=>x.id===id);if(!l)return;
   closeModal('modal-view-lead');
   document.getElementById('l-edit-id').value=l.id;
-  document.getElementById('leads-modal-title').textContent='Edit Lead';
+  var _el_leads_modal_title=document.getElementById('leads-modal-title');if(_el_leads_modal_title){_el_leads_modal_title.textContent='Edit Lead'}
   const fld=(i,v)=>{const el=document.getElementById(i);if(el)el.value=v||'';};
   fld('l-name',l.name);fld('l-phone',l.phone);fld('l-email',l.email);
   fld('l-dest',l.destination);fld('l-budget',l.budget);fld('l-advance',l.advance);

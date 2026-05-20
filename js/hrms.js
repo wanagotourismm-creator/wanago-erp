@@ -200,7 +200,7 @@ function renderEmployeeGrid() {
 
 // ══════ ADD/EDIT EMPLOYEE ══════
 function openAddEmpModal() {
-  document.getElementById('emp-edit-id').value=''; document.getElementById('emp-modal-title').textContent='Add Employee';
+  document.getElementById('emp-edit-id').value=''; var _el_emp_modal_title=document.getElementById('emp-modal-title');if(_el_emp_modal_title){_el_emp_modal_title.textContent='Add Employee'}
   ['emp-name','emp-phone','emp-email','emp-empid','emp-role','emp-dept','emp-dob','emp-join','emp-salary','emp-hra','emp-ta','emp-pf-no','emp-pan','emp-aadhaar','emp-bank-name','emp-acc-no','emp-ifsc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('emp-status').value='active';
   openModal('modal-add-employee');
@@ -209,7 +209,7 @@ function openAddEmpModal() {
 function editEmployee(id) {
   const e = DB.hrmsEmployees.find(x=>x.id===id); if(!e) return;
   openAddEmpModal();
-  document.getElementById('emp-edit-id').value=id; document.getElementById('emp-modal-title').textContent='Edit Employee';
+  document.getElementById('emp-edit-id').value=id; var _el_emp_modal_title=document.getElementById('emp-modal-title');if(_el_emp_modal_title){_el_emp_modal_title.textContent='Edit Employee'}
   const s=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val||'';};
   s('emp-name',e.name);s('emp-phone',e.phone);s('emp-email',e.email);s('emp-empid',e.empId);
   s('emp-role',e.role||e.designation);s('emp-dept',e.department||e.dept);s('emp-dob',e.dob);s('emp-join',e.joinDate);
@@ -255,7 +255,7 @@ function viewEmployee(id) {
   const leaves = (DB.hrmsLeaves||[]).filter(l=>l.empId===id);
   const payslips = (DB.hrmsPayroll||[]).filter(p=>p.empId===id).slice(0,3);
   const grossSalary = (e.salary||0)+(e.hra||0)+(e.ta||0);
-  document.getElementById('ve-title').textContent = e.name;
+  var _el_ve_title=document.getElementById('ve-title');if(_el_ve_title){_el_ve_title.textContent=e.name}
   document.getElementById('ve-body').innerHTML =
     '<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--cream);border-radius:12px;margin-bottom:16px">'+
       '<div style="width:52px;height:52px;border-radius:50%;background:'+(e.color||'var(--g600)')+';display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff">'+initials(e.name)+'</div>'+
@@ -587,7 +587,7 @@ function renderOfficeLocations() {
 
 function openAddOfficeLocModal() {
   document.getElementById('office-loc-edit-id').value='';
-  document.getElementById('office-loc-modal-title').textContent='Add Office Location';
+  var _el_office_loc_modal_title=document.getElementById('office-loc-modal-title');if(_el_office_loc_modal_title){_el_office_loc_modal_title.textContent='Add Office Location'}
   ['ol-name','ol-lat','ol-lng','ol-radius'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const e=document.getElementById('ol-error');if(e)e.style.display='none';
   openModal('modal-add-office-loc');
@@ -596,7 +596,7 @@ function openAddOfficeLocModal() {
 function editOfficeLoc(id) {
   const loc=(DB.settings?.officeLocations||[]).find(x=>x.id===id); if(!loc) return;
   document.getElementById('office-loc-edit-id').value=id;
-  document.getElementById('office-loc-modal-title').textContent='Edit Office Location';
+  var _el_office_loc_modal_title=document.getElementById('office-loc-modal-title');if(_el_office_loc_modal_title){_el_office_loc_modal_title.textContent='Edit Office Location'}
   const s=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val||'';};
   s('ol-name',loc.name);s('ol-lat',loc.lat);s('ol-lng',loc.lng);s('ol-radius',loc.radiusMeters||200);
   openModal('modal-add-office-loc');

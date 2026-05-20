@@ -772,7 +772,7 @@ window.mktFilterCampaigns = mktFilterCampaigns;
 
 function openCampaignModal(id) {
   _editCampaignId = id;
-  document.getElementById('camp-modal-title').textContent = id ? 'Edit Campaign' : 'New Campaign';
+  var _el_camp_modal_title=document.getElementById('camp-modal-title');if(_el_camp_modal_title){_el_camp_modal_title.textContent=id ? 'Edit Campaign' : 'New Campaign'}
   const c = id ? (DB.campaigns||[]).find(x => x.id === id) : null;
   document.getElementById('camp-name').value     = c?.name || '';
   document.getElementById('camp-type').value     = c?.type || 'whatsapp';
@@ -877,14 +877,14 @@ function openSegmentModal(id) {
   document.getElementById('seg-filter-val').value   = s?.filterVal || '';
   document.getElementById('seg-source').value       = s?.source || 'both';
   document.getElementById('seg-desc').value         = s?.description || '';
-  document.getElementById('seg-preview-count').textContent = 'Preview: — contacts';
+  var _el_seg_preview_count=document.getElementById('seg-preview-count');if(_el_seg_preview_count){_el_seg_preview_count.textContent='Preview: — contacts'}
   openModal('mkt-seg-modal');
 }
 window.openSegmentModal = openSegmentModal;
 
 function mktPreviewSegment() {
   const count = _resolveCustomSegment().length;
-  document.getElementById('seg-preview-count').textContent = `Preview: ${count} contact${count===1?'':'s'}`;
+  var _el_seg_preview_count=document.getElementById('seg-preview-count');if(_el_seg_preview_count){_el_seg_preview_count.textContent=`Preview: ${count} contact${count===1?'':'s'}`}
 }
 window.mktPreviewSegment = mktPreviewSegment;
 
@@ -983,7 +983,7 @@ window.mktUseTpl = mktUseTpl;
 
 function openTemplateModal(id) {
   _editTemplateId = id;
-  document.getElementById('tpl-modal-title').textContent = id ? 'Edit Template' : 'New Template';
+  var _el_tpl_modal_title=document.getElementById('tpl-modal-title');if(_el_tpl_modal_title){_el_tpl_modal_title.textContent=id ? 'Edit Template' : 'New Template'}
   const t = id ? (DB.settings.mktTemplates||DEFAULT_TEMPLATES).find(x=>x.id===id) : null;
   document.getElementById('tpl-name').value     = t?.name || '';
   document.getElementById('tpl-type').value     = t?.type || 'whatsapp';

@@ -19,10 +19,13 @@ function renderBookings(filter) {
     ? allVisible.filter(b => b.status === filter)
     : allVisible;
 
-  // Update summary counters
-  document.getElementById('bk-total').textContent     = allVisible.length;
-  document.getElementById('bk-confirmed').textContent = allVisible.filter(b => b.status === 'Confirmed').length;
-  document.getElementById('bk-pending').textContent   = allVisible.filter(b => b.status === 'Pending').length;
+  // Update summary counters (null-safe)
+  const _bkTotal     = document.getElementById('bk-total');
+  const _bkConfirmed = document.getElementById('bk-confirmed');
+  const _bkPending   = document.getElementById('bk-pending');
+  if (_bkTotal)     _bkTotal.textContent     = allVisible.length;
+  if (_bkConfirmed) _bkConfirmed.textContent = allVisible.filter(b => b.status === 'Confirmed').length;
+  if (_bkPending)   _bkPending.textContent   = allVisible.filter(b => b.status === 'Pending').length;
 
   document.getElementById('bookings-tbody').innerHTML = list.map(b => `
     <tr>
