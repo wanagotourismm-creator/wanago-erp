@@ -1043,3 +1043,59 @@ window.initPage = function initPage(renderFn) {
     fadeLoader();
   }, 20);
 };
+
+// ═══════════════════════════════════════════════════════════════
+//  WIPE ALL DATA — run from console: wipeAllData()
+// ═══════════════════════════════════════════════════════════════
+window.wipeAllData = async function() {
+  var cols = ['leads','customers','quotations','packages','bookings',
+    'invoices','payments','expenses','campaigns','segments','activities',
+    'tickets','hrmsEmployees','hrmsLeaves','hrmsPayroll','hrmsCheckIns',
+    'hrmsLocRequests','itineraries','suppliers','chatMessages',
+    'tasks','rewards','pointsLog'];
+
+  // 1. Clear memory
+  cols.forEach(function(c) { DB[c] = []; });
+  console.log('Memory cleared');
+
+  // 2. Clear localStorage completely
+  localStorage.clear();
+  console.log('localStorage cleared');
+
+  // 3. Clear IndexedDB
+  try {
+    var dbs = await indexedDB.databases();
+    for (var d of dbs) { indexedDB.deleteDatabase(d.name); }
+    console.log('IndexedDB cleared:', dbs.length, 'databases');
+  } catch(e) { console.log('IndexedDB:', e.message); }
+
+  // 4. Delete from Firestore
+  if (window._db || window.fsSave) {
+    try {
+      var FB_BASE = 'https://www.gstatic.com/firebasejs/10.12.0';
+      var m = await import(FB_BASE + '/firebase-firestore.js');
+      var getApps = (await import(FB_BASE + '/firebase-app.js')).getApps;
+      var apps = getApps();
+      if (apps.length) {
+        var db = m.getFirestore(apps[0]);
+        var total = 0;
+        for (var col of cols) {
+          try {
+            var snap = await m.getDocs(m.collection(db, 'companies/wanago-erp/' + col));
+            if (!snap.empty) {
+              var batch = m.writeBatch(db);
+              snap.docs.forEach(function(d) { batch.delete(d.ref); });
+              await batch.commit();
+              total += snap.docs.length;
+              console.log('Deleted', snap.docs.length, 'from', col);
+            }
+          } catch(e) { console.log(col, 'error:', e.message); }
+        }
+        console.log('Firestore: deleted', total, 'total records');
+      }
+    } catch(e) { console.log('Firestore error:', e.message); }
+  }
+
+  console.log('DONE! Reloading...');
+  setTimeout(function() { location.reload(); }, 1000);
+};
