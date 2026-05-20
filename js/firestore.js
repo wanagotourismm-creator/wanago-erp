@@ -232,7 +232,11 @@ async function _loadAll() {
     // Load all data collections in parallel
     await Promise.all(FS_COLLECTIONS.map(async col => {
       try {
-        const snap = await getDocs(collection(_db, _path(col)));
+        // Limit initial load to 500 records per collection for performance
+        // Real-time listeners will catch any remaining records
+        const { query: fsQuery, limit: fsLimit } = await import(`${FS_BASE}/firebase-firestore.js`).catch(() => ({}));
+        const colRef = collection(_db, _path(col));
+        const snap = await getDocs(fsQuery ? fsQuery(colRef, fsLimit(500)) : colRef);
         const fsRecords = snap.empty ? [] : snap.docs.map(d => _fromFirestoreDoc(d));
         const fsIds = new Set(fsRecords.map(r => r.id));
         const localPending = (DB[col] || []).filter(r => r.id && !fsIds.has(r.id));
@@ -856,11 +860,11 @@ const _PAGE_RENDER_FNS = [
 let _refreshDebounceTimer = null;
 function _fsRefreshPage() {
   clearTimeout(_refreshDebounceTimer);
-  _refreshDebounceTimer = setTimeout(function() {
+  _refreshDebounceTimer = setTimeout(function() { // 150ms debounce — reduces render thrashing
     for (const fn of _PAGE_RENDER_FNS) {
       if (typeof window[fn] === 'function') { window[fn](); return; }
     }
-  }, 80);
+  }, 150);
 }
 
 function _cleanForFirestore(value) {

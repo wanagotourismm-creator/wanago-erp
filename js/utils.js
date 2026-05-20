@@ -111,18 +111,30 @@ function defaultDB() {
   };
 }
 
+// Throttle localStorage writes — max once per 500ms
+var _saveDBTimer  = null;
+var _saveDBDirty  = false;
+
 function saveDB(opts) {
-  // opts.silent = true → update localStorage cache only, no cloud push, no dirty flag.
-  // Used for initialization writes so every page load doesn't trigger a full _pushAll().
+  // opts.silent = true → no cloud push, no dirty flag.
   const silent = opts && opts.silent;
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(DB));
-    if (!silent) localStorage.setItem(STORE_DIRTY_KEY, '1');
-  } catch(e) {
-    console.warn('[saveDB] local cache failed:', e.message);
-  }
-  // _fsPushDB is defined in firestore.js and pushes the local cache to Firestore.
-  if (!silent && typeof window._fsPushDB === 'function') window._fsPushDB();
+  if (!silent) _saveDBDirty = true;
+
+  // Throttle: debounce localStorage writes to 500ms
+  // This prevents 20+ writes when Firestore snapshots arrive in a burst
+  clearTimeout(_saveDBTimer);
+  _saveDBTimer = setTimeout(function() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+      if (_saveDBDirty) {
+        localStorage.setItem(STORE_DIRTY_KEY, '1');
+        _saveDBDirty = false;
+        if (typeof window._fsPushDB === 'function') window._fsPushDB();
+      }
+    } catch(e) {
+      console.warn('[saveDB] local cache failed:', e.message);
+    }
+  }, 500);
 }
 
 let DB = loadDB();
@@ -965,7 +977,7 @@ window.initPage = function initPage(renderFn) {
         '<div style="font-size:13px;color:#888;max-width:360px;line-height:1.7;margin-bottom:24px">',
         'You do not have permission to access this page.',
         '<br>Contact your administrator to request access.</div>',
-        '<button onclick="window.location.href='dashboard.html'" ',
+        '<button onclick="window.location.href=&quot;dashboard.html&quot;" ',
         'style="padding:12px 28px;background:#1a6341;color:#fff;border:none;',
         'border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;',
         'font-family:inherit">&#8592; Back to Dashboard</button></div>',
