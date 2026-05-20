@@ -175,6 +175,13 @@ function _loadLocalFallback() {
 ══════════════════════════════════════════════════ */
 
 async function _migrateFromLocalStorage() {
+  // DISABLED: Migration was restoring deleted data from localStorage cache
+  // Mark as done and clear ALL old cached data
+  localStorage.removeItem('wanago_erp_v3');
+  localStorage.removeItem('wanago_erp_v2');
+  localStorage.removeItem('wanago_uid_map');
+  localStorage.setItem(FS_MIGRATE_FLAG, '1');
+  return;
   if (localStorage.getItem(FS_MIGRATE_FLAG)) return;
 
   const raw = localStorage.getItem('wanago_erp_v3');
@@ -240,13 +247,10 @@ async function _loadAll() {
         const { query: fsQuery, limit: fsLimit } = await import(`${FS_BASE}/firebase-firestore.js`).catch(() => ({}));
         const colRef = collection(_db, _path(col));
         const snap = await getDocs(fsQuery ? fsQuery(colRef, fsLimit(500)) : colRef);
-        const fsRecords = snap.empty ? [] : snap.docs.map(d => _fromFirestoreDoc(d));
-        const fsIds = new Set(fsRecords.map(r => r.id));
-        const localPending = (DB[col] || []).filter(r => r.id && !fsIds.has(r.id));
-        if (fsRecords.length || localPending.length) {
-          DB[col] = _sortRecords([...fsRecords, ...localPending]);
-          if (localPending.length) localPending.forEach(item => fsSave(col, item.id, item));
-        }
+        // Trust Firestore completely - if empty, collection is empty
+        // Do NOT merge with local data (that would restore deleted records)
+        const fsRecords = snap.docs.map(d => _fromFirestoreDoc(d));
+        DB[col] = fsRecords.length ? _sortRecords(fsRecords) : [];
       } catch(e) { /* collection doesn't exist yet — normal on first run */ }
     }));
 
@@ -359,13 +363,7 @@ async function _listenSettings() {
         const data = snap.data();
         delete data._updatedAt; delete data._updatedBy;
         DB.settings = Object.assign({}, DB.settings, data);
-        // Write-only: save settings to cache but don't restore on load
-        try {
-          const raw = localStorage.getItem('wanago_erp_v3');
-          const cached = raw ? JSON.parse(raw) : {};
-          cached.settings = DB.settings;
-          localStorage.setItem('wanago_erp_v3', JSON.stringify(cached));
-        } catch(e) {}
+        // localStorage write disabled — settings stored in Firestore only
         _fsRefreshPage();
       },
       err => console.warn('[listenSettings]', err.message)
@@ -398,23 +396,21 @@ async function fsListen(collection, callback) {
       // Trust Firestore completely - if collection is empty, it's empty
       // (user may have deleted data from Firebase Console)
       const fsIds = new Set(fsRecords.map(r => r.id));
-      const localPending = (DB[collection] || []).filter(r => r.id && !fsIds.has(r.id));
 
-      // Race 3 Fix: for records with an in-flight write, keep the LOCAL
-      // version instead of the Firestore snapshot version.
-      // This prevents the "save → immediately disappears" bug where the
-      // snapshot arrives before Firestore confirms our write.
+      // Only preserve records with in-flight writes (being saved right now)
+      // NEVER merge other local records - that would restore deleted data
       const inflight = _inflightWrites.get(collection) || new Set();
       const mergedRecords = fsRecords.map(r => {
         if (inflight.has(r.id)) {
-          // Keep local version — our write is still in flight
           const local = (DB[collection] || []).find(x => x.id === r.id);
           return local || r;
         }
         return r;
       });
+      // Add any in-flight records not yet in Firestore
+      const inflightNew = (DB[collection] || []).filter(r => r.id && inflight.has(r.id) && !fsIds.has(r.id));
 
-      DB[collection] = _sortRecords([...mergedRecords, ...localPending]);
+      DB[collection] = _sortRecords([...mergedRecords, ...inflightNew]);
 
       if (!_initialSnapDone[collection]) {
         if (localPending.length) localPending.forEach(item => fsSave(collection, item.id, item));
