@@ -41,6 +41,8 @@
     { id:'team-accounts',  label:'Team Accounts',  icon:'team-accounts', page:'team-accounts' },
     { section: 'SYSTEM' },
     { id:'admin',          label:'Admin Panel',    icon:'admin',       page:'admin'     },
+    { id:'settings',       label:'Settings',       icon:'settings',    page:'settings'  },
+    { id:'wanago-space',   label:'Wanago Space',   icon:'space',       page:'wanago-space'},
   ];
 
   const ICONS = {
@@ -70,7 +72,52 @@
     admin:         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>',
     'team-accounts':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     settings:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    space:         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="13" y2="14"/></svg>',
   };
+
+  // Badge counts for nav items
+  function _getNavBadge(pageId) {
+    try {
+      if (!window.DB) return 0;
+      var today = new Date().toISOString().split('T')[0];
+      if (pageId === 'leads') {
+        return (window.DB.leads || []).filter(function(l) {
+          return !['won','lost'].includes(l.stage) && l.followup === today;
+        }).length || 0;
+      }
+      if (pageId === 'invoices') {
+        return (window.DB.invoices || []).filter(function(i) {
+          return i.status === 'overdue';
+        }).length || 0;
+      }
+      if (pageId === 'hrms') {
+        return (window.DB.hrmsLeaves || []).filter(function(l) {
+          return l.status === 'pending';
+        }).length || 0;
+      }
+      if (pageId === 'bookings') {
+        var d = new Date();
+        d.setDate(d.getDate() + 3);
+        var soon = d.toISOString().split('T')[0];
+        return (window.DB.bookings || []).filter(function(b) {
+          return b.status === 'confirmed' && b.travelDate >= today && b.travelDate <= soon;
+        }).length || 0;
+      }
+    } catch(e) {}
+    return 0;
+  }
+
+  // Role label helper
+  function _getRoleLabel(role) {
+    var labels = {
+      founder:'Founder', ceo:'CEO', co_founder:'Co-Founder', director:'Director',
+      admin:'Admin', branch_manager:'Branch Manager', team_lead:'Team Lead',
+      senior_manager:'Senior Manager', sales_manager:'Sales Manager',
+      operations_manager:'Ops Manager', finance_manager:'Finance Manager',
+      marketing_manager:'Marketing Manager', agent:'Agent', employee:'Employee',
+    };
+    return labels[role] || (role ? role.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}) : 'Team Member');
+  }
 
   function buildSidebar() {
     const sidebarEl = document.getElementById('sidebar');
@@ -108,7 +155,9 @@
       const iconSVG = ICONS[item.icon]
         ? `<svg class="nav-icon" ${ICONS[item.icon].slice(4)}`
         : '';
-      navHTML += `<div class="nav-item${isActive?' active':''}" ${onclick}>${iconSVG} ${item.label}</div>`;
+      var badge = _getNavBadge(item.id);
+      var badgeHTML = badge ? `<span class="nav-badge${badge > 9 ? ' red' : ''}">${badge > 99 ? '99+' : badge}</span>` : '';
+      navHTML += `<div class="nav-item${isActive?' active':''}" ${onclick}>${iconSVG} ${item.label}${badgeHTML}</div>`;
     }
 
     sidebarEl.innerHTML = `
@@ -126,7 +175,7 @@
         <div class="user-av" id="user-avatar" onclick="openChangePasswordModal()" style="cursor:pointer" title="Click to change password">${userName[0].toUpperCase()}</div>
         <div class="user-info" style="cursor:pointer" onclick="openChangePasswordModal()">
           <div class="user-name" id="user-name">${userName}</div>
-          <div class="user-role" style="font-size:10px;opacity:.7">${userEmail || userRole}</div>
+          <div class="user-role" style="font-size:10px;opacity:.7">${_getRoleLabel(userRole)}</div>
           <div style="font-size:9.5px;color:rgba(255,255,255,.4);margin-top:1px">🔑 Change Password</div>
         </div>
         <svg onclick="if(typeof handleLogout==='function')handleLogout()" style="width:16px;height:16px;color:rgba(255,255,255,.4);cursor:pointer;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

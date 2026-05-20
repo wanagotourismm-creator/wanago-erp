@@ -122,21 +122,42 @@ function renderStats() {
     const overdueCount = hScoped('invoices').filter(i=>i.status==='overdue').length;
     const el = document.getElementById('dash-stats');
     if (!el) return;
+    // Calculate month-over-month trends
+    const thisMonth = new Date().toISOString().slice(0,7);
+    const lastMonth = new Date(new Date().setMonth(new Date().getMonth()-1)).toISOString().slice(0,7);
+    const revLastMonth = hScoped('payments').filter(p=>p.status==='completed'&&(p.date||'').startsWith(lastMonth)).reduce((s,p)=>s+Number(p.amount||0),0);
+    const revThisMonth = hScoped('payments').filter(p=>p.status==='completed'&&(p.date||'').startsWith(thisMonth)).reduce((s,p)=>s+Number(p.amount||0),0);
+    const revTrend = revLastMonth > 0 ? Math.round(((revThisMonth - revLastMonth)/revLastMonth)*100) : 0;
+
+    const leadsLastMonth = hScoped('leads').filter(l=>(l.createdAt||'').startsWith(lastMonth)).length;
+    const leadsThisMonth = hScoped('leads').filter(l=>(l.createdAt||'').startsWith(thisMonth)).length;
+    const leadsTrend = leadsLastMonth > 0 ? Math.round(((leadsThisMonth-leadsLastMonth)/leadsLastMonth)*100) : 0;
+
+    function trendBadge(pct) {
+      if (pct > 0)  return `<div class="stat-trend up">+${pct}% vs last month</div>`;
+      if (pct < 0)  return `<div class="stat-trend down">${pct}% vs last month</div>`;
+      return `<div class="stat-trend flat">Same as last month</div>`;
+    }
+
     el.innerHTML = `
-      <div class="stat-card" style="cursor:pointer" onclick="goTo('payments')">
-        <div class="stat-label">Total Revenue</div><div class="stat-val">${formatMoney(totalRevenue)}</div>
-        <div class="stat-meta">Click to view payments</div>
+      <div class="stat-card accent-green" style="cursor:pointer" onclick="goTo('payments')">
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-val">${formatMoney(totalRevenue)}</div>
+        ${trendBadge(revTrend)}
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="goTo('leads')">
-        <div class="stat-label">Active Leads</div><div class="stat-val">${activeLeads}</div>
-        <div class="stat-meta stat-up">${cvr}% conversion rate</div>
+      <div class="stat-card accent-blue" style="cursor:pointer" onclick="goTo('leads')">
+        <div class="stat-label">Active Leads</div>
+        <div class="stat-val">${activeLeads}</div>
+        ${trendBadge(leadsTrend)}
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="goTo('bookings')">
-        <div class="stat-label">Confirmed Bookings</div><div class="stat-val">${confirmedBookings}</div>
-        <div class="stat-meta">${hScoped('bookings').length} total</div>
+      <div class="stat-card accent-green" style="cursor:pointer" onclick="goTo('bookings')">
+        <div class="stat-label">Confirmed Bookings</div>
+        <div class="stat-val">${confirmedBookings}</div>
+        <div class="stat-meta">${hScoped('bookings').length} total · ${cvr}% CVR</div>
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="goTo('invoices')">
-        <div class="stat-label">Pending Dues</div><div class="stat-val stat-dn">${formatMoney(pendingDues)}</div>
+      <div class="stat-card accent-red" style="cursor:pointer" onclick="goTo('invoices')">
+        <div class="stat-label">Pending Dues</div>
+        <div class="stat-val stat-dn">${formatMoney(pendingDues)}</div>
         <div class="stat-meta stat-dn">${overdueCount} overdue invoice${overdueCount!==1?'s':''}</div>
       </div>`;
   } catch(e) { console.warn('Stats error:', e); }
@@ -265,12 +286,13 @@ function renderDeparting() {
     const diff  = Math.ceil((new Date(b.travelDate) - now) / 86400000);
     const badge = diff === 0 ? 'Today!' : diff === 1 ? 'Tomorrow' : `In ${diff} days`;
     const bc    = diff <= 1 ? '#e74c3c' : diff <= 3 ? '#f39c12' : '#2a7a4f';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f4f4f4;cursor:pointer" onclick="goTo('bookings')">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:.1s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background=''" onclick="goTo('bookings')">
+      <div style="width:36px;height:36px;border-radius:10px;background:${bc}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;color:${bc}">✈</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:600;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.customerName || 'Passenger'}</div>
-        <div style="font-size:11px;color:#888">${b.destination || ''} · ${b.pax || 1} pax · ${b.ref || ''}</div>
+        <div style="font-size:12.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc ? esc(b.customerName || 'Passenger') : (b.customerName||'Passenger')}</div>
+        <div style="font-size:11px;color:var(--textd)">${esc ? esc(b.destination||'') : (b.destination||'')} · ${b.pax||1} pax · <span style="font-family:monospace">${b.ref||''}</span></div>
       </div>
-      <span style="font-size:10px;font-weight:700;color:${bc};background:${bc}18;border-radius:6px;padding:2px 8px;flex-shrink:0;white-space:nowrap">${badge}</span>
+      <span style="font-size:10px;font-weight:700;color:${bc};background:${bc}18;border-radius:6px;padding:3px 10px;flex-shrink:0;white-space:nowrap;border:1px solid ${bc}28">${badge}</span>
     </div>`;
   }).join('');
 }
@@ -291,10 +313,13 @@ function renderActivityFeed() {
   el.innerHTML = acts.map(a => {
     const d = new Date(a.ts || a.timestamp || a.time || Date.now());
     const ago = _timeAgo(d);
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f4f4f4">
+    const typeColors = {lead:'#2563eb',booking:'#228050',payment:'#7c3aed',invoice:'#d68910',info:'#64748b',quotation:'#0891b2'};
+    const dotColor = typeColors[a.type] || typeColors.info;
+    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:4px"></div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;color:#222;line-height:1.4">${a.msg || a.message || ''}</div>
-        <div style="font-size:10px;color:#bbb;margin-top:2px">${ago}</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.45">${esc ? esc(a.msg || a.message || '') : (a.msg || a.message || '')}</div>
+        <div style="font-size:10px;color:var(--textd);margin-top:2px">${ago}</div>
       </div>
     </div>`;
   }).join('');
@@ -355,19 +380,12 @@ window.renderDashboard = renderDashboard;
 
 // ── Wait for Firestore before first render ──
 initPage(function() {
-  // Show skeleton stats while loading
+  // Show skeleton stats while loading — uses design-system.css classes
   var el = document.getElementById('dash-stats');
   if (el && !window._fsReady) {
-    el.innerHTML = ['Revenue','Active Leads','Bookings','Pending Dues'].map(function(l) {
-      return '<div class="stat-card"><div class="stat-label">'+l+'</div><div style="height:28px;background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);border-radius:6px;animation:shimmer 1.5s infinite;background-size:200% 100%"></div></div>';
+    el.innerHTML = ['Total Revenue','Active Leads','Confirmed Bookings','Pending Dues'].map(function(l) {
+      return '<div class="stat-card skeleton-stat"><div class="skeleton skeleton-text" style="width:50%"></div><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-text" style="width:40%"></div></div>';
     }).join('');
-    // Add shimmer CSS once
-    if (!document.getElementById('shimmer-css')) {
-      var s = document.createElement('style');
-      s.id = 'shimmer-css';
-      s.textContent = '@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}';
-      document.head.appendChild(s);
-    }
   }
   // Render immediately with whatever data is in cache
   renderDashboard();
