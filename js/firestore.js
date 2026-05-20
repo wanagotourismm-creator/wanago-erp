@@ -110,27 +110,11 @@ async function fsInit() {
     _storage = cfg.storage || null;
     _compId  = cfg.db.app.options.projectId;  // "wanago-erp"
 
-    // Enable offline persistence using the modern API (replaces deprecated
-    // enableMultiTabIndexedDbPersistence which will be removed in a future SDK version)
-    try {
-      const {
-        initializeFirestore,
-        persistentLocalCache,
-        persistentMultipleTabManager,
-      } = await import(`${FS_BASE}/firebase-firestore.js`);
-      // Re-initialize with persistent cache settings
-      // This is safe to call even if getFirestore() was already called —
-      // initializeFirestore must be called BEFORE getFirestore() ideally,
-      // but the try/catch handles the "already initialized" case gracefully.
-      _db = initializeFirestore(_fsApp, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager(),
-        }),
-      });
-    } catch(e) {
-      // Already initialized or not supported — keep existing _db instance
-      // This is non-critical: app works without offline persistence
-    }
+    // Offline persistence DISABLED.
+    // IndexedDB caching was causing deleted Firestore data to reappear
+    // after deletion from Firebase Console.
+    // Without persistence, all reads go directly to Firestore network.
+    // This ensures deleted data stays deleted immediately.
 
     _fsReady        = true;
     window._fsReady = true;
