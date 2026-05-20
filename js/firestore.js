@@ -163,11 +163,11 @@ async function fsInit() {
 }
 
 function _loadLocalFallback() {
-  try {
-    const raw = localStorage.getItem('wanago_erp_v3');
-    if (raw) Object.assign(DB, JSON.parse(raw));
-  } catch(e) {}
-  console.warn('[Firestore] running in offline-only mode');
+  // DISABLED: localStorage fallback caused leads to appear then
+  // disappear as Firestore loaded real data over stale cached data.
+  // App now always starts with empty DB and loads from Firestore only.
+  // This means a brief loading state is shown — which is correct.
+  console.warn('[Firestore] running in offline-only mode — no data loaded from cache');
 }
 
 /* ══════════════════════════════════════════════════
@@ -356,6 +356,7 @@ async function _listenSettings() {
         const data = snap.data();
         delete data._updatedAt; delete data._updatedBy;
         DB.settings = Object.assign({}, DB.settings, data);
+        // Write-only: save settings to cache but don't restore on load
         try {
           const raw = localStorage.getItem('wanago_erp_v3');
           const cached = raw ? JSON.parse(raw) : {};
@@ -414,6 +415,8 @@ async function fsListen(collection, callback) {
         _initialSnapDone[collection] = true;
       }
 
+      // Write-only cache: save to localStorage for offline fallback
+      // but NEVER read from it on startup
       try {
         const raw = localStorage.getItem('wanago_erp_v3');
         const cached = raw ? JSON.parse(raw) : {};

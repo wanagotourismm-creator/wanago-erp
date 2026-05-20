@@ -59,13 +59,15 @@ const STORE_KEY = 'wanago_erp_v3';
 const STORE_DIRTY_KEY = 'wanago_erp_v3_dirty';
 
 function loadDB() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return defaultDB();
-    return mergeDefaults(defaultDB(), JSON.parse(raw));
-  } catch(e) {
-    return defaultDB();
-  }
+  // FIRESTORE IS THE SOURCE OF TRUTH.
+  // We NO LONGER pre-populate DB from localStorage on startup.
+  // Reason: stale localStorage data was showing as real data while
+  // Firestore was loading, causing "disappearing leads" when
+  // Firestore data arrived and the filtering removed wrong records.
+  //
+  // localStorage is now WRITE-ONLY cache (for offline fallback only).
+  // All reads come from Firestore via onSnapshot listeners.
+  return defaultDB();
 }
 
 function mergeDefaults(base, saved) {
@@ -180,6 +182,8 @@ function hasAllOfficesAccess(user) {
 function scoped(collection) {
   const data = DB[collection] || [];
   if (!currentOfficeId || currentOfficeId === OFFICE_ALL) return data;
+  // No offices configured yet = show everything (Firestore still loading)
+  if (!DB.settings || !DB.settings.offices || !DB.settings.offices.length) return data;
   const defaultOid = (DB.settings.offices || [])[0]?.id || null;
   return data.filter(r => { const oid = r.officeId || defaultOid; return oid === currentOfficeId; });
 }
@@ -214,9 +218,12 @@ function visibleMemberIds() {
 }
 
 function hScoped(collection) {
+  // ADMIN/FOUNDER/CEO = see EVERYTHING, no filtering at all
+  // This prevents the most common cause of disappearing leads
+  if (!currentUser) return DB[collection] || [];
+  if (isHierarchyUnrestricted(currentUser)) return DB[collection] || [];
+
   const officeData = scoped(collection);
-  if (!currentUser) return officeData;
-  if (isHierarchyUnrestricted(currentUser)) return officeData;
   const ids = visibleMemberIds();
   if (!ids) return officeData;
   if (collection === 'hrmsEmployees') return officeData.filter(e => ids.has(e.id));
