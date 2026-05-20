@@ -181,9 +181,12 @@ function hasAllOfficesAccess(user) {
 
 function scoped(collection) {
   const data = DB[collection] || [];
+  // No filter active = show everything
   if (!currentOfficeId || currentOfficeId === OFFICE_ALL) return data;
-  // No offices configured yet = show everything (Firestore still loading)
+  // No offices configured = show everything
   if (!DB.settings || !DB.settings.offices || !DB.settings.offices.length) return data;
+  // Only 1 office = no point filtering
+  if (DB.settings.offices.length === 1) return data;
   const defaultOid = (DB.settings.offices || [])[0]?.id || null;
   return data.filter(r => { const oid = r.officeId || defaultOid; return oid === currentOfficeId; });
 }
@@ -198,7 +201,7 @@ function officeIdForNewRecord() {
 let currentUser = null;
 
 function isHierarchyUnrestricted(user) {
-  if (!user) return false;
+  if (!user) return true; // No user yet = show all (safer than hiding)
   return user.systemRole === 'founder_ceo' || user.systemRole === 'admin';
 }
 
@@ -218,10 +221,22 @@ function visibleMemberIds() {
 }
 
 function hScoped(collection) {
-  // ADMIN/FOUNDER/CEO = see EVERYTHING, no filtering at all
-  // This prevents the most common cause of disappearing leads
-  if (!currentUser) return DB[collection] || [];
-  if (isHierarchyUnrestricted(currentUser)) return DB[collection] || [];
+  const allData = DB[collection] || [];
+
+  // If no data at all, return empty — nothing to filter
+  if (!allData.length) return [];
+
+  // If currentUser not loaded yet → show everything
+  // (better to show too much than to hide real data)
+  if (!currentUser || !currentUser.id) return allData;
+
+  // Admin/Founder/CEO → see EVERYTHING, zero filtering
+  if (isHierarchyUnrestricted(currentUser)) return allData;
+
+  // If no offices configured in settings yet → show everything
+  // (settings may still be loading from Firestore)
+  const offices = DB.settings && DB.settings.offices;
+  if (!offices || !offices.length) return allData;
 
   const officeData = scoped(collection);
   const ids = visibleMemberIds();
