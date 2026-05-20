@@ -197,4 +197,160 @@ window.isFirestoreReady = function() {
   return !!(window._fsReady && typeof fsSave === 'function');
 };
 
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTO SKELETON LOADER SYSTEM
+//
+//  Automatically shows skeleton loading states before any
+//  render function runs, and removes them after.
+//  Zero changes needed to page JS files — works globally.
+//
+//  HOW IT WORKS:
+//  1. _showPageSkeleton() fills known containers with shimmer
+//  2. Page JS render functions run and replace the skeleton
+//  3. If render fails, _clearPageSkeleton() cleans up
+// ═══════════════════════════════════════════════════════════════
+
+// Known table containers and their skeleton types
+var _SKELETON_CONTAINERS = {
+  'leads-tbody':      'table-rows',
+  'bookings-tbody':   'table-rows',
+  'customers-tbody':  'table-rows',
+  'payments-tbody':   'table-rows',
+  'invoices-tbody':   'table-rows',
+  'exp-tbody':        'table-rows',
+  'quotations-tbody': 'table-rows',
+  'vl-body':          'table-rows',
+  'vc-body':          'table-rows',
+  'vi-body':          'table-rows',
+  'emp-grid':         'card-grid',
+  'pkg-cards-grid':   'card-grid',
+  'dash-stats':       'stat-cards',
+  'followups-tbody':  'table-rows',
+};
+
+// Generate skeleton HTML for a given type
+function _skeletonHTML(type) {
+  if (type === 'table-rows') {
+    return Array(6).fill(0).map(function() {
+      return '<tr class="skeleton-row"><td colspan="10" style="padding:12px 14px">' +
+        '<div class="skeleton skeleton-text" style="width:' + (40 + Math.random()*40|0) + '%"></div>' +
+        '</td></tr>';
+    }).join('');
+  }
+  if (type === 'card-grid') {
+    return Array(6).fill(0).map(function() {
+      return '<div class="skeleton skeleton-card" style="min-height:140px;border-radius:14px"></div>';
+    }).join('');
+  }
+  if (type === 'stat-cards') {
+    return Array(4).fill(0).map(function() {
+      return '<div class="skeleton-stat"><div class="skeleton skeleton-text" style="width:50%"></div>' +
+             '<div class="skeleton skeleton-title"></div>' +
+             '<div class="skeleton skeleton-text" style="width:40%"></div></div>';
+    }).join('');
+  }
+  return '';
+}
+
+// Show skeletons in all known containers that are currently empty
+window._showPageSkeleton = function() {
+  Object.keys(_SKELETON_CONTAINERS).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    // Only show skeleton if container appears empty
+    var text = (el.textContent || '').trim();
+    if (text.length < 10) {
+      el.innerHTML = _skeletonHTML(_SKELETON_CONTAINERS[id]);
+    }
+  });
+};
+
+// Clear all skeletons (called if render fails)
+window._clearPageSkeleton = function() {
+  Object.keys(_SKELETON_CONTAINERS).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.querySelector('.skeleton-row, .skeleton-card, .skeleton-stat')) {
+      el.innerHTML = '';
+    }
+  });
+};
+
+// Auto-show skeleton on page load (before Firestore data arrives)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(window._showPageSkeleton, 50);
+  });
+} else {
+  setTimeout(window._showPageSkeleton, 50);
+}
+
+// ── Button loading state helpers ─────────────────────────────
+
+/**
+ * Set a button into loading state.
+ * Usage: var restore = setBtnLoading(btn);
+ *        // ... async work ...
+ *        restore();
+ */
+window.setBtnLoading = function(btn) {
+  if (!btn) return function() {};
+  var orig = btn.innerHTML;
+  btn.classList.add('btn-loading');
+  btn.disabled = true;
+  return function restore() {
+    btn.classList.remove('btn-loading');
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  };
+};
+
+/**
+ * Wrap an async function with button loading state.
+ * Usage: withBtnLoading(saveBtn, async function() { await saveData(); });
+ */
+window.withBtnLoading = function(btn, asyncFn) {
+  var restore = setBtnLoading(btn);
+  return Promise.resolve(asyncFn()).finally(function() {
+    restore();
+  });
+};
+
+// ── Page-level loading overlay ────────────────────────────────
+
+/**
+ * Show a full-page loading overlay.
+ * Used during heavy operations like data export.
+ */
+window.showPageLoading = function(msg) {
+  var existing = document.getElementById('page-loading-overlay');
+  if (existing) return;
+  var el = document.createElement('div');
+  el.id = 'page-loading-overlay';
+  el.style.cssText = [
+    'position:fixed;inset:0;background:rgba(255,255,255,.85);',
+    'z-index:9997;display:flex;flex-direction:column;',
+    'align-items:center;justify-content:center;gap:14px;',
+    'backdrop-filter:blur(2px);',
+  ].join('');
+  el.innerHTML = [
+    '<div style="width:36px;height:36px;border:3px solid var(--border);',
+    'border-top-color:var(--g500);border-radius:50%;animation:spin .7s linear infinite"></div>',
+    '<div style="font-size:13px;font-weight:600;color:var(--textm)">',
+    (msg || 'Loading...') + '</div>',
+  ].join('');
+  document.body.appendChild(el);
+};
+
+window.hidePageLoading = function() {
+  var el = document.getElementById('page-loading-overlay');
+  if (el) {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity .2s';
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 200);
+  }
+};
+
+
 console.log('[services.js v3] Loaded — race conditions fixed');

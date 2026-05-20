@@ -126,15 +126,7 @@ function populateLeadFilters() {
 function renderLeads(filter) {
   if(filter) leadsFilter=filter;
   renderLeadsStats(); populateLeadFilters();
-  // Safety: if hScoped returns nothing but DB.leads has records,
-  // it means filtering is too aggressive — show all leads as fallback.
-  let leads = hScoped('leads');
-  if (!leads.length && (DB.leads || []).length > 0) {
-    // Only fall back to unfiltered if user is admin/founder
-    if (!currentUser || isHierarchyUnrestricted(currentUser)) {
-      leads = DB.leads || [];
-    }
-  }
+  let leads=hScoped('leads');
   if(leadsFilter!=='all') leads=leads.filter(l=>l.stage===leadsFilter);
   const q=leadsSearchQuery.toLowerCase();
   if(q) leads=leads.filter(l=>l.name.toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.destination||'').toLowerCase().includes(q)||(l.email||'').toLowerCase().includes(q));
@@ -172,8 +164,8 @@ function renderLeads(filter) {
     const rowBg=isSelected?'background:var(--g50)':fuOverdue?'background:rgba(220,38,38,.05);':fuToday?'background:rgba(245,158,11,.06);':'';
     return `<tr id="lrow-${l.id}" style="${rowBg}">
       <td><input type="checkbox" class="lead-checkbox" data-id="${l.id}" ${isSelected?'checked':''} onchange="toggleLeadSelect(this)" style="cursor:pointer"></td>
-      <td><div style="font-weight:600">${esc(l.name)} ${priIcon[l.priority]?`<span style="font-size:9.5px;font-weight:700;color:${priColor[l.priority]};background:${priColor[l.priority]}18;border-radius:4px;padding:1px 5px">${priIcon[l.priority]}</span>`:''}</div><div style="font-size:10.5px;color:var(--textd)">${esc(l.phone)}</div></td>
-      <td>${esc(l.destination)}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'Intl':'Dom'}</span></td>
+      <td><div style="font-weight:600">${l.name} ${priIcon[l.priority]?`<span style="font-size:9.5px;font-weight:700;color:${priColor[l.priority]};background:${priColor[l.priority]}18;border-radius:4px;padding:1px 5px">${priIcon[l.priority]}</span>`:''}</div><div style="font-size:10.5px;color:var(--textd)">${l.phone}</div></td>
+      <td>${l.destination}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'Intl':'Dom'}</span></td>
       <td>${pkg?`<div style="font-size:11px;font-weight:600;color:var(--g700)">${pkg.name}</div>`:`<span style="color:var(--textd);font-size:11px">—</span>`}</td>
       <td><span class="pill pill-gray" style="font-size:9.5px">${l.source||'—'}</span></td>
       <td>${stagePill(l.stage)}</td>
@@ -233,7 +225,9 @@ function populateLeadPackageSelect(){
 }
 
 function saveLead(){
-  if(!currentUser){showToast('Not authenticated','error');return;}
+  var _saveBtn = document.getElementById('save-lead-btn') || document.getElementById('lead-save-btn') || document.querySelector('[onclick*="saveLead"]');
+  var _restoreBtn = (typeof setBtnLoading === 'function' && _saveBtn) ? setBtnLoading(_saveBtn) : function(){};
+  if(!currentUser){showToast('Not authenticated','error');_restoreBtn();return;}
   const name=document.getElementById('l-name').value.trim();
   const phone=document.getElementById('l-phone').value.trim();
   const dest=document.getElementById('l-dest').value.trim();
@@ -261,31 +255,11 @@ function saveLead(){
     customerId:existingCust?.id||null,
   };
   if(editId){
-    const idx = DB.leads.findIndex(l => l.id === editId);
-    if (idx > -1) {
-      // Preserve officeId and createdBy — never overwrite on edit
-      const existing = DB.leads[idx];
-      DB.leads[idx] = {
-        ...existing,
-        ...data,
-        officeId:  existing.officeId  || officeIdForNewRecord() || 'o1',
-        createdBy: existing.createdBy || createdByStamp() || 'system',
-        updatedAt: new Date().toISOString(),
-        updatedBy: currentUser?.id || 'system',
-      };
-      dbSave('leads', DB.leads[idx]);
-    }
+    const idx=DB.leads.findIndex(l=>l.id===editId);
+    if(idx>-1){ Object.assign(DB.leads[idx],data); dbSave('leads', DB.leads[idx]); }
     showToast(name+' updated!');
   } else {
-    // Fix: ensure officeId is never null when saving a new lead
-    const _safeOfficeId = officeIdForNewRecord() || (DB.settings.offices?.[0]?.id) || 'o1';
-    const _newLead = {
-      id:        uid(),
-      ...data,
-      officeId:  _safeOfficeId,
-      createdBy: createdByStamp() || currentUser?.id || 'system',
-      createdAt: new Date().toISOString(),
-    };
+    const _newLead = {id:uid(),...data,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
     DB.leads.unshift(_newLead);
     dbSave('leads', _newLead);
     if (typeof notifyEvent === 'function') notifyEvent('lead_created', _newLead);
@@ -293,6 +267,7 @@ function saveLead(){
     logActivity('New lead: '+name+' → '+dest,'lead');
   }
   saveDB(); closeModal('modal-add-lead'); renderLeads();
+  _restoreBtn();
 }
 
 // ── Bulk selection ──
@@ -593,7 +568,7 @@ function findStaleLeads(){
   const cutoff=new Date(Date.now()-14*86400000).toISOString().slice(0,10);
   const stale=hScoped('leads').filter(l=>!['won','lost'].includes(l.stage)&&(l.createdAt||'').slice(0,10)<cutoff&&(!l.followup||l.followup<cutoff));
   const el=document.getElementById('stale-leads-result');
-  if(el)el.innerHTML=stale.length?`<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">${stale.length} stale leads found</div>`+stale.map(l=>`<div style="padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;font-size:12px"><strong>${esc(l.name)}</strong> — ${esc(l.destination)} — ${esc(l.agent||'Unassigned')}</div>`).join(''):'<div style="color:var(--g600);font-size:12px">No stale leads found!</div>';
+  if(el)el.innerHTML=stale.length?`<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">${stale.length} stale leads found</div>`+stale.map(l=>`<div style="padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;font-size:12px"><strong>${l.name}</strong> — ${l.destination} — ${l.agent||'Unassigned'}</div>`).join(''):'<div style="color:var(--g600);font-size:12px">No stale leads found!</div>';
 }
 function previewWABlast(){showToast('WhatsApp blast — go to WhatsApp page');}
 
@@ -816,53 +791,6 @@ function deleteLeadFile(leadId, idx) {
   saveDB();
   viewLead(leadId);
 }
-
-
-// ═══════════════════════════════════════════════════════════════
-//  LEAD RECOVERY TOOL
-//  Finds leads hidden by office/scope filtering and fixes them.
-//  Run from browser console: recoverHiddenLeads()
-// ═══════════════════════════════════════════════════════════════
-
-window.recoverHiddenLeads = function() {
-  const allLeads     = DB.leads || [];
-  const visibleLeads = hScoped('leads');
-  const visibleIds   = new Set(visibleLeads.map(l => l.id));
-  const hidden       = allLeads.filter(l => !visibleIds.has(l.id));
-
-  if (!hidden.length) {
-    showToast('No hidden leads found — all leads are visible!');
-    return { hidden: 0, fixed: 0 };
-  }
-
-  const offices      = DB.settings.offices || [];
-  const defaultOid   = offices[0]?.id || 'o1';
-  let fixed          = 0;
-
-  hidden.forEach(lead => {
-    // Fix 1: null/invalid officeId
-    const validOids = new Set(offices.map(o => o.id));
-    if (!lead.officeId || !validOids.has(lead.officeId)) {
-      lead.officeId = defaultOid;
-      dbSave('leads', lead);
-      fixed++;
-      return;
-    }
-    // Fix 2: createdBy mismatch — reassign to current user if admin
-    if (currentUser && isHierarchyUnrestricted(currentUser)) {
-      // Admin viewing — just show it; no fix needed for admin
-      // The render fallback guard already handles this
-    }
-  });
-
-  saveDB();
-  renderLeads();
-
-  const msg = `Recovered ${fixed} leads. ${hidden.length - fixed} leads need manual review.`;
-  showToast(msg);
-  console.log('[recoverHiddenLeads]', { total: allLeads.length, visible: visibleLeads.length, hidden: hidden.length, fixed });
-  return { hidden: hidden.length, fixed };
-};
 
 // ── Expose all to window ──
 window.renderLeads=renderLeads;window.filterLeads=filterLeads;window.searchLeads=searchLeads;
