@@ -208,6 +208,9 @@ async function _migrateFromLocalStorage() {
     await _pushAll();
 
     localStorage.setItem(FS_MIGRATE_FLAG, '1');
+    // DELETE the old cache after migration so it can never
+    // accidentally restore deleted data again
+    localStorage.removeItem('wanago_erp_v3');
     localStorage.removeItem('wanago_erp_v2');
     localStorage.removeItem('wanago_uid_map');
     localStorage.removeItem('wanago_sheets_url');
