@@ -181,14 +181,23 @@ function hasAllOfficesAccess(user) {
 
 function scoped(collection) {
   const data = DB[collection] || [];
-  // No filter active = show everything
+  // No filter = show everything
   if (!currentOfficeId || currentOfficeId === OFFICE_ALL) return data;
   // No offices configured = show everything
   if (!DB.settings || !DB.settings.offices || !DB.settings.offices.length) return data;
-  // Only 1 office = no point filtering
-  if (DB.settings.offices.length === 1) return data;
+  // Only 1 office = skip filtering entirely (most common case)
+  if (DB.settings.offices.length <= 1) return data;
+  // User not loaded yet = show everything
+  if (!currentUser || !currentUser.id) return data;
   const defaultOid = (DB.settings.offices || [])[0]?.id || null;
-  return data.filter(r => { const oid = r.officeId || defaultOid; return oid === currentOfficeId; });
+  return data.filter(r => {
+    // Records with no officeId are visible to everyone
+    if (!r.officeId) return true;
+    // Records with unrecognized officeId are visible to everyone
+    if (!validOids.has(r.officeId)) return true;
+    // Match by office
+    return r.officeId === currentOfficeId;
+  });
 }
 
 function officeIdForNewRecord() {
