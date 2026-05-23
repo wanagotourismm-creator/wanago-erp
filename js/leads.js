@@ -1,835 +1,978 @@
 // ═══════════════════════════════════════════════════════════════
-//  AUTH GUARD
+//  WANAGO ERP — Leads Module (Complete Rewrite)
+//  Clean architecture · Firebase Firestore · RBAC-aware
+//  Version: 2.0.0
 // ═══════════════════════════════════════════════════════════════
 
-function initPage(renderFn) {
-  // Check session
-  var session = sessionStorage.getItem('wanago_session');
-  if (!session) { window.location.href = '../index.html'; return; }
+'use strict';
 
-  // Set user UI
-  try {
-    var s = JSON.parse(session);
-    var name = (window.currentUser && window.currentUser.name) || s.name || 'User';
-    var av = document.getElementById('user-avatar');
-    var un = document.getElementById('user-name');
-    var tu = document.getElementById('topbar-user');
-    if (av) av.textContent = name[0].toUpperCase();
-    if (un) un.textContent = name;
-    if (tu) tu.textContent = s.email || '';
-    if (typeof window.rebuildSidebar === 'function') window.rebuildSidebar();
-  } catch(ex) {}
+// ── CONSTANTS ──────────────────────────────────────────────────
+const LEAD_STAGES = [
+  { id: 'new',       label: 'New',       color: '#6366f1', bg: '#eef2ff' },
+  { id: 'contacted', label: 'Contacted', color: '#0ea5e9', bg: '#e0f2fe' },
+  { id: 'quoted',    label: 'Quoted',    color: '#f59e0b', bg: '#fffbeb' },
+  { id: 'followup',  label: 'Follow-Up', color: '#8b5cf6', bg: '#f5f3ff' },
+  { id: 'won',       label: 'Won',       color: '#10b981', bg: '#ecfdf5' },
+  { id: 'lost',      label: 'Lost',      color: '#ef4444', bg: '#fef2f2' },
+];
 
-  // Render with loader fade
-  function fadeLoader() {
-    var l = document.getElementById('page-loader');
-    var a = document.querySelector('.app');
-    if (l) { l.classList.add('fade-out'); setTimeout(function(){ try{l.parentNode.removeChild(l);}catch(e){} }, 300); }
-    if (a) a.classList.add('loaded');
-  }
+const LEAD_PRIORITIES = [
+  { id: 'hot',    label: '🔴 Hot',    color: '#ef4444' },
+  { id: 'warm',   label: '🟡 Warm',   color: '#f59e0b' },
+  { id: 'cold',   label: '🔵 Cold',   color: '#64748b' },
+];
 
-  setTimeout(function() {
-    try { if (renderFn) renderFn(); } catch(e) { console.error('Page render error:', e); }
-    fadeLoader();
-  }, 20);
-}
+const TRIP_TYPES = ['domestic', 'international', 'honeymoon', 'pilgrimage', 'adventure', 'corporate'];
 
-function handleLogout() {
-  sessionStorage.removeItem('wanago_session');
-  window.location.href = '../index.html';
-}
+// ── STATE ──────────────────────────────────────────────────────
+let _leadsFilter  = 'all';
+let _leadsPriority = 'all';
+let _leadsSearch  = '';
+let _leadsSort    = 'newest';
+let _kanbanMode   = false;
+let _leadsUnsubscribe = null;   // Firestore realtime listener
 
-function goTo(page) { window.location.href = page + '.html'; }
-window.handleLogout = handleLogout;
-window.goTo = goTo;
-
-//  WANAGO ERP — Leads Module
-// ═══════════════════════════════════════════════════════════════
-
-
-
-// ── State ──
-let leadsFilter = 'all';
-let leadsSearchQuery = '';
-let selectedLeadIds = new Set();
-let leadsAiSort = false;
-
-function leadJsArg(value) {
-  return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
-function toggleAiSort() {
-  leadsAiSort = !leadsAiSort;
-  const btn = document.getElementById('ai-sort-btn');
-  if (btn) {
-    btn.style.background = leadsAiSort ? 'var(--g700)' : '';
-    btn.style.color      = leadsAiSort ? '#fff' : '';
-    btn.textContent      = leadsAiSort ? '🤖 AI Sort ON' : '🤖 AI Sort';
-  }
-  renderLeads();
-}
-window.toggleAiSort = toggleAiSort;
-
-// ── Lead Score (AI-powered when available) ──
-function leadScore(l) {
-  if (typeof window.WanagoAI !== 'undefined') return WanagoAI.scoreLeadHeat(l);
-  let s=0;
-  if(l.priority==='hot')s+=40; else if(l.priority==='warm')s+=20;
-  if(l.budget>100000)s+=20; else if(l.budget>50000)s+=10;
-  if(l.followup===today())s+=20;
-  if(['quoted','negotiation'].includes(l.stage))s+=15;
-  if(l.advance>0)s+=10;
-  return Math.min(s,100);
-}
-function scoreBar(score) {
-  const color = score>=70?'var(--g600)':score>=40?'var(--amb)':'var(--red)';
-  let heat = '';
-  if (typeof window.WanagoAI !== 'undefined') {
-    const h = WanagoAI.heatLabel(score);
-    heat = `<div style="font-size:9.5px;font-weight:700;color:${h.color};margin-top:2px;line-height:1">${h.label}</div>`;
-  }
-  return `<div><div style="display:flex;align-items:center;gap:5px"><div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:${score}%;background:${color};border-radius:3px"></div></div><span style="font-size:10px;font-weight:700;color:${color};min-width:22px">${score}</span></div>${heat}</div>`;
-}
-
-// ── Stats ──
-function renderLeadsStats() {
-  const all=hScoped('leads');
-  const open=all.filter(l=>!['won','lost'].includes(l.stage));
-  const won=all.filter(l=>l.stage==='won');
-  const hot=all.filter(l=>l.priority==='hot'&&!['won','lost'].includes(l.stage));
-  const todayStr=today();
-  const overdueFU=open.filter(l=>l.followup&&l.followup<todayStr);
-  const todayFU=open.filter(l=>l.followup===todayStr);
-  const pipeline=open.reduce((s,l)=>s+Number(l.budget||0),0);
-  const cvr=all.length?Math.round(won.length/all.length*100):0;
-  const fmt=n=>n>=100000?'₹'+(n/100000).toFixed(1)+'L':n>=1000?'₹'+(n/1000).toFixed(0)+'K':'₹'+n;
-  const s=id=>{const el=document.getElementById(id);if(el)return el;return{textContent:''}};
-  s('lstat-total').textContent=all.length;
-  s('lstat-hot').textContent=hot.length;
-  s('lstat-won').textContent=won.length;
-  s('lstat-cvr').textContent=cvr+'% CVR';
-  s('lstat-pipeline').textContent=fmt(pipeline);
-  s('lstat-overdue').textContent=overdueFU.length;
-  s('lstat-today').textContent=todayFU.length;
-}
-
-function populateLeadFilters() {
-  const agentSel=document.getElementById('leads-agent-filter');
-  if(agentSel){const cur=agentSel.value;const agents=[...new Set(hScoped('leads').map(l=>l.agent).filter(Boolean))];agentSel.innerHTML='<option value="">All Agents</option>'+agents.map(a=>`<option value="${a}" ${cur===a?'selected':''}>${a}</option>`).join('');}
-  const srcSel=document.getElementById('leads-source-filter');
-  if(srcSel){const cur=srcSel.value;const srcs=[...new Set(hScoped('leads').map(l=>l.source).filter(Boolean))];srcSel.innerHTML='<option value="">All Sources</option>'+srcs.map(s=>`<option value="${s}" ${cur===s?'selected':''}>${s}</option>`).join('');}
-  const pkgSel=document.getElementById('leads-pkg-filter');
-  if(pkgSel){const cur=pkgSel.value;pkgSel.innerHTML='<option value="">All Packages</option>'+(DB.packages||[]).map(p=>`<option value="${p.id}" ${cur===p.id?'selected':''}>${p.name}</option>`).join('');}
-}
-
-// ── Main render ──
-function renderLeads(filter) {
-  if(filter) leadsFilter=filter;
-  renderLeadsStats(); populateLeadFilters();
-  let leads=hScoped('leads');
-  if(leadsFilter!=='all') leads=leads.filter(l=>l.stage===leadsFilter);
-  const q=leadsSearchQuery.toLowerCase();
-  if(q) leads=leads.filter(l=>l.name.toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.destination||'').toLowerCase().includes(q)||(l.email||'').toLowerCase().includes(q));
-  const agentF=document.getElementById('leads-agent-filter')?.value;
-  if(agentF) leads=leads.filter(l=>l.agent===agentF);
-  const priF=document.getElementById('leads-priority-filter')?.value;
-  if(priF) leads=leads.filter(l=>l.priority===priF);
-  const srcF=document.getElementById('leads-source-filter')?.value;
-  if(srcF) leads=leads.filter(l=>l.source===srcF);
-  const pkgF=document.getElementById('leads-pkg-filter')?.value;
-  if(pkgF) leads=leads.filter(l=>l.packageId===pkgF);
-  const dateFrom=document.getElementById('leads-date-from')?.value;
-  const dateTo=document.getElementById('leads-date-to')?.value;
-  if(dateFrom) leads=leads.filter(l=>(l.createdAt||'').slice(0,10)>=dateFrom);
-  if(dateTo) leads=leads.filter(l=>(l.createdAt||'').slice(0,10)<=dateTo);
-
-  // AI sort — order by heat score descending
-  if (leadsAiSort && typeof window.WanagoAI !== 'undefined') {
-    leads = leads.map(l => ({ ...l, _score: WanagoAI.scoreLeadHeat(l) }))
-                 .sort((a, b) => b._score - a._score);
-  }
-
-  const tbody=document.getElementById('leads-tbody');
-  if(!tbody) return;
-  if(!leads.length){tbody.innerHTML=emptyRow(13,'No leads match your filters.');return;}
-  const priIcon={hot:'Hot',warm:'Warm',cold:'Cold'};
-  const priColor={hot:'var(--red)',warm:'var(--amb)',cold:'#3b82f6'};
-  const todayStr=today();
-  tbody.innerHTML=leads.map(l=>{
-    const score=leadScore(l);
-    const isSelected=selectedLeadIds.has(l.id);
-    const pkg=l.packageId?(DB.packages||[]).find(p=>p.id===l.packageId):null;
-    const fuToday=l.followup===todayStr&&!['won','lost'].includes(l.stage);
-    const fuOverdue=l.followup&&l.followup<todayStr&&!['won','lost'].includes(l.stage);
-    const rowBg=isSelected?'background:var(--g50)':fuOverdue?'background:rgba(220,38,38,.05);':fuToday?'background:rgba(245,158,11,.06);':'';
-    return `<tr id="lrow-${l.id}" style="${rowBg}">
-      <td><input type="checkbox" class="lead-checkbox" data-id="${l.id}" ${isSelected?'checked':''} onchange="toggleLeadSelect(this)" style="cursor:pointer"></td>
-      <td><div style="font-weight:600">${l.name} ${priIcon[l.priority]?`<span style="font-size:9.5px;font-weight:700;color:${priColor[l.priority]};background:${priColor[l.priority]}18;border-radius:4px;padding:1px 5px">${priIcon[l.priority]}</span>`:''}</div><div style="font-size:10.5px;color:var(--textd)">${l.phone}</div></td>
-      <td>${l.destination}<br><span style="font-size:10px;color:var(--textd)">${l.tripType==='international'?'Intl':'Dom'}</span></td>
-      <td>${pkg?`<div style="font-size:11px;font-weight:600;color:var(--g700)">${pkg.name}</div>`:`<span style="color:var(--textd);font-size:11px">—</span>`}</td>
-      <td><span class="pill pill-gray" style="font-size:9.5px">${l.source||'—'}</span></td>
-      <td>${stagePill(l.stage)}</td>
-      <td style="min-width:85px">${scoreBar(score)}</td>
-      <td>${l.budget?formatMoney(l.budget):'—'}</td>
-      <td style="color:var(--g600);font-weight:500">${l.advance?formatMoney(l.advance):'—'}</td>
-      <td style="${l.balance>0?'color:var(--red);font-weight:600':'color:var(--textd)'}">${l.balance!=null?formatMoney(l.balance):'—'}</td>
-      <td>${l.agent||'—'}</td>
-      <td style="${fuOverdue?'color:var(--red);font-weight:600':fuToday?'color:var(--amb);font-weight:600':''}">${l.followup?formatDate(l.followup)+(fuOverdue?' Overdue':fuToday?' Today':''):'—'}</td>
-      <td style="white-space:nowrap">
-        <button class="row-btn" onclick="viewLead('${l.id}')">View</button>
-        <button class="row-btn" style="margin-left:3px" onclick="editLead('${l.id}')" title="Edit">Edit</button>
-        <button class="row-btn" style="margin-left:3px;background:#075e54;color:#fff;border-color:#075e54" onclick="openSalesChatWindow('${leadJsArg(l.phone)}','${leadJsArg(l.name)}','lead')" title="Sales Chat">WA</button>
-        <button class="row-btn" style="margin-left:3px;color:var(--red)" onclick="deleteLead('${l.id}')">✕</button>
-      </td>
-    </tr>`;
-  }).join('');
-  updateLeadBulkBar();
-}
-
-function filterLeads(f,el){document.querySelectorAll('#leads-table .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderLeads(f);}
-function searchLeads(q){leadsSearchQuery=q;renderLeads();}
-function isOverdue(d){return d&&d<today();}
-
-// ── Add Lead ──
-function openAddLeadModal(){
-  document.getElementById('l-edit-id').value='';
-  var _el_leads_modal_title=document.getElementById('leads-modal-title');if(_el_leads_modal_title){_el_leads_modal_title.textContent='Add New Lead'}
-  ['l-name','l-phone','l-email','l-dest','l-budget','l-advance','l-balance','l-pax','l-notes','l-traveldate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['l-source','l-triptype','l-priority','l-stage'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const agentSel=document.getElementById('l-agent');
-  if(agentSel){agentSel.innerHTML='<option value="">Unassigned</option>'+(DB.settings.team||[]).map(m=>`<option value="${m.name}">${m.name}</option>`).join('');}
-  populateLeadPackageSelect();
-  const fuEl=document.getElementById('l-followup');if(fuEl)fuEl.value=today();
-  openModal('modal-add-lead');
-}
-
-function calcLeadBalance(){
-  const budget=parseFloat(document.getElementById('l-budget').value)||0;
-  const advance=parseFloat(document.getElementById('l-advance').value)||0;
-  document.getElementById('l-balance').value=Math.max(0,budget-advance);
-}
-
-function onLeadPackageSelect(){
-  const pkgId=document.getElementById('l-package').value; if(!pkgId) return;
-  const pkg=(DB.packages||[]).find(p=>p.id===pkgId); if(!pkg) return;
-  const destEl=document.getElementById('l-dest'); const budgetEl=document.getElementById('l-budget'); const tripEl=document.getElementById('l-triptype');
-  if(destEl&&pkg.destination)destEl.value=pkg.destination;
-  if(budgetEl&&pkg.price){budgetEl.value=pkg.price;calcLeadBalance();}
-  if(tripEl&&pkg.category)tripEl.value=pkg.category==='international'?'international':'domestic';
-}
-
-function populateLeadPackageSelect(){
-  const sel=document.getElementById('l-package'); if(!sel) return;
-  sel.innerHTML='<option value="">No Package — Enter manually</option>';
-  (DB.packages||[]).filter(p=>p.status!=='inactive').forEach(p=>{sel.insertAdjacentHTML('beforeend',`<option value="${p.id}">${p.name}${p.destination?' — '+p.destination:''}${p.price?' (₹'+Number(p.price).toLocaleString('en-IN')+')':''}</option>`);});
-}
-
-function saveLead(){
-  if(!currentUser){showToast('Not authenticated','error');return;}
-  const name=document.getElementById('l-name').value.trim();
-  const phone=document.getElementById('l-phone').value.trim();
-  const dest=document.getElementById('l-dest').value.trim();
-  const source=document.getElementById('l-source').value;
-  if(!name||!phone||!dest||!source){showError('l-error','Name, phone, destination and source are required.');return;}
-  const budget=parseFloat(document.getElementById('l-budget').value)||0;
-  const advance=parseFloat(document.getElementById('l-advance').value)||0;
-  const balance=Math.max(0,budget-advance);
-  const pkgId=document.getElementById('l-package')?.value||'';
-  const existingCust=DB.customers.find(c=>c.phone===phone);
-  const editId=document.getElementById('l-edit-id').value;
-  if(!editId&&phone){const dupLead=DB.leads.find(l=>l.phone===phone);if(dupLead){showError('l-error',`Phone ${phone} already exists for lead "${dupLead.name}". Open and edit that lead instead.`);return;}}
-  const data={
-    name,phone,email:document.getElementById('l-email').value.trim(),
-    destination:dest,tripType:document.getElementById('l-triptype').value||'domestic',
-    source,priority:document.getElementById('l-priority').value||'warm',
-    stage:document.getElementById('l-stage').value||'new',
-    agent:document.getElementById('l-agent').value||'',
-    pax:parseInt(document.getElementById('l-pax').value)||1,
-    travelDate:document.getElementById('l-traveldate').value,
-    budget,advance,balance,
-    packageId:pkgId,
-    followup:document.getElementById('l-followup').value||today(),
-    notes:document.getElementById('l-notes').value,
-    customerId:existingCust?.id||null,
-  };
-  if(editId){
-    const idx=DB.leads.findIndex(l=>l.id===editId);
-    if(idx>-1){ Object.assign(DB.leads[idx],data); dbSave('leads', DB.leads[idx]); }
-    showToast(name+' updated!');
+// ── FIRESTORE HELPERS ──────────────────────────────────────────
+/**
+ * Save a single lead to Firestore + local DB.
+ * Falls back gracefully if dbSave is not available.
+ */
+async function _saveLead(lead) {
+  // Update local DB
+  const idx = DB.leads.findIndex(l => l.id === lead.id);
+  if (idx >= 0) {
+    DB.leads[idx] = lead;
   } else {
-    const _newLead = {id:uid(),...data,officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
-    DB.leads.unshift(_newLead);
-    dbSave('leads', _newLead);
-    if (typeof notifyEvent === 'function') notifyEvent('lead_created', _newLead);
-    showToast(name+' added as lead!');
-    logActivity('New lead: '+name+' → '+dest,'lead');
+    DB.leads.push(lead);
   }
-  saveDB(); closeModal('modal-add-lead'); renderLeads();
-}
+  saveDB();
 
-// ── Bulk selection ──
-function toggleLeadSelect(cb){
-  const id=cb.dataset.id;
-  if(cb.checked)selectedLeadIds.add(id); else selectedLeadIds.delete(id);
-  const row=document.getElementById('lrow-'+id);
-  if(row)row.style.background=cb.checked?'var(--g50)':'';
-  updateLeadBulkBar();
-}
-function toggleSelectAllLeads(cb){
-  document.querySelectorAll('.lead-checkbox').forEach(c=>{
-    c.checked=cb.checked;
-    const id=c.dataset.id;
-    if(cb.checked)selectedLeadIds.add(id); else selectedLeadIds.delete(id);
-    const row=document.getElementById('lrow-'+id);
-    if(row)row.style.background=cb.checked?'var(--g50)':'';
-  });
-  updateLeadBulkBar();
-}
-function updateLeadBulkBar(){
-  const bar=document.getElementById('leads-bulk-bar'); if(!bar) return;
-  if(selectedLeadIds.size>0){bar.style.display='flex';const el=document.getElementById('leads-selected-count');if(el)el.textContent=(selectedLeadIds.size)+' lead'+(selectedLeadIds.size>1?'s':'')+' selected';}
-  else bar.style.display='none';
-}
-function clearBulkSelection(){
-  selectedLeadIds.clear();
-  document.querySelectorAll('.lead-checkbox').forEach(c=>c.checked=false);
-  const all=document.querySelector('#leads-table thead input[type=checkbox]');if(all)all.checked=false;
-  const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';
-}
-function bulkStageChange(stage){
-  if(!selectedLeadIds.size)return;
-  selectedLeadIds.forEach(id=>{const l=DB.leads.find(x=>x.id===id);if(l){l.stage=stage;dbSave('leads',l);}});
-  saveDB(); const count=selectedLeadIds.size; selectedLeadIds.clear();
-  renderLeads(); showToast(`${count} leads moved to "${stage}"`);
-}
-function bulkAssignAgent(){
-  if(!selectedLeadIds.size)return;
-  const team=(DB.settings.team||[]);
-  if(!team.length){showToast('No team members in Admin → Team','error');return;}
-  const old=document.getElementById('bulk-assign-overlay');if(old)old.remove();
-  const ov=document.createElement('div');ov.id='bulk-assign-overlay';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
-  ov.innerHTML=`<div style="background:#fff;border-radius:14px;padding:26px 24px 20px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px">Assign Agent</div>
-    <div style="font-size:12.5px;color:var(--textd);margin-bottom:14px">${selectedLeadIds.size} lead${selectedLeadIds.size>1?'s':''} selected</div>
-    <select id="bulk-assign-agent-sel" class="form-select" style="width:100%;margin-bottom:16px">
-      <option value="">Select agent…</option>
-      ${team.map(m=>`<option value="${m.name}">${m.name}${m.dept?' ('+m.dept+')':''}</option>`).join('')}
-    </select>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('bulk-assign-overlay').remove()">Cancel</button>
-      <button class="btn btn-primary" style="flex:1" onclick="confirmBulkAssignAgent()">Assign</button>
-    </div>
-  </div>`;
-  document.body.appendChild(ov);
-  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
-}
-function confirmBulkAssignAgent(){
-  const agentName=document.getElementById('bulk-assign-agent-sel')?.value;
-  if(!agentName){showToast('Select an agent','error');return;}
-  document.getElementById('bulk-assign-overlay')?.remove();
-  selectedLeadIds.forEach(id=>{const l=DB.leads.find(x=>x.id===id);if(l){l.agent=agentName;dbSave('leads',l);}});
-  saveDB();selectedLeadIds.clear();renderLeads();
-  const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';
-  showToast('Leads assigned to '+agentName+'!');
-}
-function bulkDelete(){
-  if(!selectedLeadIds.size)return;
-  if(!confirm(`Delete ${selectedLeadIds.size} leads? Cannot be undone.`))return;
-  if(typeof dbDelete==='function')selectedLeadIds.forEach(id=>dbDelete('leads',id));
-  DB.leads=DB.leads.filter(l=>!selectedLeadIds.has(l.id));
-  saveDB(); selectedLeadIds.clear(); renderLeads();
-  const bar=document.getElementById('leads-bulk-bar');if(bar)bar.style.display='none';
-  showToast('Leads deleted');
-}
-function bulkExport(){
-  const leads=hScoped('leads').filter(l=>selectedLeadIds.has(l.id));
-  doExportLeads(leads,'selected_leads');
-}
-function bulkExportSelected(){bulkExport();}
-
-// ── View Lead ──
-function viewLead(id){
-  const l=DB.leads.find(x=>x.id===id); if(!l) return;
-  var _el_vl_title=document.getElementById('vl-title');if(_el_vl_title){_el_vl_title.textContent=l.name}
-  document.getElementById('modal-view-lead')._leadId=id;
-  const pkg=l.packageId?(DB.packages||[]).find(p=>p.id===l.packageId):null;
-  document.getElementById('vl-body').innerHTML=`
-    <div class="form-grid" style="margin-bottom:16px">
-      <div><div class="form-label">Phone</div><div style="margin-top:4px;font-size:13px">${l.phone}</div></div>
-      <div><div class="form-label">Email</div><div style="margin-top:4px;font-size:13px">${l.email||'—'}</div></div>
-      <div><div class="form-label">Destination</div><div style="margin-top:4px;font-size:13px">${l.destination}</div></div>
-      <div><div class="form-label">Trip Type</div><div style="margin-top:4px;font-size:13px">${l.tripType==='international'?'International':'Domestic'}</div></div>
-      <div><div class="form-label">Travel Date</div><div style="margin-top:4px;font-size:13px">${formatDate(l.travelDate)}</div></div>
-      <div><div class="form-label">Pax</div><div style="margin-top:4px;font-size:13px">${l.pax||'—'}</div></div>
-      <div><div class="form-label">Package Amount</div><div style="margin-top:4px;font-size:13px;font-weight:600">${l.budget?formatMoney(l.budget):'—'}</div></div>
-      <div><div class="form-label">Advance Paid</div><div style="margin-top:4px;font-size:13px;color:var(--g600);font-weight:600">${l.advance?formatMoney(l.advance):'—'}</div></div>
-      <div><div class="form-label">Balance Due</div><div style="margin-top:4px;font-size:13px;color:var(--red);font-weight:700">${l.balance!=null?formatMoney(l.balance):'—'}</div></div>
-      <div><div class="form-label">Source</div><div style="margin-top:4px">${stagePill(l.source||'other')}</div></div>
-      <div><div class="form-label">Stage</div><div style="margin-top:4px">${stagePill(l.stage)}</div></div>
-      <div><div class="form-label">Priority</div><div style="margin-top:4px;font-size:13px;font-weight:600;color:${l.priority==='hot'?'var(--red)':l.priority==='warm'?'var(--amb)':'#3b82f6'}">${l.priority==='hot'?'Hot':l.priority==='warm'?'Warm':'Cold'}</div></div>
-      <div><div class="form-label">Agent</div><div style="margin-top:4px;font-size:13px">${l.agent||'Unassigned'}</div></div>
-      <div><div class="form-label">Follow-up</div><div style="margin-top:4px;font-size:13px;${isOverdue(l.followup)?'color:var(--red);font-weight:600':''}">${formatDate(l.followup)||'—'}${isOverdue(l.followup)?' Overdue':''}</div></div>
-      ${pkg?`<div style="grid-column:1/-1"><div class="form-label">Package</div><div style="margin-top:4px;font-size:13px;font-weight:600;color:var(--g700)">${pkg.name}</div></div>`:''}
-      ${l.notes?`<div style="grid-column:1/-1"><div class="form-label">Notes</div><div style="margin-top:4px;font-size:13px;background:var(--cream);padding:10px;border-radius:8px">${l.notes}</div></div>`:''}
-    </div>
-    <div class="form-section">Update Stage</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-      ${['new','contacted','follow_up','quoted','negotiation','won','lost'].map(s=>`<button class="btn btn-sm ${l.stage===s?'btn-primary':'btn-outline'}" onclick="updateLeadStage('${l.id}','${s}')">${s.replace('_',' ')}</button>`).join('')}
-    </div>
-    <div class="form-section">Finance</div>
-    <div class="form-grid" style="margin-bottom:12px">
-      <div class="form-group"><label class="form-label">Budget</label><input class="form-input" type="number" id="vl-budget" value="${l.budget||0}"></div>
-      <div class="form-group"><label class="form-label">Advance Paid</label><input class="form-input" type="number" id="vl-advance" value="${l.advance||0}" oninput="updateLeadBalance()"></div>
-      <div class="form-group"><label class="form-label">Balance</label><input class="form-input" id="vl-balance" readonly value="${l.balance||0}" style="background:var(--cream)"></div>
-    </div>
-    <button class="btn btn-sm btn-green" onclick="saveLeadFinancials('${l.id}')">Save Finance</button>
-    <div class="form-section" style="margin-top:14px">Log Follow-up</div>
-    <div class="form-grid">
-      <div class="form-group"><label class="form-label">Next Follow-up Date</label>
-        <input class="form-input" type="date" id="vl-followup" value="${l.followup||today()}">
-        <div style="display:flex;gap:4px;margin-top:5px">
-          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(0)">Today</button>
-          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(1)">+1d</button>
-          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(3)">+3d</button>
-          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(7)">+1wk</button>
-          <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="quickSetFollowup(14)">+2wk</button>
-        </div>
-      </div>
-      <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="vl-fupnote" placeholder="Call about pricing..."></div>
-    </div>
-    <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="logFollowUp()">Save Follow-up</button>
-    ${(l.followupLog||[]).length?`<div class="form-section" style="margin-top:14px">Activity Log</div><div style="border-left:2px solid var(--border);padding-left:12px;margin-left:4px;max-height:200px;overflow-y:auto">${[...(l.followupLog||[])].reverse().map(e=>`<div style="margin-bottom:9px;position:relative"><div style="position:absolute;left:-16px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--g400);border:2px solid #fff"></div><div style="font-size:10.5px;color:var(--textd)">${formatDate(e.date)}${e.by?' · '+e.by:''}</div><div style="font-size:12px;color:var(--text);margin-top:1px">${e.note}</div></div>`).join('')}</div>`:''}
-    <div class="form-section" style="margin-top:14px">Attachments</div>
-    <div id="vl-attach-list">${_renderLeadAttachments(l)}</div>
-    <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block;margin-top:6px">
-      <input type="file" style="display:none" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="uploadLeadFiles('${l.id}',this)">
-      Attach Files
-    </label>
-    <div id="vl-upload-progress" style="display:none;font-size:11px;color:var(--g600);margin-top:4px"></div>
-    <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-sm btn-primary" onclick="editLead('${l.id}')">Edit</button>
-      <button class="btn btn-sm btn-outline" onclick="openSalesChatWindow('${l.phone}','${l.name}','lead')">Chat</button>
-      ${!['won','lost'].includes(l.stage)?(l.quotationId?`<button class="btn btn-sm btn-outline" style="color:var(--blue)" onclick="closeModal('modal-view-lead');goTo('quotations')">View Quote</button>`:`<button class="btn btn-sm btn-green" onclick="createQuotationFromLead('${l.id}');closeModal('modal-view-lead');showToast('Quotation created!');goTo('quotations')">Create Quote</button>`):''}
-      ${l.stage==='won'?`<button class="btn btn-sm btn-green" onclick="convertLeadToBooking('${l.id}')">Convert to Booking</button>`:''}
-      <button class="btn btn-sm btn-outline" style="margin-left:auto;color:var(--red)" onclick="deleteLead('${l.id}')">Delete</button>
-    </div>`;
-  openModal('modal-view-lead');
-}
-
-function updateLeadBalance(){
-  const b=parseFloat(document.getElementById('vl-budget')?.value)||0;
-  const a=parseFloat(document.getElementById('vl-advance')?.value)||0;
-  const el=document.getElementById('vl-balance');if(el)el.value=Math.max(0,b-a);
-}
-function saveLeadFinancials(id){
-  const l=DB.leads.find(x=>x.id===id);if(!l)return;
-  l.budget=parseFloat(document.getElementById('vl-budget').value)||0;
-  l.advance=parseFloat(document.getElementById('vl-advance').value)||0;
-  l.balance=Math.max(0,l.budget-l.advance);
-  dbSave('leads',l);saveDB();renderLeads();showToast('Finance updated!');viewLead(id);
-}
-function updateLeadStage(id,stage){
-  const l=DB.leads.find(x=>x.id===id);if(!l)return;
-  l.stage=stage;dbSave('leads',l);saveDB();renderLeads();showToast(l.name+' → '+stage.replace('_',' '));viewLead(id);
-}
-function logFollowUp(){
-  const id=document.getElementById('modal-view-lead')._leadId;
-  const l=DB.leads.find(x=>x.id===id);if(!l)return;
-  const date=document.getElementById('vl-followup').value;
-  const note=document.getElementById('vl-fupnote').value;
-  l.followup=date;
-  if(note){if(!l.followupLog)l.followupLog=[];l.followupLog.push({date:today(),note,by:currentUser?.name||'Admin'});}
-  dbSave('leads',l);saveDB();renderLeads();showToast('Follow-up saved for '+formatDate(date));viewLead(id);
-}
-function deleteLead(id){
-  if(typeof canUserDoAction==='function'&&!canUserDoAction('delete_lead')){showToast('No permission to delete leads','error');return;}
-  const l=DB.leads.find(x=>x.id===id);if(!l)return;
-  if(!confirm('Delete lead '+l.name+'?'))return;
-  DB.leads=DB.leads.filter(x=>x.id!==id);
-  dbDelete('leads',id);
-  saveDB();closeModal('modal-view-lead');renderLeads();showToast('Lead removed');
-}
-
-// ── Edit Lead ──
-function editLead(id){
-  const l=DB.leads.find(x=>x.id===id);if(!l)return;
-  closeModal('modal-view-lead');
-  document.getElementById('l-edit-id').value=l.id;
-  var _el_leads_modal_title=document.getElementById('leads-modal-title');if(_el_leads_modal_title){_el_leads_modal_title.textContent='Edit Lead'}
-  const fld=(i,v)=>{const el=document.getElementById(i);if(el)el.value=v||'';};
-  fld('l-name',l.name);fld('l-phone',l.phone);fld('l-email',l.email);
-  fld('l-dest',l.destination);fld('l-budget',l.budget);fld('l-advance',l.advance);
-  fld('l-balance',l.balance);fld('l-pax',l.pax||2);fld('l-notes',l.notes);
-  fld('l-traveldate',l.travelDate);fld('l-followup',l.followup||today());
-  fld('l-source',l.source);fld('l-triptype',l.tripType||'domestic');
-  fld('l-priority',l.priority||'warm');fld('l-stage',l.stage||'new');
-  const agentSel=document.getElementById('l-agent');
-  if(agentSel){agentSel.innerHTML='<option value="">Unassigned</option>'+(DB.settings.team||[]).map(m=>`<option value="${m.name}"${m.name===l.agent?' selected':''}>${m.name}</option>`).join('');agentSel.value=l.agent||'';}
-  populateLeadPackageSelect();
-  setTimeout(()=>{const pkgEl=document.getElementById('l-package');if(pkgEl)pkgEl.value=l.packageId||'';},50);
-  openModal('modal-add-lead');
-}
-
-// ── Create Quotation from Lead ──
-function createQuotationFromLead(leadId){
-  const l=DB.leads.find(x=>x.id===leadId);if(!l)return;
-  if(!DB.quotations)DB.quotations=[];
-  if(l.quotationId&&DB.quotations.find(q=>q.id===l.quotationId)){showToast('Quotation already exists for this lead');return;}
-  if(!DB.counters)DB.counters={};
-  const qId='QT-'+String((DB.counters.quotations=(DB.counters.quotations||0)+1)).padStart(4,'0');
-  const quot={id:qId,leadId:l.id,customerName:l.name,customerPhone:l.phone,customerEmail:l.email||'',destination:l.destination,tripType:l.tripType||'domestic',travelDate:l.travelDate||'',pax:l.pax||2,amount:l.budget||0,grandTotal:l.budget||0,packageId:l.packageId||'',agent:l.agent||'',status:'draft',validDays:15,officeId:l.officeId||officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
-  DB.quotations.unshift(quot);
-  l.quotationId=qId;dbSave('quotations',quot);dbSave('leads',l);saveDB();
-  logActivity('Quotation '+qId+' created from lead '+l.name,'quotation');
-}
-
-// ── Convert Won Lead to Booking ──
-function convertLeadToBooking(leadId){
-  const l=DB.leads.find(x=>x.id===leadId);if(!l)return;
-  sessionStorage.setItem('wanago_prefill_booking',JSON.stringify({leadId:l.id,customerName:l.name,customerPhone:l.phone,customerEmail:l.email||'',destination:l.destination,tripType:l.tripType||'domestic',travelDate:l.travelDate||'',pax:l.pax||2,totalAmount:l.budget||0,advancePaid:l.advance||0,packageId:l.packageId||'',agent:l.agent||'',source:'lead'}));
-  closeModal('modal-view-lead');
-  showToast('Opening Bookings — lead data pre-filled! ✅');
-  goTo('bookings');
-}
-
-// ── Quick set follow-up date offset (days from today) ──
-function quickSetFollowup(days){
-  const d=new Date();d.setDate(d.getDate()+days);
-  const el=document.getElementById('vl-followup');if(el)el.value=d.toISOString().slice(0,10);
-}
-
-// ── Analytics ──
-function renderLeadsAnalytics(){
-  const all=hScoped('leads');
-  const stages=[{key:'new',label:'New'},{key:'contacted',label:'Contacted'},{key:'follow_up',label:'Follow-up'},{key:'quoted',label:'Quoted'},{key:'negotiation',label:'Negotiation'},{key:'won',label:'Won'}];
-  const total=all.length||1;
-  const colors=['#134a32','#1a6341','#228050','#2da065','#52c285','#c9a84c'];
-  const fw=document.getElementById('leads-funnel-wrap');
-  if(fw)fw.innerHTML=stages.map((s,i)=>{const c=all.filter(l=>l.stage===s.key).length;const pct=Math.max(3,c/total*100);return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span>${s.label}</span><span style="font-weight:700">${c} (${Math.round(c/total*100)}%)</span></div><div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:4px"></div></div></div>`;}).join('');
-  const srcs={};all.forEach(l=>{const s=l.source||'Unknown';srcs[s]=(srcs[s]||0)+1;});
-  const sc=document.getElementById('leads-source-chart');
-  if(sc)sc.innerHTML=Object.entries(srcs).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([src,cnt],i)=>{const pct=Math.max(4,cnt/total*100);const clrs=['var(--g500)','var(--blue)','var(--amb)','#7c3aed','var(--red)','var(--g300)','var(--g700)','#e91e8c'];return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span>${src}</span><span style="font-weight:700">${cnt}</span></div><div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${clrs[i%clrs.length]};border-radius:4px"></div></div></div>`;}).join('');
-  const agents={};all.forEach(l=>{const a=l.agent||'Unassigned';if(!agents[a])agents[a]={total:0,won:0};agents[a].total++;if(l.stage==='won')agents[a].won++;});
-  const at=document.getElementById('leads-agent-table');
-  if(at)at.innerHTML='<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px">Agent</th><th style="text-align:center;padding:4px 8px">Leads</th><th style="text-align:center;padding:4px 8px">Won</th><th style="text-align:center;padding:4px 8px">CVR</th></tr></thead><tbody>'+Object.entries(agents).sort((a,b)=>b[1].total-a[1].total).map(([name,d])=>`<tr><td style="padding:4px 8px">${name}</td><td style="text-align:center;padding:4px 8px">${d.total}</td><td style="text-align:center;padding:4px 8px;color:var(--g600);font-weight:600">${d.won}</td><td style="text-align:center;padding:4px 8px"><span style="background:${d.won/d.total>=.2?'var(--g50)':'var(--red2)'};color:${d.won/d.total>=.2?'var(--g700)':'var(--red)'};padding:2px 8px;border-radius:8px;font-size:10.5px">${Math.round(d.won/d.total*100)}%</span></td></tr>`).join('')+'</tbody></table>';
-  const mc=document.getElementById('leads-monthly-chart');
-  if(mc){
-    const months=[];
-    for(let i=11;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
-    const totals={},wons={};
-    months.forEach(m=>{totals[m]=0;wons[m]=0;});
-    all.forEach(l=>{const m=(l.createdAt||'').slice(0,7);if(totals[m]!==undefined){totals[m]++;if(l.stage==='won')wons[m]++;}});
-    const maxVal=Math.max(1,...months.map(m=>totals[m]));
-    const hasData=months.some(m=>totals[m]>0);
-    if(!hasData){
-      mc.innerHTML='<div style="color:var(--textd);font-size:12px;padding:20px;text-align:center">Add more leads to see trend</div>';
-    } else {
-      const lbl=m=>new Date(m+'-02').toLocaleString('default',{month:'short'});
-      mc.innerHTML=
-        `<div style="display:flex;align-items:flex-end;gap:3px;height:104px;padding:4px 2px 0">`+
-        months.map(m=>{
-          const cnt=totals[m],won=wons[m];
-          const barH=Math.max(cnt>0?4:0,Math.round(cnt/maxVal*84));
-          const wonH=cnt>0&&won>0?Math.round(won/cnt*barH):0;
-          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center">`+
-            `<div style="font-size:8.5px;font-weight:700;color:var(--g700);min-height:12px;line-height:12px">${cnt||''}</div>`+
-            `<div style="flex:1;width:100%;display:flex;align-items:flex-end">`+
-            `<div style="width:100%;height:${barH}px;background:var(--g200);border-radius:3px 3px 0 0;position:relative;overflow:hidden">`+
-            (wonH?`<div style="position:absolute;bottom:0;left:0;right:0;height:${wonH}px;background:var(--g600)"></div>`:'')+
-            `</div></div>`+
-            `<div style="font-size:8.5px;color:var(--textd);margin-top:3px;white-space:nowrap">${lbl(m)}</div>`+
-            `</div>`;
-        }).join('')+
-        `</div>`+
-        `<div style="display:flex;gap:14px;justify-content:center;margin-top:6px;padding-bottom:2px">`+
-        `<span style="font-size:10px;color:var(--textd);display:flex;align-items:center;gap:4px"><span style="width:10px;height:6px;background:var(--g200);border-radius:2px;display:inline-block"></span>Added</span>`+
-        `<span style="font-size:10px;color:var(--textd);display:flex;align-items:center;gap:4px"><span style="width:10px;height:6px;background:var(--g600);border-radius:2px;display:inline-block"></span>Won</span>`+
-        `</div>`;
+  // Persist to Firestore
+  if (typeof window.dbSave === 'function') {
+    try {
+      await window.dbSave('leads', lead);
+    } catch (e) {
+      console.warn('[Leads] Firestore save failed, queued locally:', e.message);
     }
   }
 }
 
-// ── Bulk Stage (from Bulk tab) ──
-function runBulkStageUpdate(){
-  const from=document.getElementById('bulk-from-stage').value;
-  const to=document.getElementById('bulk-to-stage').value;
-  if(!to){showToast('Select target stage','error');return;}
-  let leads=hScoped('leads');
-  if(from)leads=leads.filter(l=>l.stage===from);
-  if(!leads.length){showToast('No leads match','error');return;}
-  if(!confirm(`Move ${leads.length} leads to "${to.replace('_',' ')}"?`))return;
-  leads.forEach(l=>{l.stage=to;dbSave('leads',l);});saveDB();renderLeads();showToast(leads.length+' leads updated!');
-}
-function findStaleLeads(){
-  const cutoff=new Date(Date.now()-14*86400000).toISOString().slice(0,10);
-  const stale=hScoped('leads').filter(l=>!['won','lost'].includes(l.stage)&&(l.createdAt||'').slice(0,10)<cutoff&&(!l.followup||l.followup<cutoff));
-  const el=document.getElementById('stale-leads-result');
-  if(el)el.innerHTML=stale.length?`<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">${stale.length} stale leads found</div>`+stale.map(l=>`<div style="padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;font-size:12px"><strong>${l.name}</strong> — ${l.destination} — ${l.agent||'Unassigned'}</div>`).join(''):'<div style="color:var(--g600);font-size:12px">No stale leads found!</div>';
-}
-function previewWABlast(){showToast('WhatsApp blast — go to WhatsApp page');}
+/**
+ * Delete a lead from Firestore + local DB.
+ */
+async function _deleteLead(leadId) {
+  DB.leads = DB.leads.filter(l => l.id !== leadId);
+  saveDB();
 
-// ── Follow-ups ──
-function renderFollowUps(){
-  const today_d=new Date(today()); const weekEnd=new Date(today());weekEnd.setDate(weekEnd.getDate()+7);
-  const withFU=hScoped('leads').filter(l=>l.followup&&!['won','lost'].includes(l.stage));
-  const overdue=withFU.filter(l=>new Date(l.followup)<today_d);
-  const dueToday=withFU.filter(l=>new Date(l.followup).toDateString()===today_d.toDateString());
-  const thisWeek=withFU.filter(l=>{const d=new Date(l.followup);return d>today_d&&d<=weekEnd;});
-  const s=id=>{const el=document.getElementById(id);if(el)return el;return{textContent:''}};
-  s('fu-overdue').textContent=overdue.length;s('fu-today').textContent=dueToday.length;s('fu-week').textContent=thisWeek.length;
-  const all=[...overdue,...dueToday,...thisWeek];
-  const tbody=document.getElementById('followups-tbody');
-  tbody.innerHTML=all.length?all.map(l=>{
-    const isOvd=new Date(l.followup)<today_d; const isDue=new Date(l.followup).toDateString()===today_d.toDateString();
-    return `<tr><td><div style="font-weight:600">${l.name}</div><div style="font-size:10.5px;color:var(--textd)">${l.phone}</div></td><td>${l.destination}</td><td>${stagePill(l.stage)}</td><td style="${isOvd?'color:var(--red);font-weight:600':isDue?'color:var(--amb);font-weight:600':''}">${formatDate(l.followup)}</td><td>${isOvd?PILL.red('Overdue'):isDue?PILL.amber('Due Today'):PILL.gray('Upcoming')}</td><td><button class="row-btn" onclick="viewLead('${l.id}')">View</button></td></tr>`;
-  }).join(''):emptyRow(6,'No follow-ups scheduled');
+  if (typeof window.dbDelete === 'function') {
+    try {
+      await window.dbDelete('leads', leadId);
+    } catch (e) {
+      console.warn('[Leads] Firestore delete failed, removed locally:', e.message);
+    }
+  }
 }
 
-// ── LEAD BOARD ──
-function renderLeadBoard(){
-  const STAGES=['new','contacted','follow_up','quoted','negotiation','won','lost'];
-  const LABELS={new:'New',contacted:'Contacted',follow_up:'Follow-up',quoted:'Quoted',negotiation:'Negotiation',won:'Won',lost:'Lost'};
-  const EMOJI={new:'',contacted:'',follow_up:'',quoted:'',negotiation:'',won:'',lost:''};
-  const COLORS={new:'#1976d2',contacted:'#00796b',follow_up:'#f57c00',quoted:'#1a6341',negotiation:'#7c3aed',won:'#228050',lost:'#c62828'};
-  const board=document.getElementById('kanban-board');if(!board)return;
-  const agents=[...new Set(hScoped('leads').map(l=>l.agent).filter(Boolean))];
-  const agentSel=document.getElementById('board-agent-filter');
-  if(agentSel){const cur=agentSel.value;agentSel.innerHTML='<option value="">All Agents</option>'+agents.map(a=>`<option value="${a}" ${cur===a?'selected':''}>${a}</option>`).join('');}
-  const search=(document.getElementById('board-search')?.value||'').toLowerCase();
-  const agentF=document.getElementById('board-agent-filter')?.value||'';
-  const priorityF=document.getElementById('board-priority-filter')?.value||'';
-  let allLeads=hScoped('leads');
-  if(search)allLeads=allLeads.filter(l=>l.name.toLowerCase().includes(search)||(l.destination||'').toLowerCase().includes(search));
-  if(agentF)allLeads=allLeads.filter(l=>l.agent===agentF);
-  if(priorityF)allLeads=allLeads.filter(l=>l.priority===priorityF);
-  const pipeline=allLeads.filter(l=>!['won','lost'].includes(l.stage)).reduce((s,l)=>s+Number(l.budget||0),0);
-  const statsEl=document.getElementById('board-stats');
-  if(statsEl)statsEl.innerHTML=`<span style="font-weight:600;color:var(--g700)">${allLeads.length}</span> leads &nbsp;·&nbsp; Pipeline: <span style="font-weight:600;color:var(--g700)">${formatMoney(pipeline)}</span>`;
-  board.innerHTML='<div style="display:grid;grid-template-columns:repeat(7,minmax(210px,1fr));gap:10px;min-width:1400px;padding-bottom:8px">'+
-    STAGES.map(s=>{
-      const sL=allLeads.filter(l=>l.stage===s);
-      const col=COLORS[s];
-      const amt=sL.reduce((sum,l)=>sum+Number(l.budget||0),0);
-      return `<div style="display:flex;flex-direction:column;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--cream);min-height:400px" ondragover="event.preventDefault();this.style.outline='2px dashed ${col}'" ondragleave="this.style.outline='none'" ondrop="wsKanbanDrop(event,'${s}');this.style.outline='none'">
-        <div style="background:${col};padding:10px 12px;flex-shrink:0">
-          <div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:6px"><span>${EMOJI[s]}</span><span style="font-size:12px;font-weight:700;color:#fff">${LABELS[s]}</span></div><span style="background:rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:1px 8px;font-size:10.5px;font-weight:700">${sL.length}</span></div>
-          ${amt>0?`<div style="font-size:10px;color:rgba(255,255,255,.75);margin-top:3px">💰 ${formatMoney(amt)}</div>`:''}
-        </div>
-        <div style="padding:8px;display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;max-height:500px">
-          ${sL.map(l=>{
-            const ovd=l.followup&&l.followup<today();
-            const ini=(l.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
-            const score=leadScore(l); const sc=score>=70?'var(--g500)':score>=40?'var(--amb)':'var(--red)';
-            return `<div class="kanban-card" draggable="true" ondragstart="wsKanbanDragStart(event,'${l.id}')" ondragend="this.style.opacity='1'" onclick="viewLead('${l.id}')" style="border-left:3px solid ${col};cursor:grab">
-              <div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:7px">
-                <div style="width:26px;height:26px;border-radius:7px;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${ini}</div>
-                <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.name}${l.priority==='hot'?`<span style="font-size:8.5px;font-weight:700;color:var(--red);background:rgba(220,38,38,.1);border-radius:3px;padding:1px 4px;margin-left:3px">Hot</span>`:l.priority==='warm'?`<span style="font-size:8.5px;font-weight:700;color:var(--amb);background:rgba(245,158,11,.1);border-radius:3px;padding:1px 4px;margin-left:3px">Warm</span>`:''}</div><div style="font-size:10px;color:var(--textd)">${l.destination||'—'}</div></div>
-              </div>
-              ${l.budget?`<div style="font-size:11.5px;font-weight:700;color:var(--g700);margin-bottom:5px">₹${Number(l.budget).toLocaleString('en-IN')}</div>`:''}
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:10px;color:var(--textd)">${l.agent||'Unassigned'}</span>${l.followup?`<span style="font-size:10px;font-weight:600;color:${ovd?'var(--red)':'var(--textd)'}">${ovd?'Overdue · ':''}${formatDate(l.followup)}</span>`:''}</div>
-              <div style="display:flex;align-items:center;gap:4px;margin-bottom:7px"><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${score}%;background:${sc};border-radius:2px"></div></div><span style="font-size:9px;font-weight:700;color:${sc}">${score}</span></div>
-              <div style="display:flex;gap:4px;border-top:1px solid var(--border);padding-top:6px">
-                <button onclick="event.stopPropagation();viewLead('${l.id}')" style="flex:1;background:var(--g50);border:1px solid var(--g200);color:var(--g700);border-radius:6px;padding:3px 0;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit">View</button>
-                <button onclick="event.stopPropagation();openSalesChatWindow('${l.phone}','${l.name}','lead')" style="background:#075e54;border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">WA</button>
-                ${s!=='won'&&s!=='lost'?`<button onclick="event.stopPropagation();boardAdvance('${l.id}')" title="Next stage" style="background:${col};border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">→</button>`:''}
-              </div>
-            </div>`;
-          }).join('')}
-          ${!sL.length?`<div style="text-align:center;padding:20px 8px;color:var(--textd);font-size:11px;border:2px dashed var(--border2);border-radius:8px">Drop leads here</div>`:''}
-          <button onclick="boardAddLead('${s}')" style="width:100%;background:none;border:1px dashed var(--border2);border-radius:8px;padding:7px;font-size:11.5px;color:var(--textd);cursor:pointer;font-family:inherit;margin-top:auto">+ Add Lead</button>
-        </div>
-      </div>`;
-    }).join('')+'</div>';
-}
-function renderKanban(){renderLeadBoard();}
-function boardAdvance(id){
-  const STAGES=['new','contacted','follow_up','quoted','negotiation','won'];
-  const l=DB.leads.find(x=>x.id===id);if(!l)return;
-  const idx=STAGES.indexOf(l.stage);if(idx<0||idx>=STAGES.length-1)return;
-  l.stage=STAGES[idx+1];dbSave('leads',l);saveDB();renderLeadBoard();renderLeads();
-  showToast(l.name+' → '+l.stage.replace('_',' '));
-}
-function boardAddLead(stage){openAddLeadModal();setTimeout(()=>{const el=document.getElementById('l-stage');if(el)el.value=stage;},100);}
+/**
+ * Subscribe to realtime Firestore updates.
+ * Re-renders the list whenever Firestore pushes changes.
+ */
+function _subscribeLeads() {
+  if (typeof window.dbListen !== 'function') return;
+  if (_leadsUnsubscribe) { _leadsUnsubscribe(); _leadsUnsubscribe = null; }
 
-window.wsKanbanDragStart=function(e,id){e.dataTransfer.setData('leadId',id);e.currentTarget.style.opacity='0.5';};
-window.wsKanbanDrop=function(e,stage){
-  e.preventDefault();e.currentTarget.style.outline='none';
-  const leadId=e.dataTransfer.getData('leadId');
-  const l=DB.leads.find(x=>x.id===leadId);if(!l)return;
-  const old=l.stage;l.stage=stage;dbSave('leads',l);saveDB();renderLeadBoard();renderLeads();
-  showToast(l.name+' → '+stage.replace('_',' '));
-  logActivity('Lead '+l.name+' moved from '+old+' to '+stage,'lead');
-};
-
-// ── CSV Import ──
-function openCSVImport(){
-  openModal('modal-csv-import');
-  document.getElementById('modal-csv-import-body').innerHTML=`
-    <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Step 1: Download the template</div><button class="btn btn-sm btn-outline" onclick="downloadCSVTemplate()">Download Template</button></div>
-    <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Step 2: Upload your filled CSV</div>
-      <div onclick="document.getElementById('csv-file-inp').click()" style="border:2px dashed var(--border2);border-radius:10px;padding:24px;text-align:center;cursor:pointer;background:var(--cream)" onmouseover="this.style.borderColor='var(--g400)'" onmouseout="this.style.borderColor='var(--border2)'">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Click to upload CSV</div><div style="font-size:11.5px;color:var(--textd);margin-top:4px">Supports .csv files only</div>
-      </div>
-      <input type="file" id="csv-file-inp" accept=".csv" style="display:none" onchange="handleCSVFile(this)">
-    </div>
-    <div id="csv-preview-area"></div>
-    <div class="modal-footer" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
-      <button class="btn btn-outline" onclick="closeModal('modal-csv-import')">Cancel</button>
-      <button class="btn btn-primary" id="csv-import-btn" style="display:none" onclick="confirmCSVImport()">Import Leads</button>
-    </div>`;
-}
-function downloadCSVTemplate(){
-  const csv=`Name,Phone,Email,Destination,Source,Budget,Priority,Agent,Notes\nRahul Sharma,9447000001,rahul@email.com,Maldives,Instagram,150000,hot,Agent Name,Honeymoon package`;
-  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='wanago_leads_template.csv';a.click();showToast('Template downloaded!');
-}
-let _csvRows=[];
-function handleCSVFile(input){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const lines=e.target.result.split('\n').filter(l=>l.trim());if(!lines.length)return;
-    const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z_]/g,''));
-    _csvRows=[];
-    for(let i=1;i<lines.length;i++){const vals=lines[i].split(',').map(v=>v.trim().replace(/^"|"$/g,''));if(!vals[0]?.trim())continue;const row={};headers.forEach((h,j)=>row[h]=vals[j]||'');_csvRows.push(row);}
-    const prev=document.getElementById('csv-preview-area');if(!prev)return;
-    const btn=document.getElementById('csv-import-btn');if(btn){btn.style.display='';btn.textContent='Import '+_csvRows.length+' Leads';}
-    prev.innerHTML=`<div style="font-size:12.5px;font-weight:600;color:var(--g700);margin-bottom:8px">Found ${_csvRows.length} leads to import:</div><div style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr style="background:var(--cream)"><th style="padding:6px 10px;text-align:left">Name</th><th style="padding:6px 10px;text-align:left">Phone</th><th style="padding:6px 10px;text-align:left">Destination</th></tr></thead><tbody>${_csvRows.slice(0,8).map(r=>`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${r.name||'—'}</td><td style="padding:6px 10px">${r.phone||'—'}</td><td style="padding:6px 10px">${r.destination||'—'}</td></tr>`).join('')}${_csvRows.length>8?`<tr><td colspan="3" style="padding:6px 10px;color:var(--textd);text-align:center">...and ${_csvRows.length-8} more</td></tr>`:''}</tbody></table></div>`;
-  };
-  reader.readAsText(file);
-}
-function confirmCSVImport(){
-  let added=0,skipped=0;
-  _csvRows.forEach(row=>{
-    const name=(row.name||'').trim();if(!name){skipped++;return;}
-    const phone=(row.phone||'').trim();
-    if(phone&&DB.leads.find(l=>l.phone===phone)){skipped++;return;}
-    const _nl={id:uid(),name,phone,email:row.email||'',destination:row.destination||'',source:row.source||'CSV Import',budget:parseFloat(row.budget)||0,priority:row.priority||'warm',agent:row.agent||'',notes:row.notes||'',stage:'new',officeId:officeIdForNewRecord(),createdBy:createdByStamp(),createdAt:new Date().toISOString()};
-    DB.leads.unshift(_nl);dbSave('leads',_nl);
-    added++;
+  _leadsUnsubscribe = window.dbListen('leads', (firestoreLeads) => {
+    if (!Array.isArray(firestoreLeads)) return;
+    // Merge Firestore truth into local DB (Firestore wins)
+    DB.leads = firestoreLeads;
+    saveDB({ silent: true });
+    _renderLeads();
+    _renderLeadStats();
   });
-  saveDB();_csvRows=[];closeModal('modal-csv-import');renderLeads();
-  showToast(`✅ ${added} leads imported!${skipped?' ('+skipped+' skipped)':''}`);
 }
 
-// ── Exports ──
-function exportAllLeads(){doExportLeads(hScoped('leads'),'all_leads');}
-function exportFilteredLeads(){let leads=hScoped('leads');if(leadsFilter!=='all')leads=leads.filter(l=>l.stage===leadsFilter);if(leadsSearchQuery)leads=leads.filter(l=>l.name.toLowerCase().includes(leadsSearchQuery));doExportLeads(leads,'filtered_leads');}
-function exportSelectedLeads(){const leads=hScoped('leads').filter(l=>selectedLeadIds.has(l.id));if(!leads.length){showToast('Select leads from table first','error');return;}doExportLeads(leads,'selected_leads');}
-function doExportLeads(leads,filename){
-  if(!leads.length){showToast('No leads to export','error');return;}
-  const csv='Name,Phone,Email,Destination,Stage,Priority,Source,Budget,Agent,Follow-up,Notes\n'+leads.map(l=>[l.name,l.phone,l.email||'',l.destination,l.stage,l.priority||'',l.source||'',l.budget||0,l.agent||'',l.followup||'',l.notes||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='wanago_'+filename+'_'+today()+'.csv';a.click();
-  showToast(leads.length+' leads exported!');
+// ── UTILS ──────────────────────────────────────────────────────
+function _nextLeadId() {
+  DB.counters = DB.counters || {};
+  DB.counters.leads = (DB.counters.leads || 0) + 1;
+  return 'L' + String(DB.counters.leads).padStart(4, '0');
 }
 
-// ── Bulk Assign (from tab) ──
-function populateBulkAgentSelects(){
-  const agents=[...new Set([...(DB.settings.team||[]).map(m=>m.name),...hScoped('leads').map(l=>l.agent)].filter(Boolean))];
-  ['bulk-from-agent','bulk-to-agent'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const cur=el.value;el.innerHTML=(id==='bulk-from-agent'?'<option value="">Any agent</option>':'<option value="">Select agent</option>')+agents.map(a=>`<option value="${a}" ${cur===a?'selected':''}>${a}</option>`).join('');});
-}
-function previewBulkAssign(){const fa=document.getElementById('bulk-from-agent')?.value||'';const c=hScoped('leads').filter(l=>!fa||l.agent===fa).length;const el=document.getElementById('bulk-assign-preview');if(el)el.textContent=c+' leads will be reassigned';}
-function runBulkAssign(){
-  const fa=document.getElementById('bulk-from-agent')?.value||'';const ta=document.getElementById('bulk-to-agent')?.value;
-  if(!ta){showToast('Select an agent','error');return;}
-  const leads=hScoped('leads').filter(l=>!fa||l.agent===fa);
-  if(!leads.length){showToast('No matching leads','error');return;}
-  if(!confirm(`Assign ${leads.length} leads to ${ta}?`))return;
-  leads.forEach(l=>{l.agent=ta;dbSave('leads',l);});saveDB();renderLeads();showToast(leads.length+' leads assigned to '+ta+'!');
+function _nowISO() { return new Date().toISOString(); }
+
+function _stageInfo(stageId) {
+  return LEAD_STAGES.find(s => s.id === stageId) || LEAD_STAGES[0];
 }
 
-// ── Nav ──
+function _priorityInfo(pId) {
+  return LEAD_PRIORITIES.find(p => p.id === pId) || LEAD_PRIORITIES[1];
+}
 
-// ── File Attachments ──
-function _renderLeadAttachments(l) {
-  const files = l.attachments || [];
-  if (!files.length) return '<div style="font-size:12px;color:var(--textd);padding:4px 0 8px">No files attached.</div>';
-  return files.map((f, i) => {
-    const icons = { 'application/pdf':'📄', 'image/jpeg':'🖼', 'image/png':'🖼', 'image/jpg':'🖼' };
-    const ico = icons[f.type] || '📎';
-    const kb = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1)+' MB' : Math.round(f.size/1024)+' KB') : '';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--cream);border-radius:8px;margin-bottom:4px">
-      <span>${ico}</span>
-      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</div><div style="font-size:10px;color:var(--textd)">${kb}${kb&&f.uploadedAt?' · ':''}${f.uploadedAt?formatDate(f.uploadedAt):''}</div></div>
-      <a href="${f.url}" target="_blank" rel="noopener" style="font-size:11px;color:var(--g700);font-weight:600;text-decoration:none;white-space:nowrap">⬇ View</a>
-      <button onclick="deleteLeadFile('${l.id}',${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px;padding:0 4px;line-height:1">×</button>
-    </div>`;
+function _getLeadSources() {
+  return (DB.settings && DB.settings.leadSources) || [
+    'Instagram', 'Facebook', 'WhatsApp', 'Walk-in', 'Referral', 'Website', 'Google', 'YouTube', 'TV Ad', 'Cold Call'
+  ];
+}
+
+function _getAgents() {
+  const team = (DB.settings && DB.settings.team) || [];
+  return team.filter(m => ['sales', 'management', 'leadership', 'operations'].includes(m.dept));
+}
+
+function _formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function _formatCurrency(n) {
+  const num = Number(n) || 0;
+  return '₹' + num.toLocaleString('en-IN');
+}
+
+function _daysAgo(iso) {
+  if (!iso) return '';
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return diff + 'd ago';
+}
+
+function _followupDue(lead) {
+  if (!lead.followup) return false;
+  return new Date(lead.followup) <= new Date();
+}
+
+// ── DATA FILTERING ─────────────────────────────────────────────
+function _filteredLeads() {
+  let leads = (typeof hScoped === 'function') ? hScoped('leads') : (DB.leads || []);
+
+  // Stage filter
+  if (_leadsFilter !== 'all') {
+    leads = leads.filter(l => l.stage === _leadsFilter);
+  }
+
+  // Priority filter
+  if (_leadsPriority !== 'all') {
+    leads = leads.filter(l => l.priority === _leadsPriority);
+  }
+
+  // Search
+  if (_leadsSearch.trim()) {
+    const q = _leadsSearch.toLowerCase();
+    leads = leads.filter(l =>
+      (l.name || '').toLowerCase().includes(q) ||
+      (l.phone || '').includes(q) ||
+      (l.email || '').toLowerCase().includes(q) ||
+      (l.destination || '').toLowerCase().includes(q) ||
+      (l.source || '').toLowerCase().includes(q) ||
+      (l.agent || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Sort
+  leads = [...leads].sort((a, b) => {
+    switch (_leadsSort) {
+      case 'oldest':   return new Date(a.createdAt) - new Date(b.createdAt);
+      case 'budget':   return (Number(b.budget) || 0) - (Number(a.budget) || 0);
+      case 'followup': return new Date(a.followup || '9999') - new Date(b.followup || '9999');
+      case 'name':     return (a.name || '').localeCompare(b.name || '');
+      default:         return new Date(b.createdAt) - new Date(a.createdAt);
+    }
+  });
+
+  return leads;
+}
+
+// ── RENDER: STATS STRIP ────────────────────────────────────────
+function _renderLeadStats() {
+  const el = document.getElementById('leads-stats');
+  if (!el) return;
+
+  const all = (typeof hScoped === 'function') ? hScoped('leads') : (DB.leads || []);
+  const today = new Date().toDateString();
+
+  const total   = all.length;
+  const newToday = all.filter(l => new Date(l.createdAt).toDateString() === today).length;
+  const hot      = all.filter(l => l.priority === 'hot').length;
+  const won      = all.filter(l => l.stage === 'won').length;
+  const overdue  = all.filter(l => _followupDue(l) && !['won','lost'].includes(l.stage)).length;
+  const pipeline = all.filter(l => !['won','lost'].includes(l.stage))
+                      .reduce((s, l) => s + (Number(l.budget) || 0), 0);
+
+  el.innerHTML = `
+    <div class="stat-card" onclick="setLeadsFilter('all')">
+      <div class="stat-label">Total Leads</div>
+      <div class="stat-value">${total}</div>
+    </div>
+    <div class="stat-card" onclick="setLeadsFilter('new')">
+      <div class="stat-label">New Today</div>
+      <div class="stat-value" style="color:#6366f1">${newToday}</div>
+    </div>
+    <div class="stat-card" onclick="setLeadsPriority('hot')">
+      <div class="stat-label">🔴 Hot Leads</div>
+      <div class="stat-value" style="color:#ef4444">${hot}</div>
+    </div>
+    <div class="stat-card" onclick="setLeadsFilter('won')">
+      <div class="stat-label">Won</div>
+      <div class="stat-value" style="color:#10b981">${won}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pipeline Value</div>
+      <div class="stat-value" style="color:#f59e0b">${_formatCurrency(pipeline)}</div>
+    </div>
+    ${overdue > 0 ? `<div class="stat-card" style="border-color:#ef4444;background:#fef2f2">
+      <div class="stat-label" style="color:#ef4444">⚠️ Overdue F/U</div>
+      <div class="stat-value" style="color:#ef4444">${overdue}</div>
+    </div>` : ''}
+  `;
+}
+
+// ── RENDER: LIST VIEW ──────────────────────────────────────────
+function _renderLeads() {
+  if (_kanbanMode) { _renderKanban(); return; }
+
+  const tbody = document.getElementById('leads-tbody');
+  if (!tbody) return;
+
+  const leads = _filteredLeads();
+
+  if (leads.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--textd)">
+      <div style="font-size:32px;margin-bottom:8px">📋</div>
+      <div style="font-weight:600">No leads found</div>
+      <div style="font-size:12px;margin-top:4px">Try adjusting filters or add a new lead</div>
+    </td></tr>`;
+    return;
+  }
+
+  const canEdit = (typeof window.canEditLead === 'function');
+
+  tbody.innerHTML = leads.map(lead => {
+    const stage    = _stageInfo(lead.stage);
+    const priority = _priorityInfo(lead.priority);
+    const due      = _followupDue(lead);
+    const editable = !canEdit || window.canEditLead(lead);
+
+    return `<tr class="${due ? 'row-overdue' : ''}" data-id="${esc(lead.id)}">
+      <td>
+        <div style="font-weight:600;font-size:13px">${esc(lead.name)}</div>
+        <div style="font-size:11px;color:var(--textd)">${esc(lead.phone)}</div>
+        ${lead.email ? `<div style="font-size:11px;color:var(--textd)">${esc(lead.email)}</div>` : ''}
+      </td>
+      <td>
+        <div>${esc(lead.destination || '—')}</div>
+        ${lead.travelDate ? `<div style="font-size:11px;color:var(--textd)">${_formatDate(lead.travelDate)}</div>` : ''}
+        ${lead.pax ? `<div style="font-size:11px;color:var(--textd)">${esc(String(lead.pax))} pax</div>` : ''}
+      </td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--cream);color:var(--textd)">${esc(lead.source || '—')}</span></td>
+      <td>
+        <span class="lead-stage-badge" style="background:${stage.bg};color:${stage.color}">
+          ${esc(stage.label)}
+        </span>
+      </td>
+      <td>
+        <span style="font-size:12px;font-weight:600;color:${priority.color}">${esc(priority.label)}</span>
+      </td>
+      <td style="font-weight:600">${_formatCurrency(lead.budget)}</td>
+      <td>
+        ${lead.followup
+          ? `<span style="color:${due ? '#ef4444' : 'var(--text)'};font-size:12px;font-weight:${due ? '700' : '400'}">
+              ${due ? '⚠️ ' : ''}${_formatDate(lead.followup)}
+            </span>`
+          : '<span style="color:var(--textd)">—</span>'}
+      </td>
+      <td style="font-size:12px;color:var(--textd)">${esc(lead.agent || '—')}</td>
+      <td>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="btn btn-sm btn-outline" onclick="viewLead('${esc(lead.id)}')" title="View">👁</button>
+          ${editable ? `<button class="btn btn-sm btn-outline" onclick="editLead('${esc(lead.id)}')" title="Edit">✏️</button>` : ''}
+          ${editable && !['won','lost'].includes(lead.stage) ? `
+            <button class="btn btn-sm btn-green" onclick="quickQuote('${esc(lead.id)}')" title="Create Quotation" style="padding:3px 8px;font-size:11px">Quote</button>
+          ` : ''}
+          ${editable ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteLead('${esc(lead.id)}')" title="Delete">🗑</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Update count badge
+  const badge = document.getElementById('leads-count');
+  if (badge) badge.textContent = leads.length;
+}
+
+// ── RENDER: KANBAN VIEW ────────────────────────────────────────
+function _renderKanban() {
+  const wrap = document.getElementById('leads-kanban');
+  if (!wrap) return;
+
+  const allLeads = _filteredLeads();
+
+  wrap.innerHTML = LEAD_STAGES.map(stage => {
+    const stageleads = allLeads.filter(l => l.stage === stage.id);
+    const total = stageleads.reduce((s, l) => s + (Number(l.budget) || 0), 0);
+
+    return `
+      <div class="kanban-col" data-stage="${esc(stage.id)}">
+        <div class="kanban-col-header" style="border-top:3px solid ${stage.color}">
+          <span style="font-weight:700;font-size:13px;color:${stage.color}">${esc(stage.label)}</span>
+          <span class="kanban-count">${stageleads.length}</span>
+          ${total > 0 ? `<span style="font-size:11px;color:var(--textd);margin-left:auto">${_formatCurrency(total)}</span>` : ''}
+        </div>
+        <div class="kanban-cards" ondragover="event.preventDefault()" ondrop="handleKanbanDrop(event,'${esc(stage.id)}')">
+          ${stageleads.map(lead => `
+            <div class="kanban-card" draggable="true" ondragstart="handleKanbanDragStart(event,'${esc(lead.id)}')" data-id="${esc(lead.id)}">
+              <div class="kanban-card-name">${esc(lead.name)}</div>
+              <div class="kanban-card-sub">${esc(lead.destination || '')}${lead.pax ? ' · ' + esc(String(lead.pax)) + ' pax' : ''}</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+                <span style="font-size:12px;font-weight:700;color:var(--text)">${_formatCurrency(lead.budget)}</span>
+                <span style="font-size:11px;color:${_priorityInfo(lead.priority).color}">${esc(_priorityInfo(lead.priority).label)}</span>
+              </div>
+              ${lead.followup ? `<div style="font-size:11px;color:${_followupDue(lead) ? '#ef4444' : 'var(--textd)'};margin-top:4px">${_followupDue(lead) ? '⚠️ ' : '📅 '}${_formatDate(lead.followup)}</div>` : ''}
+              <div style="display:flex;gap:4px;margin-top:8px">
+                <button class="btn btn-sm btn-outline" onclick="viewLead('${esc(lead.id)}')" style="flex:1;padding:3px 0;font-size:11px">View</button>
+                <button class="btn btn-sm btn-outline" onclick="editLead('${esc(lead.id)}')" style="flex:1;padding:3px 0;font-size:11px">Edit</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
   }).join('');
 }
 
-async function uploadLeadFiles(leadId, input) {
-  if (!input.files.length) return;
-  if (typeof fsUploadFile !== 'function') { showToast('Storage not available', 'error'); return; }
-  const l = DB.leads.find(x => x.id === leadId);
-  if (!l) return;
-  if (!l.attachments) l.attachments = [];
-  const prog = document.getElementById('vl-upload-progress');
-  if (prog) prog.style.display = 'block';
-  for (const file of Array.from(input.files)) {
-    try {
-      if (prog) prog.textContent = `Uploading ${file.name}…`;
-      const path = `leads/${leadId}/${Date.now()}_${file.name.replace(/\s+/g,'_')}`;
-      const url = await fsUploadFile(path, file, pct => { if (prog) prog.textContent = `${file.name} — ${pct}%`; });
-      l.attachments.push({ name: file.name, url, size: file.size, type: file.type, path, uploadedAt: new Date().toISOString(), uploadedBy: currentUser?.name || 'User' });
-    } catch(e) { showToast('Upload failed: ' + file.name, 'error'); }
-  }
-  saveDB();
-  if (prog) prog.style.display = 'none';
-  viewLead(leadId);
+// ── KANBAN DRAG & DROP ─────────────────────────────────────────
+let _draggingLeadId = null;
+
+function handleKanbanDragStart(event, leadId) {
+  _draggingLeadId = leadId;
+  event.dataTransfer.effectAllowed = 'move';
 }
 
-function deleteLeadFile(leadId, idx) {
-  const l = DB.leads.find(x => x.id === leadId);
-  if (!l || !l.attachments) return;
-  if (!confirm('Remove this attachment?')) return;
-  const f = l.attachments[idx];
-  if (f && f.path && typeof fsDeleteFile === 'function') fsDeleteFile(f.path).catch(() => {});
-  l.attachments.splice(idx, 1);
-  saveDB();
-  viewLead(leadId);
+async function handleKanbanDrop(event, newStage) {
+  event.preventDefault();
+  if (!_draggingLeadId) return;
+
+  const lead = DB.leads.find(l => l.id === _draggingLeadId);
+  _draggingLeadId = null;
+
+  if (!lead || lead.stage === newStage) return;
+
+  if (typeof window.canEditLead === 'function' && !window.canEditLead(lead)) {
+    showToast('Permission denied', 'error'); return;
+  }
+
+  lead.stage     = newStage;
+  lead.updatedAt = _nowISO();
+  logActivity && logActivity(`Lead "${lead.name}" moved to ${_stageInfo(newStage).label}`, 'lead');
+
+  await _saveLead(lead);
+  _renderLeads();
+  _renderLeadStats();
+  showToast(`Moved to ${_stageInfo(newStage).label}`, 'success');
 }
 
-// ── Expose all to window ──
-window.renderLeads=renderLeads;window.filterLeads=filterLeads;window.searchLeads=searchLeads;
-window.renderLeadsStats=renderLeadsStats;window.populateLeadFilters=populateLeadFilters;
-window.openAddLeadModal=openAddLeadModal;window.saveLead=saveLead;window.calcLeadBalance=calcLeadBalance;window.onLeadPackageSelect=onLeadPackageSelect;
-window.toggleLeadSelect=toggleLeadSelect;window.toggleSelectAllLeads=toggleSelectAllLeads;
-window.updateLeadBulkBar=updateLeadBulkBar;window.clearBulkSelection=clearBulkSelection;
-window.bulkStageChange=bulkStageChange;window.bulkAssignAgent=bulkAssignAgent;window.confirmBulkAssignAgent=confirmBulkAssignAgent;window.bulkDelete=bulkDelete;window.bulkExport=bulkExport;
-window.viewLead=viewLead;window.editLead=editLead;window.deleteLead=deleteLead;window.updateLeadStage=updateLeadStage;
-window.updateLeadBalance=updateLeadBalance;window.saveLeadFinancials=saveLeadFinancials;window.logFollowUp=logFollowUp;
-window.quickSetFollowup=quickSetFollowup;
-window.renderLeadBoard=renderLeadBoard;window.renderKanban=renderKanban;
-window.boardAdvance=boardAdvance;window.boardAddLead=boardAddLead;
-window.renderFollowUps=renderFollowUps;window.renderLeadsAnalytics=renderLeadsAnalytics;
-window.runBulkStageUpdate=runBulkStageUpdate;window.findStaleLeads=findStaleLeads;
-window.openCSVImport=openCSVImport;window.downloadCSVTemplate=downloadCSVTemplate;
-window.handleCSVFile=handleCSVFile;window.confirmCSVImport=confirmCSVImport;
-window.exportAllLeads=exportAllLeads;window.exportFilteredLeads=exportFilteredLeads;window.exportSelectedLeads=exportSelectedLeads;
-window.populateBulkAgentSelects=populateBulkAgentSelects;window.previewBulkAssign=previewBulkAssign;window.runBulkAssign=runBulkAssign;
-window.createQuotationFromLead=createQuotationFromLead;window.convertLeadToBooking=convertLeadToBooking;
-window.openSalesChatWindow=openSalesChatWindow;
-window.uploadLeadFiles=uploadLeadFiles;window.deleteLeadFile=deleteLeadFile;
+// ── FILTER / SEARCH CONTROLS ───────────────────────────────────
+function setLeadsFilter(stage) {
+  _leadsFilter = stage;
+  // Update chip UI
+  document.querySelectorAll('#leads-filter-bar .chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.stage === stage);
+  });
+  _renderLeads();
+}
 
-initPage(function() {
-  renderLeads();
-  if (typeof waitForFirestore === 'function') {
-    waitForFirestore(function() { renderLeads(); }, 5000);
+function setLeadsPriority(p) {
+  _leadsPriority = _leadsPriority === p ? 'all' : p;
+  _renderLeads();
+}
+
+function setLeadsSort(val) {
+  _leadsSort = val;
+  _renderLeads();
+}
+
+function setLeadsSearch(val) {
+  _leadsSearch = val;
+  _renderLeads();
+}
+
+function toggleLeadsView() {
+  _kanbanMode = !_kanbanMode;
+  const listWrap   = document.getElementById('leads-table-wrap');
+  const kanbanWrap = document.getElementById('leads-kanban-wrap');
+  const btn        = document.getElementById('leads-view-toggle');
+
+  if (listWrap)   listWrap.style.display   = _kanbanMode ? 'none'  : '';
+  if (kanbanWrap) kanbanWrap.style.display = _kanbanMode ? ''      : 'none';
+  if (btn)        btn.textContent          = _kanbanMode ? '📋 List' : '🗂 Kanban';
+
+  _renderLeads();
+}
+
+// ── MODAL: ADD / EDIT LEAD ─────────────────────────────────────
+function openAddLead() {
+  _populateLeadForm(null);
+  openModal('modal-lead-form');
+  document.getElementById('lead-form-title').textContent = '+ Add New Lead';
+}
+
+function editLead(leadId) {
+  const lead = DB.leads.find(l => l.id === leadId);
+  if (!lead) { showToast('Lead not found', 'error'); return; }
+  _populateLeadForm(lead);
+  openModal('modal-lead-form');
+  document.getElementById('lead-form-title').textContent = 'Edit Lead';
+}
+
+function _populateLeadForm(lead) {
+  const sources = _getLeadSources();
+  const agents  = _getAgents();
+
+  // Populate sources dropdown
+  const srcEl = document.getElementById('lf-source');
+  if (srcEl) {
+    srcEl.innerHTML = `<option value="">Select source...</option>` +
+      sources.map(s => `<option value="${esc(s)}" ${lead && lead.source === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
   }
-  // Pre-fill add lead modal if navigated from customer page
-  const prefill = sessionStorage.getItem('wanago_prefill_lead');
-  if (prefill) {
-    sessionStorage.removeItem('wanago_prefill_lead');
-    try {
-      const d = JSON.parse(prefill);
-      setTimeout(function() {
-        openAddLeadModal();
-        setTimeout(function() {
-          const fld = (i, v) => { const el = document.getElementById(i); if (el && v) el.value = v; };
-          fld('l-name', d.name); fld('l-phone', d.phone); fld('l-email', d.email);
-          fld('l-source', d.source); fld('l-triptype', d.travelType);
-        }, 120);
-      }, 400);
-    } catch(e) {}
+
+  // Populate agents dropdown
+  const agEl = document.getElementById('lf-agent');
+  if (agEl) {
+    agEl.innerHTML = `<option value="">Unassigned</option>` +
+      agents.map(a => `<option value="${esc(a.name)}" ${lead && lead.agent === a.name ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
   }
-});
+
+  // Populate stage
+  const stEl = document.getElementById('lf-stage');
+  if (stEl) {
+    stEl.innerHTML = LEAD_STAGES.map(s =>
+      `<option value="${esc(s.id)}" ${lead && lead.stage === s.id ? 'selected' : ''}>${esc(s.label)}</option>`
+    ).join('');
+  }
+
+  // Populate priority
+  const prEl = document.getElementById('lf-priority');
+  if (prEl) {
+    prEl.innerHTML = LEAD_PRIORITIES.map(p =>
+      `<option value="${esc(p.id)}" ${lead && lead.priority === p.id ? 'selected' : (!lead && p.id === 'warm' ? 'selected' : '')}>${esc(p.label)}</option>`
+    ).join('');
+  }
+
+  // Populate trip type
+  const ttEl = document.getElementById('lf-triptype');
+  if (ttEl) {
+    ttEl.innerHTML = TRIP_TYPES.map(t =>
+      `<option value="${esc(t)}" ${lead && lead.tripType === t ? 'selected' : (!lead && t === 'domestic' ? 'selected' : '')}>${esc(t.charAt(0).toUpperCase() + t.slice(1))}</option>`
+    ).join('');
+  }
+
+  // Set field values
+  _setVal('lf-id',          lead ? lead.id : '');
+  _setVal('lf-name',        lead ? lead.name : '');
+  _setVal('lf-phone',       lead ? lead.phone : '');
+  _setVal('lf-email',       lead ? (lead.email || '') : '');
+  _setVal('lf-destination', lead ? (lead.destination || '') : '');
+  _setVal('lf-budget',      lead ? (lead.budget || '') : '');
+  _setVal('lf-pax',         lead ? (lead.pax || 2) : 2);
+  _setVal('lf-traveldate',  lead ? (lead.travelDate || '') : '');
+  _setVal('lf-followup',    lead ? (lead.followup || '') : '');
+  _setVal('lf-notes',       lead ? (lead.notes || '') : '');
+}
+
+function _setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+async function saveLeadForm() {
+  // Validate
+  const name  = (document.getElementById('lf-name')?.value || '').trim();
+  const phone = (document.getElementById('lf-phone')?.value || '').trim();
+
+  if (!name)  { showError('lf-name-error',  'Name is required');  return; }
+  if (!phone) { showError('lf-phone-error', 'Phone is required'); return; }
+
+  const existingId = document.getElementById('lf-id')?.value;
+  const isNew      = !existingId;
+  let   lead       = isNew ? {} : (DB.leads.find(l => l.id === existingId) || {});
+
+  // Permission check
+  if (!isNew && typeof window.canEditLead === 'function' && !window.canEditLead(lead)) {
+    showToast('Permission denied', 'error'); return;
+  }
+
+  lead.id          = existingId || _nextLeadId();
+  lead.name        = name;
+  lead.phone       = phone;
+  lead.email       = (document.getElementById('lf-email')?.value || '').trim();
+  lead.destination = (document.getElementById('lf-destination')?.value || '').trim();
+  lead.source      = document.getElementById('lf-source')?.value || '';
+  lead.stage       = document.getElementById('lf-stage')?.value || 'new';
+  lead.priority    = document.getElementById('lf-priority')?.value || 'warm';
+  lead.tripType    = document.getElementById('lf-triptype')?.value || 'domestic';
+  lead.budget      = Number(document.getElementById('lf-budget')?.value) || 0;
+  lead.pax         = Number(document.getElementById('lf-pax')?.value) || 2;
+  lead.travelDate  = document.getElementById('lf-traveldate')?.value || '';
+  lead.followup    = document.getElementById('lf-followup')?.value || '';
+  lead.notes       = (document.getElementById('lf-notes')?.value || '').trim();
+  lead.agent       = document.getElementById('lf-agent')?.value || '';
+  lead.updatedAt   = _nowISO();
+
+  if (isNew) {
+    lead.createdAt = _nowISO();
+    lead.officeId  = (typeof officeIdForNewRecord === 'function') ? officeIdForNewRecord() : 'o1';
+  }
+
+  const btn = document.querySelector('#modal-lead-form .btn-green');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  try {
+    await _saveLead(lead);
+
+    if (typeof window.logActivity === 'function') {
+      logActivity(`Lead "${lead.name}" ${isNew ? 'created' : 'updated'}`, 'lead');
+    }
+
+    closeModal('modal-lead-form');
+    _renderLeads();
+    _renderLeadStats();
+    showToast(isNew ? 'Lead added!' : 'Lead updated!', 'success');
+  } catch (err) {
+    console.error('[Leads] Save error:', err);
+    showToast('Save failed — please try again', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Lead'; }
+  }
+}
+
+// ── MODAL: VIEW LEAD ───────────────────────────────────────────
+function viewLead(leadId) {
+  const lead = DB.leads.find(l => l.id === leadId);
+  if (!lead) { showToast('Lead not found', 'error'); return; }
+
+  const stage    = _stageInfo(lead.stage);
+  const priority = _priorityInfo(lead.priority);
+  const canEdit  = typeof window.canEditLead !== 'function' || window.canEditLead(lead);
+
+  document.getElementById('modal-view-lead-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <!-- Left -->
+      <div>
+        <div style="margin-bottom:16px">
+          <div style="font-size:22px;font-weight:700;margin-bottom:4px">${esc(lead.name)}</div>
+          <div style="font-size:13px;color:var(--textd)">${esc(lead.phone)}${lead.email ? ' · ' + esc(lead.email) : ''}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <span class="lead-stage-badge" style="background:${stage.bg};color:${stage.color}">${esc(stage.label)}</span>
+          <span style="font-size:12px;font-weight:700;color:${priority.color}">${esc(priority.label)}</span>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">Destination</div><div class="detail-val">${esc(lead.destination || '—')}</div></div>
+          <div class="detail-item"><div class="detail-label">Trip Type</div><div class="detail-val">${esc(lead.tripType || '—')}</div></div>
+          <div class="detail-item"><div class="detail-label">Travel Date</div><div class="detail-val">${_formatDate(lead.travelDate)}</div></div>
+          <div class="detail-item"><div class="detail-label">Pax</div><div class="detail-val">${esc(String(lead.pax || '—'))}</div></div>
+          <div class="detail-item"><div class="detail-label">Budget</div><div class="detail-val" style="font-weight:700;color:var(--g600)">${_formatCurrency(lead.budget)}</div></div>
+          <div class="detail-item"><div class="detail-label">Source</div><div class="detail-val">${esc(lead.source || '—')}</div></div>
+          <div class="detail-item"><div class="detail-label">Agent</div><div class="detail-val">${esc(lead.agent || 'Unassigned')}</div></div>
+          <div class="detail-item"><div class="detail-label">Follow-up</div><div class="detail-val" style="color:${_followupDue(lead) ? '#ef4444' : 'inherit'}">${_followupDue(lead) ? '⚠️ ' : ''}${_formatDate(lead.followup)}</div></div>
+        </div>
+        ${lead.notes ? `<div style="margin-top:12px;padding:10px;background:var(--cream);border-radius:8px;font-size:13px">📝 ${esc(lead.notes)}</div>` : ''}
+      </div>
+      <!-- Right: Activity & Quick Actions -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:10px">Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${canEdit && !['won','lost'].includes(lead.stage) ? `
+            <button class="btn btn-green" onclick="closeModal('modal-view-lead');quickQuote('${esc(lead.id)}')">📄 Create Quotation</button>
+          ` : ''}
+          ${canEdit ? `
+            <button class="btn btn-outline" onclick="closeModal('modal-view-lead');editLead('${esc(lead.id)}')">✏️ Edit Lead</button>
+          ` : ''}
+          <button class="btn btn-outline" onclick="whatsappLead('${esc(lead.id)}')">📱 WhatsApp</button>
+          ${lead.phone ? `<button class="btn btn-outline" onclick="window.open('tel:${esc(lead.phone)}')">📞 Call</button>` : ''}
+        </div>
+        <div style="margin-top:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--textd);margin-bottom:10px">Stage Progress</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${LEAD_STAGES.map(s => `
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:${lead.stage === s.id ? s.bg : 'transparent'};cursor:pointer" onclick="quickUpdateStage('${esc(lead.id)}','${esc(s.id)}')">
+              <div style="width:8px;height:8px;border-radius:50%;background:${lead.stage === s.id ? s.color : 'var(--border2)'}"></div>
+              <span style="font-size:12px;color:${lead.stage === s.id ? s.color : 'var(--textd)'};font-weight:${lead.stage === s.id ? '700' : '400'}">${esc(s.label)}</span>
+              ${lead.stage === s.id ? '<span style="margin-left:auto;font-size:11px">✓</span>' : ''}
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--textd)">
+          Created: ${_formatDate(lead.createdAt)} · Updated: ${_formatDate(lead.updatedAt)}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modal-view-lead')._leadId = leadId;
+  openModal('modal-view-lead');
+}
+
+// ── QUICK ACTIONS ──────────────────────────────────────────────
+async function quickUpdateStage(leadId, newStage) {
+  const lead = DB.leads.find(l => l.id === leadId);
+  if (!lead) return;
+
+  if (typeof window.canEditLead === 'function' && !window.canEditLead(lead)) {
+    showToast('Permission denied', 'error'); return;
+  }
+
+  lead.stage     = newStage;
+  lead.updatedAt = _nowISO();
+  await _saveLead(lead);
+
+  // Refresh view modal if open
+  const modal = document.getElementById('modal-view-lead');
+  if (modal && modal.classList.contains('open')) viewLead(leadId);
+
+  _renderLeads();
+  _renderLeadStats();
+  showToast(`Stage → ${_stageInfo(newStage).label}`, 'success');
+}
+
+function quickQuote(leadId) {
+  if (typeof window.createQuotationFromLead === 'function') {
+    const quot = window.createQuotationFromLead(leadId);
+    if (quot) {
+      _renderLeads();
+      _renderLeadStats();
+      showToast('Quotation created!', 'success');
+    }
+  } else {
+    showToast('Quotation module not loaded', 'error');
+  }
+}
+
+function whatsappLead(leadId) {
+  const lead = DB.leads.find(l => l.id === leadId);
+  if (!lead || !lead.phone) { showToast('No phone number', 'error'); return; }
+  const phone = lead.phone.replace(/\D/g, '');
+  const msg   = encodeURIComponent(
+    `Hi ${lead.name}, this is from Wanago Tours & Travel!\n` +
+    `We have exciting packages for ${lead.destination || 'your destination'}. ` +
+    `Let us help plan your perfect trip! 🌟`
+  );
+  window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+}
+
+// ── DELETE ─────────────────────────────────────────────────────
+function confirmDeleteLead(leadId) {
+  const lead = DB.leads.find(l => l.id === leadId);
+  if (!lead) return;
+
+  if (typeof window.canEditLead === 'function' && !window.canEditLead(lead)) {
+    showToast('Permission denied', 'error'); return;
+  }
+
+  const confirmed = confirm(`Delete lead "${lead.name}"?\n\nThis cannot be undone.`);
+  if (!confirmed) return;
+
+  _deleteLead(leadId).then(() => {
+    _renderLeads();
+    _renderLeadStats();
+    showToast('Lead deleted', 'success');
+    if (typeof logActivity === 'function') logActivity(`Lead "${lead.name}" deleted`, 'lead');
+  });
+}
+
+// ── IMPORT / EXPORT ────────────────────────────────────────────
+function exportLeadsCSV() {
+  const leads = _filteredLeads();
+  if (!leads.length) { showToast('No leads to export', 'error'); return; }
+
+  const headers = ['ID','Name','Phone','Email','Destination','Source','Stage','Priority','Trip Type','Budget','Pax','Travel Date','Follow-up','Agent','Created','Notes'];
+  const rows    = leads.map(l => [
+    l.id, l.name, l.phone, l.email || '', l.destination || '', l.source || '',
+    l.stage, l.priority, l.tripType || '', l.budget || 0, l.pax || '',
+    l.travelDate || '', l.followup || '', l.agent || '',
+    l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN') : '',
+    (l.notes || '').replace(/,/g, ';')
+  ]);
+
+  const csv  = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `wanago_leads_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast(`Exported ${leads.length} leads`, 'success');
+}
+
+// ── PAGE INITIALISATION ────────────────────────────────────────
+function renderLeads() {
+  // Build page layout (idempotent — only if container is empty)
+  const content = document.getElementById('content');
+  if (!content) return;
+
+  const pageEl = content.querySelector('.page.active') || content.querySelector('.page') || content;
+
+  if (!document.getElementById('leads-stats')) {
+    pageEl.innerHTML = _buildLeadsHTML();
+  }
+
+  // Wire search box
+  const searchEl = document.getElementById('leads-search');
+  if (searchEl) {
+    searchEl.addEventListener('input', () => setLeadsSearch(searchEl.value));
+    searchEl.addEventListener('keydown', e => { if (e.key === 'Escape') { searchEl.value = ''; setLeadsSearch(''); } });
+  }
+
+  // Wire sort select
+  const sortEl = document.getElementById('leads-sort-sel');
+  if (sortEl) sortEl.addEventListener('change', () => setLeadsSort(sortEl.value));
+
+  // Initial render
+  _renderLeadStats();
+  _renderLeads();
+
+  // Subscribe to realtime Firestore updates
+  _subscribeLeads();
+}
+
+function _buildLeadsHTML() {
+  return `
+    <!-- Stats Strip -->
+    <div class="stats-grid" id="leads-stats" style="margin-bottom:16px"></div>
+
+    <!-- Toolbar -->
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;box-shadow:var(--sh)">
+      <!-- Stage Filter Chips -->
+      <div class="filter-bar" id="leads-filter-bar" style="margin:0;flex:1;flex-wrap:wrap">
+        <div class="chip active" data-stage="all" onclick="setLeadsFilter('all')">All <span id="leads-count" style="font-size:10px;opacity:.7"></span></div>
+        ${LEAD_STAGES.map(s => `<div class="chip" data-stage="${esc(s.id)}" onclick="setLeadsFilter('${esc(s.id)}')" style="border-left:3px solid ${s.color}">${esc(s.label)}</div>`).join('')}
+      </div>
+
+      <!-- Sort -->
+      <select id="leads-sort-sel" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:11.5px;background:var(--cream);font-family:inherit;outline:none">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="budget">Budget ↓</option>
+        <option value="followup">Follow-up date</option>
+        <option value="name">Name A–Z</option>
+      </select>
+
+      <!-- Search -->
+      <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-inp" id="leads-search" type="text" placeholder="Search leads…" autocomplete="off"/>
+      </div>
+
+      <!-- View Toggle -->
+      <button id="leads-view-toggle" class="btn btn-outline btn-sm" onclick="toggleLeadsView()">🗂 Kanban</button>
+
+      <!-- Export -->
+      <button class="btn btn-outline btn-sm" onclick="exportLeadsCSV()">⬇ CSV</button>
+
+      <!-- Add Lead -->
+      <button class="btn btn-green" onclick="openAddLead()">+ Add Lead</button>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div id="leads-table-wrap" class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name / Contact</th>
+            <th>Destination</th>
+            <th>Source</th>
+            <th>Stage</th>
+            <th>Priority</th>
+            <th>Budget</th>
+            <th>Follow-up</th>
+            <th>Agent</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- KANBAN VIEW (hidden by default) -->
+    <div id="leads-kanban-wrap" style="display:none;overflow-x:auto">
+      <div id="leads-kanban" style="display:flex;gap:12px;min-width:max-content;padding-bottom:16px"></div>
+    </div>
+
+    <!-- ───── MODAL: ADD / EDIT LEAD ───── -->
+    <div class="modal-overlay" id="modal-lead-form">
+      <div class="modal modal-lg">
+        <div class="modal-title" id="lead-form-title">Add Lead</div>
+        <input type="hidden" id="lf-id"/>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input class="form-input" id="lf-name" placeholder="Customer name" autocomplete="off"/>
+            <div class="form-error" id="lf-name-error" style="display:none"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone *</label>
+            <input class="form-input" id="lf-phone" type="tel" placeholder="+91 9447 000000"/>
+            <div class="form-error" id="lf-phone-error" style="display:none"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="lf-email" type="email" placeholder="Optional"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source</label>
+            <select class="form-input" id="lf-source"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destination</label>
+            <input class="form-input" id="lf-destination" placeholder="e.g. Maldives, Kerala"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trip Type</label>
+            <select class="form-input" id="lf-triptype"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Budget (₹)</label>
+            <input class="form-input" id="lf-budget" type="number" min="0" placeholder="0"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pax</label>
+            <input class="form-input" id="lf-pax" type="number" min="1" value="2"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Travel Date</label>
+            <input class="form-input" id="lf-traveldate" type="date"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Follow-up Date</label>
+            <input class="form-input" id="lf-followup" type="date"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Stage</label>
+            <select class="form-input" id="lf-stage"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select class="form-input" id="lf-priority"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Assign To</label>
+            <select class="form-input" id="lf-agent"></select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label class="form-label">Notes</label>
+            <textarea class="form-input" id="lf-notes" rows="3" placeholder="Optional notes about this lead…" style="resize:vertical"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('modal-lead-form')">Cancel</button>
+          <button class="btn btn-green" onclick="saveLeadForm()">Save Lead</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───── MODAL: VIEW LEAD ───── -->
+    <div class="modal-overlay" id="modal-view-lead">
+      <div class="modal modal-lg">
+        <div class="modal-title">Lead Details</div>
+        <div id="modal-view-lead-body"></div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('modal-view-lead')">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .lead-stage-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 11.5px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .row-overdue { background: #fff8f8 !important; }
+      .row-overdue:hover { background: #fff0f0 !important; }
+
+      .kanban-col {
+        min-width: 220px;
+        max-width: 240px;
+        background: var(--cream);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .kanban-col-header {
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--white);
+        border-radius: var(--radius) var(--radius) 0 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .kanban-count {
+        font-size: 11px;
+        background: var(--border);
+        color: var(--textd);
+        border-radius: 20px;
+        padding: 1px 7px;
+        font-weight: 700;
+      }
+      .kanban-cards {
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+        min-height: 60px;
+      }
+      .kanban-card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        cursor: grab;
+        transition: box-shadow .15s, transform .15s;
+      }
+      .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); transform: translateY(-1px); }
+      .kanban-card:active { cursor: grabbing; }
+      .kanban-card-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+      .kanban-card-sub  { font-size: 11px; color: var(--textd); }
+
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .detail-item { padding: 8px; background: var(--cream); border-radius: 6px; }
+      .detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--textd); font-weight: 700; margin-bottom: 2px; }
+      .detail-val   { font-size: 13px; color: var(--text); font-weight: 500; }
+
+      .form-error { color: var(--red, #ef4444); font-size: 11.5px; margin-top: 3px; }
+    </style>
+  `;
+}
+
+// ── CLEANUP ────────────────────────────────────────────────────
+function cleanupLeads() {
+  if (_leadsUnsubscribe) { _leadsUnsubscribe(); _leadsUnsubscribe = null; }
+}
+
+// ── GLOBAL EXPORTS ─────────────────────────────────────────────
+window.renderLeads          = renderLeads;
+window.openAddLead          = openAddLead;
+window.editLead             = editLead;
+window.viewLead             = viewLead;
+window.saveLeadForm         = saveLeadForm;
+window.confirmDeleteLead    = confirmDeleteLead;
+window.quickUpdateStage     = quickUpdateStage;
+window.quickQuote           = quickQuote;
+window.whatsappLead         = whatsappLead;
+window.setLeadsFilter       = setLeadsFilter;
+window.setLeadsPriority     = setLeadsPriority;
+window.setLeadsSort         = setLeadsSort;
+window.setLeadsSearch       = setLeadsSearch;
+window.toggleLeadsView      = toggleLeadsView;
+window.exportLeadsCSV       = exportLeadsCSV;
+window.handleKanbanDragStart = handleKanbanDragStart;
+window.handleKanbanDrop     = handleKanbanDrop;
+window.cleanupLeads         = cleanupLeads;
