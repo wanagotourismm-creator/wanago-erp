@@ -3,11 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   LayoutDashboard, Users, UserCheck, CalendarCheck,
   Package, Store, Map, FileText, CreditCard,
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
-  BarChart3, Settings, LogOut, ChevronLeft, ChevronRight,
+  BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Clock,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -33,46 +34,41 @@ const ICONS: Record<string, React.ElementType> = {
   "id-badge":         BadgeCheck,
   "calendar-off":     CalendarOff,
   "cash":             Wallet,
+  "clock":            Clock,
   "chart-bar":        BarChart3,
   "settings":         Settings,
 };
 
 function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const pathname = usePathname();
+  const { closeMobileSidebar } = useUIStore();
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   const Icon     = ICONS[item.icon] ?? LayoutDashboard;
   return (
-    <Link href={item.href} title={collapsed ? item.label : undefined}
+    <Link href={item.href} title={collapsed ? item.label : undefined} onClick={closeMobileSidebar}
       className={cn(
-        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
+        "nav-fluid group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
         isActive
           ? "bg-primary text-white shadow-sm"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
+      {isActive && (
+        <span className="sidebar-active-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/50 rounded-r-full" />
+      )}
       <Icon size={17} className="flex-shrink-0" />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
 }
 
-function Avatar({ name, size = 8 }: { name: string; size?: number }) {
-  const ab = initials(name) || "WA";
-  return (
-    <div className={cn(
-      "flex flex-shrink-0 items-center justify-center rounded-full bg-primary text-white font-semibold",
-      `h-${size} w-${size}`,
-      size === 8 ? "text-xs" : "text-[11px]"
-    )}>
-      {ab}
-    </div>
-  );
-}
-
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, mobileSidebarOpen, closeMobileSidebar } = useUIStore();
   const { user } = useAuthStore();
   const { logout } = useAuth();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const ab = initials(user?.displayName ?? "Wanago Admin") || "WA";
 
   const visibleGroups = NAV_CONFIG.map((group) => ({
     ...group,
@@ -85,11 +81,25 @@ export function Sidebar() {
   })).filter((g) => g.items.length > 0);
 
   return (
-    <aside className={cn(
-      "relative flex flex-col h-screen sticky top-0 transition-all duration-200 ease-in-out",
-      "bg-card border-r border-border",
-      sidebarCollapsed ? "w-[68px]" : "w-[240px]"
-    )}>
+    <>
+      {/* Mobile backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
+          onClick={closeMobileSidebar}
+        />
+      )}
+
+      <aside className={cn(
+        "relative flex flex-col h-screen transition-all duration-300 ease-in-out",
+        "border-r border-border bg-card",
+        // Mobile: fixed off-canvas drawer, always full nav width
+        "fixed top-0 left-0 z-40 w-[240px]",
+        mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+        // Desktop: static, sticky, respects collapsed state
+        "lg:sticky lg:translate-x-0",
+        sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[240px]"
+      )}>
 
       {/* Logo */}
       <div className={cn(
@@ -101,14 +111,14 @@ export function Sidebar() {
             W
           </div>
         ) : (
-          <div className="relative h-9 w-[160px]">
+          <div className="relative h-11 w-[180px]">
             <Image
-              src="/images/logo-dark-clean.png"
+              src={isDark ? "/images/logo-white-clean.png" : "/images/logo-dark-clean.png"}
               alt="Wanago Travel & Co"
               fill
               className="object-contain object-left"
               priority
-              sizes="160px"
+              sizes="180px"
             />
           </div>
         )}
@@ -116,10 +126,10 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 scrollbar-thin">
-        {visibleGroups.map((group) => (
+        {visibleGroups.map((group, gi) => (
           <div key={group.group} className="mb-5">
             {!sidebarCollapsed && (
-              <p className="mb-1.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              <p className="mb-1.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
                 {group.group}
               </p>
             )}
@@ -136,12 +146,14 @@ export function Sidebar() {
       <div className="flex-shrink-0 border-t border-border p-3">
         {sidebarCollapsed ? (
           <button onClick={logout} title="Sign out"
-            className="flex w-full items-center justify-center rounded-xl py-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+            className="flex w-full items-center justify-center rounded-xl py-2 text-muted-foreground hover:bg-muted transition-colors">
             <LogOut size={16} />
           </button>
         ) : (
-          <div className="flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-muted transition-colors cursor-pointer">
-            <Avatar name={user?.displayName ?? "Wanago Admin"} size={8} />
+          <div className="flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-muted transition-colors">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white shadow-sm">
+              {ab}
+            </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-foreground">{user?.displayName ?? "User"}</p>
               <p className="truncate text-[11px] text-muted-foreground">
@@ -156,12 +168,13 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Collapse toggle */}
+      {/* Collapse toggle — desktop only, mobile uses the drawer overlay instead */}
       <button onClick={toggleSidebar}
-        className="absolute -right-3 top-[76px] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm transition-colors"
+        className="absolute -right-3 top-[76px] z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm transition-colors lg:flex"
         aria-label={sidebarCollapsed ? "Expand" : "Collapse"}>
         {sidebarCollapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
       </button>
-    </aside>
+      </aside>
+    </>
   );
 }

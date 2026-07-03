@@ -108,6 +108,11 @@ service cloud.firestore {
                       getUserRole() in ['super_admin','admin','hr'];
     }
 
+    match /hrmsCheckIns/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
     // ── Notifications ────────────────────────────────────────
     match /notifications/{id} {
       allow read: if isAuthenticated() &&

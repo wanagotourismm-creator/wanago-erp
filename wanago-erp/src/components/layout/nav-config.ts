@@ -115,6 +115,12 @@ export const NAV_CONFIG: NavGroup[] = [
         roles: ["super_admin","admin","hr"],
       },
       {
+        label: "Attendance",
+        href:  "/hrms/attendance",
+        icon:  "clock",
+        roles: ["super_admin","admin","hr"],
+      },
+      {
         label: "Leaves",
         href:  "/hrms/leaves",
         icon:  "calendar-off",
