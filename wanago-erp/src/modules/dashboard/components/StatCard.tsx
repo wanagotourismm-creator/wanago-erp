@@ -1,32 +1,52 @@
+import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 
 type Props = {
   label:      string;
   value:      string | number;
   sub?:       string;
-  accent?:    "default" | "danger" | "success";
-  border?:    string;
+  featured?:  boolean;
 };
 
-export function StatCard({ label, value, sub, accent = "default", border }: Props) {
+export function StatCard({ label, value, sub, featured = false }: Props) {
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-5 shadow-card",
-      border ? `border-l-4 ${border}` : "border-border"
+      "relative rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer",
+      featured
+        ? "bg-primary text-white shadow-md"
+        : "bg-card border border-border text-foreground shadow-sm"
     )}>
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        {label}
-      </p>
+      <div className="flex items-start justify-between mb-4">
+        <p className={cn(
+          "text-sm font-medium",
+          featured ? "text-white/70" : "text-muted-foreground"
+        )}>
+          {label}
+        </p>
+        <div className={cn(
+          "flex h-7 w-7 items-center justify-center rounded-full border transition-colors",
+          featured
+            ? "border-white/30 text-white/70 hover:bg-white/10"
+            : "border-border text-muted-foreground hover:bg-muted"
+        )}>
+          <ArrowUpRight size={14} />
+        </div>
+      </div>
+
       <p className={cn(
-        "mt-2 text-3xl font-bold",
-        accent === "danger"  && "text-destructive",
-        accent === "success" && "text-primary",
-        accent === "default" && "text-foreground",
+        "text-3xl font-bold tracking-tight",
+        featured ? "text-white" : "text-foreground"
       )}>
         {value}
       </p>
+
       {sub && (
-        <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+        <p className={cn(
+          "mt-2 text-xs",
+          featured ? "text-white/60" : "text-muted-foreground"
+        )}>
+          {sub}
+        </p>
       )}
     </div>
   );

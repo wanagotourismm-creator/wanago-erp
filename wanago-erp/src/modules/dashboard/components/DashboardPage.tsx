@@ -1,12 +1,17 @@
 "use client";
 
-import { useDashboard } from "@/modules/dashboard/hooks/useDashboard";
-import { GreetingBanner } from "@/modules/dashboard/components/GreetingBanner";
-import { StatCard }       from "@/modules/dashboard/components/StatCard";
-import { RevenueChart }   from "@/modules/dashboard/components/RevenueChart";
-import { LeadPipeline }   from "@/modules/dashboard/components/LeadPipeline";
-import { SkeletonCard }   from "@/components/ui/Skeleton";
-import { formatCurrency } from "@/lib/utils/helpers";
+import { useDashboard }         from "@/modules/dashboard/hooks/useDashboard";
+import { GreetingBanner }       from "@/modules/dashboard/components/GreetingBanner";
+import { StatCard }             from "@/modules/dashboard/components/StatCard";
+import { RevenueChart }         from "@/modules/dashboard/components/RevenueChart";
+import { LeadPipeline }         from "@/modules/dashboard/components/LeadPipeline";
+import { RevenueForecast }      from "@/modules/dashboard/components/RevenueForecast";
+import { SmartRecommendations } from "@/modules/dashboard/components/SmartRecommendations";
+import { TopPerformers }        from "@/modules/dashboard/components/TopPerformers";
+import { DepartingSoon }        from "@/modules/dashboard/components/DepartingSoon";
+import { RecentActivity }       from "@/modules/dashboard/components/RecentActivity";
+import { SkeletonCard }         from "@/components/ui/Skeleton";
+import { formatCurrency }       from "@/lib/utils/helpers";
 
 export function DashboardPage() {
   const { stats, pipeline, revenue, loading } = useDashboard();
@@ -14,11 +19,11 @@ export function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <SkeletonCard rows={2} />
+        <SkeletonCard rows={1} />
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[1,2,3,4].map(i => <SkeletonCard key={i} rows={2} />)}
         </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2"><SkeletonCard rows={6} /></div>
           <SkeletonCard rows={8} />
         </div>
@@ -29,47 +34,58 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
 
-      {/* Greeting banner */}
+      {/* Greeting row */}
       <GreetingBanner
         newLeads={stats?.newLeads ?? 0}
         followUpCount={stats?.followUpPending ?? 0}
       />
 
-      {/* Stat cards */}
+      {/* Stat cards — first one is featured (dark green) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Total Revenue"
           value={formatCurrency(stats?.totalRevenue ?? 0)}
           sub="From completed bookings"
-          border="border-l-blue-500"
+          featured
         />
         <StatCard
           label="Active Leads"
           value={stats?.activeLeads ?? 0}
-          sub="In pipeline"
-          border="border-l-purple-500"
+          sub="In pipeline right now"
         />
         <StatCard
           label="Confirmed Bookings"
           value={stats?.confirmedBookings ?? 0}
-          sub={`${stats?.confirmedBookings ?? 0} total · CVR tracking`}
-          border="border-l-green-500"
+          sub={`${stats?.confirmedBookings ?? 0} total · 0.0% CVR`}
         />
         <StatCard
           label="Pending Dues"
           value={formatCurrency(stats?.pendingDues ?? 0)}
           sub={`${stats?.overdueInvoices ?? 0} overdue invoice${(stats?.overdueInvoices ?? 0) !== 1 ? "s" : ""}`}
-          accent={( stats?.overdueInvoices ?? 0) > 0 ? "danger" : "default"}
-          border="border-l-red-500"
         />
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* Revenue chart + Pipeline */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <RevenueChart data={revenue} />
         </div>
         <LeadPipeline pipeline={pipeline} />
+      </div>
+
+      {/* Forecast */}
+      <RevenueForecast data={revenue} />
+
+      {/* Recommendations + Top Performers */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SmartRecommendations />
+        <TopPerformers />
+      </div>
+
+      {/* Departing + Activity */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DepartingSoon />
+        <RecentActivity />
       </div>
 
     </div>

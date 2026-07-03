@@ -7,7 +7,6 @@ import {
 } from "@/modules/leads/services/lead.service";
 import { useAuthStore } from "@/store/auth.store";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
-import { LEAD_STAGES } from "@/lib/constants";
 
 export function useLeads() {
   const [leads,   setLeads]   = useState<Lead[]>([]);
@@ -21,7 +20,7 @@ export function useLeads() {
     try {
       const data = await fetchLeads(filters);
       setLeads(data);
-    } catch {
+    } catch (e) {
       setError("Failed to load leads");
     } finally {
       setLoading(false);
@@ -40,7 +39,9 @@ export function useLeads() {
     }
   }
 
-  async function editLead(id: string, data: Partial<LeadFormData>): Promise<{ error: string | null }> {
+  async function editLead(
+    id: string, data: Partial<LeadFormData>
+  ): Promise<{ error: string | null }> {
     try {
       await updateLead(id, data);
       setLeads(prev => prev.map(l => l.id === id ? { ...l, ...data } : l));
@@ -50,16 +51,11 @@ export function useLeads() {
     }
   }
 
-  // ── changeStage — auto-creates customer if Won ─────────────
-  async function changeStage(id: string, stage: string): Promise<void> {
-    const lead = leads.find(l => l.id === id);
-    await updateLeadStage(id, stage, lead, user?.uid);
+  async function changeStage(
+    id: string, stage: string
+  ): Promise<void> {
+    await updateLeadStage(id, stage);
     setLeads(prev => prev.map(l => l.id === id ? { ...l, stage } : l));
-
-    // Show toast notification if won
-    if (stage === LEAD_STAGES.WON && lead) {
-      console.log(`🎉 Lead "${lead.name}" marked as Won — customer auto-created!`);
-    }
   }
 
   async function removeLead(id: string): Promise<{ error: string | null }> {

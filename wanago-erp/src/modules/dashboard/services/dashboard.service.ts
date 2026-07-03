@@ -61,6 +61,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       activeLeads,
       confirmedBookings,
       pendingDues,
+      pendingDues,
       overdueInvoices,
       newLeads,
       followUpPending,

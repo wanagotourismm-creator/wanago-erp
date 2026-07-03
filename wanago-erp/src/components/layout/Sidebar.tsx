@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
 import {
   LayoutDashboard, Users, UserCheck, CalendarCheck,
   Package, Store, Map, FileText, CreditCard,
@@ -45,18 +44,28 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   return (
     <Link href={item.href} title={collapsed ? item.label : undefined}
       className={cn(
-        "nav-fluid group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
+        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
         isActive
           ? "bg-primary text-white shadow-sm"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
-      {isActive && (
-        <span className="sidebar-active-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/50 rounded-r-full" />
-      )}
       <Icon size={17} className="flex-shrink-0" />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
+  );
+}
+
+function Avatar({ name, size = 8 }: { name: string; size?: number }) {
+  const ab = initials(name) || "WA";
+  return (
+    <div className={cn(
+      "flex flex-shrink-0 items-center justify-center rounded-full bg-primary text-white font-semibold",
+      `h-${size} w-${size}`,
+      size === 8 ? "text-xs" : "text-[11px]"
+    )}>
+      {ab}
+    </div>
   );
 }
 
@@ -64,9 +73,6 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user } = useAuthStore();
   const { logout } = useAuth();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-  const ab = initials(user?.displayName ?? "Wanago Admin") || "WA";
 
   const visibleGroups = NAV_CONFIG.map((group) => ({
     ...group,
@@ -80,8 +86,8 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      "relative flex flex-col h-screen sticky top-0 transition-all duration-300 ease-in-out",
-      "border-r border-border bg-card",
+      "relative flex flex-col h-screen sticky top-0 transition-all duration-200 ease-in-out",
+      "bg-card border-r border-border",
       sidebarCollapsed ? "w-[68px]" : "w-[240px]"
     )}>
 
@@ -95,14 +101,14 @@ export function Sidebar() {
             W
           </div>
         ) : (
-          <div className="relative h-11 w-[180px]">
+          <div className="relative h-9 w-[160px]">
             <Image
-              src={isDark ? "/images/logo-white-clean.png" : "/images/logo-dark-clean.png"}
+              src="/images/logo-dark-clean.png"
               alt="Wanago Travel & Co"
               fill
               className="object-contain object-left"
               priority
-              sizes="180px"
+              sizes="160px"
             />
           </div>
         )}
@@ -110,10 +116,10 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 scrollbar-thin">
-        {visibleGroups.map((group, gi) => (
+        {visibleGroups.map((group) => (
           <div key={group.group} className="mb-5">
             {!sidebarCollapsed && (
-              <p className="mb-1.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+              <p className="mb-1.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                 {group.group}
               </p>
             )}
@@ -130,14 +136,12 @@ export function Sidebar() {
       <div className="flex-shrink-0 border-t border-border p-3">
         {sidebarCollapsed ? (
           <button onClick={logout} title="Sign out"
-            className="flex w-full items-center justify-center rounded-xl py-2 text-muted-foreground hover:bg-muted transition-colors">
+            className="flex w-full items-center justify-center rounded-xl py-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <LogOut size={16} />
           </button>
         ) : (
-          <div className="flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-muted transition-colors">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white shadow-sm">
-              {ab}
-            </div>
+          <div className="flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-muted transition-colors cursor-pointer">
+            <Avatar name={user?.displayName ?? "Wanago Admin"} size={8} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-foreground">{user?.displayName ?? "User"}</p>
               <p className="truncate text-[11px] text-muted-foreground">

@@ -68,4 +68,4 @@ export type Permission =
 
 export type PermissionMap = Record<SystemRole, Permission[]>;
 
-export type PageAccess = Record<SystemRole, string[]>;
+export type PageAccess = Record<SystemRole, string[] | ["*"]>;

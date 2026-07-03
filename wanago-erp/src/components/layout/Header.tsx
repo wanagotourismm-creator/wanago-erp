@@ -1,47 +1,40 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Search, Bell, Sun, Moon, Monitor, Menu } from "lucide-react";
+import { Search, Bell, Sun, Moon, Monitor, Palette, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
+import { ThemePicker } from "@/components/ui/ThemePicker";
 import { cn, initials } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
 
-// ── Breadcrumb from pathname ──────────────────────────────────
 function useBreadcrumb() {
   const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-  return segments.map((seg) =>
-    seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  return pathname.split("/").filter(Boolean).map((s) =>
+    s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
   );
 }
 
-// ── Theme toggle ──────────────────────────────────────────────
-function ThemeToggle() {
+function ModeToggle() {
   const { theme, setTheme } = useTheme();
-
-  const options = [
-    { value: "light",  Icon: Sun     },
-    { value: "dark",   Icon: Moon    },
-    { value: "system", Icon: Monitor },
-  ] as const;
-
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted p-0.5">
-      {options.map(({ value, Icon }) => (
+    <div className="flex items-center rounded-xl border border-border bg-muted p-1 gap-1">
+      {([["light", Sun, "Light"], ["dark", Moon, "Dark"], ["system", Monitor, "Auto"]] as const).map(([v, Icon, label]) => (
         <button
-          key={value}
-          onClick={() => setTheme(value)}
-          aria-label={`${value} mode`}
+          key={v}
+          onClick={() => setTheme(v)}
+          title={label}
           className={cn(
-            "rounded-md p-1.5 transition-colors",
-            theme === value
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
+            "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150",
+            theme === v
+              ? "bg-primary text-white shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-background"
           )}
         >
-          <Icon size={14} />
+          <Icon size={13} />
+          <span className="hidden lg:inline">{label}</span>
         </button>
       ))}
     </div>
@@ -49,83 +42,83 @@ function ThemeToggle() {
 }
 
 export function Header() {
-  const { toggleSidebar } = useUIStore();
-  const { user } = useAuthStore();
-  const breadcrumb = useBreadcrumb();
+  const { user }            = useAuthStore();
+  const breadcrumb          = useBreadcrumb();
+  const [themeOpen, setThemeOpen] = useState(false);
+  const name  = user?.displayName ?? "User";
+  const email = user?.email ?? "";
+  const ab    = initials(name) || "WA";
 
   return (
-    <header className={cn(
-      "sticky top-0 z-20 flex h-14 w-full flex-shrink-0 items-center gap-4",
-      "border-b border-border bg-background/95 backdrop-blur-sm px-4"
-    )}>
+    <>
+      <header className="sticky top-0 z-20 flex h-[64px] w-full items-center gap-4 border-b border-border bg-card px-6">
 
-      {/* Mobile menu toggle */}
-      <button
-        onClick={toggleSidebar}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors lg:hidden"
-        aria-label="Toggle sidebar"
-      >
-        <Menu size={18} />
-      </button>
+        {/* Page title */}
+        <h1 className="text-lg font-bold text-foreground truncate min-w-0">
+          {breadcrumb[breadcrumb.length - 1] ?? "Dashboard"}
+        </h1>
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-sm min-w-0">
-        {breadcrumb.map((crumb, i) => (
-          <span key={crumb} className="flex items-center gap-1.5 min-w-0">
-            {i > 0 && <span className="text-muted-foreground">/</span>}
-            <span className={cn(
-              "truncate",
-              i === breadcrumb.length - 1
-                ? "font-medium text-foreground"
-                : "text-muted-foreground"
-            )}>
-              {crumb}
-            </span>
-          </span>
-        ))}
-      </div>
+        <div className="flex-1" />
 
-      {/* Spacer */}
-      <div className="flex-1" />
+        {/* Search */}
+        <button className="hidden sm:flex items-center gap-2.5 rounded-xl border border-border bg-muted px-3 py-2 text-muted-foreground hover:border-primary/40 transition-all w-52 lg:w-64">
+          <Search size={14} />
+          <span className="flex-1 text-left text-[13px]">Search task</span>
+          <kbd className="rounded-lg border border-border bg-card px-1.5 py-0.5 text-[10px] font-mono">⌘F</kbd>
+        </button>
 
-      {/* Search */}
-      <button className={cn(
-        "hidden sm:flex items-center gap-2 rounded-lg border border-input bg-muted",
-        "px-3 py-1.5 text-sm text-muted-foreground",
-        "hover:border-primary/50 hover:text-foreground transition-colors",
-        "w-48 lg:w-64"
-      )}>
-        <Search size={14} />
-        <span className="flex-1 text-left text-xs">Search...</span>
-        <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-          ⌘K
-        </kbd>
-      </button>
+        {/* Mode toggle */}
+        <ModeToggle />
 
-      {/* Theme toggle */}
-      <ThemeToggle />
+        {/* Color theme picker button */}
+        <button
+          onClick={() => setThemeOpen(!themeOpen)}
+          title="Change color theme"
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-xl border transition-all",
+            themeOpen
+              ? "border-primary bg-primary text-white"
+              : "border-border bg-card text-muted-foreground hover:text-primary hover:border-primary/40"
+          )}
+        >
+          <Palette size={15} />
+        </button>
 
-      {/* Notifications */}
-      <button className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-        <Bell size={16} />
-        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
-      </button>
+        {/* Notifications */}
+        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+          <Bell size={15} />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
+        </button>
 
-      {/* User avatar */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {user?.displayName ? initials(user.displayName) : "?"}
+        {/* User */}
+        <div className="flex items-center gap-2.5 pl-3 border-l border-border">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-white shadow-sm ring-2 ring-primary/20">
+            {ab}
+          </div>
+          <div className="hidden md:block">
+            <p className="text-[13px] font-semibold text-foreground leading-tight">{name}</p>
+            <p className="text-[11px] text-muted-foreground leading-tight">{email}</p>
+          </div>
         </div>
-        <div className="hidden md:block text-left">
-          <p className="text-xs font-medium text-foreground leading-tight">
-            {user?.displayName ?? "User"}
-          </p>
-          <p className="text-[10px] text-muted-foreground leading-tight">
-            {user?.systemRole ? SYSTEM_ROLE_LABELS[user.systemRole] : ""}
-          </p>
-        </div>
-      </div>
 
-    </header>
+      </header>
+
+      {/* Theme picker dropdown */}
+      {themeOpen && (
+        <div className="sticky top-[64px] z-10 border-b border-border bg-card px-6 py-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Color Theme</p>
+              <p className="text-xs text-muted-foreground">Choose your preferred color scheme</p>
+            </div>
+            <button onClick={() => setThemeOpen(false)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+          <ThemePicker />
+        </div>
+      )}
+    </>
   );
 }
