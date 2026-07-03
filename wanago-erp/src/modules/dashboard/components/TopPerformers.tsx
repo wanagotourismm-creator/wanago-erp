@@ -1,0 +1,94 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { formatCurrency } from "@/lib/utils/helpers";
+
+type Performer = {
+  name:    string;
+  won:     number;
+  revenue: number;
+};
+
+export function TopPerformers() {
+  const [performers, setPerformers] = useState<Performer[]>([]);
+  const [loading,    setLoading]    = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const now   = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS));
+        const bookings = snap.docs.map(d => d.data());
+
+        // Group by assigned agent
+        const map: Record<string, Performer> = {};
+        for (const b of bookings) {
+          const key  = b.assignedTo ?? b.createdBy ?? "Unassigned";
+          const name = b.agentName  ?? key;
+          if (!map[key]) map[key] = { name, won: 0, revenue: 0 };
+          map[key].won++;
+          map[key].revenue += b.totalAmount ?? 0;
+        }
+
+        const sorted = Object.values(map)
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 5);
+
+        setPerformers(sorted.length ? sorted : [{ name: "Unassigned", won: 0, revenue: 0 }]);
+      } catch {
+        setPerformers([{ name: "Unassigned", won: 0, revenue: 0 }]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+
+  return (
+    <Card padding="none">
+      <div className="p-5 pb-3">
+        <CardTitle>Top Performers</CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">Revenue collected this month</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-y border-border bg-muted/30">
+              <th className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-8">#</th>
+              <th className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agent</th>
+              <th className="px-4 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Won</th>
+              <th className="px-4 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Revenue (MTD)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                  Loading...
+                </td>
+              </tr>
+            ) : performers.map((p, i) => (
+              <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                <td className="px-4 py-3 text-base">{medals[i] ?? i + 1}</td>
+                <td className="px-4 py-3 text-sm font-medium text-foreground">{p.name}</td>
+                <td className="px-4 py-3 text-right text-sm text-primary font-semibold">{p.won}</td>
+                <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                  {formatCurrency(p.revenue)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}

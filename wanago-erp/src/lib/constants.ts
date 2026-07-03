@@ -1,0 +1,158 @@
+// ─────────────────────────────────────────────────
+// WANAGO ERP — App Constants (Single Source of Truth)
+// ─────────────────────────────────────────────────
+
+export const LEAD_STAGES = {
+  NEW:         "new",
+  CONTACTED:   "contacted",
+  FOLLOW_UP:   "follow_up",
+  QUOTED:      "quoted",
+  NEGOTIATION: "negotiation",
+  WON:         "won",
+  LOST:        "lost",
+} as const;
+
+export type LeadStage = (typeof LEAD_STAGES)[keyof typeof LEAD_STAGES];
+
+export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
+  new:         "New",
+  contacted:   "Contacted",
+  follow_up:   "Follow-up",
+  quoted:      "Quoted",
+  negotiation: "Negotiation",
+  won:         "Won",
+  lost:        "Lost",
+};
+
+export const BOOKING_STATUS = {
+  PENDING_FINANCE:  "pending_finance",
+  FINANCE_APPROVED: "finance_approved",
+  OPS_PENDING:      "ops_pending",
+  CONFIRMED:        "confirmed",
+  COMPLETED:        "completed",
+  CANCELLED:        "cancelled",
+} as const;
+
+export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
+
+export const PAYMENT_STATUS = {
+  PAID:    "paid",
+  PARTIAL: "partial",
+  UNPAID:  "unpaid",
+  OVERDUE: "overdue",
+} as const;
+
+export type PaymentStatus = (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
+
+export const INVOICE_STATUS = {
+  DRAFT:   "draft",
+  SENT:    "sent",
+  PAID:    "paid",
+  PARTIAL: "partial",
+  OVERDUE: "overdue",
+} as const;
+
+export type InvoiceStatus = (typeof INVOICE_STATUS)[keyof typeof INVOICE_STATUS];
+
+export const PRIORITY = {
+  HOT:  "hot",
+  WARM: "warm",
+  COLD: "cold",
+} as const;
+
+export type Priority = (typeof PRIORITY)[keyof typeof PRIORITY];
+
+export const TRIP_TYPES = {
+  INTERNATIONAL: "international",
+  DOMESTIC:      "domestic",
+  HONEYMOON:     "honeymoon",
+  GROUP:         "group",
+  ADVENTURE:     "adventure",
+  CORPORATE:     "corporate",
+} as const;
+
+export const FIRESTORE_COLLECTIONS = {
+  LEADS:             "leads",
+  CUSTOMERS:         "customers",
+  QUOTATIONS:        "quotations",
+  PACKAGES:          "packages",
+  BOOKINGS:          "bookings",
+  INVOICES:          "invoices",
+  PAYMENTS:          "payments",
+  EXPENSES:          "expenses",
+  CAMPAIGNS:         "campaigns",
+  SEGMENTS:          "segments",
+  ACTIVITIES:        "activities",
+  TICKETS:           "tickets",
+  HRMS_EMPLOYEES:    "hrmsEmployees",
+  HRMS_LEAVES:       "hrmsLeaves",
+  HRMS_PAYROLL:      "hrmsPayroll",
+  HRMS_CHECK_INS:    "hrmsCheckIns",
+  ITINERARIES:       "itineraries",
+  SUPPLIERS:         "suppliers",
+  TASKS:             "tasks",
+  REWARDS:           "rewards",
+  NOTIFICATIONS:     "notifications",
+  USERS:             "users",
+  OFFICES:           "offices",
+  SETTINGS:          "settings",
+} as const;
+
+export const DEFAULT_LEAD_SOURCES = [
+  "Instagram",
+  "Facebook",
+  "WhatsApp",
+  "Walk-in",
+  "Referral",
+  "Website",
+  "Google",
+  "YouTube",
+  "TV Ad",
+  "Cold Call",
+] as const;
+
+export const SYSTEM_ROLES = {
+  SUPER_ADMIN: "super_admin",
+  ADMIN:       "admin",
+  OPERATIONS:  "operations",
+  MARKETING:   "marketing",
+  FINANCE:     "finance",
+  HR:          "hr",
+  SALES:       "sales",
+  SUPPORT:     "support",
+} as const;
+
+export const SYSTEM_ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin",
+  admin:       "Admin",
+  operations:  "Operations",
+  marketing:   "Marketing",
+  finance:     "Finance",
+  hr:          "HR",
+  sales:       "Sales",
+  support:     "Support",
+};
+
+export const TEAM_ROLE_LABELS: Record<string, string> = {
+  founder:            "Founder",
+  ceo:                "CEO",
+  co_founder:         "Co-Founder",
+  director:           "Director",
+  admin:              "Admin",
+  branch_manager:     "Branch Manager",
+  team_lead:          "Team Lead",
+  senior_manager:     "Senior Manager",
+  sales_manager:      "Sales Manager",
+  operations_manager: "Operations Manager",
+  finance_manager:    "Finance Manager",
+  marketing_manager:  "Marketing Manager",
+  agent:              "Agent",
+};
+
+// Reference number formats
+export const REF_FORMATS = {
+  BOOKING:   "WGO",
+  INVOICE:   "INV",
+  QUOTATION: "QT",
+  LEAD:      "LD",
+} as const;

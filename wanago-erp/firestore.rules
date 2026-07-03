@@ -1,0 +1,134 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ─────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.systemRole;
+    }
+
+    function isSuperAdmin() {
+      return getUserRole() == 'super_admin';
+    }
+
+    function isAdmin() {
+      return getUserRole() in ['super_admin', 'admin'];
+    }
+
+    function isSameOffice(officeId) {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.officeId == officeId;
+    }
+
+    function hasRequiredFields() {
+      return request.resource.data.keys().hasAll(['createdAt', 'updatedAt', 'createdBy', 'status']);
+    }
+
+    // ── Users ────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ── Offices ──────────────────────────────────────────────
+    match /offices/{officeId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // ── Leads ────────────────────────────────────────────────
+    match /leads/{leadId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Customers ────────────────────────────────────────────
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Bookings ─────────────────────────────────────────────
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Finance (invoices, payments, expenses) ───────────────
+    match /invoices/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','finance'];
+    }
+
+    match /payments/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','finance'];
+    }
+
+    match /expenses/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','finance'];
+    }
+
+    // ── HRMS ─────────────────────────────────────────────────
+    match /hrmsEmployees/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','hr'];
+    }
+
+    match /hrmsLeaves/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /hrmsPayroll/{id} {
+      allow read: if isAuthenticated() &&
+                     getUserRole() in ['super_admin','admin','hr','finance'];
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','hr'];
+    }
+
+    // ── Notifications ────────────────────────────────────────
+    match /notifications/{id} {
+      allow read: if isAuthenticated() &&
+                     resource.data.recipientId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+                       resource.data.recipientId == request.auth.uid;
+      allow delete: if isAuthenticated() &&
+                       resource.data.recipientId == request.auth.uid;
+    }
+
+    // ── Settings ─────────────────────────────────────────────
+    match /settings/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── All other collections ─────────────────────────────────
+    match /{collection}/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && hasRequiredFields();
+    }
+  }
+}
