@@ -112,7 +112,7 @@ export default function LandingPage() {
 
             <p className="mx-auto mt-8 max-w-2xl text-xl text-gray-500 leading-relaxed">
               One powerful platform built for Wanago — manage leads, bookings, finance, HR and operations.
-              Everything your team needs, nothing they don't.
+              Everything your team needs, nothing they don&apos;t.
             </p>
 
             {/* CTAs */}

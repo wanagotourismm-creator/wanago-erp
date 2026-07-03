@@ -1,4 +1,4 @@
-import { where, orderBy } from "firebase/firestore";
+import { where, orderBy, type QueryConstraint } from "firebase/firestore";
 import { getDocs, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { leadRepository } from "@/modules/leads/services/lead.repository";
@@ -12,7 +12,7 @@ export async function fetchLeads(filters?: {
   assignedTo?: string;
   officeId?: string;
 }): Promise<Lead[]> {
-  const constraints = [orderBy("createdAt", "desc")];
+  const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
   if (filters?.stage)      constraints.unshift(where("stage",      "==", filters.stage));
   if (filters?.assignedTo) constraints.unshift(where("assignedTo", "==", filters.assignedTo));
   if (filters?.officeId)   constraints.unshift(where("officeId",   "==", filters.officeId));
@@ -91,6 +91,7 @@ export async function updateLeadStage(
             source:         lead.source         || null,
             tags:           [],
             notes:          `Auto-created from Lead ${lead.refNumber}. Destination: ${lead.destination}`,
+            createdBy:      createdBy ?? "system",
           },
           createdBy ?? "system"
         );
