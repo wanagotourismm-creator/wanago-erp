@@ -96,6 +96,9 @@ export const FIRESTORE_COLLECTIONS = {
   USERS:             "users",
   OFFICES:           "offices",
   SETTINGS:          "settings",
+  TEAMSPACE_CHANNELS:      "teamspaceChannels",
+  TEAMSPACE_CONVERSATIONS: "teamspaceConversations",
+  TEAMSPACE_MESSAGES:      "teamspaceMessages",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

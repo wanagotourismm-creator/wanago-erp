@@ -42,6 +42,30 @@
         { "fieldPath": "read",        "order": "ASCENDING"  },
         { "fieldPath": "createdAt",   "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "teamspaceChannels",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "officeId", "order": "ASCENDING" },
+        { "fieldPath": "name",     "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teamspaceMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convId",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teamspaceMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convId",    "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
