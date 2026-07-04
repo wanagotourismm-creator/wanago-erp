@@ -22,3 +22,14 @@ export const firebaseApp: FirebaseApp    = getFirebaseApp();
 export const db:          Firestore      = getFirestore(firebaseApp);
 export const auth:        Auth           = getAuth(firebaseApp);
 export const storage:     FirebaseStorage = getStorage(firebaseApp);
+
+// Secondary app instance — lets an admin create a new user account
+// (signUp) without Firebase Auth swapping out and signing them into
+// the newly created account on the primary app.
+function getSecondaryFirebaseApp(): FirebaseApp {
+  const existing = getApps().find(a => a.name === "Secondary");
+  if (existing) return existing;
+  return initializeApp(firebaseConfig, "Secondary");
+}
+
+export const secondaryAuth: Auth = getAuth(getSecondaryFirebaseApp());

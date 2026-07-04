@@ -9,6 +9,7 @@ import {
   Package, Store, Map, FileText, CreditCard,
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Clock,
+  ShieldCheck,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -37,6 +38,7 @@ const ICONS: Record<string, React.ElementType> = {
   "clock":            Clock,
   "chart-bar":        BarChart3,
   "settings":         Settings,
+  "shield":           ShieldCheck,
 };
 
 function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {

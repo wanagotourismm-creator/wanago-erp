@@ -149,6 +149,12 @@ export const NAV_CONFIG: NavGroup[] = [
     group: "System",
     items: [
       {
+        label: "Admin",
+        href:  "/admin",
+        icon:  "shield",
+        roles: ["super_admin","admin"],
+      },
+      {
         label: "Settings",
         href:  "/settings",
         icon:  "settings",
