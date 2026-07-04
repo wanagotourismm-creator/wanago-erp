@@ -178,4 +178,5 @@ export const REF_FORMATS = {
   QUOTATION: "QT",
   LEAD:      "LD",
   CUSTOMER:  "CUS",
+  PAYMENT:   "PAY",
 } as const;
