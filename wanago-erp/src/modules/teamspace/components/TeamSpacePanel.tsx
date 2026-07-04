@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageSquare, X, Hash, Megaphone, Plus, Send, Loader2 } from "lucide-react";
+import { MessageSquare, X, Hash, Megaphone, Plus, Send, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useTeamSpace } from "@/modules/teamspace/hooks/useTeamSpace";
 import { ChannelForm } from "@/modules/teamspace/components/ChannelForm";
 import { useAuthStore } from "@/store/auth.store";
@@ -15,6 +15,7 @@ export function TeamSpacePanel() {
     channels, members,
     active, openChannel, openDM,
     messages, loading, send, addChannel,
+    sidebarError, retry,
   } = useTeamSpace();
 
   const [draft, setDraft] = useState("");
@@ -71,6 +72,16 @@ export function TeamSpacePanel() {
                   <X size={14} />
                 </button>
               </div>
+
+              {sidebarError && (
+                <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+                  <AlertTriangle size={12} className="flex-shrink-0" />
+                  <span className="flex-1">{sidebarError}</span>
+                  <button onClick={() => retry()} title="Retry" className="flex-shrink-0 hover:text-destructive/70">
+                    <RefreshCw size={12} />
+                  </button>
+                </div>
+              )}
 
               <div className="flex-1 py-2">
                 <div className="flex items-center justify-between px-3 pt-2 pb-1">

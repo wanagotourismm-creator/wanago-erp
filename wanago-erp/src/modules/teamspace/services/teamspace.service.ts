@@ -1,11 +1,16 @@
 import {
-  orderBy, where, limit as fbLimit, arrayUnion, getDocs, query, collection,
+  where, arrayUnion, getDocs, query, collection,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { toDate } from "@/lib/utils/helpers";
 import type { Channel, Conversation, Message, MessageTargetType } from "@/modules/teamspace/types";
 import type { ChannelSchema } from "@/modules/teamspace/schemas";
+
+function byCreatedAtAsc(a: Message, b: Message): number {
+  return (toDate(a.createdAt)?.getTime() ?? 0) - (toDate(b.createdAt)?.getTime() ?? 0);
+}
 
 class ChannelRepository extends BaseRepository<Channel> {
   constructor() { super(FIRESTORE_COLLECTIONS.TEAMSPACE_CHANNELS); }
@@ -28,9 +33,12 @@ const DEFAULT_CHANNELS: { name: string; description: string; type: "public" | "a
 ];
 
 // ── Channels ─────────────────────────────────────────────────
+// Note: sorted client-side (not via Firestore orderBy) so this query
+// only needs a single-field index on officeId, which Firestore creates
+// automatically — no manual composite index deployment required.
 export async function fetchChannels(officeId: string): Promise<Channel[]> {
-  const existing = await channelRepo.findMany({ constraints: [where("officeId", "==", officeId), orderBy("name", "asc")] });
-  if (existing.length > 0) return existing;
+  const existing = await channelRepo.findMany({ constraints: [where("officeId", "==", officeId)] });
+  if (existing.length > 0) return existing.sort((a, b) => a.name.localeCompare(b.name));
 
   // First-time setup for this office: seed the default channel set once.
   const created = await Promise.all(
@@ -77,17 +85,18 @@ export async function fetchMyConversations(myId: string): Promise<Conversation[]
 }
 
 // ── Messages ─────────────────────────────────────────────────
+// Note: sorted client-side (not via Firestore orderBy) so these queries
+// only need a single-field index on convId, which Firestore creates
+// automatically — no manual composite index deployment required.
 export async function fetchRecentMessages(convId: string, take = 50): Promise<Message[]> {
-  const msgs = await messageRepo.findMany({
-    constraints: [where("convId", "==", convId), orderBy("createdAt", "desc"), fbLimit(take)],
-  });
-  return msgs.reverse();
+  const msgs = await messageRepo.findMany({ constraints: [where("convId", "==", convId)] });
+  return msgs.sort(byCreatedAtAsc).slice(-take);
 }
 
 export function subscribeToMessages(convId: string, callback: (msgs: Message[]) => void) {
   return messageRepo.subscribe(
-    [where("convId", "==", convId), orderBy("createdAt", "asc"), fbLimit(200)],
-    callback,
+    [where("convId", "==", convId)],
+    (msgs) => callback(msgs.sort(byCreatedAtAsc).slice(-200)),
   );
 }
 

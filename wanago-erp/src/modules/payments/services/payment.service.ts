@@ -1,18 +1,22 @@
-import { where, orderBy, type QueryConstraint } from "firebase/firestore";
+import { where, type QueryConstraint } from "firebase/firestore";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { paymentRepository } from "@/modules/payments/services/payment.repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { generateRefNumber, toDate } from "@/lib/utils/helpers";
 import { fetchInvoiceById, updateInvoice } from "@/modules/invoices/services/invoice.service";
 import type { Payment, PaymentFormData } from "@/modules/payments/types";
 
+// Note: sorted client-side (not via Firestore orderBy) so filtered
+// queries only need single-field indexes, which Firestore creates
+// automatically — no manual composite index deployment required.
 export async function fetchPayments(filters?: {
   officeId?: string;
 }): Promise<Payment[]> {
-  const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
-  if (filters?.officeId) constraints.unshift(where("officeId", "==", filters.officeId));
-  return paymentRepository.findMany({ constraints });
+  const constraints: QueryConstraint[] = [];
+  if (filters?.officeId) constraints.push(where("officeId", "==", filters.officeId));
+  const payments = await paymentRepository.findMany({ constraints });
+  return payments.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
 }
 
 export async function fetchPaymentById(id: string): Promise<Payment | null> {

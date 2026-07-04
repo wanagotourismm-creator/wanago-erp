@@ -1,19 +1,23 @@
-import { where, orderBy, type QueryConstraint } from "firebase/firestore";
+import { where, type QueryConstraint } from "firebase/firestore";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { customerRepository } from "@/modules/customers/services/customer.repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { generateRefNumber, toDate } from "@/lib/utils/helpers";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
 
+// Note: sorted client-side (not via Firestore orderBy) so filtered
+// queries only need single-field indexes, which Firestore creates
+// automatically — no manual composite index deployment required.
 export async function fetchCustomers(filters?: {
   customerType?: string;
   officeId?:     string;
 }): Promise<Customer[]> {
-  const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
-  if (filters?.customerType) constraints.unshift(where("customerType", "==", filters.customerType));
-  if (filters?.officeId)     constraints.unshift(where("officeId",     "==", filters.officeId));
-  return customerRepository.findMany({ constraints });
+  const constraints: QueryConstraint[] = [];
+  if (filters?.customerType) constraints.push(where("customerType", "==", filters.customerType));
+  if (filters?.officeId)     constraints.push(where("officeId",     "==", filters.officeId));
+  const customers = await customerRepository.findMany({ constraints });
+  return customers.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
 }
 
 export async function fetchCustomerById(id: string): Promise<Customer | null> {

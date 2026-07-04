@@ -21,26 +21,41 @@ export function useTeamSpace() {
   const [active, setActive] = useState<ActiveConv>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sidebarError, setSidebarError] = useState<string | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
 
   const officeId = user?.officeId ?? "main";
 
   const loadSidebar = useCallback(async () => {
     if (!user) return;
-    const [ch, convs, emps] = await Promise.all([
+    setSidebarError(null);
+
+    // Each source loads independently — one failing (e.g. a transient
+    // Firestore error) shouldn't blank out the whole panel.
+    const [chResult, convsResult, empsResult] = await Promise.allSettled([
       fetchChannels(officeId),
       fetchMyConversations(user.uid),
       fetchEmployees(),
     ]);
-    setChannels(ch);
-    setConversations(convs);
-    setMembers(
-      emps
-        .filter((e) => e.userId && e.userId !== user.uid)
-        .map((e) => ({ id: e.userId as string, name: e.fullName, dept: e.department, role: e.designation ?? "" }))
-    );
-    if (!active && ch.length > 0) {
-      setActive({ type: "channel", id: ch[0].id, label: ch[0].name });
+
+    if (chResult.status === "fulfilled") {
+      setChannels(chResult.value);
+      if (!active && chResult.value.length > 0) {
+        setActive({ type: "channel", id: chResult.value[0].id, label: chResult.value[0].name });
+      }
+    }
+    if (convsResult.status === "fulfilled") setConversations(convsResult.value);
+    if (empsResult.status === "fulfilled") {
+      setMembers(
+        empsResult.value
+          .filter((e) => e.userId && e.userId !== user.uid)
+          .map((e) => ({ id: e.userId as string, name: e.fullName, dept: e.department, role: e.designation ?? "" }))
+      );
+    }
+
+    const failures = [chResult, convsResult, empsResult].filter(r => r.status === "rejected");
+    if (failures.length > 0) {
+      setSidebarError("Some Team Space data couldn't load. Try refreshing.");
     }
   }, [user, officeId, active]);
 
@@ -100,5 +115,6 @@ export function useTeamSpace() {
     channels, conversations, members,
     active, openChannel, openDM,
     messages, loading, send, addChannel, memberName,
+    sidebarError, retry: loadSidebar,
   };
 }

@@ -1,9 +1,9 @@
-import { where, orderBy, type QueryConstraint } from "firebase/firestore";
+import { where, type QueryConstraint } from "firebase/firestore";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { invoiceRepository } from "@/modules/invoices/services/invoice.repository";
 import { FIRESTORE_COLLECTIONS, INVOICE_STATUS, type InvoiceStatus } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { generateRefNumber, toDate } from "@/lib/utils/helpers";
 import type { Invoice, InvoiceFormData } from "@/modules/invoices/types";
 
 function computeStatus(
@@ -19,14 +19,18 @@ function computeStatus(
   return INVOICE_STATUS.UNPAID;
 }
 
+// Note: sorted client-side (not via Firestore orderBy) so filtered
+// queries only need single-field indexes, which Firestore creates
+// automatically — no manual composite index deployment required.
 export async function fetchInvoices(filters?: {
   status?:   string;
   officeId?: string;
 }): Promise<Invoice[]> {
-  const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
-  if (filters?.status)   constraints.unshift(where("status",   "==", filters.status));
-  if (filters?.officeId) constraints.unshift(where("officeId", "==", filters.officeId));
-  return invoiceRepository.findMany({ constraints });
+  const constraints: QueryConstraint[] = [];
+  if (filters?.status)   constraints.push(where("status",   "==", filters.status));
+  if (filters?.officeId) constraints.push(where("officeId", "==", filters.officeId));
+  const invoices = await invoiceRepository.findMany({ constraints });
+  return invoices.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
 }
 
 export async function fetchInvoiceById(id: string): Promise<Invoice | null> {

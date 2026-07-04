@@ -1,7 +1,7 @@
-import { where, orderBy, type QueryConstraint } from "firebase/firestore";
+import { where, type QueryConstraint } from "firebase/firestore";
 import { leadRepository } from "@/modules/leads/services/lead.repository";
 import { FIRESTORE_COLLECTIONS, REF_FORMATS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { generateRefNumber, toDate } from "@/lib/utils/helpers";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
 import {
   collection, getDocs, serverTimestamp,
@@ -9,16 +9,20 @@ import {
 import { db } from "@/lib/firebase/client";
 import { fetchCustomers, createCustomer } from "@/modules/customers/services/customer.service";
 
+// Note: sorted client-side (not via Firestore orderBy) so filtered
+// queries only need single-field indexes, which Firestore creates
+// automatically — no manual composite index deployment required.
 export async function fetchLeads(filters?: {
   stage?: string;
   assignedTo?: string;
   officeId?: string;
 }): Promise<Lead[]> {
-  const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
-  if (filters?.stage)      constraints.unshift(where("stage",      "==", filters.stage));
-  if (filters?.assignedTo) constraints.unshift(where("assignedTo", "==", filters.assignedTo));
-  if (filters?.officeId)   constraints.unshift(where("officeId",   "==", filters.officeId));
-  return leadRepository.findMany({ constraints });
+  const constraints: QueryConstraint[] = [];
+  if (filters?.stage)      constraints.push(where("stage",      "==", filters.stage));
+  if (filters?.assignedTo) constraints.push(where("assignedTo", "==", filters.assignedTo));
+  if (filters?.officeId)   constraints.push(where("officeId",   "==", filters.officeId));
+  const leads = await leadRepository.findMany({ constraints });
+  return leads.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
 }
 
 export async function fetchLeadById(id: string): Promise<Lead | null> {
