@@ -35,6 +35,15 @@ export const BOOKING_STATUS = {
 
 export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
 
+export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
+  pending_finance:  "Pending Finance",
+  finance_approved: "Finance Approved",
+  ops_pending:      "Ops Pending",
+  confirmed:        "Confirmed",
+  completed:        "Completed",
+  cancelled:        "Cancelled",
+};
+
 export const PAYMENT_STATUS = {
   PAID:    "paid",
   PARTIAL: "partial",
@@ -158,4 +167,5 @@ export const REF_FORMATS = {
   INVOICE:   "INV",
   QUOTATION: "QT",
   LEAD:      "LD",
+  CUSTOMER:  "CUS",
 } as const;

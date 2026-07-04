@@ -4,6 +4,8 @@ import type { FirestoreRecord, Timestamp } from "@/types/global";
 export type Employee = FirestoreRecord & {
   fullName: string;
   department: string;
+  designation?: string;
+  userId?: string;
   officeId: string;
   basicSalary: number;
   hra: number;
@@ -42,4 +44,16 @@ export type LeaveRequest = FirestoreRecord & {
   approvedAt: Timestamp | Date | string | FieldValue | null;
   rejectedBy: string | null;
   comments: string | null;
+};
+
+export type AttendanceRecord = FirestoreRecord & {
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  status: "present" | "absent" | "half_day" | "leave" | "wfh" | "holiday";
+  clockIn: string | null;
+  clockOut: string | null;
+  hoursWorked: number | null;
+  notes: string | null;
+  officeId: string;
 };

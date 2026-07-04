@@ -37,7 +37,7 @@ export function useTeamSpace() {
     setMembers(
       emps
         .filter((e) => e.userId && e.userId !== user.uid)
-        .map((e) => ({ id: e.userId as string, name: e.fullName, dept: e.department, role: e.designation }))
+        .map((e) => ({ id: e.userId as string, name: e.fullName, dept: e.department, role: e.designation ?? "" }))
     );
     if (!active && ch.length > 0) {
       setActive({ type: "channel", id: ch[0].id, label: ch[0].name });

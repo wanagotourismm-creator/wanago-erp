@@ -1,0 +1,75 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import {
+  fetchBookings, createBooking, updateBooking,
+  updateBookingStatus, deleteBooking,
+} from "@/modules/bookings/services/booking.service";
+import { useAuthStore } from "@/store/auth.store";
+import type { Booking, BookingFormData } from "@/modules/bookings/types";
+
+export function useBookings() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+  const { user } = useAuthStore();
+
+  const load = useCallback(async (filters?: { status?: string }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchBookings(filters);
+      setBookings(data);
+    } catch {
+      setError("Failed to load bookings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function addBooking(data: BookingFormData): Promise<{ error: string | null }> {
+    try {
+      const booking = await createBooking(data, user?.uid ?? "");
+      setBookings(prev => [booking, ...prev]);
+      return { error: null };
+    } catch {
+      return { error: "Failed to create booking" };
+    }
+  }
+
+  async function editBooking(
+    id: string, data: Partial<BookingFormData>
+  ): Promise<{ error: string | null }> {
+    try {
+      await updateBooking(id, data);
+      setBookings(prev => prev.map(b => {
+        if (b.id !== id) return b;
+        const totalAmount   = data.totalAmount   ?? b.totalAmount;
+        const advanceAmount = data.advanceAmount ?? b.advanceAmount;
+        return { ...b, ...data, balanceAmount: totalAmount - advanceAmount };
+      }));
+      return { error: null };
+    } catch {
+      return { error: "Failed to update booking" };
+    }
+  }
+
+  async function changeStatus(id: string, status: string): Promise<void> {
+    await updateBookingStatus(id, status);
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } as Booking : b));
+  }
+
+  async function removeBooking(id: string): Promise<{ error: string | null }> {
+    try {
+      await deleteBooking(id);
+      setBookings(prev => prev.filter(b => b.id !== id));
+      return { error: null };
+    } catch {
+      return { error: "Failed to delete booking" };
+    }
+  }
+
+  return { bookings, loading, error, load, addBooking, editBooking, changeStatus, removeBooking };
+}

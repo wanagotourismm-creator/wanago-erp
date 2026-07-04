@@ -3,11 +3,15 @@ import { persist } from "zustand/middleware";
 
 type UIState = {
   sidebarCollapsed:   boolean;
+  mobileSidebarOpen:  boolean;
   commandPaletteOpen: boolean;
   theme:              "light" | "dark" | "system";
 
   toggleSidebar:       () => void;
   setSidebarCollapsed: (v: boolean) => void;
+  openMobileSidebar:   () => void;
+  closeMobileSidebar:  () => void;
+  toggleMobileSidebar: () => void;
   openCommandPalette:  () => void;
   closeCommandPalette: () => void;
   setTheme:            (t: UIState["theme"]) => void;
@@ -17,11 +21,15 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarCollapsed:   false,
+      mobileSidebarOpen:  false,
       commandPaletteOpen: false,
       theme:              "system",
 
       toggleSidebar:       () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
+      openMobileSidebar:   () => set({ mobileSidebarOpen: true }),
+      closeMobileSidebar:  () => set({ mobileSidebarOpen: false }),
+      toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
       openCommandPalette:  () => set({ commandPaletteOpen: true }),
       closeCommandPalette: () => set({ commandPaletteOpen: false }),
       setTheme:            (theme) => set({ theme }),
