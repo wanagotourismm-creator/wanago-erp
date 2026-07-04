@@ -122,6 +122,8 @@ export const FIRESTORE_COLLECTIONS = {
   TRASH:             "trash",
   JOB_OPENINGS:      "jobOpenings",
   CANDIDATES:        "candidates",
+  PERFORMANCE_GOALS:   "performanceGoals",
+  PERFORMANCE_REVIEWS: "performanceReviews",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
@@ -186,6 +188,8 @@ export const REF_FORMATS = {
   EMPLOYEE:  "EMP",
   JOB:       "JOB",
   CANDIDATE: "CAND",
+  GOAL:      "GOAL",
+  REVIEW:    "REV",
 } as const;
 
 // Recruitment pipeline stages, in order
@@ -211,4 +215,37 @@ export const RECRUITMENT_STAGE_LABELS: Record<RecruitmentStage, string> = {
   offer_sent:   "Offer Sent",
   joined:       "Joined",
   rejected:     "Rejected",
+};
+
+// Performance review rating scale
+export const RATING_SCALE = {
+  OUTSTANDING:         "outstanding",
+  EXCEEDS_EXPECTATIONS: "exceeds_expectations",
+  MEETS_EXPECTATIONS:   "meets_expectations",
+  NEEDS_IMPROVEMENT:    "needs_improvement",
+} as const;
+
+export type Rating = (typeof RATING_SCALE)[keyof typeof RATING_SCALE];
+
+export const RATING_LABELS: Record<Rating, string> = {
+  outstanding:          "Outstanding",
+  exceeds_expectations: "Exceeds Expectations",
+  meets_expectations:   "Meets Expectations",
+  needs_improvement:    "Needs Improvement",
+};
+
+export const GOAL_STATUS = {
+  NOT_STARTED: "not_started",
+  IN_PROGRESS: "in_progress",
+  AT_RISK:     "at_risk",
+  COMPLETED:   "completed",
+} as const;
+
+export type GoalStatus = (typeof GOAL_STATUS)[keyof typeof GOAL_STATUS];
+
+export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
+  not_started: "Not Started",
+  in_progress: "In Progress",
+  at_risk:     "At Risk",
+  completed:   "Completed",
 };

@@ -9,7 +9,7 @@ import {
   Package, Store, Map, FileText, CreditCard,
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Clock,
-  ShieldCheck, UserPlus,
+  ShieldCheck, UserPlus, Target,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -40,6 +40,7 @@ const ICONS: Record<string, React.ElementType> = {
   "settings":         Settings,
   "shield":           ShieldCheck,
   "user-plus":        UserPlus,
+  "target":           Target,
 };
 
 function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {

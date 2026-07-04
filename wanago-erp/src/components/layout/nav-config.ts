@@ -138,6 +138,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "user-plus",
         roles: ["super_admin","admin","hr"],
       },
+      {
+        label: "Performance",
+        href:  "/performance",
+        icon:  "target",
+        roles: ["super_admin","admin","hr"],
+      },
     ],
   },
   {
