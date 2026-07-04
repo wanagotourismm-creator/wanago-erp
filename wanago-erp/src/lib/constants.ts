@@ -181,4 +181,5 @@ export const REF_FORMATS = {
   LEAD:      "LD",
   CUSTOMER:  "CUS",
   PAYMENT:   "PAY",
+  EMPLOYEE:  "EMP",
 } as const;

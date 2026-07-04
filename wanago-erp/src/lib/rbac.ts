@@ -57,9 +57,9 @@ export const PAGE_ACCESS: PageAccess = {
   super_admin: ["*"],
   admin:       ["*"],
   operations:  ["dashboard", "leads", "customers", "bookings", "operations", "packages", "suppliers"],
-  finance:     ["dashboard", "bookings", "invoices", "payments", "expenses", "reports"],
+  finance:     ["dashboard", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll"],
   marketing:   ["dashboard", "leads", "customers", "marketing", "reports"],
-  hr:          ["dashboard", "hrms", "reports"],
+  hr:          ["dashboard", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "reports"],
   sales:       ["dashboard", "leads", "customers", "bookings", "packages"],
   support:     ["dashboard", "leads", "customers", "bookings"],
 };

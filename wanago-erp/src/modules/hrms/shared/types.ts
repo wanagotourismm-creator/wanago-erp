@@ -1,15 +1,58 @@
 import type { FieldValue } from "firebase/firestore";
 import type { FirestoreRecord, Timestamp } from "@/types/global";
 
+export type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
+export type ProbationStatus = "probation" | "confirmed";
+export type EmployeeStatus = "active" | "inactive" | "terminated" | "resigned";
+export type Gender = "male" | "female" | "other";
+
+export type EmployeeDocument = {
+  id:         string;
+  label:      string;
+  url:        string;
+  uploadedAt: Timestamp | Date | string;
+};
+
 export type Employee = FirestoreRecord & {
-  fullName: string;
-  department: string;
-  designation?: string;
-  userId?: string;
-  officeId: string;
-  basicSalary: number;
-  hra: number;
-  allowances: number;
+  employeeCode: string;
+
+  // Personal
+  fullName:          string;
+  profilePictureUrl: string | null;
+  gender:            Gender | null;
+  dateOfBirth:       string | null;
+  mobileNumber:      string;
+  email:             string | null;
+  address:           string | null;
+
+  // Employment
+  department:            string;
+  designation:           string;
+  reportingManagerId:    string | null;
+  reportingManagerName:  string | null;
+  employmentType:        EmploymentType;
+  dateOfJoining:         string | null;
+  probationStatus:       ProbationStatus;
+  employeeStatus:        EmployeeStatus;
+
+  // Financial
+  basicSalary:      number;
+  hra:               number;
+  allowances:        number;
+  bankAccountNumber: string | null;
+  bankName:          string | null;
+  ifscCode:          string | null;
+  uan:               string | null;
+  pfNumber:          string | null;
+  panNumber:         string | null;
+
+  // Documents
+  documents: EmployeeDocument[];
+
+  // Linkage
+  userId?:    string;
+  officeId:   string;
+  officeName: string;
 };
 
 export type PayrollRecord = FirestoreRecord & {
