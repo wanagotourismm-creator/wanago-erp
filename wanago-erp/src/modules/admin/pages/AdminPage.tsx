@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck } from "lucide-react";
+import {
+  Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
+  Download, Megaphone, CalendarDays, Activity,
+} from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
 import { useActivityLog } from "@/modules/admin/activity/hooks/useActivityLog";
@@ -15,6 +18,10 @@ import { OfficeForm } from "@/modules/admin/offices/components/OfficeForm";
 import { ActivityLogTable } from "@/modules/admin/activity/components/ActivityLogTable";
 import { CompanySettingsForm } from "@/modules/admin/settings/components/CompanySettingsForm";
 import { RolePermissionsEditor } from "@/modules/admin/permissions/components/RolePermissionsEditor";
+import { DataExportPanel } from "@/modules/admin/export/components/DataExportPanel";
+import { AnnouncementComposer } from "@/modules/admin/announcements/components/AnnouncementComposer";
+import { HolidayCalendar } from "@/modules/admin/holidays/components/HolidayCalendar";
+import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -23,7 +30,7 @@ import { cn } from "@/lib/utils/helpers";
 import type { UserProfile } from "@/modules/auth/types";
 import type { Office } from "@/modules/admin/offices/types";
 
-type Tab = "users" | "offices" | "activity" | "settings" | "permissions";
+type Tab = "users" | "offices" | "activity" | "settings" | "permissions" | "export" | "announcements" | "holidays" | "health";
 
 export function AdminPage() {
   const { user } = useAuthStore();
@@ -138,6 +145,30 @@ export function AdminPage() {
             <ShieldCheck size={14} /> Roles & Permissions
           </button>
         )}
+        <button onClick={() => setTab("export")} className={cn(
+          "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+          tab === "export" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+        )}>
+          <Download size={14} /> Data Export
+        </button>
+        <button onClick={() => setTab("announcements")} className={cn(
+          "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+          tab === "announcements" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+        )}>
+          <Megaphone size={14} /> Announcements
+        </button>
+        <button onClick={() => setTab("holidays")} className={cn(
+          "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+          tab === "holidays" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+        )}>
+          <CalendarDays size={14} /> Holidays
+        </button>
+        <button onClick={() => setTab("health")} className={cn(
+          "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+          tab === "health" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+        )}>
+          <Activity size={14} /> System Health
+        </button>
       </div>
 
       {tab === "users" && canManageUsers && (
@@ -181,6 +212,14 @@ export function AdminPage() {
       {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
         <RolePermissionsEditor map={permissionMap} saving={permissionsSaving} onSave={savePermissions} />
       )}
+
+      {tab === "export" && <DataExportPanel />}
+
+      {tab === "announcements" && <AnnouncementComposer />}
+
+      {tab === "holidays" && <HolidayCalendar />}
+
+      {tab === "health" && <SystemHealthPanel />}
 
       <UserForm
         open={userFormOpen}
