@@ -7,6 +7,7 @@ import {
   collection, getDocs, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { fetchCustomers, createCustomer } from "@/modules/customers/services/customer.service";
 
 export async function fetchLeads(filters?: {
   stage?: string;
@@ -63,4 +64,29 @@ export async function updateLeadStage(
 
 export async function deleteLead(id: string): Promise<void> {
   return leadRepository.delete(id);
+}
+
+/**
+ * Called whenever a lead is marked "won" — creates a matching Customer
+ * record if one doesn't already exist for that phone number.
+ */
+export async function convertLeadToCustomer(lead: Lead, createdBy: string): Promise<void> {
+  const existingCustomers = await fetchCustomers();
+  const alreadyExists = existingCustomers.some(c => c.phone === lead.phone);
+  if (alreadyExists) return;
+
+  await createCustomer({
+    fullName:       lead.name,
+    email:          lead.email,
+    phone:          lead.phone,
+    alternatePhone: lead.alternatePhone,
+    customerType:   "individual",
+    city:           null,
+    address:        null,
+    source:         "Converted Lead",
+    officeId:       lead.officeId,
+    officeName:     lead.officeName,
+    notes:          `Converted from lead ${lead.refNumber} (${lead.destination})`,
+    createdBy,
+  }, createdBy);
 }

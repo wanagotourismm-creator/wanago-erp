@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Edit2, Trash2, Phone, Mail } from "lucide-react";
+import { MoreHorizontal, Edit2, Trash2, Phone, Mail, FileText, CheckCircle2 } from "lucide-react";
 import { StageBadge, PriorityBadge } from "@/modules/leads/components/LeadBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
@@ -133,7 +133,28 @@ export function LeadsTable({ leads, loading, onEdit, onDelete, onStage }: Props)
                     {menuOpen === lead.id && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                        <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-border bg-card shadow-lg py-1">
+                        <div className="absolute right-0 top-8 z-20 w-48 rounded-xl border border-border bg-card shadow-lg py-1">
+                          {!["quoted", "negotiation", "won", "lost"].includes(lead.stage) && (
+                            <button
+                              onClick={() => { onStage(lead, "quoted"); setMenuOpen(null); }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                            >
+                              <FileText size={13} /> Send Quotation
+                            </button>
+                          )}
+                          {["quoted", "negotiation"].includes(lead.stage) && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Mark "${lead.name}" as Won? This will create a customer record.`)) {
+                                  onStage(lead, "won");
+                                }
+                                setMenuOpen(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                            >
+                              <CheckCircle2 size={13} /> Mark Won (Customer Agreed)
+                            </button>
+                          )}
                           <button
                             onClick={() => { onEdit(lead); setMenuOpen(null); }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"

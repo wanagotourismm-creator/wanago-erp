@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   fetchLeads, createLead, updateLead,
-  updateLeadStage, deleteLead,
+  updateLeadStage, deleteLead, convertLeadToCustomer,
 } from "@/modules/leads/services/lead.service";
 import { useAuthStore } from "@/store/auth.store";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
@@ -56,6 +56,11 @@ export function useLeads() {
   ): Promise<void> {
     await updateLeadStage(id, stage);
     setLeads(prev => prev.map(l => l.id === id ? { ...l, stage } : l));
+
+    if (stage === "won") {
+      const lead = leads.find(l => l.id === id);
+      if (lead) await convertLeadToCustomer({ ...lead, stage }, user?.uid ?? "");
+    }
   }
 
   async function removeLead(id: string): Promise<{ error: string | null }> {
