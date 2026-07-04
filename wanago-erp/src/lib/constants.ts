@@ -56,12 +56,22 @@ export type PaymentStatus = (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS]
 export const INVOICE_STATUS = {
   DRAFT:   "draft",
   SENT:    "sent",
-  PAID:    "paid",
+  UNPAID:  "unpaid",
   PARTIAL: "partial",
+  PAID:    "paid",
   OVERDUE: "overdue",
 } as const;
 
 export type InvoiceStatus = (typeof INVOICE_STATUS)[keyof typeof INVOICE_STATUS];
+
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  draft:   "Draft",
+  sent:    "Sent",
+  unpaid:  "Unpaid",
+  partial: "Partially Paid",
+  paid:    "Paid",
+  overdue: "Overdue",
+};
 
 export const PRIORITY = {
   HOT:  "hot",
