@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { logActivity } from "@/lib/activity-log";
 import type { UserProfile } from "@/modules/auth/types";
 import type { AuthUser } from "@/store/auth.store";
 
@@ -69,6 +70,12 @@ export async function signInUser(
       department:  profile.department,
       isActive:    profile.isActive,
     };
+
+    logActivity({
+      entityType: "Login", entityName: profile.displayName, action: "created",
+      detail: `${profile.displayName} logged in`,
+      actorId: authUser.uid, actorName: profile.displayName,
+    });
 
     return { user: authUser, error: null };
   } catch (err: unknown) {

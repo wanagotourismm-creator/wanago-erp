@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
-  Download, Megaphone, CalendarDays, Activity,
+  Download, Megaphone, CalendarDays, Activity, Trash2, Database,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -22,6 +22,8 @@ import { DataExportPanel } from "@/modules/admin/export/components/DataExportPan
 import { AnnouncementComposer } from "@/modules/admin/announcements/components/AnnouncementComposer";
 import { HolidayCalendar } from "@/modules/admin/holidays/components/HolidayCalendar";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
+import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
+import { CollectionExplorer } from "@/modules/admin/explorer/components/CollectionExplorer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -30,7 +32,7 @@ import { cn } from "@/lib/utils/helpers";
 import type { UserProfile } from "@/modules/auth/types";
 import type { Office } from "@/modules/admin/offices/types";
 
-type Tab = "users" | "offices" | "activity" | "settings" | "permissions" | "export" | "announcements" | "holidays" | "health";
+type Tab = "users" | "offices" | "activity" | "settings" | "permissions" | "export" | "announcements" | "holidays" | "health" | "trash" | "explorer";
 
 export function AdminPage() {
   const { user } = useAuthStore();
@@ -169,6 +171,22 @@ export function AdminPage() {
         )}>
           <Activity size={14} /> System Health
         </button>
+        {isSuperAdmin && (
+          <button onClick={() => setTab("trash")} className={cn(
+            "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+            tab === "trash" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}>
+            <Trash2 size={14} /> Trash
+          </button>
+        )}
+        {isSuperAdmin && (
+          <button onClick={() => setTab("explorer")} className={cn(
+            "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+            tab === "explorer" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}>
+            <Database size={14} /> Collection Explorer
+          </button>
+        )}
       </div>
 
       {tab === "users" && canManageUsers && (
@@ -206,7 +224,7 @@ export function AdminPage() {
       )}
 
       {tab === "settings" && canManageSettings && !settingsLoading && (
-        <CompanySettingsForm settings={settings} saving={settingsSaving} onSave={saveSettings} />
+        <CompanySettingsForm settings={settings} saving={settingsSaving} isSuperAdmin={isSuperAdmin} onSave={saveSettings} />
       )}
 
       {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
@@ -220,6 +238,10 @@ export function AdminPage() {
       {tab === "holidays" && <HolidayCalendar />}
 
       {tab === "health" && <SystemHealthPanel />}
+
+      {tab === "trash" && isSuperAdmin && <TrashPanel />}
+
+      {tab === "explorer" && isSuperAdmin && <CollectionExplorer />}
 
       <UserForm
         open={userFormOpen}

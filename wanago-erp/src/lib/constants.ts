@@ -119,6 +119,7 @@ export const FIRESTORE_COLLECTIONS = {
   TEAMSPACE_CONVERSATIONS: "teamspaceConversations",
   TEAMSPACE_MESSAGES:      "teamspaceMessages",
   HOLIDAYS:          "holidays",
+  TRASH:             "trash",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

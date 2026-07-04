@@ -19,6 +19,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import type { FirestoreRecord } from "@/types/global";
 
 export type QueryOptions = {
@@ -90,7 +91,22 @@ export class BaseRepository<T extends FirestoreRecord> {
   }
 
   // ── Delete ────────────────────────────────────────────────
+  // Soft-deletes: the document is copied into a "trash" collection
+  // (so it can be restored from the Admin panel) before being removed
+  // from its original collection. Trash entries older than 30 days
+  // can be safely purged, but nothing does so automatically yet.
   async delete(id: string): Promise<void> {
+    if (this.collectionName !== FIRESTORE_COLLECTIONS.TRASH) {
+      const snap = await getDoc(this.docRef(id));
+      if (snap.exists()) {
+        await addDoc(collection(db, FIRESTORE_COLLECTIONS.TRASH), {
+          collectionName: this.collectionName,
+          originalId:     snap.id,
+          data:           snap.data(),
+          deletedAt:      serverTimestamp(),
+        });
+      }
+    }
     await deleteDoc(this.docRef(id));
   }
 
