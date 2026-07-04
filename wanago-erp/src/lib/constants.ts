@@ -120,6 +120,8 @@ export const FIRESTORE_COLLECTIONS = {
   TEAMSPACE_MESSAGES:      "teamspaceMessages",
   HOLIDAYS:          "holidays",
   TRASH:             "trash",
+  JOB_OPENINGS:      "jobOpenings",
+  CANDIDATES:        "candidates",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
@@ -182,4 +184,31 @@ export const REF_FORMATS = {
   CUSTOMER:  "CUS",
   PAYMENT:   "PAY",
   EMPLOYEE:  "EMP",
+  JOB:       "JOB",
+  CANDIDATE: "CAND",
 } as const;
+
+// Recruitment pipeline stages, in order
+export const RECRUITMENT_STAGES = {
+  APPLIED:        "applied",
+  SCREENING:      "screening",
+  INTERVIEW_R1:   "interview_r1",
+  INTERVIEW_R2:   "interview_r2",
+  HR_ROUND:       "hr_round",
+  OFFER_SENT:     "offer_sent",
+  JOINED:         "joined",
+  REJECTED:       "rejected",
+} as const;
+
+export type RecruitmentStage = (typeof RECRUITMENT_STAGES)[keyof typeof RECRUITMENT_STAGES];
+
+export const RECRUITMENT_STAGE_LABELS: Record<RecruitmentStage, string> = {
+  applied:      "Applied",
+  screening:    "Screening",
+  interview_r1: "Interview Round 1",
+  interview_r2: "Interview Round 2",
+  hr_round:     "HR Round",
+  offer_sent:   "Offer Sent",
+  joined:       "Joined",
+  rejected:     "Rejected",
+};

@@ -132,6 +132,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "cash",
         roles: ["super_admin","admin","hr","finance"],
       },
+      {
+        label: "Recruitment",
+        href:  "/recruitment",
+        icon:  "user-plus",
+        roles: ["super_admin","admin","hr"],
+      },
     ],
   },
   {
