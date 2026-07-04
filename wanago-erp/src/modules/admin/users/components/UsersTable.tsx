@@ -10,11 +10,13 @@ import type { UserProfile } from "@/modules/auth/types";
 type Props = {
   users:      UserProfile[];
   loading:    boolean;
+  selected:   string[];
+  onSelect:   (uids: string[]) => void;
   onEdit:     (user: UserProfile) => void;
   onToggle:   (user: UserProfile) => void;
 };
 
-export function UsersTable({ users, loading, onEdit, onToggle }: Props) {
+export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggle }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (users.length === 0) {
@@ -27,12 +29,25 @@ export function UsersTable({ users, loading, onEdit, onToggle }: Props) {
     );
   }
 
+  const allSelected = users.length > 0 && selected.length === users.length;
+
+  function toggleAll() {
+    onSelect(allSelected ? [] : users.map(u => u.uid));
+  }
+
+  function toggleOne(uid: string) {
+    onSelect(selected.includes(uid) ? selected.filter(id => id !== uid) : [...selected, uid]);
+  }
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
+              <th className="w-10 px-4 py-3">
+                <input type="checkbox" className="h-4 w-4 rounded border-input cursor-pointer" checked={allSelected} onChange={toggleAll} />
+              </th>
               {["User", "Role", "Office", "Department", "Status", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                   {h}
@@ -42,7 +57,11 @@ export function UsersTable({ users, loading, onEdit, onToggle }: Props) {
           </thead>
           <tbody className="divide-y divide-border">
             {users.map((u) => (
-              <tr key={u.uid} className="hover:bg-muted/20 transition-colors group">
+              <tr key={u.uid} className={cn("hover:bg-muted/20 transition-colors group", selected.includes(u.uid) && "bg-primary/5")}>
+
+                <td className="px-4 py-3">
+                  <input type="checkbox" className="h-4 w-4 rounded border-input cursor-pointer" checked={selected.includes(u.uid)} onChange={() => toggleOne(u.uid)} />
+                </td>
 
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">

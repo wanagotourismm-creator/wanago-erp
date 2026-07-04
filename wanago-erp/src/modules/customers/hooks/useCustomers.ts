@@ -5,6 +5,7 @@ import {
   fetchCustomers, createCustomer, updateCustomer, deleteCustomer,
 } from "@/modules/customers/services/customer.service";
 import { useAuthStore } from "@/store/auth.store";
+import { logActivity } from "@/lib/activity-log";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
 
 export function useCustomers() {
@@ -32,6 +33,11 @@ export function useCustomers() {
     try {
       const customer = await createCustomer(data, user?.uid ?? "");
       setCustomers(prev => [customer, ...prev]);
+      logActivity({
+        entityType: "Customer", entityName: customer.fullName, action: "created",
+        detail: `Added customer ${customer.refNumber}`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
       return { error: null };
     } catch {
       return { error: "Failed to create customer" };
@@ -52,8 +58,16 @@ export function useCustomers() {
 
   async function removeCustomer(id: string): Promise<{ error: string | null }> {
     try {
+      const customer = customers.find(c => c.id === id);
       await deleteCustomer(id);
       setCustomers(prev => prev.filter(c => c.id !== id));
+      if (customer) {
+        logActivity({
+          entityType: "Customer", entityName: customer.fullName, action: "deleted",
+          detail: `Deleted customer ${customer.refNumber}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
       return { error: null };
     } catch {
       return { error: "Failed to delete customer" };

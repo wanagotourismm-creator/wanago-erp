@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchPayments, createPayment, deletePayment } from "@/modules/payments/services/payment.service";
 import { useAuthStore } from "@/store/auth.store";
+import { logActivity } from "@/lib/activity-log";
 import type { Payment, PaymentFormData } from "@/modules/payments/types";
 
 export function usePayments() {
@@ -30,6 +31,11 @@ export function usePayments() {
     try {
       const payment = await createPayment(data, user?.uid ?? "");
       setPayments(prev => [payment, ...prev]);
+      logActivity({
+        entityType: "Payment", entityName: payment.customerName, action: "created",
+        detail: `Recorded payment ${payment.refNumber} (₹${payment.amount.toLocaleString()})`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
       return { error: null };
     } catch {
       return { error: "Failed to record payment" };
@@ -38,8 +44,16 @@ export function usePayments() {
 
   async function removePayment(id: string): Promise<{ error: string | null }> {
     try {
+      const payment = payments.find(p => p.id === id);
       await deletePayment(id);
       setPayments(prev => prev.filter(p => p.id !== id));
+      if (payment) {
+        logActivity({
+          entityType: "Payment", entityName: payment.customerName, action: "deleted",
+          detail: `Deleted payment ${payment.refNumber}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
       return { error: null };
     } catch {
       return { error: "Failed to delete payment" };

@@ -6,6 +6,7 @@ import {
   updateLeadStage, deleteLead, convertLeadToCustomer,
 } from "@/modules/leads/services/lead.service";
 import { useAuthStore } from "@/store/auth.store";
+import { logActivity } from "@/lib/activity-log";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
 
 export function useLeads() {
@@ -33,6 +34,11 @@ export function useLeads() {
     try {
       const lead = await createLead(data, user?.uid ?? "");
       setLeads(prev => [lead, ...prev]);
+      logActivity({
+        entityType: "Lead", entityName: lead.name, action: "created",
+        detail: `Added lead ${lead.refNumber} (${lead.destination})`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
       return { error: null };
     } catch {
       return { error: "Failed to create lead" };
@@ -57,16 +63,32 @@ export function useLeads() {
     await updateLeadStage(id, stage);
     setLeads(prev => prev.map(l => l.id === id ? { ...l, stage } : l));
 
-    if (stage === "won") {
-      const lead = leads.find(l => l.id === id);
-      if (lead) await convertLeadToCustomer({ ...lead, stage }, user?.uid ?? "");
+    const lead = leads.find(l => l.id === id);
+    if (lead) {
+      logActivity({
+        entityType: "Lead", entityName: lead.name, action: "status_changed",
+        detail: `${lead.refNumber} moved to ${stage}`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+    }
+
+    if (stage === "won" && lead) {
+      await convertLeadToCustomer({ ...lead, stage }, user?.uid ?? "");
     }
   }
 
   async function removeLead(id: string): Promise<{ error: string | null }> {
     try {
+      const lead = leads.find(l => l.id === id);
       await deleteLead(id);
       setLeads(prev => prev.filter(l => l.id !== id));
+      if (lead) {
+        logActivity({
+          entityType: "Lead", entityName: lead.name, action: "deleted",
+          detail: `Deleted lead ${lead.refNumber}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
       return { error: null };
     } catch {
       return { error: "Failed to delete lead" };

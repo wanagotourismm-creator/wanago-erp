@@ -2,7 +2,7 @@ import {
   createUserWithEmailAndPassword, signOut as signOutSecondary,
 } from "firebase/auth";
 import {
-  collection, doc, getDocs, updateDoc, orderBy, query, serverTimestamp,
+  collection, doc, getDocs, updateDoc, orderBy, query, serverTimestamp, writeBatch,
 } from "firebase/firestore";
 import { db, secondaryAuth } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
@@ -64,4 +64,18 @@ export async function updateUserProfile(
     ...data,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function bulkUpdateUsers(
+  uids: string[],
+  data: Partial<Pick<UserProfile, "systemRole" | "officeId" | "officeName" | "isActive">>
+): Promise<void> {
+  const batch = writeBatch(db);
+  for (const uid of uids) {
+    batch.update(doc(db, FIRESTORE_COLLECTIONS.USERS, uid), {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
 }

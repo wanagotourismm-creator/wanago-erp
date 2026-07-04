@@ -6,6 +6,7 @@ import {
   updateBookingStatus, deleteBooking,
 } from "@/modules/bookings/services/booking.service";
 import { useAuthStore } from "@/store/auth.store";
+import { logActivity } from "@/lib/activity-log";
 import type { Booking, BookingFormData } from "@/modules/bookings/types";
 
 export function useBookings() {
@@ -33,6 +34,11 @@ export function useBookings() {
     try {
       const booking = await createBooking(data, user?.uid ?? "");
       setBookings(prev => [booking, ...prev]);
+      logActivity({
+        entityType: "Booking", entityName: booking.customerName, action: "created",
+        detail: `Created booking ${booking.refNumber} (${booking.destination})`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
       return { error: null };
     } catch {
       return { error: "Failed to create booking" };
@@ -59,12 +65,28 @@ export function useBookings() {
   async function changeStatus(id: string, status: string): Promise<void> {
     await updateBookingStatus(id, status);
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } as Booking : b));
+    const booking = bookings.find(b => b.id === id);
+    if (booking) {
+      logActivity({
+        entityType: "Booking", entityName: booking.customerName, action: "status_changed",
+        detail: `${booking.refNumber} moved to ${status}`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+    }
   }
 
   async function removeBooking(id: string): Promise<{ error: string | null }> {
     try {
+      const booking = bookings.find(b => b.id === id);
       await deleteBooking(id);
       setBookings(prev => prev.filter(b => b.id !== id));
+      if (booking) {
+        logActivity({
+          entityType: "Booking", entityName: booking.customerName, action: "deleted",
+          detail: `Deleted booking ${booking.refNumber}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
       return { error: null };
     } catch {
       return { error: "Failed to delete booking" };

@@ -6,6 +6,7 @@ import {
   markInvoiceSent, deleteInvoice,
 } from "@/modules/invoices/services/invoice.service";
 import { useAuthStore } from "@/store/auth.store";
+import { logActivity } from "@/lib/activity-log";
 import type { Invoice, InvoiceFormData } from "@/modules/invoices/types";
 
 export function useInvoices() {
@@ -33,6 +34,11 @@ export function useInvoices() {
     try {
       const invoice = await createInvoice(data, user?.uid ?? "");
       setInvoices(prev => [invoice, ...prev]);
+      logActivity({
+        entityType: "Invoice", entityName: invoice.customerName, action: "created",
+        detail: `Created invoice ${invoice.refNumber}`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
       return { error: null };
     } catch {
       return { error: "Failed to create invoice" };
@@ -64,8 +70,16 @@ export function useInvoices() {
 
   async function removeInvoice(id: string): Promise<{ error: string | null }> {
     try {
+      const invoice = invoices.find(i => i.id === id);
       await deleteInvoice(id);
       setInvoices(prev => prev.filter(i => i.id !== id));
+      if (invoice) {
+        logActivity({
+          entityType: "Invoice", entityName: invoice.customerName, action: "deleted",
+          detail: `Deleted invoice ${invoice.refNumber}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
       return { error: null };
     } catch {
       return { error: "Failed to delete invoice" };

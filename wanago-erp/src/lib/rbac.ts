@@ -64,9 +64,23 @@ export const PAGE_ACCESS: PageAccess = {
   support:     ["dashboard", "leads", "customers", "bookings"],
 };
 
+// ── Dynamic permission overrides ─────────────────────────────
+// Admins can customize per-role permissions from the Admin panel.
+// When set, these take precedence over the static PERMISSION_MAP
+// above (which remains the fallback/default).
+let permissionOverrides: PermissionMap | null = null;
+
+export function setPermissionOverrides(map: PermissionMap | null): void {
+  permissionOverrides = map;
+}
+
+export function getEffectivePermissionMap(): PermissionMap {
+  return permissionOverrides ?? PERMISSION_MAP;
+}
+
 // ── RBAC utility functions ────────────────────────────────────
 export function hasPermission(role: SystemRole, permission: Permission): boolean {
-  const perms = PERMISSION_MAP[role];
+  const perms = getEffectivePermissionMap()[role];
   if (!perms) return false;
   return (perms as string[]).includes("*") || (perms as string[]).includes(permission);
 }

@@ -5,6 +5,7 @@ import {
   fetchOffices, createOffice, updateOffice, deleteOffice,
 } from "@/modules/admin/offices/services/office.service";
 import { useAuthStore } from "@/store/auth.store";
+import { logActivity } from "@/lib/activity-log";
 import type { Office, OfficeFormData } from "@/modules/admin/offices/types";
 
 export function useOffices() {
@@ -32,6 +33,11 @@ export function useOffices() {
     try {
       const office = await createOffice(data, user?.uid ?? "");
       setOffices(prev => [...prev, office].sort((a, b) => a.name.localeCompare(b.name)));
+      logActivity({
+        entityType: "Office", entityName: office.name, action: "created",
+        detail: `Added office ${office.name} (${office.code})`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
       return { error: null };
     } catch {
       return { error: "Failed to create office" };
@@ -52,8 +58,16 @@ export function useOffices() {
 
   async function removeOffice(id: string): Promise<{ error: string | null }> {
     try {
+      const office = offices.find(o => o.id === id);
       await deleteOffice(id);
       setOffices(prev => prev.filter(o => o.id !== id));
+      if (office) {
+        logActivity({
+          entityType: "Office", entityName: office.name, action: "deleted",
+          detail: `Deleted office ${office.name}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
       return { error: null };
     } catch {
       return { error: "Failed to delete office" };

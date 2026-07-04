@@ -6,6 +6,8 @@ import {
   fetchUserProfile,
   onAuthStateChange,
 } from "@/modules/auth/services/auth.service";
+import { fetchRolePermissions } from "@/modules/admin/permissions/services/permissions.service";
+import { setPermissionOverrides } from "@/lib/rbac";
 import type { AuthUser } from "@/store/auth.store";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -29,11 +31,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isActive:    profile.isActive,
           };
           setUser(authUser);
+          fetchRolePermissions().then(setPermissionOverrides).catch(() => {});
         } else {
           reset();
         }
       } else {
         reset();
+        setPermissionOverrides(null);
       }
       setInit(true);
     });

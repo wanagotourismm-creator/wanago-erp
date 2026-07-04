@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, RefreshCw, Users as UsersIcon, Building2 } from "lucide-react";
+import { Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
+import { useActivityLog } from "@/modules/admin/activity/hooks/useActivityLog";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
+import { useRolePermissions } from "@/modules/admin/permissions/hooks/useRolePermissions";
 import { UsersTable } from "@/modules/admin/users/components/UsersTable";
 import { UserForm } from "@/modules/admin/users/components/UserForm";
+import { BulkUserActions } from "@/modules/admin/users/components/BulkUserActions";
 import { OfficesTable } from "@/modules/admin/offices/components/OfficesTable";
 import { OfficeForm } from "@/modules/admin/offices/components/OfficeForm";
+import { ActivityLogTable } from "@/modules/admin/activity/components/ActivityLogTable";
+import { CompanySettingsForm } from "@/modules/admin/settings/components/CompanySettingsForm";
+import { RolePermissionsEditor } from "@/modules/admin/permissions/components/RolePermissionsEditor";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -16,24 +23,32 @@ import { cn } from "@/lib/utils/helpers";
 import type { UserProfile } from "@/modules/auth/types";
 import type { Office } from "@/modules/admin/offices/types";
 
+type Tab = "users" | "offices" | "activity" | "settings" | "permissions";
+
 export function AdminPage() {
   const { user } = useAuthStore();
   const canManageUsers   = !!user && hasPermission(user.systemRole, "admin:users");
   const canManageOffices = !!user && hasPermission(user.systemRole, "admin:offices");
+  const canManageSettings = !!user && hasPermission(user.systemRole, "admin:settings");
+  const isSuperAdmin = user?.systemRole === "super_admin";
 
-  const [tab, setTab] = useState<"users" | "offices">(canManageUsers ? "users" : "offices");
+  const [tab, setTab] = useState<Tab>(canManageUsers ? "users" : canManageOffices ? "offices" : "activity");
 
   const {
-    users, loading: usersLoading, addUser, editUser, toggleActive, load: loadUsers,
+    users, loading: usersLoading, addUser, editUser, toggleActive, bulkUpdate, load: loadUsers,
   } = useAdminUsers();
   const {
     offices, loading: officesLoading, addOffice, editOffice, removeOffice, load: loadOffices,
   } = useOffices();
+  const { activity, loading: activityLoading, load: loadActivity } = useActivityLog();
+  const { settings, loading: settingsLoading, saving: settingsSaving, save: saveSettings } = useCompanySettings();
+  const { map: permissionMap, loading: permissionsLoading, saving: permissionsSaving, save: savePermissions } = useRolePermissions();
 
   const [userFormOpen,   setUserFormOpen]   = useState(false);
   const [editingUser,    setEditingUser]    = useState<UserProfile | null>(null);
   const [officeFormOpen, setOfficeFormOpen] = useState(false);
   const [editingOffice,  setEditingOffice]  = useState<Office | null>(null);
+  const [selectedUsers,  setSelectedUsers]  = useState<string[]>([]);
 
   async function handleToggleActive(u: UserProfile) {
     const action = u.isActive ? "deactivate" : "activate";
@@ -51,7 +66,7 @@ export function AdminPage() {
 
       <PageHeader
         title="Admin"
-        description="Manage system users and office locations"
+        description="Manage users, offices, permissions, and system settings"
         actions={
           <>
             {tab === "users" && (
@@ -61,6 +76,11 @@ export function AdminPage() {
             )}
             {tab === "offices" && (
               <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadOffices()}>
+                Refresh
+              </Button>
+            )}
+            {tab === "activity" && (
+              <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadActivity()}>
                 Refresh
               </Button>
             )}
@@ -79,38 +99,66 @@ export function AdminPage() {
       />
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-border">
         {canManageUsers && (
-          <button
-            onClick={() => setTab("users")}
-            className={cn(
-              "flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
-              tab === "users" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
+          <button onClick={() => setTab("users")} className={cn(
+            "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+            tab === "users" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}>
             <UsersIcon size={14} /> Users
           </button>
         )}
         {canManageOffices && (
-          <button
-            onClick={() => setTab("offices")}
-            className={cn(
-              "flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
-              tab === "offices" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
+          <button onClick={() => setTab("offices")} className={cn(
+            "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+            tab === "offices" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}>
             <Building2 size={14} /> Offices
+          </button>
+        )}
+        <button onClick={() => setTab("activity")} className={cn(
+          "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+          tab === "activity" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+        )}>
+          <History size={14} /> Activity Log
+        </button>
+        {canManageSettings && (
+          <button onClick={() => setTab("settings")} className={cn(
+            "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+            tab === "settings" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}>
+            <Settings2 size={14} /> Company Settings
+          </button>
+        )}
+        {isSuperAdmin && (
+          <button onClick={() => setTab("permissions")} className={cn(
+            "flex flex-shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors -mb-px",
+            tab === "permissions" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}>
+            <ShieldCheck size={14} /> Roles & Permissions
           </button>
         )}
       </div>
 
       {tab === "users" && canManageUsers && (
-        <UsersTable
-          users={users}
-          loading={usersLoading}
-          onEdit={(u) => { setEditingUser(u); setUserFormOpen(true); }}
-          onToggle={handleToggleActive}
-        />
+        <div className="space-y-3">
+          {selectedUsers.length > 0 && (
+            <BulkUserActions
+              count={selectedUsers.length}
+              offices={offices}
+              onClear={() => setSelectedUsers([])}
+              onApply={async (data) => { await bulkUpdate(selectedUsers, data); }}
+            />
+          )}
+          <UsersTable
+            users={users}
+            loading={usersLoading}
+            selected={selectedUsers}
+            onSelect={setSelectedUsers}
+            onEdit={(u) => { setEditingUser(u); setUserFormOpen(true); }}
+            onToggle={handleToggleActive}
+          />
+        </div>
       )}
 
       {tab === "offices" && canManageOffices && (
@@ -120,6 +168,18 @@ export function AdminPage() {
           onEdit={(o) => { setEditingOffice(o); setOfficeFormOpen(true); }}
           onDelete={handleDeleteOffice}
         />
+      )}
+
+      {tab === "activity" && (
+        <ActivityLogTable activity={activity} loading={activityLoading} />
+      )}
+
+      {tab === "settings" && canManageSettings && !settingsLoading && (
+        <CompanySettingsForm settings={settings} saving={settingsSaving} onSave={saveSettings} />
+      )}
+
+      {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
+        <RolePermissionsEditor map={permissionMap} saving={permissionsSaving} onSave={savePermissions} />
       )}
 
       <UserForm
