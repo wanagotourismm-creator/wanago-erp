@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Search, Bell, Sun, Moon, Monitor, Palette, X, Menu } from "lucide-react";
+import { Search, Sun, Moon, Monitor, Palette, X, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
 import { ThemePicker } from "@/components/ui/ThemePicker";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { cn, initials } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
 
@@ -97,10 +98,7 @@ export function Header() {
         </button>
 
         {/* Notifications */}
-        <button className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
-          <Bell size={15} />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
-        </button>
+        <NotificationBell />
 
         {/* User */}
         <div className="flex items-center gap-2.5 pl-2 sm:pl-3 border-l border-border">

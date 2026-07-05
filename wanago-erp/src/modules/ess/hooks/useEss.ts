@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth.store";
-import { fetchEmployeeByUserId, fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
+import { fetchEmployeeByUserId, fetchEmployees, fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
 import { fetchAttendanceByEmployee, createAttendanceRecord, updateAttendanceRecord } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchLeaves, fetchLeavesByEmployee, createLeaveRequest, cancelLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
 import { fetchRegularizations, fetchRegularizationsByEmployee, createRegularizationRequest, approveRegularization, rejectRegularization } from "@/modules/hrms/regularization/services/regularization.service";
@@ -13,6 +13,7 @@ import { fetchAssetRequests, fetchAssetRequestsByEmployee, createAssetRequest, a
 import { fetchTicketsByReporter, createTicket } from "@/modules/tickets/services/ticket.service";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { getCurrentPosition, distanceMeters } from "@/lib/geo";
+import { notifyUser } from "@/lib/notify";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
 import type { Asset, AssetRequest } from "@/modules/assets/types";
@@ -198,6 +199,21 @@ export function useEss() {
     }
   }
 
+  // Best-effort: notifies the employee's reporting manager (in-app + email +
+  // WhatsApp) that a new request is waiting on them. Silently does nothing
+  // if there's no manager on file — this never blocks the request itself.
+  async function notifyManagerOfRequest(title: string, body: string, category: "leave" | "regularization" | "asset") {
+    if (!employee?.reportingManagerId) return;
+    try {
+      const manager = await fetchEmployeeById(employee.reportingManagerId);
+      if (!manager) return;
+      await notifyUser({
+        userId: manager.userId ?? null, email: manager.email, phone: manager.mobileNumber,
+        title, body, link: "/ess", category,
+      });
+    } catch { /* best-effort */ }
+  }
+
   async function applyLeave(data: EssLeaveApplySchema) {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
@@ -208,6 +224,11 @@ export function useEss() {
         officeId:     employee.officeId,
       }, user.uid);
       setLeaves((p) => [l, ...p]);
+      notifyManagerOfRequest(
+        "New leave request",
+        `${employee.fullName} requested ${data.leaveType} leave from ${data.fromDate} to ${data.toDate}.`,
+        "leave"
+      );
       return { error: null };
     } catch {
       return { error: "Failed to submit leave request" };
@@ -234,6 +255,11 @@ export function useEss() {
         officeId:     employee.officeId,
       }, user.uid);
       setRegularizations((p) => [r, ...p]);
+      notifyManagerOfRequest(
+        "New attendance correction request",
+        `${employee.fullName} requested a correction for ${data.date}.`,
+        "regularization"
+      );
       return { error: null };
     } catch {
       return { error: "Failed to submit correction request" };
@@ -250,6 +276,11 @@ export function useEss() {
         officeId:     employee.officeId,
       }, user.uid);
       setAssetRequests((p) => [r, ...p]);
+      notifyManagerOfRequest(
+        "New asset request",
+        `${employee.fullName} requested ${data.assetCategory}.`,
+        "asset"
+      );
       return { error: null };
     } catch {
       return { error: "Failed to submit asset request" };
@@ -272,21 +303,39 @@ export function useEss() {
     }
   }
 
+  async function notifyRequesterOfDecision(employeeId: string, title: string, body: string, category: "leave" | "regularization" | "asset") {
+    try {
+      const requester = await fetchEmployeeById(employeeId);
+      if (!requester) return;
+      await notifyUser({
+        userId: requester.userId ?? null, email: requester.email, phone: requester.mobileNumber,
+        title, body, link: "/ess", category,
+      });
+    } catch { /* best-effort */ }
+  }
+
   async function decideInboxItem(item: InboxItem, decision: "approve" | "reject") {
     if (!user) return { error: "Not signed in" };
+    const verb = decision === "approve" ? "approved" : "rejected";
     try {
       if (item.kind === "leave") {
         if (decision === "approve") await approveLeaveRequest(item.id, user.uid);
         else await rejectLeaveRequest(item.id, user.uid);
         setTeamLeaves((p) => p.filter((l) => l.id !== item.id));
+        notifyRequesterOfDecision(item.leave.employeeId, `Your leave request was ${verb}`,
+          `Your ${item.leave.leaveType} leave from ${item.leave.fromDate} to ${item.leave.toDate} was ${verb}.`, "leave");
       } else if (item.kind === "regularization") {
         if (decision === "approve") await approveRegularization(item.id, user.uid);
         else await rejectRegularization(item.id, user.uid);
         setTeamRegularizations((p) => p.filter((r) => r.id !== item.id));
+        notifyRequesterOfDecision(item.regularization.employeeId, `Your attendance correction was ${verb}`,
+          `Your correction request for ${item.regularization.date} was ${verb}.`, "regularization");
       } else {
         if (decision === "approve") await approveAssetRequest(item.id, user.uid);
         else await rejectAssetRequest(item.id, user.uid);
         setTeamAssetRequests((p) => p.filter((r) => r.id !== item.id));
+        notifyRequesterOfDecision(item.assetRequest.employeeId, `Your asset request was ${verb}`,
+          `Your request for ${item.assetRequest.assetCategory} was ${verb}.`, "asset");
       }
       return { error: null };
     } catch {

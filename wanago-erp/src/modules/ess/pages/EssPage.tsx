@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { CalendarPlus, PencilLine, Laptop, LifeBuoy, Sparkles, Clock, CalendarDays, Wallet, Activity } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useEss } from "@/modules/ess/hooks/useEss";
@@ -23,8 +24,18 @@ import { HrChatPanel } from "@/modules/ess/components/HrChatPanel";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 
-const TABS = ["Attendance", "My Leaves", "My Assets", "IT Support", "Payslips", "Activity", "Ask HR"] as const;
-type Tab = (typeof TABS)[number];
+const TABS = [
+  { key: "Attendance", icon: Clock },
+  { key: "My Leaves", icon: CalendarDays },
+  { key: "My Assets", icon: Laptop },
+  { key: "IT Support", icon: LifeBuoy },
+  { key: "Payslips", icon: Wallet },
+  { key: "Activity", icon: Activity },
+  { key: "Ask HR", icon: Sparkles },
+] as const;
+type Tab = (typeof TABS)[number]["key"];
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export function EssPage() {
   const { user } = useAuthStore();
@@ -42,6 +53,12 @@ export function EssPage() {
   const [assetRequestOpen, setAssetRequestOpen] = useState(false);
   const [reportIssueOpen, setReportIssueOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("Attendance");
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  function goToTab(t: Tab) {
+    setTab(t);
+    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   if (loading) {
     return (
@@ -64,6 +81,14 @@ export function EssPage() {
     );
   }
 
+  const quickActions = [
+    { label: "Apply Leave", icon: CalendarPlus, onClick: () => setApplyOpen(true) },
+    { label: "Request Correction", icon: PencilLine, onClick: () => { setCorrectionDate(todayStr()); setCorrectionOpen(true); } },
+    { label: "Request Asset", icon: Laptop, onClick: () => setAssetRequestOpen(true) },
+    { label: "Report Issue", icon: LifeBuoy, onClick: () => setReportIssueOpen(true) },
+    { label: "Ask HR", icon: Sparkles, onClick: () => goToTab("Ask HR") },
+  ];
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -71,6 +96,17 @@ export function EssPage() {
         description={`Welcome back, ${employee.fullName.split(" ")[0]}`}
         actions={<LeaveBalanceChips balances={leaveBalances} />}
       />
+
+      {/* Quick actions — the things people actually come here to do, always one tap away */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        {quickActions.map((a) => (
+          <button key={a.label} onClick={a.onClick}
+            className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors shadow-sm">
+            <a.icon size={14} />
+            {a.label}
+          </button>
+        ))}
+      </div>
 
       {directReports.length > 0 && (
         <InboxCard items={teamInbox} onDecide={decideInboxItem} />
@@ -91,12 +127,13 @@ export function EssPage() {
         <HolidaysCard holidays={holidays} />
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div ref={tabsRef} className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-thin">
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={cn("flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium transition-all",
-              tab === t ? "bg-primary text-white shadow-sm" : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40")}>
-            {t}
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={cn("flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all",
+              tab === t.key ? "bg-primary text-white shadow-sm" : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40")}>
+            <t.icon size={13} />
+            {t.key}
           </button>
         ))}
       </div>
