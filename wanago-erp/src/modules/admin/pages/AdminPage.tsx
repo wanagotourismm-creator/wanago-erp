@@ -303,7 +303,12 @@ export function AdminPage() {
         onClose={() => { setOfficeFormOpen(false); setEditingOffice(null); }}
         onSubmit={async (data) => {
           if (editingOffice) await editOffice(editingOffice.id, data);
-          else await addOffice({ ...data, address: data.address || null, city: data.city || null, phone: data.phone || null, createdBy: user?.uid ?? "" });
+          else await addOffice({
+            ...data,
+            address: data.address || null, city: data.city || null, phone: data.phone || null,
+            latitude: data.latitude ?? null, longitude: data.longitude ?? null, geofenceRadiusMeters: data.geofenceRadiusMeters ?? null,
+            createdBy: user?.uid ?? "",
+          });
           setOfficeFormOpen(false);
           setEditingOffice(null);
         }}

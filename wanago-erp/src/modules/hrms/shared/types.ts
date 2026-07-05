@@ -101,6 +101,9 @@ export type AttendanceRecord = FirestoreRecord & {
   officeId: string;
   breakStartTime: string | null;
   breakMinutes: number;
+  clockInLat: number | null;
+  clockInLng: number | null;
+  withinGeofence: boolean | null;
 };
 
 export type AttendanceRegularization = FirestoreRecord & {

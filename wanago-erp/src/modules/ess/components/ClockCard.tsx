@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, LogIn, LogOut, Loader2, Coffee, Play } from "lucide-react";
+import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff } from "lucide-react";
 import { useState } from "react";
 import { formatDate } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
@@ -52,6 +52,13 @@ export function ClockCard({
 
       {error && (
         <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+      )}
+
+      {todayRecord?.withinGeofence === false && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <MapPinOff size={13} className="flex-shrink-0" />
+          Clocked in outside the office location
+        </div>
       )}
 
       <div className="rounded-2xl border border-border bg-muted/30 p-4 mb-4">

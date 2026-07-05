@@ -11,6 +11,9 @@ export const attendanceRecordSchema = z.object({
   officeId:     z.string().min(1),
   breakStartTime: z.string().nullable().optional(),
   breakMinutes:   z.number().optional(),
+  clockInLat:     z.number().nullable().optional(),
+  clockInLng:     z.number().nullable().optional(),
+  withinGeofence: z.boolean().nullable().optional(),
 });
 
 export type AttendanceRecordSchema = z.infer<typeof attendanceRecordSchema>;

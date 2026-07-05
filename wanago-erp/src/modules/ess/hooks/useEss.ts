@@ -11,10 +11,13 @@ import { fetchPayrollByEmployee } from "@/modules/hrms/payroll/services/payroll.
 import { fetchAssetsByEmployee } from "@/modules/assets/services/asset.service";
 import { fetchAssetRequests, fetchAssetRequestsByEmployee, createAssetRequest, approveAssetRequest, rejectAssetRequest } from "@/modules/assets/services/asset-request.service";
 import { fetchTicketsByReporter, createTicket } from "@/modules/tickets/services/ticket.service";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import { getCurrentPosition, distanceMeters } from "@/lib/geo";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
 import type { Asset, AssetRequest } from "@/modules/assets/types";
 import type { Ticket } from "@/modules/tickets/types";
+import type { Office } from "@/modules/admin/offices/types";
 import type { EssLeaveApplySchema, EssRegularizationApplySchema } from "@/modules/ess/schemas";
 import type { EssAssetRequestSchema } from "@/modules/assets/schemas";
 import type { EssTicketReportSchema } from "@/modules/tickets/schemas";
@@ -55,6 +58,7 @@ export function useEss() {
   const [assetRequests, setAssetRequests] = useState<AssetRequest[]>([]);
   const [teamAssetRequests, setTeamAssetRequests] = useState<AssetRequest[]>([]);
   const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+  const [office, setOffice] = useState<Office | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -68,7 +72,7 @@ export function useEss() {
       setHolidays(hols);
 
       if (emp) {
-        const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity, empAssets, myAssetReqs, myTix] = await Promise.all([
+        const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity, empAssets, myAssetReqs, myTix, offices] = await Promise.all([
           fetchEmployees(),
           fetchAttendanceByEmployee(emp.id),
           fetchLeavesByEmployee(emp.id),
@@ -78,6 +82,7 @@ export function useEss() {
           fetchAssetsByEmployee(emp.id),
           fetchAssetRequestsByEmployee(emp.id),
           fetchTicketsByReporter(emp.id),
+          fetchOffices(),
         ]);
         setAttendance(att);
         setLeaves(myLeaves);
@@ -87,6 +92,7 @@ export function useEss() {
         setMyAssets(empAssets);
         setAssetRequests(myAssetReqs);
         setMyTickets(myTix);
+        setOffice(offices.find((o) => o.id === emp.officeId) ?? null);
 
         const reports = allEmployees.filter((e) => e.reportingManagerId === emp.id);
         setDirectReports(reports);
@@ -133,10 +139,18 @@ export function useEss() {
   async function clockIn() {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
+      const pos = await getCurrentPosition();
+      let withinGeofence: boolean | null = null;
+      if (pos && office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null) {
+        const distance = distanceMeters(pos.lat, pos.lng, office.latitude, office.longitude);
+        withinGeofence = distance <= office.geofenceRadiusMeters;
+      }
+
       const rec = await createAttendanceRecord({
         employeeId: employee.id, employeeName: employee.fullName,
         date: today, status: "present", clockIn: nowTime(), clockOut: "", notes: "",
         officeId: employee.officeId, breakStartTime: null, breakMinutes: 0,
+        clockInLat: pos?.lat ?? null, clockInLng: pos?.lng ?? null, withinGeofence,
       }, user.uid);
       setAttendance((p) => [rec, ...p]);
       return { error: null };

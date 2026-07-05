@@ -17,6 +17,9 @@ export async function createOffice(
     address: data.address || null,
     city:    data.city    || null,
     phone:   data.phone   || null,
+    latitude:             data.latitude             ?? null,
+    longitude:            data.longitude            ?? null,
+    geofenceRadiusMeters: data.geofenceRadiusMeters  ?? null,
   });
 }
 

@@ -12,6 +12,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 export type EmployeeToday = {
   employee: Employee;
   status: "present" | "absent" | "half_day" | "wfh" | "on_leave" | "unmarked";
+  outsideGeofence: boolean;
 };
 
 export type DepartmentSummary = {
@@ -60,9 +61,10 @@ export function useHrOverview() {
 
   const employeesToday: EmployeeToday[] = employees.map((employee) => {
     const record = todayAttendanceByEmployee.get(employee.id);
-    if (record) return { employee, status: record.status === "leave" ? "on_leave" : (record.status as EmployeeToday["status"]) };
-    if (onLeaveTodayIds.has(employee.id)) return { employee, status: "on_leave" };
-    return { employee, status: "unmarked" };
+    const outsideGeofence = record?.withinGeofence === false;
+    if (record) return { employee, status: record.status === "leave" ? "on_leave" : (record.status as EmployeeToday["status"]), outsideGeofence };
+    if (onLeaveTodayIds.has(employee.id)) return { employee, status: "on_leave", outsideGeofence: false };
+    return { employee, status: "unmarked", outsideGeofence: false };
   });
 
   const pendingLeaves = leaves.filter((l) => l.status === "pending");

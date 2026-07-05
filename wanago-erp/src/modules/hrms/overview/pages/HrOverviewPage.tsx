@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, CheckCircle2, CalendarOff, AlertTriangle, Inbox, HelpCircle } from "lucide-react";
+import { Users, CheckCircle2, CalendarOff, AlertTriangle, Inbox, HelpCircle, MapPinOff } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useHrOverview } from "@/modules/hrms/overview/hooks/useHrOverview";
 import { cn, initials } from "@/lib/utils/helpers";
@@ -92,7 +92,7 @@ export function HrOverviewPage() {
       <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">
         <p className="text-sm font-semibold text-foreground mb-4">Today&apos;s Attendance</p>
         <div className="space-y-2">
-          {employeesToday.map(({ employee, status }) => (
+          {employeesToday.map(({ employee, status, outsideGeofence }) => (
             <div key={employee.id} className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
@@ -101,6 +101,11 @@ export function HrOverviewPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{employee.fullName}</p>
                   <p className="text-xs text-muted-foreground">{employee.department}</p>
+                  {outsideGeofence && (
+                    <p className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+                      <MapPinOff size={11} /> Outside office location
+                    </p>
+                  )}
                 </div>
               </div>
               <span className={cn("flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium", STATUS_STYLES[status])}>

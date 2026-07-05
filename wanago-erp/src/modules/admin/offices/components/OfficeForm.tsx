@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, Building2 } from "lucide-react";
+import { X, Loader2, Building2, LocateFixed } from "lucide-react";
 import { officeSchema, type OfficeSchema } from "@/modules/admin/offices/schemas";
+import { getCurrentPosition } from "@/lib/geo";
 import { cn } from "@/lib/utils/helpers";
 import type { Office } from "@/modules/admin/offices/types";
 
@@ -39,8 +40,9 @@ const inputClass = cn(
 );
 
 export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
+  const [locating, setLocating] = useState(false);
   const {
-    register, handleSubmit, reset,
+    register, handleSubmit, reset, setValue,
     formState: { errors, isSubmitting },
   } = useForm<OfficeSchema>({
     resolver: zodResolver(officeSchema),
@@ -55,12 +57,24 @@ export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
           address: office.address ?? "",
           city:    office.city    ?? "",
           phone:   office.phone   ?? "",
+          latitude:             office.latitude             ?? undefined,
+          longitude:            office.longitude            ?? undefined,
+          geofenceRadiusMeters: office.geofenceRadiusMeters  ?? undefined,
         });
       } else {
         reset({ isHeadOffice: false });
       }
     }
   }, [open, office, reset]);
+
+  async function handleUseMyLocation() {
+    setLocating(true);
+    const pos = await getCurrentPosition();
+    setLocating(false);
+    if (!pos) { alert("Couldn't get your location. Check browser location permissions."); return; }
+    setValue("latitude", pos.lat);
+    setValue("longitude", pos.lng);
+  }
 
   if (!open) return null;
 
@@ -110,6 +124,29 @@ export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
                 <input type="checkbox" className="h-4 w-4 rounded border-input" {...register("isHeadOffice")} />
                 Head Office
               </label>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Geofenced Attendance (optional)</p>
+              <button type="button" onClick={handleUseMyLocation} disabled={locating}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted disabled:opacity-60 transition-colors">
+                {locating ? <Loader2 size={12} className="animate-spin" /> : <LocateFixed size={12} />}
+                Use My Location
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Set coordinates to flag clock-ins made outside this radius. Leave blank to skip location checks for this office.</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Latitude">
+                <input className={inputClass} type="number" step="any" {...register("latitude", { valueAsNumber: true })} />
+              </Field>
+              <Field label="Longitude">
+                <input className={inputClass} type="number" step="any" {...register("longitude", { valueAsNumber: true })} />
+              </Field>
+              <Field label="Radius (meters)">
+                <input className={inputClass} type="number" step="1" placeholder="e.g. 200" {...register("geofenceRadiusMeters", { valueAsNumber: true })} />
+              </Field>
             </div>
           </div>
         </div>

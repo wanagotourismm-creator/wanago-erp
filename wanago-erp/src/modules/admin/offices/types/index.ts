@@ -7,6 +7,9 @@ export type Office = FirestoreRecord & {
   city:         string | null;
   phone:        string | null;
   isHeadOffice: boolean;
+  latitude:            number | null;
+  longitude:           number | null;
+  geofenceRadiusMeters: number | null;
 };
 
 export type OfficeFormData = Omit<
