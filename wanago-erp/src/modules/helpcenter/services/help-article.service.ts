@@ -33,8 +33,11 @@ export async function deleteHelpArticle(id: string): Promise<void> {
 // article by how many of the question's tokens appear in its title,
 // keywords, category, or content, weighted so title/keyword/category hits
 // count for more than a plain content mention.
+// Unicode-aware so non-Latin scripts (e.g. Malayalam) tokenize correctly
+// too, not just ASCII — matters once questions can arrive in other
+// languages via the AI assistant's voice/language support.
 function tokenize(text: string): string[] {
-  return text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  return text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 }
 
 export async function searchHelpArticles(question: string, maxResults = 3): Promise<HelpArticle[]> {

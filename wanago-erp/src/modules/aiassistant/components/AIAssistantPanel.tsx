@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Send, Loader2, AlertTriangle, BookOpen } from "lucide-react";
+import {
+  Sparkles, X, Send, Loader2, AlertTriangle, BookOpen, Mic, Square, Volume2, VolumeX,
+} from "lucide-react";
 import { useAIAssistant } from "@/modules/aiassistant/hooks/useAIAssistant";
 import { cn } from "@/lib/utils/helpers";
 import type { AIChatMessage } from "@/modules/aiassistant/types";
+import type { AILanguage } from "@/lib/ai/getAIAnswer";
+
+const SPEECH_LANG: Record<AILanguage, string> = { en: "en-US", ml: "ml-IN" };
+
+function findVoice(lang: AILanguage): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !window.speechSynthesis) return null;
+  const prefix = lang === "ml" ? "ml" : "en";
+  return window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(prefix)) ?? null;
+}
 
 function AssistantMessage({ message }: { message: AIChatMessage }) {
   const isFallback = message.source === "kb-only" || message.source === "no-match";
@@ -44,19 +55,55 @@ function AssistantMessage({ message }: { message: AIChatMessage }) {
 }
 
 export function AIAssistantPanel() {
-  const { open, openPanel, closePanel, messages, loading, ask } = useAIAssistant();
+  const {
+    open, openPanel, closePanel, messages, loading, ask,
+    language, setLanguage,
+    recording, transcribing, voiceError, startRecording, stopRecording,
+  } = useAIAssistant();
+
   const [draft, setDraft] = useState("");
+  const [speakEnabled, setSpeakEnabled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastSpokenId = useRef<string | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, loading]);
+
+  // Reads the latest assistant reply aloud when speak-aloud is on — silently
+  // does nothing if the browser has no installed voice for the selected
+  // language (better than mispronouncing Malayalam with a wrong voice).
+  useEffect(() => {
+    if (!speakEnabled) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant" || !last.content || last.id === lastSpokenId.current) return;
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    const voice = findVoice(language);
+    if (!voice) return;
+
+    lastSpokenId.current = last.id;
+    const utterance = new SpeechSynthesisUtterance(last.content);
+    utterance.voice = voice;
+    utterance.lang = SPEECH_LANG[language];
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, [messages, speakEnabled, language]);
 
   function handleSend() {
     if (!draft.trim() || loading) return;
     const question = draft;
     setDraft("");
     ask(question);
+  }
+
+  async function handleMic() {
+    if (recording) {
+      const text = await stopRecording();
+      if (text) setDraft(text);
+      return;
+    }
+    await startRecording();
   }
 
   return (
@@ -82,19 +129,50 @@ export function AIAssistantPanel() {
           <div className="modal-enter relative flex h-full w-full sm:h-[600px] sm:w-[420px] sm:max-h-[85vh] flex-col overflow-hidden rounded-none sm:rounded-2xl border border-border bg-card shadow-2xl">
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 flex-shrink-0 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
                   <Sparkles size={15} className="text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Wanago Assistant</p>
-                  <p className="text-[11px] text-muted-foreground">Ask how to use the ERP</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">Wanago Assistant</p>
+                  <p className="text-[11px] text-muted-foreground truncate">Ask how to use the ERP</p>
                 </div>
               </div>
-              <button onClick={closePanel} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
-                <X size={15} />
-              </button>
+
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Language toggle */}
+                <div className="flex items-center rounded-lg border border-border bg-muted p-0.5">
+                  {(["en", "ml"] as AILanguage[]).map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-[11px] font-semibold transition-colors",
+                        language === lang ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {lang === "en" ? "EN" : "ML"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Speak-aloud toggle */}
+                <button
+                  onClick={() => setSpeakEnabled((v) => !v)}
+                  title={speakEnabled ? "Turn off spoken replies" : "Read replies aloud"}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                    speakEnabled ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {speakEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                </button>
+
+                <button onClick={closePanel} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <X size={15} />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
@@ -105,7 +183,7 @@ export function AIAssistantPanel() {
                     <Sparkles size={20} className="text-primary" />
                   </div>
                   <p className="text-sm font-medium text-foreground">Ask me anything about using Wanago ERP</p>
-                  <p className="mt-1 text-xs text-muted-foreground">e.g. &ldquo;How do I apply for leave?&rdquo; or &ldquo;How do I create an invoice?&rdquo;</p>
+                  <p className="mt-1 text-xs text-muted-foreground">e.g. &ldquo;How do I apply for leave?&rdquo; or &ldquo;How do I create an invoice?&rdquo; — type or use the mic, in English or Malayalam.</p>
                 </div>
               )}
 
@@ -132,14 +210,32 @@ export function AIAssistantPanel() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-border p-3 flex-shrink-0">
+            <div className="border-t border-border p-3 flex-shrink-0 space-y-2">
+              {voiceError && (
+                <p className="flex items-center gap-1.5 text-[11px] text-destructive">
+                  <AlertTriangle size={11} className="flex-shrink-0" /> {voiceError}
+                </p>
+              )}
               <div className="flex items-center gap-2">
+                <button
+                  onClick={handleMic}
+                  disabled={transcribing || loading}
+                  title={recording ? "Stop recording" : "Ask by voice"}
+                  className={cn(
+                    "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-40",
+                    recording
+                      ? "border-destructive bg-destructive/10 text-destructive animate-pulse"
+                      : "border-border text-muted-foreground hover:text-primary hover:border-primary/40"
+                  )}
+                >
+                  {transcribing ? <Loader2 size={15} className="animate-spin" /> : recording ? <Square size={13} /> : <Mic size={15} />}
+                </button>
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
-                  placeholder="Ask a question…"
-                  disabled={loading}
+                  placeholder={recording ? "Listening…" : "Ask a question…"}
+                  disabled={loading || recording}
                   className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary transition-colors disabled:opacity-50"
                 />
                 <button

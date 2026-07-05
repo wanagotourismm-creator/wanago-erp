@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { askAssistant, type AssistantTurn } from "@/modules/aiassistant/services/ai-assistant.service";
+import { useState, useRef, useCallback } from "react";
+import { askAssistant, transcribeAudio, type AssistantTurn } from "@/modules/aiassistant/services/ai-assistant.service";
 import type { AIChatMessage } from "@/modules/aiassistant/types";
+import type { AILanguage } from "@/lib/ai/getAIAnswer";
 
 let idCounter = 0;
 function nextId(): string {
@@ -14,6 +15,13 @@ export function useAIAssistant() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState<AILanguage>("en");
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const openPanel  = useCallback(() => setOpen(true), []);
   const closePanel = useCallback(() => setOpen(false), []);
@@ -27,7 +35,7 @@ export function useAIAssistant() {
     setLoading(true);
 
     try {
-      const result = await askAssistant(trimmed, history);
+      const result = await askAssistant(trimmed, history, language);
       setMessages((prev) => [...prev, {
         id: nextId(), role: "assistant",
         content: result.answer, source: result.source, articles: result.articles,
@@ -35,7 +43,55 @@ export function useAIAssistant() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading]);
+  }, [messages, loading, language]);
 
-  return { open, openPanel, closePanel, messages, loading, ask };
+  // Returns the transcribed text on success (caller decides what to do with
+  // it — e.g. drop it into the input box for the employee to review before
+  // sending), or null if recording/transcription failed (voiceError is set
+  // in that case).
+  const startRecording = useCallback(async (): Promise<void> => {
+    setVoiceError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.start();
+      recorderRef.current = recorder;
+      setRecording(true);
+    } catch {
+      setVoiceError("Microphone access was denied or isn't available.");
+    }
+  }, []);
+
+  const stopRecording = useCallback((): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const recorder = recorderRef.current;
+      if (!recorder) { resolve(null); return; }
+
+      recorder.onstop = async () => {
+        recorder.stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        setTranscribing(true);
+
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const result = await transcribeAudio(blob, language);
+        setTranscribing(false);
+
+        if ("error" in result) {
+          setVoiceError(result.error);
+          resolve(null);
+        } else {
+          resolve(result.text);
+        }
+      };
+      recorder.stop();
+    });
+  }, [language]);
+
+  return {
+    open, openPanel, closePanel, messages, loading, ask,
+    language, setLanguage,
+    recording, transcribing, voiceError, startRecording, stopRecording,
+  };
 }

@@ -4,9 +4,15 @@
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 export type ArticleContext = { title: string; content: string };
+export type AILanguage = "en" | "ml";
 export type AIAnswerResult =
   | { source: "gemini" | "groq"; answer: string }
   | { source: "kb-only" };
+
+const LANGUAGE_NAMES: Record<AILanguage, string> = {
+  en: "English",
+  ml: "Malayalam",
+};
 
 // Current free-tier-eligible models (verified against provider docs as of
 // this writing — check ai.google.dev/gemini-api/docs/pricing and
@@ -17,16 +23,19 @@ export type AIAnswerResult =
 const GEMINI_MODEL = "gemini-3.5-flash";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
-function buildSystemPrompt(articles: ArticleContext[]): string {
+function buildSystemPrompt(articles: ArticleContext[], language: AILanguage): string {
   const context = articles
     .map((a, i) => `Article ${i + 1}: ${a.title}\n${a.content}`)
     .join("\n\n---\n\n");
+
+  const languageName = LANGUAGE_NAMES[language];
 
   return [
     "You are the internal Help Assistant for Wanago ERP, a travel-agency operations system used by internal staff.",
     "Answer the staff member's question about HOW TO USE this software, using ONLY the help documentation provided below as context — never your own general knowledge about software or ERPs.",
     "If the provided context does not actually answer the question, say plainly that you don't have documentation on that yet. Do not guess or improvise.",
     "If the question is unrelated to using this ERP (general knowledge, personal advice, coding help, current events, etc.), politely decline and remind the user you can only help with using Wanago ERP.",
+    `Respond ONLY in ${languageName}, regardless of what language the help documentation context below is written in — translate/rephrase the relevant content into ${languageName} yourself.`,
     "Be concise and direct. Respond in plain text, no markdown headers or code fences.",
     "",
     "Help documentation context:",
@@ -91,11 +100,12 @@ async function callGroq(apiKey: string, system: string, history: ChatTurn[], que
 export async function getAIAnswer(
   question: string,
   articles: ArticleContext[],
-  history: ChatTurn[] = []
+  history: ChatTurn[] = [],
+  language: AILanguage = "en"
 ): Promise<AIAnswerResult> {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
-  const system = buildSystemPrompt(articles);
+  const system = buildSystemPrompt(articles, language);
 
   if (geminiKey) {
     try {

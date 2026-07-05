@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAIAnswer, type ChatTurn, type ArticleContext } from "@/lib/ai/getAIAnswer";
+import { getAIAnswer, type ChatTurn, type ArticleContext, type AILanguage } from "@/lib/ai/getAIAnswer";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests — please wait a minute and try again." }, { status: 429 });
   }
 
-  let body: { question?: string; history?: ChatTurn[]; articles?: ArticleContext[] };
+  let body: { question?: string; history?: ChatTurn[]; articles?: ArticleContext[]; language?: AILanguage };
   try {
     body = await req.json();
   } catch {
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ source: "kb-only" });
   }
 
-  const result = await getAIAnswer(question, articles, history);
+  const language: AILanguage = body.language === "ml" ? "ml" : "en";
+  const result = await getAIAnswer(question, articles, history, language);
   return NextResponse.json(result);
 }
