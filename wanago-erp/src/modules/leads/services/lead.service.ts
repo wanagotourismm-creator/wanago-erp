@@ -49,6 +49,9 @@ export async function createLead(
     notes:           data.notes || null,
     assignedTo:      data.assignedTo || null,
     agentName:       data.agentName || null,
+    tripType:        data.tripType || null,
+    source:          data.source || null,
+    pax:             data.pax || null,
   });
 }
 

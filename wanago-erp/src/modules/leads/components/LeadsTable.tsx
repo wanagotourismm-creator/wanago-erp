@@ -84,7 +84,7 @@ export function LeadsTable({ leads, loading, onEdit, onDelete, onStage }: Props)
                   <div>
                     <p className="font-medium text-foreground">{lead.destination}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {lead.pax} pax {lead.budget ? `· ₹${lead.budget.toLocaleString()}` : ""}
+                      {lead.pax ? `${lead.pax} pax` : "Pax TBD"} {lead.budget ? `· ₹${lead.budget.toLocaleString()}` : ""}
                     </p>
                   </div>
                 </td>

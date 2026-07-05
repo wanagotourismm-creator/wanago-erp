@@ -7,19 +7,20 @@ export type Lead = FirestoreRecord & {
   phone:          string;
   alternatePhone: string | null;
 
-  // Trip details
+  // Trip details — filled in progressively; only destination is required
+  // up front, the rest comes in after the sales agent's pitch call.
   destination:    string;
-  tripType:       string;
+  tripType:       string | null;
   travelDate:     string | null;
   returnDate:     string | null;
   duration:       number | null;
-  pax:            number;
+  pax:            number | null;
   budget:         number | null;
 
   // Pipeline
   stage:          string;
   priority:       string;
-  source:         string;
+  source:         string | null;
   assignedTo:     string | null;
   agentName:      string | null;
 

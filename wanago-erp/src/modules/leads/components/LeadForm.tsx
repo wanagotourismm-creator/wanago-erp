@@ -79,6 +79,9 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
           agentName:      lead.agentName      ?? "",
           travelDate:     lead.travelDate     ?? "",
           returnDate:     lead.returnDate     ?? "",
+          tripType:       lead.tripType       ?? "",
+          source:         lead.source         ?? "",
+          pax:            lead.pax            ?? undefined,
         });
       } else {
         reset({
@@ -114,7 +117,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
                 {lead ? "Edit Lead" : "Add New Lead"}
               </h2>
               <p className="text-xs text-muted-foreground">
-                {lead ? `Editing ${lead.refNumber}` : "Fill in the details to add a new lead"}
+                {lead ? `Editing ${lead.refNumber}` : "Only Name, Phone & Destination are required — add the rest after your call"}
               </p>
             </div>
           </div>
@@ -170,7 +173,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
                   <input className={inputClass} placeholder="e.g. Maldives, Bali, Europe..." {...register("destination")} />
                 </Field>
               </div>
-              <Field label="Trip Type" required error={errors.tripType?.message}>
+              <Field label="Trip Type" error={errors.tripType?.message}>
                 <select className={inputClass} {...register("tripType")}>
                   <option value="">Select type</option>
                   {Object.entries(TRIP_TYPES).map(([k, v]) => (
@@ -178,7 +181,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
                   ))}
                 </select>
               </Field>
-              <Field label="No. of Pax" required error={errors.pax?.message}>
+              <Field label="No. of Pax" error={errors.pax?.message}>
                 <input className={inputClass} type="number" min={1} placeholder="2" {...register("pax")} />
               </Field>
               <Field label="Travel Date" error={errors.travelDate?.message}>
@@ -206,14 +209,14 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Pipeline</p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Stage" required error={errors.stage?.message}>
+              <Field label="Stage" error={errors.stage?.message}>
                 <select className={inputClass} {...register("stage")}>
                   {Object.entries(LEAD_STAGE_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </select>
               </Field>
-              <Field label="Source" required error={errors.source?.message}>
+              <Field label="Source" error={errors.source?.message}>
                 <select className={inputClass} {...register("source")}>
                   <option value="">Select source</option>
                   {DEFAULT_LEAD_SOURCES.map(s => (
@@ -224,7 +227,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
 
               {/* Priority — visual selector */}
               <div className="col-span-2">
-                <Field label="Priority" required error={errors.priority?.message}>
+                <Field label="Priority" error={errors.priority?.message}>
                   <div className="flex gap-2">
                     {PRIORITIES.map(p => (
                       <button
