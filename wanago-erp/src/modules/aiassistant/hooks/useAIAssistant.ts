@@ -51,6 +51,20 @@ export function useAIAssistant() {
   // in that case).
   const startRecording = useCallback(async (): Promise<void> => {
     setVoiceError(null);
+
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      setVoiceError("Voice input needs a secure connection (https://) — this page isn't loaded over one.");
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setVoiceError("This browser doesn't support voice input. Try current Chrome, Edge, or Safari.");
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      setVoiceError("This browser doesn't support audio recording (MediaRecorder unavailable).");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -59,8 +73,17 @@ export function useAIAssistant() {
       recorder.start();
       recorderRef.current = recorder;
       setRecording(true);
-    } catch {
-      setVoiceError("Microphone access was denied or isn't available.");
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setVoiceError("Microphone permission was denied — check the site's microphone setting in your browser.");
+      } else if (name === "NotFoundError") {
+        setVoiceError("No microphone was found on this device.");
+      } else if (name === "NotReadableError") {
+        setVoiceError("Your microphone is already in use by another app.");
+      } else {
+        setVoiceError(`Couldn't start the microphone${name ? ` (${name})` : ""}.`);
+      }
     }
   }, []);
 
