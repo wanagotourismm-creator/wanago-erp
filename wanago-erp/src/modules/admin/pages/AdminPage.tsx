@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
-  Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop,
+  Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -24,6 +24,7 @@ import { DataExportPanel } from "@/modules/admin/export/components/DataExportPan
 import { AnnouncementComposer } from "@/modules/admin/announcements/components/AnnouncementComposer";
 import { HolidayCalendar } from "@/modules/admin/holidays/components/HolidayCalendar";
 import { AssetsPanel } from "@/modules/assets/components/AssetsPanel";
+import { TicketsPanel } from "@/modules/tickets/components/TicketsPanel";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
 import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
 import { CollectionExplorer } from "@/modules/admin/explorer/components/CollectionExplorer";
@@ -102,7 +103,8 @@ export function AdminPage() {
       { key: "holidays",      label: "Holidays",       icon: CalendarDays, show: true },
     ] },
     { label: "HR Operations", items: [
-      { key: "assets", label: "Assets", icon: Laptop, show: true },
+      { key: "assets",  label: "Assets",     icon: Laptop, show: true },
+      { key: "tickets", label: "IT Support", icon: Ticket, show: true },
     ] },
     { label: "Configuration", items: [
       { key: "settings",    label: "Company Settings",    icon: Settings2,   show: canManageSettings },
@@ -275,6 +277,8 @@ export function AdminPage() {
           {tab === "holidays" && <HolidayCalendar />}
 
           {tab === "assets" && <AssetsPanel />}
+
+          {tab === "tickets" && <TicketsPanel />}
 
           {tab === "health" && <SystemHealthPanel />}
 

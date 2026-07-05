@@ -10,11 +10,14 @@ import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service
 import { fetchPayrollByEmployee } from "@/modules/hrms/payroll/services/payroll.service";
 import { fetchAssetsByEmployee } from "@/modules/assets/services/asset.service";
 import { fetchAssetRequests, fetchAssetRequestsByEmployee, createAssetRequest, approveAssetRequest, rejectAssetRequest } from "@/modules/assets/services/asset-request.service";
+import { fetchTicketsByReporter, createTicket } from "@/modules/tickets/services/ticket.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
 import type { Asset, AssetRequest } from "@/modules/assets/types";
+import type { Ticket } from "@/modules/tickets/types";
 import type { EssLeaveApplySchema, EssRegularizationApplySchema } from "@/modules/ess/schemas";
 import type { EssAssetRequestSchema } from "@/modules/assets/schemas";
+import type { EssTicketReportSchema } from "@/modules/tickets/schemas";
 import type { Holiday } from "@/modules/admin/holidays/types";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -51,6 +54,7 @@ export function useEss() {
   const [myAssets, setMyAssets] = useState<Asset[]>([]);
   const [assetRequests, setAssetRequests] = useState<AssetRequest[]>([]);
   const [teamAssetRequests, setTeamAssetRequests] = useState<AssetRequest[]>([]);
+  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -64,7 +68,7 @@ export function useEss() {
       setHolidays(hols);
 
       if (emp) {
-        const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity, empAssets, myAssetReqs] = await Promise.all([
+        const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity, empAssets, myAssetReqs, myTix] = await Promise.all([
           fetchEmployees(),
           fetchAttendanceByEmployee(emp.id),
           fetchLeavesByEmployee(emp.id),
@@ -73,6 +77,7 @@ export function useEss() {
           fetchRecentActivity(200),
           fetchAssetsByEmployee(emp.id),
           fetchAssetRequestsByEmployee(emp.id),
+          fetchTicketsByReporter(emp.id),
         ]);
         setAttendance(att);
         setLeaves(myLeaves);
@@ -81,6 +86,7 @@ export function useEss() {
         setActivity(recentActivity.filter((a) => a.actorId === user.uid));
         setMyAssets(empAssets);
         setAssetRequests(myAssetReqs);
+        setMyTickets(myTix);
 
         const reports = allEmployees.filter((e) => e.reportingManagerId === emp.id);
         setDirectReports(reports);
@@ -236,6 +242,22 @@ export function useEss() {
     }
   }
 
+  async function reportIssue(data: EssTicketReportSchema) {
+    if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
+    try {
+      const t = await createTicket({
+        ...data,
+        reportedById:   employee.id,
+        reportedByName: employee.fullName,
+        officeId:       employee.officeId,
+      }, user.uid);
+      setMyTickets((p) => [t, ...p]);
+      return { error: null };
+    } catch {
+      return { error: "Failed to report issue" };
+    }
+  }
+
   async function decideInboxItem(item: InboxItem, decision: "approve" | "reject") {
     if (!user) return { error: "Not signed in" };
     try {
@@ -260,9 +282,9 @@ export function useEss() {
 
   return {
     loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
-    holidays, payroll, activity, myAssets, assetRequests,
+    holidays, payroll, activity, myAssets, assetRequests, myTickets,
     today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
     clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
-    requestCorrection, requestAsset, decideInboxItem, reload: load,
+    requestCorrection, requestAsset, reportIssue, decideInboxItem, reload: load,
   };
 }

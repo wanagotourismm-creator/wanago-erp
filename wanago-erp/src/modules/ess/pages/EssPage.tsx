@@ -17,26 +17,29 @@ import { MyPayslipsList } from "@/modules/ess/components/MyPayslipsList";
 import { MyActivityList } from "@/modules/ess/components/MyActivityList";
 import { MyAssetsList } from "@/modules/ess/components/MyAssetsList";
 import { RequestAssetForm } from "@/modules/ess/components/RequestAssetForm";
+import { MyTicketsList } from "@/modules/ess/components/MyTicketsList";
+import { ReportIssueForm } from "@/modules/ess/components/ReportIssueForm";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 
-const TABS = ["Attendance", "My Leaves", "My Assets", "Payslips", "Activity"] as const;
+const TABS = ["Attendance", "My Leaves", "My Assets", "IT Support", "Payslips", "Activity"] as const;
 type Tab = (typeof TABS)[number];
 
 export function EssPage() {
   const { user } = useAuthStore();
   const {
     loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
-    holidays, payroll, activity, myAssets, assetRequests,
+    holidays, payroll, activity, myAssets, assetRequests, myTickets,
     todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
     clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
-    requestCorrection, requestAsset, decideInboxItem,
+    requestCorrection, requestAsset, reportIssue, decideInboxItem,
   } = useEss();
 
   const [applyOpen, setApplyOpen] = useState(false);
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionDate, setCorrectionDate] = useState<string | null>(null);
   const [assetRequestOpen, setAssetRequestOpen] = useState(false);
+  const [reportIssueOpen, setReportIssueOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("Attendance");
 
   if (loading) {
@@ -121,6 +124,10 @@ export function EssPage() {
         <MyAssetsList assets={myAssets} assetRequests={assetRequests} onRequest={() => setAssetRequestOpen(true)} />
       )}
 
+      {tab === "IT Support" && (
+        <MyTicketsList tickets={myTickets} onReport={() => setReportIssueOpen(true)} />
+      )}
+
       {tab === "Payslips" && <MyPayslipsList payroll={payroll} />}
 
       {tab === "Activity" && <MyActivityList activity={activity} />}
@@ -133,6 +140,7 @@ export function EssPage() {
         onSubmit={requestCorrection}
       />
       <RequestAssetForm open={assetRequestOpen} onClose={() => setAssetRequestOpen(false)} onSubmit={requestAsset} />
+      <ReportIssueForm open={reportIssueOpen} onClose={() => setReportIssueOpen(false)} onSubmit={reportIssue} />
     </div>
   );
 }
