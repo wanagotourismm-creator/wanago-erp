@@ -48,6 +48,31 @@ export function useHelpArticles() {
     }
   }
 
+  // Creates many articles in one pass (used by the bulk-import tool) —
+  // reloads once at the end instead of updating state per-item, and logs
+  // a single summary activity entry rather than one per article.
+  async function bulkAddArticles(items: HelpArticleSchema[]): Promise<{ created: number; failed: number }> {
+    let created = 0;
+    let failed = 0;
+    for (const item of items) {
+      try {
+        await createHelpArticle(item, user?.uid ?? "");
+        created += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    await load();
+    if (created > 0) {
+      logActivity({
+        entityType: "Help Article", entityName: `${created} articles`, action: "created",
+        detail: `Bulk-imported ${created} help article(s)`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+    }
+    return { created, failed };
+  }
+
   async function removeArticle(id: string): Promise<void> {
     const article = articles.find((a) => a.id === id);
     await deleteHelpArticle(id);
@@ -61,5 +86,5 @@ export function useHelpArticles() {
     }
   }
 
-  return { articles, loading, load, addArticle, editArticle, removeArticle };
+  return { articles, loading, load, addArticle, editArticle, removeArticle, bulkAddArticles };
 }

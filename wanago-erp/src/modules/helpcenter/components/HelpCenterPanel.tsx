@@ -1,20 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, UploadCloud } from "lucide-react";
 import { useHelpArticles } from "@/modules/helpcenter/hooks/useHelpArticles";
 import { HelpArticleForm } from "@/modules/helpcenter/components/HelpArticleForm";
 import { HelpArticlesTable } from "@/modules/helpcenter/components/HelpArticlesTable";
 import { HelpArticleDetailModal } from "@/modules/helpcenter/components/HelpArticleDetailModal";
+import { HelpArticleBulkImport } from "@/modules/helpcenter/components/HelpArticleBulkImport";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { HelpArticle } from "@/modules/helpcenter/types";
 
 export function HelpCenterPanel() {
-  const { articles, loading, load, addArticle, editArticle, removeArticle } = useHelpArticles();
+  const { articles, loading, load, addArticle, editArticle, removeArticle, bulkAddArticles } = useHelpArticles();
   const [formOpen, setFormOpen] = useState(false);
   const [editing,  setEditing]  = useState<HelpArticle | null>(null);
   const [viewing,  setViewing]  = useState<HelpArticle | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   function handleEdit(article: HelpArticle) {
     setViewing(null);
@@ -36,6 +38,7 @@ export function HelpCenterPanel() {
         actions={
           <>
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>Refresh</Button>
+            <Button variant="outline" size="sm" icon={<UploadCloud size={14} />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditing(null); setFormOpen(true); }}>Add Article</Button>
           </>
         }
@@ -66,6 +69,12 @@ export function HelpCenterPanel() {
           setFormOpen(false);
           setEditing(null);
         }}
+      />
+
+      <HelpArticleBulkImport
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onImport={bulkAddArticles}
       />
     </div>
   );
