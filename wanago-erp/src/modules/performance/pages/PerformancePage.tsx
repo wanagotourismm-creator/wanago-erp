@@ -6,8 +6,10 @@ import { useGoals } from "@/modules/performance/goals/hooks/useGoals";
 import { useReviews } from "@/modules/performance/reviews/hooks/useReviews";
 import { GoalsTable } from "@/modules/performance/goals/components/GoalsTable";
 import { GoalForm } from "@/modules/performance/goals/components/GoalForm";
+import { GoalDetailModal } from "@/modules/performance/goals/components/GoalDetailModal";
 import { ReviewsTable } from "@/modules/performance/reviews/components/ReviewsTable";
 import { ReviewForm } from "@/modules/performance/reviews/components/ReviewForm";
+import { ReviewDetailModal } from "@/modules/performance/reviews/components/ReviewDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -29,8 +31,10 @@ export function PerformancePage() {
 
   const [goalFormOpen,   setGoalFormOpen]   = useState(false);
   const [editingGoal,    setEditingGoal]    = useState<Goal | null>(null);
+  const [viewingGoal,    setViewingGoal]    = useState<Goal | null>(null);
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [editingReview,  setEditingReview]  = useState<PerformanceReview | null>(null);
+  const [viewingReview,  setViewingReview]  = useState<PerformanceReview | null>(null);
 
   const stats = useMemo(() => ({
     activeGoals: goals.filter(g => g.status !== "completed").length,
@@ -47,8 +51,15 @@ export function PerformancePage() {
     setEditingGoal(null);
   }
 
+  function handleGoalEdit(goal: Goal) {
+    setViewingGoal(null);
+    setEditingGoal(goal);
+    setGoalFormOpen(true);
+  }
+
   async function handleGoalDelete(goal: Goal) {
     if (!confirm(`Delete goal "${goal.title}"? This cannot be undone.`)) return;
+    setViewingGoal(null);
     await removeGoal(goal.id);
   }
 
@@ -66,8 +77,15 @@ export function PerformancePage() {
     setEditingReview(null);
   }
 
+  function handleReviewEdit(review: PerformanceReview) {
+    setViewingReview(null);
+    setEditingReview(review);
+    setReviewFormOpen(true);
+  }
+
   async function handleReviewDelete(review: PerformanceReview) {
     if (!confirm(`Delete review "${review.refNumber}"? This cannot be undone.`)) return;
+    setViewingReview(null);
     await removeReview(review.id);
   }
 
@@ -140,7 +158,8 @@ export function PerformancePage() {
           goals={goals}
           loading={goalsLoading}
           canManage={canManage}
-          onEdit={(g) => { setEditingGoal(g); setGoalFormOpen(true); }}
+          onView={setViewingGoal}
+          onEdit={handleGoalEdit}
           onDelete={handleGoalDelete}
           onProgress={(g, progress) => setProgress(g.id, progress)}
           onAtRisk={(g) => markAtRisk(g.id)}
@@ -152,11 +171,29 @@ export function PerformancePage() {
           reviews={reviews}
           loading={reviewsLoading}
           canManage={canManage}
-          onEdit={(r) => { setEditingReview(r); setReviewFormOpen(true); }}
+          onView={setViewingReview}
+          onEdit={handleReviewEdit}
           onDelete={handleReviewDelete}
-          onAcknowledge={(r) => acknowledge(r.id)}
         />
       )}
+
+      <GoalDetailModal
+        goal={viewingGoal ? goals.find(g => g.id === viewingGoal.id) ?? viewingGoal : null}
+        canManage={canManage}
+        onClose={() => setViewingGoal(null)}
+        onEdit={handleGoalEdit}
+        onDelete={handleGoalDelete}
+        onAtRisk={(g) => markAtRisk(g.id)}
+      />
+
+      <ReviewDetailModal
+        review={viewingReview ? reviews.find(r => r.id === viewingReview.id) ?? viewingReview : null}
+        canManage={canManage}
+        onClose={() => setViewingReview(null)}
+        onEdit={handleReviewEdit}
+        onDelete={handleReviewDelete}
+        onAcknowledge={(r) => acknowledge(r.id)}
+      />
 
       <GoalForm
         open={goalFormOpen}

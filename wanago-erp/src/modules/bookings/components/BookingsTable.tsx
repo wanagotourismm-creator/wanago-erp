@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { MoreHorizontal, Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
@@ -14,14 +13,13 @@ type Props = {
   loading:    boolean;
   canManage:  boolean;
   canApprove: boolean;
+  onView:     (booking: Booking) => void;
   onEdit:     (booking: Booking) => void;
   onDelete:   (booking: Booking) => void;
   onStatus:   (booking: Booking, status: string) => void;
 };
 
-export function BookingsTable({ bookings, loading, canManage, canApprove, onEdit, onDelete, onStatus }: Props) {
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
-
+export function BookingsTable({ bookings, loading, canManage, canApprove, onView, onEdit, onDelete, onStatus }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (bookings.length === 0) {
@@ -49,7 +47,11 @@ export function BookingsTable({ bookings, loading, canManage, canApprove, onEdit
           </thead>
           <tbody className="divide-y divide-border">
             {bookings.map((b) => (
-              <tr key={b.id} className="hover:bg-muted/20 transition-colors group">
+              <tr
+                key={b.id}
+                onClick={() => onView(b)}
+                className="cursor-pointer hover:bg-muted/20 transition-colors group"
+              >
 
                 {/* Customer + ref */}
                 <td className="px-4 py-3">
@@ -118,36 +120,24 @@ export function BookingsTable({ bookings, loading, canManage, canApprove, onEdit
                   </span>
                 </td>
 
-                {/* Actions */}
+                {/* Actions — inline, revealed on row hover */}
                 <td className="px-4 py-3">
                   {canManage && (
-                    <div className="relative">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                       <button
-                        onClick={() => setMenuOpen(menuOpen === b.id ? null : b.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+                        onClick={(e) => { e.stopPropagation(); onEdit(b); }}
+                        title="Edit"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
-                        <MoreHorizontal size={15} />
+                        <Edit2 size={13} />
                       </button>
-
-                      {menuOpen === b.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                          <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-border bg-card shadow-lg py-1">
-                            <button
-                              onClick={() => { onEdit(b); setMenuOpen(null); }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Edit2 size={13} /> Edit
-                            </button>
-                            <button
-                              onClick={() => { onDelete(b); setMenuOpen(null); }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              <Trash2 size={13} /> Delete
-                            </button>
-                          </div>
-                        </>
-                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(b); }}
+                        title="Delete"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   )}
                 </td>

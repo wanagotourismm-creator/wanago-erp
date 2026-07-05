@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { MoreHorizontal, Trash2, Edit2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { formatDate, initials } from "@/lib/utils/helpers";
@@ -11,13 +10,12 @@ import type { AttendanceRecord } from "@/modules/hrms/shared/types";
 type Props = {
   records: AttendanceRecord[];
   loading: boolean;
+  onView: (r: AttendanceRecord) => void;
   onEdit: (r: AttendanceRecord) => void;
   onDelete: (r: AttendanceRecord) => void;
 };
 
-export function AttendanceTable({ records, loading, onEdit, onDelete }: Props) {
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
-
+export function AttendanceTable({ records, loading, onView, onEdit, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
   if (records.length === 0) return <EmptyState title="No attendance records yet" description="Mark attendance for an employee to get started" icon={<span className="text-2xl">🕐</span>} />;
 
@@ -34,7 +32,7 @@ export function AttendanceTable({ records, loading, onEdit, onDelete }: Props) {
           </thead>
           <tbody className="divide-y divide-border">
             {records.map(r => (
-              <tr key={r.id} className="hover:bg-muted/20 transition-colors group">
+              <tr key={r.id} onClick={() => onView(r)} className="cursor-pointer hover:bg-muted/20 transition-colors group">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{initials(r.employeeName)}</div>
@@ -48,20 +46,21 @@ export function AttendanceTable({ records, loading, onEdit, onDelete }: Props) {
                 <td className="px-4 py-3"><span className="text-xs font-medium text-foreground">{r.hoursWorked ?? "—"}</span></td>
                 <td className="px-4 py-3 max-w-[160px]"><p className="text-xs text-muted-foreground truncate" title={r.notes ?? undefined}>{r.notes ?? "—"}</p></td>
                 <td className="px-4 py-3">
-                  <div className="relative">
-                    <button onClick={() => setMenuOpen(menuOpen === r.id ? null : r.id)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100 transition-all">
-                      <MoreHorizontal size={15} />
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEdit(r); }}
+                      title="Edit"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    >
+                      <Edit2 size={13} />
                     </button>
-                    {menuOpen === r.id && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                        <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-border bg-card shadow-lg py-1">
-                          <button onClick={() => { onEdit(r); setMenuOpen(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"><Edit2 size={13} /> Edit</button>
-                          <button onClick={() => { onDelete(r); setMenuOpen(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10"><Trash2 size={13} /> Delete</button>
-                        </div>
-                      </>
-                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDelete(r); }}
+                      title="Delete"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </td>
               </tr>

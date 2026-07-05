@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Plus, Search, RefreshCw } from "lucide-react";
 import { useCustomers } from "@/modules/customers/hooks/useCustomers";
 import { CustomersTable } from "@/modules/customers/components/CustomersTable";
+import { CustomerDetailModal } from "@/modules/customers/components/CustomerDetailModal";
 import { CustomerForm } from "@/modules/customers/components/CustomerForm";
 import { CUSTOMER_TYPES } from "@/modules/customers/components/CustomerBadges";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -24,6 +25,7 @@ export function CustomersPage() {
 
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [typeFilter,      setTypeFilter]      = useState("");
   const [search,          setSearch]          = useState("");
 
@@ -65,12 +67,14 @@ export function CustomersPage() {
   }
 
   function handleEdit(customer: Customer) {
+    setViewingCustomer(null);
     setEditingCustomer(customer);
     setFormOpen(true);
   }
 
   async function handleDelete(customer: Customer) {
     if (!confirm(`Delete customer "${customer.fullName}"? This cannot be undone.`)) return;
+    setViewingCustomer(null);
     await removeCustomer(customer.id);
   }
 
@@ -139,6 +143,16 @@ export function CustomersPage() {
         customers={filtered}
         loading={loading}
         canManage={canManage}
+        onView={setViewingCustomer}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      {/* Detail popup */}
+      <CustomerDetailModal
+        customer={viewingCustomer ? filtered.find(c => c.id === viewingCustomer.id) ?? viewingCustomer : null}
+        canManage={canManage}
+        onClose={() => setViewingCustomer(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

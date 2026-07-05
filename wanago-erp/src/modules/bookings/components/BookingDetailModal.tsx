@@ -1,0 +1,165 @@
+"use client";
+
+import { X, Phone, MapPin, Edit2, Trash2, Wallet, User } from "lucide-react";
+import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
+import { formatDate, initials } from "@/lib/utils/helpers";
+import { BOOKING_STATUS_LABELS } from "@/lib/constants";
+import type { Booking } from "@/modules/bookings/types";
+
+type Props = {
+  booking:    Booking | null;
+  canManage:  boolean;
+  canApprove: boolean;
+  onClose:    () => void;
+  onEdit:     (booking: Booking) => void;
+  onDelete:   (booking: Booking) => void;
+  onStatus:   (booking: Booking, status: string) => void;
+};
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-foreground text-right">{value ?? "—"}</span>
+    </div>
+  );
+}
+
+export function BookingDetailModal({ booking, canManage, canApprove, onClose, onEdit, onDelete, onStatus }: Props) {
+  if (!booking) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="modal-enter relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+              {initials(booking.customerName)}
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold text-foreground">{booking.customerName}</h2>
+              <p className="text-xs text-muted-foreground">{booking.refNumber} · Added {formatDate(booking.createdAt)}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
+
+          <div className="flex flex-wrap items-center gap-2">
+            <BookingStatusBadge status={booking.status} />
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <User size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Contact</p>
+            </div>
+            <div className="divide-y divide-border rounded-xl border border-border px-3">
+              <Row label="Phone" value={<span className="inline-flex items-center gap-1.5"><Phone size={12} />{booking.customerPhone}</span>} />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <MapPin size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Trip Details</p>
+            </div>
+            <div className="divide-y divide-border rounded-xl border border-border px-3">
+              <Row label="Destination" value={booking.destination} />
+              <Row label="Trip Type" value={booking.tripType} />
+              <Row label="Package" value={booking.packageName} />
+              <Row label="No. of Pax" value={booking.pax} />
+              <Row label="Travel Date" value={booking.travelDate ? formatDate(booking.travelDate) : null} />
+              <Row label="Return Date" value={booking.returnDate ? formatDate(booking.returnDate) : null} />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <Wallet size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Payment</p>
+            </div>
+            <div className="divide-y divide-border rounded-xl border border-border px-3">
+              <Row label="Total Amount" value={formatAmount(booking.totalAmount)} />
+              <Row label="Advance Paid" value={formatAmount(booking.advanceAmount)} />
+              <Row
+                label="Balance"
+                value={
+                  <span className={booking.balanceAmount > 0 ? "text-destructive" : ""}>
+                    {booking.balanceAmount > 0 ? formatAmount(booking.balanceAmount) : "Paid"}
+                  </span>
+                }
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <User size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Pipeline</p>
+            </div>
+            <div className="divide-y divide-border rounded-xl border border-border px-3">
+              <Row label="Agent" value={booking.agentName} />
+              <Row label="Office" value={booking.officeName} />
+            </div>
+          </div>
+
+          {booking.notes && (
+            <div>
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-primary">Notes</p>
+              <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground whitespace-pre-wrap">
+                {booking.notes}
+              </p>
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-primary/15 bg-muted/30 px-6 py-4">
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <>
+                <button
+                  onClick={() => onEdit(booking)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+                >
+                  <Edit2 size={13} /> Edit
+                </button>
+                <button
+                  onClick={() => onDelete(booking)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              </>
+            )}
+          </div>
+          {canApprove && (
+            <select
+              value={booking.status}
+              onChange={(e) => onStatus(booking, e.target.value)}
+              className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            >
+              {Object.entries(BOOKING_STATUS_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { MoreHorizontal, Edit2, Trash2, FileText } from "lucide-react";
+import { Edit2, Trash2, FileText } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { formatDate, initials, cn } from "@/lib/utils/helpers";
@@ -12,12 +11,13 @@ type Props = {
   candidates: Candidate[];
   loading:    boolean;
   canManage:  boolean;
+  onView:     (candidate: Candidate) => void;
   onEdit:     (candidate: Candidate) => void;
   onDelete:   (candidate: Candidate) => void;
   onStage:    (candidate: Candidate, stage: string) => void;
 };
 
-const STAGE_STYLES: Record<string, string> = {
+export const STAGE_STYLES: Record<string, string> = {
   applied:      "text-slate-600 dark:text-slate-400",
   screening:    "text-blue-600 dark:text-blue-400",
   interview_r1: "text-purple-600 dark:text-purple-400",
@@ -28,9 +28,7 @@ const STAGE_STYLES: Record<string, string> = {
   rejected:     "text-red-600 dark:text-red-400",
 };
 
-export function CandidatesTable({ candidates, loading, canManage, onEdit, onDelete, onStage }: Props) {
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
-
+export function CandidatesTable({ candidates, loading, canManage, onView, onEdit, onDelete, onStage }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (candidates.length === 0) {
@@ -52,7 +50,7 @@ export function CandidatesTable({ candidates, loading, canManage, onEdit, onDele
           </thead>
           <tbody className="divide-y divide-border">
             {candidates.map(c => (
-              <tr key={c.id} className="hover:bg-muted/20 transition-colors group">
+              <tr key={c.id} onClick={() => onView(c)} className="cursor-pointer hover:bg-muted/20 transition-colors group">
 
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -76,7 +74,7 @@ export function CandidatesTable({ candidates, loading, canManage, onEdit, onDele
 
                 <td className="px-4 py-3">
                   {c.resumeUrl ? (
-                    <a href={c.resumeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    <a href={c.resumeUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-xs text-primary hover:underline">
                       <FileText size={12} /> View
                     </a>
                   ) : (
@@ -109,24 +107,21 @@ export function CandidatesTable({ candidates, loading, canManage, onEdit, onDele
 
                 <td className="px-4 py-3">
                   {canManage && (
-                    <div className="relative">
-                      <button onClick={() => setMenuOpen(menuOpen === c.id ? null : c.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100 transition-all">
-                        <MoreHorizontal size={15} />
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onEdit(c); }}
+                        title="Edit"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <Edit2 size={13} />
                       </button>
-                      {menuOpen === c.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                          <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-border bg-card shadow-lg py-1">
-                            <button onClick={() => { onEdit(c); setMenuOpen(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
-                              <Edit2 size={13} /> Edit
-                            </button>
-                            <button onClick={() => { onDelete(c); setMenuOpen(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
-                              <Trash2 size={13} /> Delete
-                            </button>
-                          </div>
-                        </>
-                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(c); }}
+                        title="Delete"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   )}
                 </td>

@@ -8,11 +8,12 @@ import type { Office } from "@/modules/admin/offices/types";
 type Props = {
   offices:  Office[];
   loading:  boolean;
+  onView:   (office: Office) => void;
   onEdit:   (office: Office) => void;
   onDelete: (office: Office) => void;
 };
 
-export function OfficesTable({ offices, loading, onEdit, onDelete }: Props) {
+export function OfficesTable({ offices, loading, onView, onEdit, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={4} />;
 
   if (offices.length === 0) {
@@ -28,7 +29,11 @@ export function OfficesTable({ offices, loading, onEdit, onDelete }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {offices.map((office) => (
-        <div key={office.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-3">
+        <div
+          key={office.id}
+          onClick={() => onView(office)}
+          className="cursor-pointer rounded-2xl border border-border bg-card p-5 shadow-sm space-y-3"
+        >
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <p className="font-semibold text-foreground">{office.name}</p>
@@ -58,13 +63,13 @@ export function OfficesTable({ offices, loading, onEdit, onDelete }: Props) {
 
           <div className="flex items-center gap-2 pt-2 border-t border-border">
             <button
-              onClick={() => onEdit(office)}
+              onClick={(e) => { e.stopPropagation(); onEdit(office); }}
               className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
             >
               <Edit2 size={12} /> Edit
             </button>
             <button
-              onClick={() => onDelete(office)}
+              onClick={(e) => { e.stopPropagation(); onDelete(office); }}
               className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
             >
               <Trash2 size={12} /> Delete

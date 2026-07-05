@@ -5,6 +5,7 @@ import { Plus, RefreshCw, Clock, UserCheck, UserX, CalendarOff } from "lucide-re
 import { useAttendance } from "@/modules/hrms/attendance/hooks/useAttendance";
 import { AttendanceTable } from "@/modules/hrms/attendance/components/AttendanceTable";
 import { AttendanceForm } from "@/modules/hrms/attendance/components/AttendanceForm";
+import { AttendanceDetailModal } from "@/modules/hrms/attendance/components/AttendanceDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils/helpers";
@@ -18,6 +19,7 @@ export function AttendancePage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing,  setEditing]  = useState<AttendanceRecord | null>(null);
+  const [viewing,  setViewing]  = useState<AttendanceRecord | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("All");
 
@@ -30,6 +32,19 @@ export function AttendancePage() {
     const result = editing ? await editAttendance(editing.id, data) : await addAttendance(data);
     if (result.error) { setFormError(result.error); return; }
     setFormOpen(false); setEditing(null);
+  }
+
+  function handleEdit(r: AttendanceRecord) {
+    setViewing(null);
+    setEditing(r);
+    setFormError(null);
+    setFormOpen(true);
+  }
+
+  async function handleDelete(r: AttendanceRecord) {
+    if (!confirm(`Delete attendance record for "${r.employeeName}"?`)) return;
+    setViewing(null);
+    await removeAttendance(r.id);
   }
 
   return (
@@ -72,8 +87,16 @@ export function AttendancePage() {
       </div>
 
       <AttendanceTable records={filtered} loading={loading}
-        onEdit={r => { setEditing(r); setFormError(null); setFormOpen(true); }}
-        onDelete={async r => { if (confirm(`Delete attendance record for "${r.employeeName}"?`)) await removeAttendance(r.id); }} />
+        onView={setViewing}
+        onEdit={handleEdit}
+        onDelete={handleDelete} />
+
+      <AttendanceDetailModal
+        record={viewing ? filtered.find(r => r.id === viewing.id) ?? viewing : null}
+        onClose={() => setViewing(null)}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
 
       <AttendanceForm open={formOpen} record={editing} error={formError}
         onClose={() => { setFormOpen(false); setEditing(null); setFormError(null); }}

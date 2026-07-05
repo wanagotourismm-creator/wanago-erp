@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { MoreHorizontal, Edit2, Trash2, Phone, Mail } from "lucide-react";
+import { Edit2, Trash2, Phone, Mail } from "lucide-react";
 import { CustomerTypeBadge } from "@/modules/customers/components/CustomerBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
@@ -12,13 +11,12 @@ type Props = {
   customers: Customer[];
   loading:   boolean;
   canManage: boolean;
+  onView:    (customer: Customer) => void;
   onEdit:    (customer: Customer) => void;
   onDelete:  (customer: Customer) => void;
 };
 
-export function CustomersTable({ customers, loading, canManage, onEdit, onDelete }: Props) {
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
-
+export function CustomersTable({ customers, loading, canManage, onView, onEdit, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (customers.length === 0) {
@@ -46,7 +44,11 @@ export function CustomersTable({ customers, loading, canManage, onEdit, onDelete
           </thead>
           <tbody className="divide-y divide-border">
             {customers.map((customer) => (
-              <tr key={customer.id} className="hover:bg-muted/20 transition-colors group">
+              <tr
+                key={customer.id}
+                onClick={() => onView(customer)}
+                className="cursor-pointer hover:bg-muted/20 transition-colors group"
+              >
 
                 {/* Name + ref */}
                 <td className="px-4 py-3">
@@ -99,36 +101,24 @@ export function CustomersTable({ customers, loading, canManage, onEdit, onDelete
                   </span>
                 </td>
 
-                {/* Actions */}
+                {/* Actions — inline, revealed on row hover */}
                 <td className="px-4 py-3">
                   {canManage && (
-                    <div className="relative">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                       <button
-                        onClick={() => setMenuOpen(menuOpen === customer.id ? null : customer.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+                        onClick={(e) => { e.stopPropagation(); onEdit(customer); }}
+                        title="Edit"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
-                        <MoreHorizontal size={15} />
+                        <Edit2 size={13} />
                       </button>
-
-                      {menuOpen === customer.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                          <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-border bg-card shadow-lg py-1">
-                            <button
-                              onClick={() => { onEdit(customer); setMenuOpen(null); }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Edit2 size={13} /> Edit
-                            </button>
-                            <button
-                              onClick={() => { onDelete(customer); setMenuOpen(null); }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              <Trash2 size={13} /> Delete
-                            </button>
-                          </div>
-                        </>
-                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(customer); }}
+                        title="Delete"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   )}
                 </td>

@@ -11,10 +11,11 @@ type Props = {
   payments:  Payment[];
   loading:   boolean;
   canManage: boolean;
+  onView:    (payment: Payment) => void;
   onDelete:  (payment: Payment) => void;
 };
 
-export function PaymentsTable({ payments, loading, canManage, onDelete }: Props) {
+export function PaymentsTable({ payments, loading, canManage, onView, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (payments.length === 0) {
@@ -42,7 +43,11 @@ export function PaymentsTable({ payments, loading, canManage, onDelete }: Props)
           </thead>
           <tbody className="divide-y divide-border">
             {payments.map((p) => (
-              <tr key={p.id} className="hover:bg-muted/20 transition-colors group">
+              <tr
+                key={p.id}
+                onClick={() => onView(p)}
+                className="cursor-pointer hover:bg-muted/20 transition-colors group"
+              >
 
                 {/* Customer + ref */}
                 <td className="px-4 py-3">
@@ -88,7 +93,7 @@ export function PaymentsTable({ payments, loading, canManage, onDelete }: Props)
                 <td className="px-4 py-3">
                   {canManage && (
                     <button
-                      onClick={() => onDelete(p)}
+                      onClick={(e) => { e.stopPropagation(); onDelete(p); }}
                       className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <Trash2 size={14} />

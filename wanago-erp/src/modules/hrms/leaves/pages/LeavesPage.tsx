@@ -5,6 +5,7 @@ import { Plus, RefreshCw, CalendarDays, Clock, CheckCircle2, XCircle } from "luc
 import { useLeaves } from "@/modules/hrms/leaves/hooks/useLeaves";
 import { LeaveTable } from "@/modules/hrms/leaves/components/LeaveTable";
 import { LeaveForm } from "@/modules/hrms/leaves/components/LeaveForm";
+import { LeaveDetailModal } from "@/modules/hrms/leaves/components/LeaveDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -22,6 +23,7 @@ export function LeavesPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing,  setEditing]  = useState<LeaveRequest | null>(null);
+  const [viewing,  setViewing]  = useState<LeaveRequest | null>(null);
   const [statusFilter, setStatusFilter] = useState("All");
 
   const filtered = useMemo(() => leaves.filter(l =>
@@ -32,6 +34,26 @@ export function LeavesPage() {
     if (editing) await editLeave(editing.id, data);
     else await addLeave(data);
     setFormOpen(false); setEditing(null);
+  }
+
+  function handleEdit(l: LeaveRequest) {
+    setViewing(null);
+    setEditing(l);
+    setFormOpen(true);
+  }
+
+  async function handleDelete(l: LeaveRequest) {
+    if (!confirm(`Delete leave request for "${l.employeeName}"?`)) return;
+    setViewing(null);
+    await removeLeave(l.id);
+  }
+
+  async function handleApprove(l: LeaveRequest) {
+    await approveLeave(l.id);
+  }
+
+  async function handleReject(l: LeaveRequest) {
+    await rejectLeave(l.id);
   }
 
   return (
@@ -74,10 +96,21 @@ export function LeavesPage() {
       </div>
 
       <LeaveTable leaves={filtered} loading={loading} canDecide={canDecide}
-        onEdit={l => { setEditing(l); setFormOpen(true); }}
-        onApprove={async l => { await approveLeave(l.id); }}
-        onReject={async l => { await rejectLeave(l.id); }}
-        onDelete={async l => { if (confirm(`Delete leave request for "${l.employeeName}"?`)) await removeLeave(l.id); }} />
+        onView={setViewing}
+        onEdit={handleEdit}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        onDelete={handleDelete} />
+
+      <LeaveDetailModal
+        leave={viewing ? filtered.find(l => l.id === viewing.id) ?? viewing : null}
+        canDecide={canDecide}
+        onClose={() => setViewing(null)}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
 
       <LeaveForm open={formOpen} leave={editing}
         onClose={() => { setFormOpen(false); setEditing(null); }}

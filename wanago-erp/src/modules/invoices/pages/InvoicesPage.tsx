@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Plus, Search, RefreshCw, FileText, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useInvoices } from "@/modules/invoices/hooks/useInvoices";
 import { InvoicesTable } from "@/modules/invoices/components/InvoicesTable";
+import { InvoiceDetailModal } from "@/modules/invoices/components/InvoiceDetailModal";
 import { InvoiceForm } from "@/modules/invoices/components/InvoiceForm";
 import { formatAmount } from "@/modules/invoices/components/InvoiceBadges";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -28,6 +29,7 @@ export function InvoicesPage() {
 
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingInvoice,  setEditingInvoice]  = useState<Invoice | null>(null);
+  const [viewingInvoice,  setViewingInvoice]  = useState<Invoice | null>(null);
   const [statusFilter,    setStatusFilter]    = useState("");
   const [search,          setSearch]          = useState("");
 
@@ -67,12 +69,14 @@ export function InvoicesPage() {
   }
 
   function handleEdit(invoice: Invoice) {
+    setViewingInvoice(null);
     setEditingInvoice(invoice);
     setFormOpen(true);
   }
 
   async function handleDelete(invoice: Invoice) {
     if (!confirm(`Delete invoice "${invoice.refNumber}"? This cannot be undone.`)) return;
+    setViewingInvoice(null);
     await removeInvoice(invoice.id);
   }
 
@@ -157,6 +161,16 @@ export function InvoicesPage() {
         invoices={filtered}
         loading={loading}
         canManage={canManage}
+        onView={setViewingInvoice}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      {/* Detail popup */}
+      <InvoiceDetailModal
+        invoice={viewingInvoice ? filtered.find(i => i.id === viewingInvoice.id) ?? viewingInvoice : null}
+        canManage={canManage}
+        onClose={() => setViewingInvoice(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onSend={(invoice) => sendInvoice(invoice.id)}

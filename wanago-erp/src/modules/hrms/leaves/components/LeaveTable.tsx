@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { MoreHorizontal, Check, X as XIcon, Trash2, Edit2 } from "lucide-react";
+import { Check, X as XIcon, Trash2, Edit2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { formatDate, initials } from "@/lib/utils/helpers";
@@ -12,15 +11,14 @@ type Props = {
   leaves: LeaveRequest[];
   loading: boolean;
   canDecide: boolean;
+  onView: (l: LeaveRequest) => void;
   onEdit: (l: LeaveRequest) => void;
   onApprove: (l: LeaveRequest) => void;
   onReject: (l: LeaveRequest) => void;
   onDelete: (l: LeaveRequest) => void;
 };
 
-export function LeaveTable({ leaves, loading, canDecide, onEdit, onApprove, onReject, onDelete }: Props) {
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
-
+export function LeaveTable({ leaves, loading, canDecide, onView, onEdit, onApprove, onReject, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
   if (leaves.length === 0) return <EmptyState title="No leave requests yet" description="Leave requests will appear here" icon={<span className="text-2xl">🗓️</span>} />;
 
@@ -37,7 +35,7 @@ export function LeaveTable({ leaves, loading, canDecide, onEdit, onApprove, onRe
           </thead>
           <tbody className="divide-y divide-border">
             {leaves.map(l => (
-              <tr key={l.id} className="hover:bg-muted/20 transition-colors group">
+              <tr key={l.id} onClick={() => onView(l)} className="cursor-pointer hover:bg-muted/20 transition-colors group">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{initials(l.employeeName)}</div>
@@ -54,30 +52,31 @@ export function LeaveTable({ leaves, loading, canDecide, onEdit, onApprove, onRe
                   <div className="flex items-center justify-end gap-1">
                     {canDecide && l.status === "pending" && (
                       <>
-                        <button onClick={() => onApprove(l)} title="Approve"
+                        <button onClick={(e) => { e.stopPropagation(); onApprove(l); }} title="Approve"
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors">
                           <Check size={14} />
                         </button>
-                        <button onClick={() => onReject(l)} title="Reject"
+                        <button onClick={(e) => { e.stopPropagation(); onReject(l); }} title="Reject"
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
                           <XIcon size={14} />
                         </button>
                       </>
                     )}
-                    <div className="relative">
-                      <button onClick={() => setMenuOpen(menuOpen === l.id ? null : l.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100 transition-all">
-                        <MoreHorizontal size={15} />
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onEdit(l); }}
+                        title="Edit"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <Edit2 size={13} />
                       </button>
-                      {menuOpen === l.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                          <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-border bg-card shadow-lg py-1">
-                            <button onClick={() => { onEdit(l); setMenuOpen(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"><Edit2 size={13} /> Edit</button>
-                            <button onClick={() => { onDelete(l); setMenuOpen(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10"><Trash2 size={13} /> Delete</button>
-                          </div>
-                        </>
-                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(l); }}
+                        title="Delete"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
                 </td>

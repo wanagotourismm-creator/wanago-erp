@@ -14,9 +14,11 @@ import { useTrash } from "@/modules/admin/trash/hooks/useTrash";
 import { useSystemHealth } from "@/modules/admin/health/hooks/useSystemHealth";
 import { UsersTable } from "@/modules/admin/users/components/UsersTable";
 import { UserForm } from "@/modules/admin/users/components/UserForm";
+import { UserDetailModal } from "@/modules/admin/users/components/UserDetailModal";
 import { BulkUserActions } from "@/modules/admin/users/components/BulkUserActions";
 import { OfficesTable } from "@/modules/admin/offices/components/OfficesTable";
 import { OfficeForm } from "@/modules/admin/offices/components/OfficeForm";
+import { OfficeDetailModal } from "@/modules/admin/offices/components/OfficeDetailModal";
 import { ActivityLogTable } from "@/modules/admin/activity/components/ActivityLogTable";
 import { CompanySettingsForm } from "@/modules/admin/settings/components/CompanySettingsForm";
 import { RolePermissionsEditor } from "@/modules/admin/permissions/components/RolePermissionsEditor";
@@ -64,24 +66,41 @@ export function AdminPage() {
 
   const [userFormOpen,   setUserFormOpen]   = useState(false);
   const [editingUser,    setEditingUser]    = useState<UserProfile | null>(null);
+  const [viewingUser,    setViewingUser]    = useState<UserProfile | null>(null);
   const [officeFormOpen, setOfficeFormOpen] = useState(false);
   const [editingOffice,  setEditingOffice]  = useState<Office | null>(null);
+  const [viewingOffice,  setViewingOffice]  = useState<Office | null>(null);
   const [selectedUsers,  setSelectedUsers]  = useState<string[]>([]);
+
+  function handleEditUser(u: UserProfile) {
+    setViewingUser(null);
+    setEditingUser(u);
+    setUserFormOpen(true);
+  }
 
   async function handleToggleActive(u: UserProfile) {
     const action = u.isActive ? "deactivate" : "activate";
     if (!confirm(`Are you sure you want to ${action} "${u.displayName}"?`)) return;
+    setViewingUser(null);
     await toggleActive(u.uid, !u.isActive);
   }
 
   async function handleDeleteUser(u: UserProfile) {
     if (!confirm(`Permanently delete "${u.displayName}"'s login account? This removes their access entirely and cannot be undone — use Deactivate instead if you might need to restore access later.`)) return;
+    setViewingUser(null);
     const { error } = await removeUser(u.uid);
     if (error) alert(error);
   }
 
+  function handleEditOffice(office: Office) {
+    setViewingOffice(null);
+    setEditingOffice(office);
+    setOfficeFormOpen(true);
+  }
+
   async function handleDeleteOffice(office: Office) {
     if (!confirm(`Delete office "${office.name}"? This cannot be undone.`)) return;
+    setViewingOffice(null);
     await removeOffice(office.id);
   }
 
@@ -199,7 +218,8 @@ export function AdminPage() {
               loading={usersLoading}
               selected={selectedUsers}
               onSelect={setSelectedUsers}
-              onEdit={(u) => { setEditingUser(u); setUserFormOpen(true); }}
+              onView={setViewingUser}
+              onEdit={handleEditUser}
               onToggle={handleToggleActive}
               onDelete={isSuperAdmin ? handleDeleteUser : undefined}
             />
@@ -210,7 +230,8 @@ export function AdminPage() {
           <OfficesTable
             offices={offices}
             loading={officesLoading}
-            onEdit={(o) => { setEditingOffice(o); setOfficeFormOpen(true); }}
+            onView={setViewingOffice}
+            onEdit={handleEditOffice}
             onDelete={handleDeleteOffice}
           />
         )}
@@ -248,6 +269,21 @@ export function AdminPage() {
         {tab === "explorer" && isSuperAdmin && <CollectionExplorer />}
 
       </HrShell>
+
+      <UserDetailModal
+        user={viewingUser ? users.find(u => u.uid === viewingUser.uid) ?? viewingUser : null}
+        onClose={() => setViewingUser(null)}
+        onEdit={handleEditUser}
+        onToggle={handleToggleActive}
+        onDelete={isSuperAdmin ? handleDeleteUser : undefined}
+      />
+
+      <OfficeDetailModal
+        office={viewingOffice ? offices.find(o => o.id === viewingOffice.id) ?? viewingOffice : null}
+        onClose={() => setViewingOffice(null)}
+        onEdit={handleEditOffice}
+        onDelete={handleDeleteOffice}
+      />
 
       <UserForm
         open={userFormOpen}

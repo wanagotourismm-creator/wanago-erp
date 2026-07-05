@@ -5,6 +5,7 @@ import { Plus, RefreshCw, Check, X as XIcon, Loader2 } from "lucide-react";
 import { useAssets } from "@/modules/assets/hooks/useAssets";
 import { AssetForm } from "@/modules/assets/components/AssetForm";
 import { AssetsTable } from "@/modules/assets/components/AssetsTable";
+import { AssetDetailModal } from "@/modules/assets/components/AssetDetailModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -15,12 +16,25 @@ export function AssetsPanel() {
   const { assets, pendingRequests, loading, load, addAsset, editAsset, removeAsset, decideRequest } = useAssets();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
+  const [viewing, setViewing] = useState<Asset | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function handleDecide(id: string, decision: "approve" | "reject") {
     setBusyId(id);
     await decideRequest(id, decision);
     setBusyId(null);
+  }
+
+  function handleEdit(a: Asset) {
+    setViewing(null);
+    setEditing(a);
+    setFormOpen(true);
+  }
+
+  function handleDelete(a: Asset) {
+    if (!confirm(`Delete asset "${a.name}"?`)) return;
+    setViewing(null);
+    removeAsset(a.id);
   }
 
   return (
@@ -63,10 +77,18 @@ export function AssetsPanel() {
         <AssetsTable
           assets={assets}
           loading={loading}
-          onEdit={(a) => { setEditing(a); setFormOpen(true); }}
-          onDelete={(a) => { if (confirm(`Delete asset "${a.name}"?`)) removeAsset(a.id); }}
+          onView={setViewing}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
         />
       )}
+
+      <AssetDetailModal
+        asset={viewing ? assets.find(a => a.id === viewing.id) ?? viewing : null}
+        onClose={() => setViewing(null)}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
 
       <AssetForm
         open={formOpen}

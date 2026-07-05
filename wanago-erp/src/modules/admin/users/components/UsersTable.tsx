@@ -12,13 +12,14 @@ type Props = {
   loading:    boolean;
   selected:   string[];
   onSelect:   (uids: string[]) => void;
+  onView:     (user: UserProfile) => void;
   onEdit:     (user: UserProfile) => void;
   onToggle:   (user: UserProfile) => void;
   // Omit to hide the delete action entirely (e.g. for non-super-admins).
   onDelete?:  (user: UserProfile) => void;
 };
 
-export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggle, onDelete }: Props) {
+export function UsersTable({ users, loading, selected, onSelect, onView, onEdit, onToggle, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (users.length === 0) {
@@ -59,9 +60,13 @@ export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggl
           </thead>
           <tbody className="divide-y divide-border">
             {users.map((u) => (
-              <tr key={u.uid} className={cn("hover:bg-muted/20 transition-colors group", selected.includes(u.uid) && "bg-primary/5")}>
+              <tr
+                key={u.uid}
+                onClick={() => onView(u)}
+                className={cn("cursor-pointer hover:bg-muted/20 transition-colors group", selected.includes(u.uid) && "bg-primary/5")}
+              >
 
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" className="h-4 w-4 rounded border-input cursor-pointer" checked={selected.includes(u.uid)} onChange={() => toggleOne(u.uid)} />
                 </td>
 
@@ -106,14 +111,14 @@ export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggl
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                     <button
-                      onClick={() => onEdit(u)}
+                      onClick={(e) => { e.stopPropagation(); onEdit(u); }}
                       title="Edit"
                       className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     >
                       <Edit2 size={13} />
                     </button>
                     <button
-                      onClick={() => onToggle(u)}
+                      onClick={(e) => { e.stopPropagation(); onToggle(u); }}
                       title={u.isActive ? "Deactivate" : "Activate"}
                       className={cn(
                         "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
@@ -124,7 +129,7 @@ export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggl
                     </button>
                     {onDelete && (
                       <button
-                        onClick={() => onDelete(u)}
+                        onClick={(e) => { e.stopPropagation(); onDelete(u); }}
                         title="Delete permanently"
                         className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                       >

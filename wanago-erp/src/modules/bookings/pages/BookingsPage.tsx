@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Plus, Search, RefreshCw, Briefcase, Clock, CheckCircle2, Wallet } from "lucide-react";
 import { useBookings } from "@/modules/bookings/hooks/useBookings";
 import { BookingsTable } from "@/modules/bookings/components/BookingsTable";
+import { BookingDetailModal } from "@/modules/bookings/components/BookingDetailModal";
 import { BookingForm } from "@/modules/bookings/components/BookingForm";
 import { formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -29,6 +30,7 @@ export function BookingsPage() {
 
   const [formOpen,       setFormOpen]       = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [viewingBooking, setViewingBooking] = useState<Booking | null>(null);
   const [statusFilter,   setStatusFilter]   = useState("");
   const [search,         setSearch]         = useState("");
 
@@ -70,12 +72,14 @@ export function BookingsPage() {
   }
 
   function handleEdit(booking: Booking) {
+    setViewingBooking(null);
     setEditingBooking(booking);
     setFormOpen(true);
   }
 
   async function handleDelete(booking: Booking) {
     if (!confirm(`Delete booking "${booking.refNumber}"? This cannot be undone.`)) return;
+    setViewingBooking(null);
     await removeBooking(booking.id);
   }
 
@@ -161,6 +165,18 @@ export function BookingsPage() {
         loading={loading}
         canManage={canManage}
         canApprove={canApprove}
+        onView={setViewingBooking}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onStatus={(booking, status) => changeStatus(booking.id, status)}
+      />
+
+      {/* Detail popup */}
+      <BookingDetailModal
+        booking={viewingBooking ? filtered.find(b => b.id === viewingBooking.id) ?? viewingBooking : null}
+        canManage={canManage}
+        canApprove={canApprove}
+        onClose={() => setViewingBooking(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStatus={(booking, status) => changeStatus(booking.id, status)}

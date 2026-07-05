@@ -6,8 +6,10 @@ import { useJobOpenings } from "@/modules/recruitment/jobs/hooks/useJobOpenings"
 import { useCandidates } from "@/modules/recruitment/candidates/hooks/useCandidates";
 import { JobOpeningsTable } from "@/modules/recruitment/jobs/components/JobOpeningsTable";
 import { JobOpeningForm } from "@/modules/recruitment/jobs/components/JobOpeningForm";
+import { JobOpeningDetailModal } from "@/modules/recruitment/jobs/components/JobOpeningDetailModal";
 import { CandidatesTable } from "@/modules/recruitment/candidates/components/CandidatesTable";
 import { CandidateForm } from "@/modules/recruitment/candidates/components/CandidateForm";
+import { CandidateDetailModal } from "@/modules/recruitment/candidates/components/CandidateDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -32,8 +34,10 @@ export function RecruitmentPage() {
 
   const [jobFormOpen,   setJobFormOpen]   = useState(false);
   const [editingJob,    setEditingJob]    = useState<JobOpening | null>(null);
+  const [viewingJob,    setViewingJob]    = useState<JobOpening | null>(null);
   const [candFormOpen,  setCandFormOpen]  = useState(false);
   const [editingCand,   setEditingCand]   = useState<Candidate | null>(null);
+  const [viewingCand,   setViewingCand]   = useState<Candidate | null>(null);
 
   const stats = useMemo(() => ({
     openJobs:   jobs.filter(j => j.jobStatus === "open").length,
@@ -50,8 +54,15 @@ export function RecruitmentPage() {
     setEditingJob(null);
   }
 
+  function handleJobEdit(job: JobOpening) {
+    setViewingJob(null);
+    setEditingJob(job);
+    setJobFormOpen(true);
+  }
+
   async function handleJobDelete(job: JobOpening) {
     if (!confirm(`Delete job opening "${job.title}"? This cannot be undone.`)) return;
+    setViewingJob(null);
     await removeJob(job.id);
   }
 
@@ -72,8 +83,15 @@ export function RecruitmentPage() {
     setEditingCand(null);
   }
 
+  function handleCandidateEdit(candidate: Candidate) {
+    setViewingCand(null);
+    setEditingCand(candidate);
+    setCandFormOpen(true);
+  }
+
   async function handleCandidateDelete(candidate: Candidate) {
     if (!confirm(`Delete candidate "${candidate.fullName}"? This cannot be undone.`)) return;
+    setViewingCand(null);
     await removeCandidate(candidate.id);
   }
 
@@ -146,7 +164,8 @@ export function RecruitmentPage() {
           jobs={jobs}
           loading={jobsLoading}
           canManage={canManage}
-          onEdit={(j) => { setEditingJob(j); setJobFormOpen(true); }}
+          onView={setViewingJob}
+          onEdit={handleJobEdit}
           onDelete={handleJobDelete}
           onStatus={(job, status) => editJob(job.id, { jobStatus: status })}
         />
@@ -157,11 +176,30 @@ export function RecruitmentPage() {
           candidates={candidates}
           loading={candidatesLoading}
           canManage={canManage}
-          onEdit={(c) => { setEditingCand(c); setCandFormOpen(true); }}
+          onView={setViewingCand}
+          onEdit={handleCandidateEdit}
           onDelete={handleCandidateDelete}
           onStage={(c, stage) => changeStage(c.id, stage)}
         />
       )}
+
+      <JobOpeningDetailModal
+        job={viewingJob ? jobs.find(j => j.id === viewingJob.id) ?? viewingJob : null}
+        canManage={canManage}
+        onClose={() => setViewingJob(null)}
+        onEdit={handleJobEdit}
+        onDelete={handleJobDelete}
+        onStatus={(job, status) => editJob(job.id, { jobStatus: status })}
+      />
+
+      <CandidateDetailModal
+        candidate={viewingCand ? candidates.find(c => c.id === viewingCand.id) ?? viewingCand : null}
+        canManage={canManage}
+        onClose={() => setViewingCand(null)}
+        onEdit={handleCandidateEdit}
+        onDelete={handleCandidateDelete}
+        onStage={(c, stage) => changeStage(c.id, stage)}
+      />
 
       <JobOpeningForm
         open={jobFormOpen}

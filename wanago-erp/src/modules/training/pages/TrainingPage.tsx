@@ -8,6 +8,7 @@ import { TrainingProgramsGrid } from "@/modules/training/programs/components/Tra
 import { TrainingProgramForm } from "@/modules/training/programs/components/TrainingProgramForm";
 import { EnrollmentsTable } from "@/modules/training/enrollments/components/EnrollmentsTable";
 import { EnrollmentForm } from "@/modules/training/enrollments/components/EnrollmentForm";
+import { EnrollmentDetailModal } from "@/modules/training/enrollments/components/EnrollmentDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -36,6 +37,7 @@ export function TrainingPage() {
   const [programFormOpen, setProgramFormOpen] = useState(false);
   const [editingProgram,  setEditingProgram]  = useState<TrainingProgram | null>(null);
   const [enrollFormOpen,  setEnrollFormOpen]  = useState(false);
+  const [viewingEnrollment, setViewingEnrollment] = useState<TrainingEnrollment | null>(null);
 
   const stats = useMemo(() => ({
     activePrograms: programs.filter(p => p.status === "ongoing" || p.status === "upcoming").length,
@@ -64,6 +66,7 @@ export function TrainingPage() {
 
   async function handleEnrollmentDelete(enrollment: TrainingEnrollment) {
     if (!confirm(`Remove "${enrollment.employeeName}" from this program?`)) return;
+    setViewingEnrollment(null);
     await removeEnrollment(enrollment.id);
   }
 
@@ -147,11 +150,21 @@ export function TrainingPage() {
           enrollments={enrollments}
           loading={enrollmentsLoading}
           canManage={canManage}
+          onView={setViewingEnrollment}
           onDelete={handleEnrollmentDelete}
           onStatus={(e, status) => changeStatus(e.id, status)}
           onUploadCertificate={async (e, file) => { await uploadEnrollmentCertificate(e.id, file); }}
         />
       )}
+
+      <EnrollmentDetailModal
+        enrollment={viewingEnrollment ? enrollments.find(e => e.id === viewingEnrollment.id) ?? viewingEnrollment : null}
+        canManage={canManage}
+        onClose={() => setViewingEnrollment(null)}
+        onDelete={handleEnrollmentDelete}
+        onStatus={(e, status) => changeStatus(e.id, status)}
+        onUploadCertificate={async (e, file) => { await uploadEnrollmentCertificate(e.id, file); }}
+      />
 
       <TrainingProgramForm
         open={programFormOpen}

@@ -4,15 +4,24 @@ import { useMemo, useState } from "react";
 import { Ticket as TicketIcon, RefreshCw, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { TicketsTable } from "@/modules/tickets/components/TicketsTable";
+import { TicketDetailModal } from "@/modules/tickets/components/TicketDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils/helpers";
+import type { Ticket } from "@/modules/tickets/types";
 
 const STATUS_FILTERS = ["All", "Open", "In Progress", "Resolved", "Closed"];
 
 export function TicketsPanel() {
   const { tickets, loading, stats, load, setStatus, assignToMe, removeTicket } = useTickets();
   const [statusFilter, setStatusFilter] = useState("All");
+  const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
+
+  function handleDelete(t: Ticket) {
+    if (!confirm(`Delete ticket "${t.title}"?`)) return;
+    setViewingTicket(null);
+    removeTicket(t.id);
+  }
 
   const filtered = useMemo(() => tickets.filter((t) => {
     if (statusFilter === "All") return true;
@@ -77,9 +86,18 @@ export function TicketsPanel() {
       <TicketsTable
         tickets={filtered}
         loading={loading}
+        onView={setViewingTicket}
         onSetStatus={(t, status) => setStatus(t.id, status)}
         onAssignToMe={(t) => assignToMe(t.id)}
-        onDelete={(t) => { if (confirm(`Delete ticket "${t.title}"?`)) removeTicket(t.id); }}
+        onDelete={handleDelete}
+      />
+
+      <TicketDetailModal
+        ticket={viewingTicket ? filtered.find(t => t.id === viewingTicket.id) ?? viewingTicket : null}
+        onClose={() => setViewingTicket(null)}
+        onSetStatus={(t, status) => setStatus(t.id, status)}
+        onAssignToMe={(t) => assignToMe(t.id)}
+        onDelete={handleDelete}
       />
     </div>
   );

@@ -4,12 +4,14 @@ import { useState, useMemo } from "react";
 import { Plus, Search, RefreshCw, Wallet, TrendingUp, Calendar } from "lucide-react";
 import { usePayments } from "@/modules/payments/hooks/usePayments";
 import { PaymentsTable } from "@/modules/payments/components/PaymentsTable";
+import { PaymentDetailModal } from "@/modules/payments/components/PaymentDetailModal";
 import { PaymentForm } from "@/modules/payments/components/PaymentForm";
 import { formatAmount } from "@/modules/payments/components/PaymentBadges";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
+import type { Payment } from "@/modules/payments/types";
 import type { PaymentSchema } from "@/modules/payments/schemas";
 
 export function PaymentsPage() {
@@ -18,8 +20,9 @@ export function PaymentsPage() {
   const canCreate = !!user && hasPermission(user.systemRole, "finance:create");
   const canManage = !!user && hasPermission(user.systemRole, "finance:edit");
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [search,   setSearch]   = useState("");
+  const [formOpen,       setFormOpen]       = useState(false);
+  const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
+  const [search,         setSearch]         = useState("");
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
@@ -55,6 +58,7 @@ export function PaymentsPage() {
 
   async function handleDelete(payment: { id: string; refNumber: string }) {
     if (!confirm(`Delete payment "${payment.refNumber}"? This cannot be undone.`)) return;
+    setViewingPayment(null);
     await removePayment(payment.id);
   }
 
@@ -116,6 +120,15 @@ export function PaymentsPage() {
         payments={filtered}
         loading={loading}
         canManage={canManage}
+        onView={setViewingPayment}
+        onDelete={handleDelete}
+      />
+
+      {/* Detail popup */}
+      <PaymentDetailModal
+        payment={viewingPayment ? filtered.find(p => p.id === viewingPayment.id) ?? viewingPayment : null}
+        canManage={canManage}
+        onClose={() => setViewingPayment(null)}
         onDelete={handleDelete}
       />
 

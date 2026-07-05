@@ -5,6 +5,7 @@ import { Plus, RefreshCw, Wallet, FileClock, CheckCircle2, Banknote } from "luci
 import { usePayroll } from "@/modules/hrms/payroll/hooks/usePayroll";
 import { PayrollTable } from "@/modules/hrms/payroll/components/PayrollTable";
 import { PayrollForm } from "@/modules/hrms/payroll/components/PayrollForm";
+import { PayrollDetailModal } from "@/modules/hrms/payroll/components/PayrollDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -22,6 +23,7 @@ export function PayrollPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing,  setEditing]  = useState<PayrollRecord | null>(null);
+  const [viewing,  setViewing]  = useState<PayrollRecord | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("All");
 
@@ -34,6 +36,27 @@ export function PayrollPage() {
     const result = editing ? await editPayroll(editing.id, data) : await generatePayroll(data);
     if (result.error) { setFormError(result.error); return; }
     setFormOpen(false); setEditing(null);
+  }
+
+  function handleEdit(r: PayrollRecord) {
+    setViewing(null);
+    setEditing(r);
+    setFormError(null);
+    setFormOpen(true);
+  }
+
+  async function handleDelete(r: PayrollRecord) {
+    if (!confirm(`Delete payroll record for "${r.employeeName}"?`)) return;
+    setViewing(null);
+    await removePayroll(r.id);
+  }
+
+  async function handleProcess(r: PayrollRecord) {
+    await processPayroll(r.id);
+  }
+
+  async function handlePay(r: PayrollRecord) {
+    await payPayroll(r.id);
   }
 
   return (
@@ -76,10 +99,21 @@ export function PayrollPage() {
       </div>
 
       <PayrollTable records={filtered} loading={loading} canManage={canManage}
-        onEdit={r => { setEditing(r); setFormError(null); setFormOpen(true); }}
-        onProcess={async r => { await processPayroll(r.id); }}
-        onPay={async r => { await payPayroll(r.id); }}
-        onDelete={async r => { if (confirm(`Delete payroll record for "${r.employeeName}"?`)) await removePayroll(r.id); }} />
+        onView={setViewing}
+        onEdit={handleEdit}
+        onProcess={handleProcess}
+        onPay={handlePay}
+        onDelete={handleDelete} />
+
+      <PayrollDetailModal
+        record={viewing ? filtered.find(r => r.id === viewing.id) ?? viewing : null}
+        canManage={canManage}
+        onClose={() => setViewing(null)}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onProcess={handleProcess}
+        onPay={handlePay}
+      />
 
       <PayrollForm open={formOpen} record={editing} error={formError}
         onClose={() => { setFormOpen(false); setEditing(null); setFormError(null); }}
