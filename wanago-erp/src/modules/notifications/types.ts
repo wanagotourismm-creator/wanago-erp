@@ -3,10 +3,10 @@ import type { FirestoreRecord } from "@/types/global";
 export type NotificationCategory = "leave" | "regularization" | "asset" | "ticket" | "system";
 
 export type AppNotification = FirestoreRecord & {
-  userId:   string;
-  title:    string;
-  body:     string;
-  link:     string | null;
-  read:     boolean;
-  category: NotificationCategory;
+  recipientId: string;
+  title:       string;
+  body:        string;
+  link:        string | null;
+  read:        boolean;
+  category:    NotificationCategory;
 };

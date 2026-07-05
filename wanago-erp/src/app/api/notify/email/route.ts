@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getIntegrationSecret } from "@/lib/get-integration-secret";
 
 export const runtime = "nodejs";
 
@@ -18,9 +19,9 @@ function renderEmailHtml(subject: string, body: string, link?: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = await getIntegrationSecret("resendApiKey", "RESEND_API_KEY");
   if (!apiKey) {
-    return NextResponse.json({ error: "Email isn't set up yet — add RESEND_API_KEY to the deployment." }, { status: 501 });
+    return NextResponse.json({ error: "Email isn't set up yet — add a Resend API key in Admin → Integrations." }, { status: 501 });
   }
 
   let payload: { to?: string; subject?: string; body?: string; link?: string };
@@ -34,11 +35,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing to/subject/body" }, { status: 400 });
   }
 
+  const fromEmail = await getIntegrationSecret("resendFromEmail", "RESEND_FROM_EMAIL");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "Wanago HR <onboarding@resend.dev>",
+      from: fromEmail || "Wanago HR <onboarding@resend.dev>",
       to: payload.to,
       subject: payload.subject,
       html: renderEmailHtml(payload.subject, payload.body, payload.link),

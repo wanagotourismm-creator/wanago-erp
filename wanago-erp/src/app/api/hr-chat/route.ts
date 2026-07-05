@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getIntegrationSecret } from "@/lib/get-integration-secret";
 
 export const runtime = "nodejs";
 
@@ -119,8 +120,10 @@ export async function POST(req: NextRequest) {
   }
 
   const system = buildSystemPrompt(body.context ?? {});
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
+  const [anthropicKey, openaiKey] = await Promise.all([
+    getIntegrationSecret("anthropicApiKey", "ANTHROPIC_API_KEY"),
+    getIntegrationSecret("openaiApiKey", "OPENAI_API_KEY"),
+  ]);
 
   try {
     if (anthropicKey) {

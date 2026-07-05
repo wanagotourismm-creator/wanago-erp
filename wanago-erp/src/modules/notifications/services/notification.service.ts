@@ -11,15 +11,15 @@ class NotificationRepository extends BaseRepository<AppNotification> {
 const repo = new NotificationRepository();
 
 export async function createNotification(
-  userId: string, title: string, body: string, link: string | null, category: NotificationCategory
+  recipientId: string, title: string, body: string, link: string | null, category: NotificationCategory
 ): Promise<AppNotification> {
-  return repo.create({ userId, title, body, link, read: false, category, createdBy: userId, status: "active" });
+  return repo.create({ recipientId, title, body, link, read: false, category, createdBy: recipientId, status: "active" });
 }
 
-// Filters by userId only (no orderBy) to avoid needing a composite index —
+// Filters by recipientId only (no orderBy) to avoid needing a composite index —
 // sorted client-side instead, consistent with the rest of this codebase.
-export function subscribeToNotifications(userId: string, callback: (items: AppNotification[]) => void): Unsubscribe {
-  return repo.subscribe([where("userId", "==", userId)], (items) => {
+export function subscribeToNotifications(recipientId: string, callback: (items: AppNotification[]) => void): Unsubscribe {
+  return repo.subscribe([where("recipientId", "==", recipientId)], (items) => {
     const sorted = [...items].sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
     callback(sorted.slice(0, 30));
   });

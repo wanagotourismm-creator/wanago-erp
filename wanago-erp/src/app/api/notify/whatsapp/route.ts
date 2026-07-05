@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getIntegrationSecret } from "@/lib/get-integration-secret";
 
 export const runtime = "nodejs";
 
@@ -8,13 +9,15 @@ function normalizePhone(raw: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const sid   = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from  = process.env.TWILIO_WHATSAPP_NUMBER; // e.g. "+14155238886"
+  const [sid, token, from] = await Promise.all([
+    getIntegrationSecret("twilioAccountSid", "TWILIO_ACCOUNT_SID"),
+    getIntegrationSecret("twilioAuthToken", "TWILIO_AUTH_TOKEN"),
+    getIntegrationSecret("twilioWhatsappNumber", "TWILIO_WHATSAPP_NUMBER"), // e.g. "+14155238886"
+  ]);
 
   if (!sid || !token || !from) {
     return NextResponse.json(
-      { error: "WhatsApp isn't set up yet — add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER to the deployment." },
+      { error: "WhatsApp isn't set up yet — add your Twilio keys in Admin → Integrations." },
       { status: 501 }
     );
   }

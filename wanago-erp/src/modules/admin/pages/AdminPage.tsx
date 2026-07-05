@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
-  Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target,
+  Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -26,6 +26,7 @@ import { HolidayCalendar } from "@/modules/admin/holidays/components/HolidayCale
 import { AssetsPanel } from "@/modules/assets/components/AssetsPanel";
 import { TicketsPanel } from "@/modules/tickets/components/TicketsPanel";
 import { GoalsPanel } from "@/modules/goals/components/GoalsPanel";
+import { IntegrationsPanel } from "@/modules/admin/integrations/components/IntegrationsPanel";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
 import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
 import { CollectionExplorer } from "@/modules/admin/explorer/components/CollectionExplorer";
@@ -111,8 +112,9 @@ export function AdminPage() {
       { key: "goals", label: "Company Goals", icon: Target, show: true },
     ] },
     { label: "Configuration", items: [
-      { key: "settings",    label: "Company Settings",    icon: Settings2,   show: canManageSettings },
-      { key: "permissions", label: "Roles & Permissions", icon: ShieldCheck, show: isSuperAdmin },
+      { key: "settings",      label: "Company Settings",    icon: Settings2,   show: canManageSettings },
+      { key: "permissions",   label: "Roles & Permissions", icon: ShieldCheck, show: isSuperAdmin },
+      { key: "integrations",  label: "Integrations",        icon: KeyRound,    show: isSuperAdmin },
     ] },
     { label: "Data & Monitoring", items: [
       { key: "export",   label: "Data Export",   icon: Download, show: true },
@@ -273,6 +275,8 @@ export function AdminPage() {
           {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
             <RolePermissionsEditor map={permissionMap} saving={permissionsSaving} onSave={savePermissions} />
           )}
+
+          {tab === "integrations" && isSuperAdmin && <IntegrationsPanel />}
 
           {tab === "export" && <DataExportPanel />}
 
