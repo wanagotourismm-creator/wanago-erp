@@ -19,10 +19,11 @@ import { MyAssetsList } from "@/modules/ess/components/MyAssetsList";
 import { RequestAssetForm } from "@/modules/ess/components/RequestAssetForm";
 import { MyTicketsList } from "@/modules/ess/components/MyTicketsList";
 import { ReportIssueForm } from "@/modules/ess/components/ReportIssueForm";
+import { HrChatPanel } from "@/modules/ess/components/HrChatPanel";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 
-const TABS = ["Attendance", "My Leaves", "My Assets", "IT Support", "Payslips", "Activity"] as const;
+const TABS = ["Attendance", "My Leaves", "My Assets", "IT Support", "Payslips", "Activity", "Ask HR"] as const;
 type Tab = (typeof TABS)[number];
 
 export function EssPage() {
@@ -131,6 +132,10 @@ export function EssPage() {
       {tab === "Payslips" && <MyPayslipsList payroll={payroll} />}
 
       {tab === "Activity" && <MyActivityList activity={activity} />}
+
+      {tab === "Ask HR" && (
+        <HrChatPanel employee={employee} leaveBalances={leaveBalances} holidays={holidays} />
+      )}
 
       <ApplyLeaveForm open={applyOpen} onClose={() => setApplyOpen(false)} onSubmit={applyLeave} />
       <RequestCorrectionForm
