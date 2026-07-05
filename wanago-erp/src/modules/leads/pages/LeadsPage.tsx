@@ -5,6 +5,7 @@ import { Plus, Search, Filter, RefreshCw } from "lucide-react";
 import { useLeads } from "@/modules/leads/hooks/useLeads";
 import { LeadsTable } from "@/modules/leads/components/LeadsTable";
 import { LeadForm } from "@/modules/leads/components/LeadForm";
+import { LeadDetailModal } from "@/modules/leads/components/LeadDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -30,9 +31,9 @@ export function LeadsPage() {
 
   const [formOpen,    setFormOpen]    = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [stageFilter, setStageFilter] = useState("");
   const [search,      setSearch]      = useState("");
-  const [deleting,    setDeleting]    = useState<Lead | null>(null);
 
   // Filter leads
   const filtered = useMemo(() => {
@@ -80,12 +81,14 @@ export function LeadsPage() {
   }
 
   function handleEdit(lead: Lead) {
+    setViewingLead(null);
     setEditingLead(lead);
     setFormOpen(true);
   }
 
   async function handleDelete(lead: Lead) {
     if (!confirm(`Delete lead "${lead.name}"? This cannot be undone.`)) return;
+    setViewingLead(null);
     await removeLead(lead.id);
   }
 
@@ -161,6 +164,16 @@ export function LeadsPage() {
       <LeadsTable
         leads={filtered}
         loading={loading}
+        onView={setViewingLead}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onStage={(lead, stage) => changeStage(lead.id, stage)}
+      />
+
+      {/* Detail popup */}
+      <LeadDetailModal
+        lead={viewingLead ? filtered.find(l => l.id === viewingLead.id) ?? viewingLead : null}
+        onClose={() => setViewingLead(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStage={(lead, stage) => changeStage(lead.id, stage)}
