@@ -10,7 +10,10 @@ import { fetchCompanySettings } from "@/modules/admin/settings/services/company-
 
 type Props = {
   children: React.ReactNode;
-  requiredPage?: string;
+  // A single page key, or a list where access to ANY one of them is enough
+  // (used by consolidated shells like HR Admin that gate several sections
+  // with different per-role visibility inside one route).
+  requiredPage?: string | string[];
 };
 
 export function RouteGuard({ children, requiredPage }: Props) {
@@ -26,8 +29,10 @@ export function RouteGuard({ children, requiredPage }: Props) {
       return;
     }
 
-    if (requiredPage && !canAccessPage(user.systemRole as SystemRole, requiredPage)) {
-      router.replace("/dashboard");
+    if (requiredPage) {
+      const pages = Array.isArray(requiredPage) ? requiredPage : [requiredPage];
+      const allowed = pages.some((p) => canAccessPage(user.systemRole as SystemRole, p));
+      if (!allowed) router.replace("/dashboard");
     }
   }, [user, initialized, router, requiredPage]);
 

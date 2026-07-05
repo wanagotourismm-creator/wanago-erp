@@ -146,15 +146,15 @@ export function EssPage() {
             )}
 
             {isHrOrAdmin && (
-              <button onClick={() => router.push("/hrms/overview")}
+              <button onClick={() => router.push("/hrms-admin")}
                 className="flex w-full items-center justify-between rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-primary/40 transition-colors text-left">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
                     <Gauge size={16} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">Company HR Overview</p>
-                    <p className="text-xs text-muted-foreground">Headcount, attendance %, department breakdown</p>
+                    <p className="text-sm font-semibold text-foreground">HR Admin</p>
+                    <p className="text-xs text-muted-foreground">Employees, attendance, leaves, payroll, recruitment & more</p>
                   </div>
                 </div>
                 <ArrowRight size={16} className="text-muted-foreground" />

@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, Briefcase, Wallet, Link2 } from "lucide-react";
+import { X, Loader2, User, Briefcase, Wallet, Link2, KeyRound } from "lucide-react";
 import { employeeSchema, type EmployeeSchema } from "@/modules/hrms/employees/schemas";
 import { EMPLOYMENT_TYPE_LABELS, DEPARTMENTS } from "@/modules/hrms/employees/components/EmployeeBadges";
-import { fetchUsers } from "@/modules/admin/users/services/user-admin.service";
+import { fetchUsers, createUserAccount, generateTempPassword } from "@/modules/admin/users/services/user-admin.service";
+import { sendResetEmail } from "@/modules/auth/services/auth.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
+import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
 import type { Employee } from "@/modules/hrms/shared/types";
 import type { UserProfile } from "@/modules/auth/types";
+import type { SystemRole } from "@/types/rbac";
 
 type Props = {
   open:      boolean;
@@ -46,6 +49,10 @@ const inputClass = cn(
 export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [createLogin, setCreateLogin] = useState(true);
+  const [loginRole, setLoginRole] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginBusy, setLoginBusy] = useState(false);
 
   const {
     register, handleSubmit, reset, setValue,
@@ -61,6 +68,13 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
       officeName: user?.officeName ?? "Head Office",
     },
   });
+
+  useEffect(() => {
+    if (!open) return;
+    setLoginError(null);
+    setCreateLogin(!employee);
+    setLoginRole("");
+  }, [open, employee]);
 
   useEffect(() => {
     if (open) {
@@ -107,6 +121,50 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
   if (!open) return null;
 
   const otherEmployees = employees.filter(e => e.id !== employee?.id);
+  const isNewEmployee = !employee;
+
+  // For a brand-new employee, optionally creates the login account first
+  // (Firebase Auth + users profile, via the same secondary-app pattern as
+  // Admin > Users so the admin's own session is untouched) and wires its
+  // uid directly into the employee record being saved — no separate
+  // "link an existing account" step, and nothing for the matching logic
+  // to get wrong. The account gets a throwaway random password; the new
+  // employee sets their own via the reset email sent right after.
+  async function handleFormSubmit(data: EmployeeSchema) {
+    setLoginError(null);
+    if (isNewEmployee && createLogin) {
+      if (!data.email) {
+        setLoginError("Email is required to create a login account.");
+        return;
+      }
+      if (!loginRole) {
+        setLoginError("Select a system role for the new login account.");
+        return;
+      }
+      setLoginBusy(true);
+      try {
+        const uid = await createUserAccount({
+          email:       data.email,
+          password:    generateTempPassword(),
+          displayName: data.fullName,
+          phone:       data.mobileNumber || null,
+          systemRole:  loginRole as SystemRole,
+          teamRole:    "agent",
+          officeId:    data.officeId,
+          officeName:  data.officeName,
+          department:  data.department,
+        }, user?.uid ?? "");
+        await sendResetEmail(data.email);
+        data.userId = uid;
+      } catch (e) {
+        setLoginBusy(false);
+        setLoginError(e instanceof Error ? e.message : "Failed to create login account. The employee record wasn't saved — fix the issue above and try again.");
+        return;
+      }
+      setLoginBusy(false);
+    }
+    await onSubmit(data);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -228,18 +286,52 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
               <Link2 size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Account Linkage</p>
             </div>
-            <Field label="Linked Login Account" error={errors.userId?.message}>
-              <select className={inputClass} {...register("userId")}>
-                <option value="">— Not linked —</option>
-                {users.map(u => (
-                  <option key={u.uid} value={u.uid}>{u.displayName || "(no name set)"} — {u.email}</option>
-                ))}
-              </select>
-            </Field>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              Controls which login account this employee record belongs to — used for My HR, clock in/out, and manager approval routing.
-              Left blank, it links automatically the first time this person opens My HR, if their login email matches the email above.
-            </p>
+
+            {loginError && (
+              <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{loginError}</div>
+            )}
+
+            {isNewEmployee ? (
+              <>
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer mb-3">
+                  <input type="checkbox" className="h-4 w-4 rounded border-input" checked={createLogin} onChange={e => setCreateLogin(e.target.checked)} />
+                  <KeyRound size={13} className="text-primary" />
+                  Create a My HR login for this employee
+                </label>
+                {createLogin && (
+                  <>
+                    <Field label="System Role" required>
+                      <select className={inputClass} value={loginRole} onChange={e => setLoginRole(e.target.value)}>
+                        <option value="">Select role</option>
+                        {Object.entries(SYSTEM_ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </Field>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Uses the Email above as the login. A password reset email is sent immediately so they set their own password — nobody needs to share or type one in here.
+                    </p>
+                  </>
+                )}
+                {!createLogin && (
+                  <p className="text-xs text-muted-foreground">
+                    You can create or link a login for this employee later by editing their profile.
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <Field label="Linked Login Account" error={errors.userId?.message}>
+                  <select className={inputClass} {...register("userId")}>
+                    <option value="">— Not linked —</option>
+                    {users.map(u => (
+                      <option key={u.uid} value={u.uid}>{u.displayName || "(no name set)"} — {u.email}</option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Controls which login account this employee record belongs to — used for My HR, clock in/out, and manager approval routing.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="border-t border-border" />
@@ -291,10 +383,10 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
             <button type="button" onClick={onClose} className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors">
               Cancel
             </button>
-            <button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}
+            <button onClick={handleSubmit(handleFormSubmit)} disabled={isSubmitting || loginBusy}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm">
-              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-              {employee ? "Save Changes" : "Add Employee"}
+              {(isSubmitting || loginBusy) && <Loader2 size={14} className="animate-spin" />}
+              {loginBusy ? "Creating login..." : employee ? "Save Changes" : "Add Employee"}
             </button>
           </div>
         </div>

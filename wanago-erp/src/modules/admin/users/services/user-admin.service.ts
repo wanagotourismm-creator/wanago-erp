@@ -35,7 +35,7 @@ export type NewUserInput = {
 export async function createUserAccount(
   data: NewUserInput,
   createdBy: string
-): Promise<void> {
+): Promise<string> {
   // Create the Auth account on the SECONDARY app so the admin's own
   // session on the primary app is untouched.
   const credential = await createUserWithEmailAndPassword(secondaryAuth, data.email, data.password);
@@ -59,6 +59,16 @@ export async function createUserAccount(
 
   // Sign the newly-created user back out of the secondary app instance.
   await signOutSecondary(secondaryAuth);
+  return uid;
+}
+
+// Random, never-shown, never-reused password — the account owner sets
+// their real password via the reset email sent right after creation.
+export function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+  let out = "";
+  for (let i = 0; i < 20; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
 }
 
 export async function updateUserProfile(

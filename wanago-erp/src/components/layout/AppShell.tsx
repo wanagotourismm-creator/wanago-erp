@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils/helpers";
 
 type Props = {
   children:     React.ReactNode;
-  requiredPage?: string;
+  requiredPage?: string | string[];
 };
 
 export function AppShell({ children, requiredPage }: Props) {
