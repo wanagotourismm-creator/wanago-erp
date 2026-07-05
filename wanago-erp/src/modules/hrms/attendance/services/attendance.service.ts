@@ -47,6 +47,8 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
     clockOut:    data.clockOut || null,
     hoursWorked: calcHours(data.clockIn, data.clockOut),
     notes:       data.notes || null,
+    breakStartTime: data.breakStartTime || null,
+    breakMinutes:   data.breakMinutes ?? 0,
     createdBy,
   });
 }

@@ -99,4 +99,6 @@ export type AttendanceRecord = FirestoreRecord & {
   hoursWorked: number | null;
   notes: string | null;
   officeId: string;
+  breakStartTime: string | null;
+  breakMinutes: number;
 };

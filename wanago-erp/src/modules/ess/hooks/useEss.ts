@@ -6,12 +6,24 @@ import { fetchEmployeeByUserId, fetchEmployees } from "@/modules/hrms/employees/
 import { fetchAttendanceByEmployee, createAttendanceRecord, updateAttendanceRecord } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchLeaves, fetchLeavesByEmployee, createLeaveRequest, cancelLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
 import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service";
-import type { Employee, AttendanceRecord, LeaveRequest } from "@/modules/hrms/shared/types";
+import { fetchPayrollByEmployee } from "@/modules/hrms/payroll/services/payroll.service";
+import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
+import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord } from "@/modules/hrms/shared/types";
 import type { EssLeaveApplySchema } from "@/modules/ess/schemas";
 import type { Holiday } from "@/modules/admin/holidays/types";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const nowTime  = () => new Date().toTimeString().slice(0, 5);
+
+export const BREAK_ALLOWANCE_MINUTES = 60;
+
+export const LEAVE_ENTITLEMENTS: Record<string, number> = {
+  casual: 12,
+  sick:   12,
+  earned: 15,
+};
+
+export type LeaveBalance = { type: string; entitlement: number; used: number; remaining: number };
 
 export function useEss() {
   const { user } = useAuthStore();
@@ -22,6 +34,8 @@ export function useEss() {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [teamLeaves, setTeamLeaves] = useState<LeaveRequest[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
+  const [activity, setActivity] = useState<ActivityLogEntry[]>([]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -35,13 +49,17 @@ export function useEss() {
       setHolidays(hols);
 
       if (emp) {
-        const [allEmployees, att, myLeaves] = await Promise.all([
+        const [allEmployees, att, myLeaves, myPayroll, recentActivity] = await Promise.all([
           fetchEmployees(),
           fetchAttendanceByEmployee(emp.id),
           fetchLeavesByEmployee(emp.id),
+          fetchPayrollByEmployee(emp.id),
+          fetchRecentActivity(200),
         ]);
         setAttendance(att);
         setLeaves(myLeaves);
+        setPayroll(myPayroll);
+        setActivity(recentActivity.filter((a) => a.actorId === user.uid));
 
         const reports = allEmployees.filter((e) => e.reportingManagerId === emp.id);
         setDirectReports(reports);
@@ -65,6 +83,15 @@ export function useEss() {
   const todayRecord  = attendance.find((a) => a.date === today) ?? null;
   const isClockedIn  = !!todayRecord?.clockIn && !todayRecord?.clockOut;
   const isClockedOut = !!todayRecord?.clockIn && !!todayRecord?.clockOut;
+  const isOnBreak    = !!todayRecord?.breakStartTime;
+
+  const currentYear = new Date().getFullYear();
+  const leaveBalances: LeaveBalance[] = Object.entries(LEAVE_ENTITLEMENTS).map(([type, entitlement]) => {
+    const used = leaves
+      .filter((l) => l.leaveType === type && l.status === "approved" && new Date(l.fromDate).getFullYear() === currentYear)
+      .reduce((sum, l) => sum + l.days, 0);
+    return { type, entitlement, used, remaining: Math.max(0, entitlement - used) };
+  });
 
   async function clockIn() {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
@@ -72,7 +99,7 @@ export function useEss() {
       const rec = await createAttendanceRecord({
         employeeId: employee.id, employeeName: employee.fullName,
         date: today, status: "present", clockIn: nowTime(), clockOut: "", notes: "",
-        officeId: employee.officeId,
+        officeId: employee.officeId, breakStartTime: null, breakMinutes: 0,
       }, user.uid);
       setAttendance((p) => [rec, ...p]);
       return { error: null };
@@ -89,6 +116,34 @@ export function useEss() {
       return { error: null };
     } catch {
       return { error: "Failed to clock out" };
+    }
+  }
+
+  async function startBreak() {
+    if (!todayRecord) return { error: "Clock in first" };
+    try {
+      await updateAttendanceRecord(todayRecord.id, { breakStartTime: nowTime() });
+      await load();
+      return { error: null };
+    } catch {
+      return { error: "Failed to start break" };
+    }
+  }
+
+  async function endBreak() {
+    if (!todayRecord?.breakStartTime) return { error: "You're not on a break" };
+    try {
+      const [sh, sm] = todayRecord.breakStartTime.split(":").map(Number);
+      const [nh, nm] = nowTime().split(":").map(Number);
+      const elapsed = Math.max(0, (nh * 60 + nm) - (sh * 60 + sm));
+      await updateAttendanceRecord(todayRecord.id, {
+        breakStartTime: null,
+        breakMinutes: (todayRecord.breakMinutes ?? 0) + elapsed,
+      });
+      await load();
+      return { error: null };
+    } catch {
+      return { error: "Failed to end break" };
     }
   }
 
@@ -131,8 +186,8 @@ export function useEss() {
   }
 
   return {
-    loading, employee, directReports, attendance, leaves, teamLeaves, holidays,
-    today, todayRecord, isClockedIn, isClockedOut,
-    clockIn, clockOut, applyLeave, cancelMyLeave, decideTeamLeave, reload: load,
+    loading, employee, directReports, attendance, leaves, teamLeaves, holidays, payroll, activity,
+    today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
+    clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave, decideTeamLeave, reload: load,
   };
 }
