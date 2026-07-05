@@ -38,7 +38,7 @@ export function EssPage() {
   const {
     loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
-    todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
+    todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances, leavePolicy, enabledLeaveTypes,
     clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
     requestCorrection, requestAsset, reportIssue, decideInboxItem,
   } = useEss();
@@ -189,6 +189,7 @@ export function EssPage() {
               attendance={attendance}
               leaves={leaves}
               holidays={holidays}
+              weeklyOffDays={leavePolicy.weeklyOffDays}
               onRequestCorrection={(date) => { setCorrectionDate(date); setCorrectionOpen(true); }}
             />
             <MyCorrectionsList regularizations={regularizations} />
@@ -220,7 +221,7 @@ export function EssPage() {
         )}
       </HrShell>
 
-      <ApplyLeaveForm open={applyOpen} onClose={() => setApplyOpen(false)} onSubmit={applyLeave} />
+      <ApplyLeaveForm open={applyOpen} enabledLeaveTypes={enabledLeaveTypes} onClose={() => setApplyOpen(false)} onSubmit={applyLeave} />
       <RequestCorrectionForm
         open={correctionOpen}
         date={correctionDate}

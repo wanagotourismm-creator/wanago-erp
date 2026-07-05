@@ -5,9 +5,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, CalendarDays } from "lucide-react";
 import { essLeaveApplySchema, type EssLeaveApplySchema } from "@/modules/ess/schemas";
+import { LEAVE_TYPE_LABELS, type LeaveTypeKey } from "@/modules/leavepolicy/services/leave-policy.service";
 
 type Props = {
   open: boolean;
+  enabledLeaveTypes: LeaveTypeKey[];
   onClose: () => void;
   onSubmit: (data: EssLeaveApplySchema) => Promise<{ error: string | null }>;
 };
@@ -24,17 +26,31 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   );
 }
 
-export function ApplyLeaveForm({ open, onClose, onSubmit }: Props) {
+export function ApplyLeaveForm({ open, enabledLeaveTypes, onClose, onSubmit }: Props) {
+  const defaultType = enabledLeaveTypes[0] ?? "casual";
   const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } = useForm<EssLeaveApplySchema>({
     resolver: zodResolver(essLeaveApplySchema),
-    defaultValues: { leaveType: "casual", fromDate: "", toDate: "", reason: "" },
+    defaultValues: { leaveType: defaultType, fromDate: "", toDate: "", reason: "" },
   });
 
   useEffect(() => {
-    if (open) reset({ leaveType: "casual", fromDate: "", toDate: "", reason: "" });
-  }, [open, reset]);
+    if (open) reset({ leaveType: defaultType, fromDate: "", toDate: "", reason: "" });
+  }, [open, defaultType, reset]);
 
   if (!open) return null;
+
+  if (enabledLeaveTypes.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="modal-enter relative w-full max-w-sm rounded-2xl border border-primary/20 bg-card p-6 shadow-2xl text-center">
+          <p className="text-sm font-semibold text-foreground mb-1">No leave types available</p>
+          <p className="text-xs text-muted-foreground mb-4">HR hasn&apos;t enabled any leave types yet. Contact HR or check back later.</p>
+          <button onClick={onClose} className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors">Close</button>
+        </div>
+      </div>
+    );
+  }
 
   async function submit(data: EssLeaveApplySchema) {
     const { error } = await onSubmit(data);
@@ -69,11 +85,7 @@ export function ApplyLeaveForm({ open, onClose, onSubmit }: Props) {
 
           <Field label="Leave Type *" error={errors.leaveType?.message}>
             <select className={inp} {...register("leaveType")}>
-              <option value="casual">Casual</option>
-              <option value="sick">Sick</option>
-              <option value="earned">Earned</option>
-              <option value="emergency">Emergency</option>
-              <option value="wfh">Work From Home</option>
+              {enabledLeaveTypes.map((t) => <option key={t} value={t}>{LEAVE_TYPE_LABELS[t]}</option>)}
             </select>
           </Field>
 

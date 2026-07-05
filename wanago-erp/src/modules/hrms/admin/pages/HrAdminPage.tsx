@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutGrid, BadgeCheck, Clock, CalendarOff, Wallet,
-  UserPlus, Target, GraduationCap, UserCircle, Users2,
+  UserPlus, Target, GraduationCap, UserCircle, Users2, Settings2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { canAccessPage } from "@/lib/rbac";
@@ -18,6 +18,7 @@ import { PayrollPage } from "@/modules/hrms/payroll/pages/PayrollPage";
 import { RecruitmentPage } from "@/modules/recruitment/pages/RecruitmentPage";
 import { PerformancePage } from "@/modules/performance/pages/PerformancePage";
 import { TrainingPage } from "@/modules/training/pages/TrainingPage";
+import { LeavePolicyForm } from "@/modules/leavepolicy/components/LeavePolicyForm";
 import type { SystemRole } from "@/types/rbac";
 
 export function HrAdminPage() {
@@ -50,6 +51,12 @@ export function HrAdminPage() {
         can("recruitment") && { key: "recruitment", label: "Recruitment", icon: UserPlus },
         can("performance") && { key: "performance", label: "Performance", icon: Target },
         can("training")    && { key: "training",    label: "Training",    icon: GraduationCap },
+      ].filter(Boolean) as HrNavGroup["items"],
+    },
+    {
+      label: "Policy",
+      items: [
+        can("hrms-leaves") && { key: "leave-policy", label: "Leave Policy", icon: Settings2 },
       ].filter(Boolean) as HrNavGroup["items"],
     },
     { label: "", items: [{ key: "my-hr", label: "Go to My HR", icon: UserCircle }] },
@@ -93,6 +100,7 @@ export function HrAdminPage() {
       {section === "recruitment" && can("recruitment")     && <RecruitmentPage />}
       {section === "performance" && can("performance")     && <PerformancePage />}
       {section === "training"    && can("training")        && <TrainingPage />}
+      {section === "leave-policy" && can("hrms-leaves")    && <LeavePolicyForm />}
     </HrShell>
   );
 }

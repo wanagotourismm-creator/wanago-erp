@@ -14,6 +14,7 @@ import { fetchTicketsByReporter, createTicket } from "@/modules/tickets/services
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { getCurrentPosition, distanceMeters } from "@/lib/geo";
 import { notifyUser } from "@/lib/notify";
+import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
 import type { Asset, AssetRequest } from "@/modules/assets/types";
@@ -28,12 +29,6 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const nowTime  = () => new Date().toTimeString().slice(0, 5);
 
 export const BREAK_ALLOWANCE_MINUTES = 60;
-
-export const LEAVE_ENTITLEMENTS: Record<string, number> = {
-  casual: 12,
-  sick:   12,
-  earned: 15,
-};
 
 export type LeaveBalance = { type: string; entitlement: number; used: number; remaining: number };
 
@@ -60,17 +55,20 @@ export function useEss() {
   const [teamAssetRequests, setTeamAssetRequests] = useState<AssetRequest[]>([]);
   const [myTickets, setMyTickets] = useState<Ticket[]>([]);
   const [office, setOffice] = useState<Office | null>(null);
+  const [leavePolicy, setLeavePolicy] = useState<LeavePolicy>(DEFAULT_LEAVE_POLICY);
 
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [emp, hols] = await Promise.all([
+      const [emp, hols, policy] = await Promise.all([
         fetchEmployeeByUserId(user.uid, user.email),
         fetchHolidays(),
+        fetchLeavePolicy(),
       ]);
       setEmployee(emp);
       setHolidays(hols);
+      setLeavePolicy(policy);
 
       if (emp) {
         const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity, empAssets, myAssetReqs, myTix, offices] = await Promise.all([
@@ -124,7 +122,9 @@ export function useEss() {
   const isOnBreak    = !!todayRecord?.breakStartTime;
 
   const currentYear = new Date().getFullYear();
-  const leaveBalances: LeaveBalance[] = Object.entries(LEAVE_ENTITLEMENTS).map(([type, entitlement]) => {
+  const enabledLeaveTypes = LEAVE_TYPE_ORDER.filter((t) => leavePolicy.leaveTypes[t]?.enabled);
+  const leaveBalances: LeaveBalance[] = enabledLeaveTypes.map((type) => {
+    const entitlement = leavePolicy.leaveTypes[type].annualDays;
     const used = leaves
       .filter((l) => l.leaveType === type && l.status === "approved" && new Date(l.fromDate).getFullYear() === currentYear)
       .reduce((sum, l) => sum + l.days, 0);
@@ -347,6 +347,7 @@ export function useEss() {
     loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
+    leavePolicy, enabledLeaveTypes,
     clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
     requestCorrection, requestAsset, reportIssue, decideInboxItem, reload: load,
   };

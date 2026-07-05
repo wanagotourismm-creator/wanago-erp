@@ -10,6 +10,7 @@ type Props = {
   attendance: AttendanceRecord[];
   leaves: LeaveRequest[];
   holidays: Holiday[];
+  weeklyOffDays: number[];
   onRequestCorrection: (date: string) => void;
 };
 
@@ -28,7 +29,7 @@ function toDateStr(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-export function AttendanceCalendar({ attendance, leaves, holidays, onRequestCorrection }: Props) {
+export function AttendanceCalendar({ attendance, leaves, holidays, weeklyOffDays, onRequestCorrection }: Props) {
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selected, setSelected] = useState(toDateStr(today.getFullYear(), today.getMonth(), today.getDate()));
@@ -56,7 +57,7 @@ export function AttendanceCalendar({ attendance, leaves, holidays, onRequestCorr
     if (record) return record.status;
     if (approvedLeaveDates.has(dateStr)) return "leave";
     if (holidaySet.has(dateStr)) return "holiday";
-    if (weekday === 0) return "week_off";
+    if (weeklyOffDays.includes(weekday)) return "week_off";
     return "unmarked";
   }
 
