@@ -129,6 +129,9 @@ export const FIRESTORE_COLLECTIONS = {
   HRMS_REGULARIZATIONS: "hrmsRegularizations",
   ASSETS:          "assets",
   ASSET_REQUESTS:  "assetRequests",
+  COMPANY_GOALS:   "companyGoals",
+  OBJECTIVES:      "objectives",
+  GOAL_CHECKINS:   "goalCheckIns",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
