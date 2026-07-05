@@ -114,6 +114,12 @@ export const NAV_CONFIG: NavGroup[] = [
     group: "HR",
     items: [
       {
+        label: "HR Overview",
+        href:  "/hrms/overview",
+        icon:  "gauge",
+        roles: ["super_admin","admin","hr"],
+      },
+      {
         label: "Employees",
         href:  "/hrms/employees",
         icon:  "id-badge",
