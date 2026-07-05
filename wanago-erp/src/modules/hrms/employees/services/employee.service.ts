@@ -53,7 +53,7 @@ export async function createEmployee(
     createdBy,
     status:             "active",
     profilePictureUrl:  null,
-    reportingManagerName: null,
+    reportingManagerName: data.reportingManagerName ?? null,
     documents:          [],
     gender:             data.gender || null,
     dateOfBirth:        data.dateOfBirth || null,

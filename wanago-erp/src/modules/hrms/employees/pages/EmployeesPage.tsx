@@ -157,6 +157,7 @@ export function EmployeesPage() {
       <EmployeeProfile
         open={!!profileEmployee}
         employee={profileEmployee}
+        employees={employees}
         onClose={() => setProfileEmployee(null)}
         onUpdated={(updated) => {
           setProfileEmployee(updated);

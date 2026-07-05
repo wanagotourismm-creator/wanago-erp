@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  X, Upload, FileText, Trash2, Loader2, User, Briefcase, Wallet, History, Camera,
+  X, Upload, FileText, Trash2, Loader2, User, Briefcase, Wallet, History, Camera, Link2, Users2,
 } from "lucide-react";
 import {
   uploadProfilePicture, uploadEmployeeDocument, removeEmployeeDocument,
@@ -15,6 +15,7 @@ import type { Employee, EmployeeDocument } from "@/modules/hrms/shared/types";
 type Props = {
   open:      boolean;
   employee:  Employee | null;
+  employees: Employee[];
   onClose:   () => void;
   onUpdated: (employee: Employee) => void;
 };
@@ -30,7 +31,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function EmployeeProfile({ open, employee, onClose, onUpdated }: Props) {
+export function EmployeeProfile({ open, employee, employees, onClose, onUpdated }: Props) {
   const [tab, setTab] = useState<"overview" | "documents" | "activity">("overview");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
@@ -52,6 +53,13 @@ export function EmployeeProfile({ open, employee, onClose, onUpdated }: Props) {
   }, [open, tab, employee]);
 
   if (!open || !employee) return null;
+
+  // Computed live from the current employees list rather than the
+  // reportingManagerName field (which goes stale) — this is the exact
+  // same logic My HR uses to decide who's a manager and who reports to
+  // whom, so it doubles as a diagnostic for "why can't X see their team".
+  const manager = employees.find(e => e.id === employee.reportingManagerId) ?? null;
+  const directReports = employees.filter(e => e.reportingManagerId === employee.id);
 
   async function handlePhotoUpload(file: File) {
     if (!employee) return;
@@ -159,10 +167,50 @@ export function EmployeeProfile({ open, employee, onClose, onUpdated }: Props) {
                 <div className="rounded-xl border border-border p-3">
                   <Row label="Department" value={employee.department} />
                   <Row label="Designation" value={employee.designation} />
-                  <Row label="Reporting Manager" value={employee.reportingManagerName} />
+                  <Row label="Reporting Manager" value={manager?.fullName} />
                   <Row label="Employment Type" value={EMPLOYMENT_TYPE_LABELS[employee.employmentType]} />
                   <Row label="Date of Joining" value={employee.dateOfJoining ? formatDate(employee.dateOfJoining) : null} />
                   <Row label="Office" value={employee.officeName} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Link2 size={13} className="text-primary" />
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-primary">My HR Account Link</p>
+                </div>
+                <div className="rounded-xl border border-border p-3">
+                  <Row label="Linked Login" value={employee.userId ? "Linked" : "Not linked yet"} />
+                  {!employee.userId && (
+                    <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                      Without a linked login, this person can&apos;t use My HR (clock in/out, apply leave, etc). If this is a manager, an unlinked account here is also why their own &quot;My Team&quot; view stays empty even when their reports have Reporting Manager set correctly. Set it in Edit → Account Linkage.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Users2 size={13} className="text-primary" />
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Direct Reports ({directReports.length})</p>
+                </div>
+                <div className="rounded-xl border border-border p-3">
+                  {directReports.length === 0 ? (
+                    <p className="py-1 text-xs text-muted-foreground">
+                      No one has this person set as their Reporting Manager yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {directReports.map(r => (
+                        <div key={r.id} className="flex items-center justify-between py-1">
+                          <span className="text-xs font-medium text-foreground">{r.fullName}</span>
+                          <span className={cn("text-[10px] font-medium", r.userId ? "text-green-600" : "text-amber-600")}>
+                            {r.userId ? "Account linked" : "Not linked"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
