@@ -1,6 +1,5 @@
 "use client";
 
-import { HeartHandshake } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 
 export type HrNavItem = { key: string; label: string; icon: React.ElementType; badge?: number };
@@ -13,27 +12,29 @@ type Props = {
   headerTitle: React.ReactNode;
   headerSubtitle: React.ReactNode;
   headerRight?: React.ReactNode;
+  headerIcon?: React.ElementType;
   children: React.ReactNode;
 };
 
-// Deliberately distinct visual identity from the rest of the app (which is
-// a light, card-based UI) and from the Admin "Command Center" (dark/violet)
-// — same dark command-center structure, teal accent, so HRMS reads as its
-// own purpose-built product rather than another plain list page.
-export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerSubtitle, headerRight, children }: Props) {
+// Shared shell for My HR, HR Overview, and HR Admin — a nav-rail layout
+// using the app's own light card/border/primary-accent conventions (same
+// language as the main Sidebar's nav links), so these pages read as part
+// of the same product instead of a visually separate sub-app.
+export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerSubtitle, headerRight, headerIcon: HeaderIcon, children }: Props) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-xl">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
 
-      {/* Command bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 px-6 py-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-500/15 ring-1 ring-teal-500/30">
-            <HeartHandshake size={19} className="text-teal-400" />
-          </div>
+          {HeaderIcon && (
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <HeaderIcon size={19} className="text-primary" />
+            </div>
+          )}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400">HR Command Center</p>
-            <h1 className="text-lg font-bold text-white leading-tight">{headerTitle}</h1>
-            <p className="text-xs text-slate-400">{headerSubtitle}</p>
+            <h1 className="text-lg font-bold text-foreground leading-tight">{headerTitle}</h1>
+            <p className="text-xs text-muted-foreground">{headerSubtitle}</p>
           </div>
         </div>
         {headerRight && <div className="flex items-center gap-2">{headerRight}</div>}
@@ -42,11 +43,11 @@ export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerS
       <div className="flex flex-col lg:flex-row">
 
         {/* Nav rail */}
-        <nav className="flex flex-shrink-0 gap-4 overflow-x-auto border-b border-white/10 bg-slate-950/60 p-3 lg:w-56 lg:flex-col lg:gap-5 lg:overflow-visible lg:border-b-0 lg:border-r">
+        <nav className="flex flex-shrink-0 gap-4 overflow-x-auto border-b border-border bg-muted/20 p-3 lg:w-56 lg:flex-col lg:gap-5 lg:overflow-visible lg:border-b-0 lg:border-r">
           {navGroups.map((group) => (
             <div key={group.label || "root"} className="flex flex-shrink-0 flex-col gap-1">
               {group.label && (
-                <p className="hidden px-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 lg:block">{group.label}</p>
+                <p className="hidden px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 lg:block">{group.label}</p>
               )}
               <div className="flex gap-1 lg:flex-col">
                 {group.items.map((item) => (
@@ -54,16 +55,19 @@ export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerS
                     key={item.key}
                     onClick={() => onNavigate(item.key)}
                     className={cn(
-                      "flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition-colors",
+                      "flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                       activeKey === item.key
-                        ? "bg-teal-500/15 text-teal-300 ring-1 ring-teal-500/30"
-                        : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <item.icon size={14} />
+                    <item.icon size={16} className="flex-shrink-0" />
                     {item.label}
                     {!!item.badge && (
-                      <span className="ml-auto flex h-4 min-w-[16px] items-center justify-center rounded-full bg-teal-500 px-1 text-[10px] font-bold text-white">
+                      <span className={cn(
+                        "ml-auto flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold",
+                        activeKey === item.key ? "bg-white/25 text-white" : "bg-primary text-white"
+                      )}>
                         {item.badge > 9 ? "9+" : item.badge}
                       </span>
                     )}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, ListChecks, UserCircle } from "lucide-react";
+import { LayoutGrid, ListChecks, UserCircle, Gauge } from "lucide-react";
 import { useHrOverview } from "@/modules/hrms/overview/hooks/useHrOverview";
 import { HrKpiOverview, HrTodayAttendanceList } from "@/modules/hrms/overview/components/HrOverviewContent";
 import { HrShell, type HrNavGroup } from "@/modules/ess/components/HrShell";
@@ -39,6 +39,7 @@ export function HrOverviewPage() {
       navGroups={NAV_GROUPS}
       activeKey={section}
       onNavigate={handleNavigate}
+      headerIcon={Gauge}
       headerTitle="Company HR Overview"
       headerSubtitle="Attendance, headcount and department performance at a glance"
     >

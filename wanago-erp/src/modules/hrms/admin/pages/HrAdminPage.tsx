@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  LayoutGrid, ListChecks, BadgeCheck, Clock, CalendarOff, Wallet,
-  UserPlus, Target, GraduationCap, UserCircle,
+  LayoutGrid, BadgeCheck, Clock, CalendarOff, Wallet,
+  UserPlus, Target, GraduationCap, UserCircle, Users2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { canAccessPage } from "@/lib/rbac";
@@ -65,6 +65,7 @@ export function HrAdminPage() {
       navGroups={navGroups}
       activeKey={section}
       onNavigate={handleNavigate}
+      headerIcon={Users2}
       headerTitle="HR Admin"
       headerSubtitle="Every HR tool in one place"
     >

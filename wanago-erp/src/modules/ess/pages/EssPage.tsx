@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutGrid, Users2, Inbox, Clock, CalendarDays, Laptop, LifeBuoy, Wallet, Activity, Sparkles,
-  CalendarPlus, PencilLine, Gauge, ArrowRight,
+  CalendarPlus, PencilLine, Gauge, ArrowRight, UserCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useEss } from "@/modules/ess/hooks/useEss";
@@ -104,6 +104,7 @@ export function EssPage() {
         navGroups={navGroups}
         activeKey={section}
         onNavigate={setSection}
+        headerIcon={UserCircle}
         headerTitle={`Welcome back, ${employee.fullName.split(" ")[0]}`}
         headerSubtitle={`${employee.designation} · ${employee.department}`}
         headerRight={<LeaveBalanceChips balances={leaveBalances} />}
