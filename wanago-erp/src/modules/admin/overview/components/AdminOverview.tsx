@@ -13,7 +13,7 @@ import type { ActivityLogEntry } from "@/lib/activity-log";
 
 export type AdminTabKey =
   | "users" | "offices" | "activity" | "settings" | "permissions"
-  | "export" | "announcements" | "holidays" | "health" | "trash" | "explorer";
+  | "export" | "announcements" | "holidays" | "assets" | "health" | "trash" | "explorer";
 
 type Props = {
   users:          UserProfile[];

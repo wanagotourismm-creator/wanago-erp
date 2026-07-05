@@ -127,6 +127,8 @@ export const FIRESTORE_COLLECTIONS = {
   TRAINING_PROGRAMS:    "trainingPrograms",
   TRAINING_ENROLLMENTS: "trainingEnrollments",
   HRMS_REGULARIZATIONS: "hrmsRegularizations",
+  ASSETS:          "assets",
+  ASSET_REQUESTS:  "assetRequests",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

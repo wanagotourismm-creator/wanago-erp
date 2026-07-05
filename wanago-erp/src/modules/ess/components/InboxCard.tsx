@@ -12,7 +12,7 @@ type Props = {
   onDecide: (item: InboxItem, decision: "approve" | "reject") => Promise<{ error: string | null }>;
 };
 
-const FILTERS = ["All", "Leave", "Regularization"] as const;
+const FILTERS = ["All", "Leave", "Regularization", "Assets"] as const;
 
 export function InboxCard({ items, onDecide }: Props) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
@@ -21,7 +21,8 @@ export function InboxCard({ items, onDecide }: Props) {
   const filtered = useMemo(() => items.filter((i) => {
     if (filter === "All") return true;
     if (filter === "Leave") return i.kind === "leave";
-    return i.kind === "regularization";
+    if (filter === "Regularization") return i.kind === "regularization";
+    return i.kind === "asset";
   }), [items, filter]);
 
   async function handle(item: InboxItem, decision: "approve" | "reject") {
@@ -58,7 +59,9 @@ export function InboxCard({ items, onDecide }: Props) {
       ) : (
         <div className="space-y-2">
           {filtered.map((item) => {
-            const name = item.kind === "leave" ? item.leave.employeeName : item.regularization.employeeName;
+            const name = item.kind === "leave" ? item.leave.employeeName
+              : item.kind === "regularization" ? item.regularization.employeeName
+              : item.assetRequest.employeeName;
             return (
               <div key={item.id} className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -74,13 +77,20 @@ export function InboxCard({ items, onDecide }: Props) {
                           {formatDate(item.leave.fromDate)} – {formatDate(item.leave.toDate)}
                         </span>
                       </div>
-                    ) : (
+                    ) : item.kind === "regularization" ? (
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="inline-flex items-center rounded-full bg-cyan-100 dark:bg-cyan-900/30 px-2.5 py-0.5 text-xs font-medium text-cyan-700 dark:text-cyan-400">Correction</span>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(item.regularization.date)}
                           {item.regularization.requestedClockIn && ` · ${item.regularization.requestedClockIn}`}
                           {item.regularization.requestedClockOut && ` – ${item.regularization.requestedClockOut}`}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="inline-flex items-center rounded-full bg-violet-100 dark:bg-violet-900/30 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-400">Asset</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={item.assetRequest.reason}>
+                          {item.assetRequest.assetCategory} · {item.assetRequest.reason}
                         </span>
                       </div>
                     )}

@@ -15,25 +15,28 @@ import { AttendanceCalendar } from "@/modules/ess/components/AttendanceCalendar"
 import { MyCorrectionsList } from "@/modules/ess/components/MyCorrectionsList";
 import { MyPayslipsList } from "@/modules/ess/components/MyPayslipsList";
 import { MyActivityList } from "@/modules/ess/components/MyActivityList";
+import { MyAssetsList } from "@/modules/ess/components/MyAssetsList";
+import { RequestAssetForm } from "@/modules/ess/components/RequestAssetForm";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 
-const TABS = ["Attendance", "My Leaves", "Payslips", "Activity"] as const;
+const TABS = ["Attendance", "My Leaves", "My Assets", "Payslips", "Activity"] as const;
 type Tab = (typeof TABS)[number];
 
 export function EssPage() {
   const { user } = useAuthStore();
   const {
     loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
-    holidays, payroll, activity,
+    holidays, payroll, activity, myAssets, assetRequests,
     todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
     clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
-    requestCorrection, decideInboxItem,
+    requestCorrection, requestAsset, decideInboxItem,
   } = useEss();
 
   const [applyOpen, setApplyOpen] = useState(false);
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionDate, setCorrectionDate] = useState<string | null>(null);
+  const [assetRequestOpen, setAssetRequestOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("Attendance");
 
   if (loading) {
@@ -114,6 +117,10 @@ export function EssPage() {
         />
       )}
 
+      {tab === "My Assets" && (
+        <MyAssetsList assets={myAssets} assetRequests={assetRequests} onRequest={() => setAssetRequestOpen(true)} />
+      )}
+
       {tab === "Payslips" && <MyPayslipsList payroll={payroll} />}
 
       {tab === "Activity" && <MyActivityList activity={activity} />}
@@ -125,6 +132,7 @@ export function EssPage() {
         onClose={() => setCorrectionOpen(false)}
         onSubmit={requestCorrection}
       />
+      <RequestAssetForm open={assetRequestOpen} onClose={() => setAssetRequestOpen(false)} onSubmit={requestAsset} />
     </div>
   );
 }
