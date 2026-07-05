@@ -46,11 +46,10 @@ const ICONS: Record<string, React.ElementType> = {
 
 function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const pathname = usePathname();
-  const { closeMobileSidebar } = useUIStore();
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   const Icon     = ICONS[item.icon] ?? LayoutDashboard;
   return (
-    <Link href={item.href} title={collapsed ? item.label : undefined} onClick={closeMobileSidebar}
+    <Link href={item.href} title={collapsed ? item.label : undefined}
       className={cn(
         "nav-fluid group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
         isActive
@@ -67,8 +66,9 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   );
 }
 
+// Desktop-only (lg and up) — phones/tablets use MobileBottomNav + MobileMenuSheet instead.
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar, mobileSidebarOpen, closeMobileSidebar } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user } = useAuthStore();
   const { logout } = useAuth();
   const { resolvedTheme } = useTheme();
@@ -86,23 +86,10 @@ export function Sidebar() {
   })).filter((g) => g.items.length > 0);
 
   return (
-    <>
-      {/* Mobile backdrop */}
-      {mobileSidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
-          onClick={closeMobileSidebar}
-        />
-      )}
-
-      <aside className={cn(
-        "relative flex flex-col h-screen transition-all duration-300 ease-in-out",
+    <aside className={cn(
+        "hidden lg:flex relative flex-col h-screen transition-all duration-300 ease-in-out",
         "border-r border-border bg-card",
-        // Mobile: fixed off-canvas drawer, always full nav width
-        "fixed top-0 left-0 z-40 w-[240px]",
-        mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
-        // Desktop: static, sticky, respects collapsed state
-        "lg:sticky lg:translate-x-0",
+        "lg:sticky lg:top-0",
         sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[240px]"
       )}>
 
@@ -173,13 +160,12 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Collapse toggle — desktop only, mobile uses the drawer overlay instead */}
+      {/* Collapse toggle */}
       <button onClick={toggleSidebar}
-        className="absolute -right-3 top-[76px] z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm transition-colors lg:flex"
+        className="absolute -right-3 top-[76px] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm transition-colors"
         aria-label={sidebarCollapsed ? "Expand" : "Collapse"}>
         {sidebarCollapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
       </button>
-      </aside>
-    </>
+    </aside>
   );
 }

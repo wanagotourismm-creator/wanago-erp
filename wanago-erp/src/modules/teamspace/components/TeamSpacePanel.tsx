@@ -50,9 +50,10 @@ export function TeamSpacePanel() {
         onClick={openPanel}
         aria-label="Open Team Space"
         className={cn(
-          "fixed bottom-6 right-6 z-40 flex h-13 w-13 items-center justify-center rounded-full",
+          "fixed bottom-20 right-4 z-40 flex h-13 w-13 items-center justify-center rounded-full",
           "bg-primary text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all",
           "h-[52px] w-[52px]",
+          "lg:bottom-6 lg:right-6",
           open && "hidden"
         )}
       >
