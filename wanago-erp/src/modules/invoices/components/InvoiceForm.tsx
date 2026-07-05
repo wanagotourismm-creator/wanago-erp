@@ -153,7 +153,7 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
               <User size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Customer & Booking</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Linked Booking" error={errors.bookingId?.message}>
                 <select
                   className={inputClass}
@@ -192,7 +192,7 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
               <Wallet size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Payment Details</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Total Amount (₹)" required error={errors.totalAmount?.message}>
                 <input className={inputClass} type="number" min={0} placeholder="150000" {...register("totalAmount")} />
               </Field>

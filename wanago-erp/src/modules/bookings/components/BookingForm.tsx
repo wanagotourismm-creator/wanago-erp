@@ -162,7 +162,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
               <MapPin size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Trip Details</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="col-span-2">
                 <Field label="Destination" required error={errors.destination?.message}>
                   <input className={inputClass} placeholder="e.g. Maldives, Bali, Europe..." {...register("destination")} />
@@ -203,7 +203,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
               <Wallet size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Payment</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Total Amount (₹)" required error={errors.totalAmount?.message}>
                 <input className={inputClass} type="number" min={0} placeholder="150000" {...register("totalAmount")} />
               </Field>

@@ -140,7 +140,7 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
             <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="col-span-2">
               <Field label="Full Name" required>
                 <input className={inputClass} placeholder="e.g. Anjali Mehta" value={displayName} onChange={e => setDisplayName(e.target.value)} />

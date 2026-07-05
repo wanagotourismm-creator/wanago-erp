@@ -103,7 +103,7 @@ export function LeaveForm({ open, leave, onClose, onSubmit }: Props) {
             </select>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="From Date *" error={errors.fromDate?.message}><input className={inp} type="date" {...register("fromDate")} /></Field>
             <Field label="To Date *" error={errors.toDate?.message}><input className={inp} type="date" {...register("toDate")} /></Field>
           </div>

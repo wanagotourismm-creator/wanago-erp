@@ -135,7 +135,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
               <User size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Contact Information</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="col-span-2">
                 <Field label="Full Name" required error={errors.name?.message}>
                   <input className={inputClass} placeholder="e.g. Rahul Sharma" {...register("name")} />
@@ -164,7 +164,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
               <MapPin size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Trip Details</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="col-span-2">
                 <Field label="Destination" required error={errors.destination?.message}>
                   <input className={inputClass} placeholder="e.g. Maldives, Bali, Europe..." {...register("destination")} />
@@ -205,7 +205,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
               <BarChart2 size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Pipeline</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Stage" required error={errors.stage?.message}>
                 <select className={inputClass} {...register("stage")}>
                   {Object.entries(LEAD_STAGE_LABELS).map(([k, v]) => (

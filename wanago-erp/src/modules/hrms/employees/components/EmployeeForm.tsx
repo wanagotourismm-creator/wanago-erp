@@ -120,7 +120,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
               <User size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Personal Information</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="col-span-2">
                 <Field label="Full Name" required error={errors.fullName?.message}>
                   <input className={inputClass} placeholder="e.g. Priya Nair" {...register("fullName")} />
@@ -159,7 +159,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
               <Briefcase size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Employment Information</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Department" required error={errors.department?.message}>
                 <select className={inputClass} {...register("department")}>
                   <option value="">Select department</option>
@@ -212,7 +212,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
               <Wallet size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Financial Information</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Basic Salary (₹)" required error={errors.basicSalary?.message}>
                 <input className={inputClass} type="number" min={0} {...register("basicSalary")} />
               </Field>

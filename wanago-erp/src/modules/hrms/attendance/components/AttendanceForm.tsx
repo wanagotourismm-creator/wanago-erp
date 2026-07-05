@@ -97,7 +97,7 @@ export function AttendanceForm({ open, record, onClose, onSubmit, error }: Props
             </select>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Date *" error={errors.date?.message}><input className={inp} type="date" {...register("date")} disabled={!!record} /></Field>
             <Field label="Status *" error={errors.status?.message}>
               <select className={inp} {...register("status")}>
@@ -112,7 +112,7 @@ export function AttendanceForm({ open, record, onClose, onSubmit, error }: Props
           </div>
 
           {(status === "present" || status === "half_day" || status === "wfh") && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Clock In"><input className={inp} type="time" {...register("clockIn")} /></Field>
               <Field label="Clock Out"><input className={inp} type="time" {...register("clockOut")} /></Field>
             </div>

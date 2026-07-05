@@ -26,7 +26,7 @@ export function AppShell({ children, requiredPage }: Props) {
             "flex-1 overflow-y-auto overflow-x-hidden",
             "scrollbar-thin"
           )}>
-            <div className="page-enter p-6">
+            <div className="page-enter p-3 sm:p-6">
               {children}
             </div>
           </main>

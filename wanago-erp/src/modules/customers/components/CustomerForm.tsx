@@ -118,7 +118,7 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
               <User size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Contact Information</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="col-span-2">
                 <Field label="Full Name" required error={errors.fullName?.message}>
                   <input className={inputClass} placeholder="e.g. Priya Nair" {...register("fullName")} />
@@ -162,7 +162,7 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
               <MapPin size={14} className="text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Address</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="City" error={errors.city?.message}>
                 <input className={inputClass} placeholder="e.g. Mumbai" {...register("city")} />
               </Field>

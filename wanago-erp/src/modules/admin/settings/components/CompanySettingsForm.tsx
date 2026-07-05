@@ -95,7 +95,7 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="col-span-2">
             <Field label="Business Name">
               <input className={inputClass} value={form.businessName} onChange={e => set("businessName", e.target.value)} />
@@ -130,7 +130,7 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Pricing Defaults</p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Default Tax Rate (%)">
             <input className={inputClass} type="number" min={0} max={100} step={0.1} value={form.taxRate}
               onChange={e => set("taxRate", Number(e.target.value))} />

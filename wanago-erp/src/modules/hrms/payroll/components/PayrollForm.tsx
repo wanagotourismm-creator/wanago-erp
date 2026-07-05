@@ -109,7 +109,7 @@ export function PayrollForm({ open, record, onClose, onSubmit, error }: Props) {
             </select>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Month *" error={errors.month?.message}>
               <select className={inp} {...register("month")} disabled={!!record}>
                 {MONTH_LABELS.slice(1).map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
