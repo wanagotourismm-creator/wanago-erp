@@ -232,7 +232,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
               <select className={inputClass} {...register("userId")}>
                 <option value="">— Not linked —</option>
                 {users.map(u => (
-                  <option key={u.uid} value={u.uid}>{u.displayName} ({u.email})</option>
+                  <option key={u.uid} value={u.uid}>{u.displayName || "(no name set)"} — {u.email}</option>
                 ))}
               </select>
             </Field>

@@ -2,17 +2,22 @@ import {
   createUserWithEmailAndPassword, signOut as signOutSecondary,
 } from "firebase/auth";
 import {
-  collection, doc, getDocs, updateDoc, orderBy, query, serverTimestamp, writeBatch,
+  collection, doc, getDocs, updateDoc, serverTimestamp, writeBatch,
 } from "firebase/firestore";
 import { db, secondaryAuth } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { createUserProfile } from "@/modules/auth/services/auth.service";
 import type { UserProfile } from "@/modules/auth/types";
 
+// Sorted client-side rather than via orderBy("displayName") — Firestore's
+// orderBy silently excludes any document missing that field, which would
+// make older/manually-created accounts invisible everywhere this list is
+// used (e.g. this is exactly why an account could vanish from the
+// "Linked Login Account" picker in the Employee form).
 export async function fetchUsers(): Promise<UserProfile[]> {
-  const q = query(collection(db, FIRESTORE_COLLECTIONS.USERS), orderBy("displayName", "asc"));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as UserProfile);
+  const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USERS));
+  const users = snap.docs.map(d => ({ id: d.id, ...d.data() }) as UserProfile);
+  return users.sort((a, b) => (a.displayName ?? "").localeCompare(b.displayName ?? ""));
 }
 
 export type NewUserInput = {
