@@ -64,12 +64,11 @@ export function EssPage() {
 
   if (!employee) {
     return (
-      <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950 p-8 shadow-xl">
+      <div className="overflow-hidden rounded-3xl border border-border bg-card p-8 shadow-sm">
         <EmptyState
           title="No employee profile linked yet"
           description={`Your account (${user?.email}) isn't linked to an employee record. Ask HR to add or link your profile to use clock in/out and leave requests.`}
           icon={<span className="text-2xl">👤</span>}
-          className="text-slate-300"
         />
       </div>
     );
