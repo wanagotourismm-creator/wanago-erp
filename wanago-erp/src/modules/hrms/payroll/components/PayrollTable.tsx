@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, CheckCircle2, Banknote, Trash2, Edit2 } from "lucide-react";
+import { MoreHorizontal, CheckCircle2, Banknote, Trash2, Edit2, Download, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { initials, formatCurrency } from "@/lib/utils/helpers";
 import { PayrollStatusBadge, MONTH_LABELS } from "@/modules/hrms/payroll/components/PayrollBadges";
+import { downloadPayslip } from "@/modules/hrms/payroll/services/payslip.service";
 import type { PayrollRecord } from "@/modules/hrms/shared/types";
 
 type Props = {
@@ -20,6 +21,16 @@ type Props = {
 
 export function PayrollTable({ records, loading, canManage, onEdit, onProcess, onPay, onDelete }: Props) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function handleDownload(record: PayrollRecord) {
+    setDownloadingId(record.id);
+    try {
+      await downloadPayslip(record);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   if (loading) return <SkeletonTable rows={6} />;
   if (records.length === 0) return <EmptyState title="No payroll records yet" description="Generate payroll for an employee to get started" icon={<span className="text-2xl">💰</span>} />;
@@ -51,6 +62,10 @@ export function PayrollTable({ records, loading, canManage, onEdit, onProcess, o
                 <td className="px-4 py-3"><PayrollStatusBadge status={r.payrollStatus} /></td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => handleDownload(r)} title="Download Payslip" disabled={downloadingId === r.id}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50">
+                      {downloadingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    </button>
                     {canManage && r.payrollStatus === "draft" && (
                       <button onClick={() => onProcess(r)} title="Mark Processed"
                         className="flex h-7 w-7 items-center justify-center rounded-lg text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors">
