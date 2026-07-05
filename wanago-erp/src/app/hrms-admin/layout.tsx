@@ -6,5 +6,5 @@ const HR_ADMIN_PAGES = [
 ];
 
 export default function HrAdminLayout({ children }: { children: React.ReactNode }) {
-  return <AppShell requiredPage={HR_ADMIN_PAGES}>{children}</AppShell>;
+  return <AppShell requiredPage={HR_ADMIN_PAGES} fullBleed>{children}</AppShell>;
 }

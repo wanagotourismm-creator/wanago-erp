@@ -16,16 +16,17 @@ type Props = {
   children: React.ReactNode;
 };
 
-// Shared shell for My HR, HR Overview, and HR Admin — a nav-rail layout
-// using the app's own light card/border/primary-accent conventions (same
-// language as the main Sidebar's nav links), so these pages read as part
-// of the same product instead of a visually separate sub-app.
+// Shared shell for My HR, HR Overview, and HR Admin — a full-bleed
+// nav-rail layout (used with AppShell's fullBleed) that fills the content
+// area edge-to-edge instead of floating as a bordered card inside the
+// normal page gutter, using the app's own light card/border/primary-accent
+// conventions (same language as the main Sidebar's nav links).
 export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerSubtitle, headerRight, headerIcon: HeaderIcon, children }: Props) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="flex min-h-[calc(100vh-64px)] flex-col bg-card lg:min-h-[calc(100vh-64px)]">
 
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-4 sm:px-6">
         <div className="flex items-center gap-3">
           {HeaderIcon && (
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
@@ -40,7 +41,7 @@ export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerS
         {headerRight && <div className="flex items-center gap-2">{headerRight}</div>}
       </div>
 
-      <div className="flex flex-col lg:flex-row">
+      <div className="flex flex-1 flex-col lg:flex-row">
 
         {/* Nav rail */}
         <nav className="flex flex-shrink-0 gap-4 overflow-x-auto border-b border-border bg-muted/20 p-3 lg:w-56 lg:flex-col lg:gap-5 lg:overflow-visible lg:border-b-0 lg:border-r">

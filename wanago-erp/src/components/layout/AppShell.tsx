@@ -11,9 +11,13 @@ import { cn } from "@/lib/utils/helpers";
 type Props = {
   children:     React.ReactNode;
   requiredPage?: string | string[];
+  // Skips the default content padding/max-width for pages (like the HR
+  // shells) that manage their own full-bleed nav-rail layout instead of
+  // sitting as a card inside the normal page gutter.
+  fullBleed?: boolean;
 };
 
-export function AppShell({ children, requiredPage }: Props) {
+export function AppShell({ children, requiredPage, fullBleed }: Props) {
   return (
     <RouteGuard requiredPage={requiredPage}>
       <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -28,7 +32,7 @@ export function AppShell({ children, requiredPage }: Props) {
             "flex-1 overflow-y-auto overflow-x-hidden",
             "scrollbar-thin"
           )}>
-            <div className="page-enter p-3 pb-24 sm:p-6 lg:pb-6">
+            <div className={cn("page-enter", fullBleed ? "pb-16 lg:pb-0" : "p-3 pb-24 sm:p-6 lg:pb-6")}>
               {children}
             </div>
           </main>
