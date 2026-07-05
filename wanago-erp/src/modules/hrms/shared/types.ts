@@ -102,3 +102,17 @@ export type AttendanceRecord = FirestoreRecord & {
   breakStartTime: string | null;
   breakMinutes: number;
 };
+
+export type AttendanceRegularization = FirestoreRecord & {
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  requestedClockIn: string | null;
+  requestedClockOut: string | null;
+  reason: string;
+  officeId: string;
+  regularizationStatus: "pending" | "approved" | "rejected";
+  approvedBy: string | null;
+  approvedAt: Timestamp | Date | string | FieldValue | null;
+  rejectedBy: string | null;
+};

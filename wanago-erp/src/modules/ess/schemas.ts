@@ -13,3 +13,12 @@ export const essLeaveApplySchema = z
   });
 
 export type EssLeaveApplySchema = z.infer<typeof essLeaveApplySchema>;
+
+export const essRegularizationApplySchema = z.object({
+  date:              z.string().min(1, "Date is required"),
+  requestedClockIn:  z.string().optional().or(z.literal("")),
+  requestedClockOut: z.string().optional().or(z.literal("")),
+  reason:            z.string().min(3, "Reason is required"),
+});
+
+export type EssRegularizationApplySchema = z.infer<typeof essRegularizationApplySchema>;

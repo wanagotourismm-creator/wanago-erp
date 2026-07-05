@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarRange, PencilLine } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils/helpers";
 import type { AttendanceRecord, LeaveRequest } from "@/modules/hrms/shared/types";
 import type { Holiday } from "@/modules/admin/holidays/types";
@@ -10,6 +10,7 @@ type Props = {
   attendance: AttendanceRecord[];
   leaves: LeaveRequest[];
   holidays: Holiday[];
+  onRequestCorrection: (date: string) => void;
 };
 
 const DAY_COLORS: Record<string, string> = {
@@ -27,7 +28,7 @@ function toDateStr(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-export function AttendanceCalendar({ attendance, leaves, holidays }: Props) {
+export function AttendanceCalendar({ attendance, leaves, holidays, onRequestCorrection }: Props) {
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selected, setSelected] = useState(toDateStr(today.getFullYear(), today.getMonth(), today.getDate()));
@@ -118,7 +119,15 @@ export function AttendanceCalendar({ attendance, leaves, holidays }: Props) {
       </div>
 
       <div className="mt-4 rounded-2xl border border-border bg-muted/30 p-4">
-        <p className="text-xs font-semibold text-foreground mb-3">{formatDate(selected, "EEEE, dd MMM yyyy")}</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-foreground">{formatDate(selected, "EEEE, dd MMM yyyy")}</p>
+          {new Date(selected) <= today && (
+            <button onClick={() => onRequestCorrection(selected)}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:border-primary/40 hover:bg-background transition-colors">
+              <PencilLine size={12} /> Request Correction
+            </button>
+          )}
+        </div>
         {selectedRecord ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div><p className="text-[10px] uppercase text-muted-foreground">In Time</p><p className="text-sm font-bold text-foreground">{selectedRecord.clockIn || "—"}</p></div>

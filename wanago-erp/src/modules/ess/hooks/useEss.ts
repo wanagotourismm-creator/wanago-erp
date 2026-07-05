@@ -5,11 +5,12 @@ import { useAuthStore } from "@/store/auth.store";
 import { fetchEmployeeByUserId, fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
 import { fetchAttendanceByEmployee, createAttendanceRecord, updateAttendanceRecord } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchLeaves, fetchLeavesByEmployee, createLeaveRequest, cancelLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
+import { fetchRegularizations, fetchRegularizationsByEmployee, createRegularizationRequest, approveRegularization, rejectRegularization } from "@/modules/hrms/regularization/services/regularization.service";
 import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service";
 import { fetchPayrollByEmployee } from "@/modules/hrms/payroll/services/payroll.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
-import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord } from "@/modules/hrms/shared/types";
-import type { EssLeaveApplySchema } from "@/modules/ess/schemas";
+import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
+import type { EssLeaveApplySchema, EssRegularizationApplySchema } from "@/modules/ess/schemas";
 import type { Holiday } from "@/modules/admin/holidays/types";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -25,6 +26,10 @@ export const LEAVE_ENTITLEMENTS: Record<string, number> = {
 
 export type LeaveBalance = { type: string; entitlement: number; used: number; remaining: number };
 
+export type InboxItem =
+  | { kind: "leave"; id: string; leave: LeaveRequest }
+  | { kind: "regularization"; id: string; regularization: AttendanceRegularization };
+
 export function useEss() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
@@ -32,7 +37,9 @@ export function useEss() {
   const [directReports, setDirectReports] = useState<Employee[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [regularizations, setRegularizations] = useState<AttendanceRegularization[]>([]);
   const [teamLeaves, setTeamLeaves] = useState<LeaveRequest[]>([]);
+  const [teamRegularizations, setTeamRegularizations] = useState<AttendanceRegularization[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [activity, setActivity] = useState<ActivityLogEntry[]>([]);
@@ -49,15 +56,17 @@ export function useEss() {
       setHolidays(hols);
 
       if (emp) {
-        const [allEmployees, att, myLeaves, myPayroll, recentActivity] = await Promise.all([
+        const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity] = await Promise.all([
           fetchEmployees(),
           fetchAttendanceByEmployee(emp.id),
           fetchLeavesByEmployee(emp.id),
+          fetchRegularizationsByEmployee(emp.id),
           fetchPayrollByEmployee(emp.id),
           fetchRecentActivity(200),
         ]);
         setAttendance(att);
         setLeaves(myLeaves);
+        setRegularizations(myRegs);
         setPayroll(myPayroll);
         setActivity(recentActivity.filter((a) => a.actorId === user.uid));
 
@@ -66,10 +75,12 @@ export function useEss() {
 
         if (reports.length > 0) {
           const reportIds = new Set(reports.map((r) => r.id));
-          const all = await fetchLeaves();
-          setTeamLeaves(all.filter((l) => reportIds.has(l.employeeId) && l.status === "pending"));
+          const [allLeaves, allRegs] = await Promise.all([fetchLeaves(), fetchRegularizations()]);
+          setTeamLeaves(allLeaves.filter((l) => reportIds.has(l.employeeId) && l.status === "pending"));
+          setTeamRegularizations(allRegs.filter((r) => reportIds.has(r.employeeId) && r.regularizationStatus === "pending"));
         } else {
           setTeamLeaves([]);
+          setTeamRegularizations([]);
         }
       }
     } finally {
@@ -92,6 +103,11 @@ export function useEss() {
       .reduce((sum, l) => sum + l.days, 0);
     return { type, entitlement, used, remaining: Math.max(0, entitlement - used) };
   });
+
+  const teamInbox: InboxItem[] = [
+    ...teamLeaves.map((l): InboxItem => ({ kind: "leave", id: l.id, leave: l })),
+    ...teamRegularizations.map((r): InboxItem => ({ kind: "regularization", id: r.id, regularization: r })),
+  ];
 
   async function clockIn() {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
@@ -173,12 +189,34 @@ export function useEss() {
     }
   }
 
-  async function decideTeamLeave(id: string, decision: "approve" | "reject") {
+  async function requestCorrection(data: EssRegularizationApplySchema) {
+    if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
+    try {
+      const r = await createRegularizationRequest({
+        ...data,
+        employeeId:   employee.id,
+        employeeName: employee.fullName,
+        officeId:     employee.officeId,
+      }, user.uid);
+      setRegularizations((p) => [r, ...p]);
+      return { error: null };
+    } catch {
+      return { error: "Failed to submit correction request" };
+    }
+  }
+
+  async function decideInboxItem(item: InboxItem, decision: "approve" | "reject") {
     if (!user) return { error: "Not signed in" };
     try {
-      if (decision === "approve") await approveLeaveRequest(id, user.uid);
-      else await rejectLeaveRequest(id, user.uid);
-      setTeamLeaves((p) => p.filter((l) => l.id !== id));
+      if (item.kind === "leave") {
+        if (decision === "approve") await approveLeaveRequest(item.id, user.uid);
+        else await rejectLeaveRequest(item.id, user.uid);
+        setTeamLeaves((p) => p.filter((l) => l.id !== item.id));
+      } else {
+        if (decision === "approve") await approveRegularization(item.id, user.uid);
+        else await rejectRegularization(item.id, user.uid);
+        setTeamRegularizations((p) => p.filter((r) => r.id !== item.id));
+      }
       return { error: null };
     } catch {
       return { error: "Failed to record decision" };
@@ -186,8 +224,10 @@ export function useEss() {
   }
 
   return {
-    loading, employee, directReports, attendance, leaves, teamLeaves, holidays, payroll, activity,
+    loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
+    holidays, payroll, activity,
     today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
-    clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave, decideTeamLeave, reload: load,
+    clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
+    requestCorrection, decideInboxItem, reload: load,
   };
 }

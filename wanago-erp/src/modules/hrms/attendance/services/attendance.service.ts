@@ -37,6 +37,18 @@ async function attendanceExists(employeeId: string, date: string): Promise<boole
   return !snap.empty;
 }
 
+export async function fetchAttendanceForDate(employeeId: string, date: string): Promise<AttendanceRecord | null> {
+  const q = query(
+    collection(db, FIRESTORE_COLLECTIONS.HRMS_CHECK_INS),
+    where("employeeId", "==", employeeId),
+    where("date", "==", date),
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { id: d.id, ...d.data() } as AttendanceRecord;
+}
+
 export async function createAttendanceRecord(data: AttendanceRecordSchema, createdBy: string): Promise<AttendanceRecord> {
   const exists = await attendanceExists(data.employeeId, data.date);
   if (exists) throw new Error("Attendance already marked for this employee on this date");

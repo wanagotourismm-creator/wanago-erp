@@ -7,10 +7,12 @@ import { useEss } from "@/modules/ess/hooks/useEss";
 import { ClockCard } from "@/modules/ess/components/ClockCard";
 import { MyLeavesList } from "@/modules/ess/components/MyLeavesList";
 import { ApplyLeaveForm } from "@/modules/ess/components/ApplyLeaveForm";
-import { TeamApprovalsCard } from "@/modules/ess/components/TeamApprovalsCard";
+import { RequestCorrectionForm } from "@/modules/ess/components/RequestCorrectionForm";
+import { InboxCard } from "@/modules/ess/components/InboxCard";
 import { HolidaysCard } from "@/modules/ess/components/HolidaysCard";
 import { LeaveBalanceChips } from "@/modules/ess/components/LeaveBalanceChips";
 import { AttendanceCalendar } from "@/modules/ess/components/AttendanceCalendar";
+import { MyCorrectionsList } from "@/modules/ess/components/MyCorrectionsList";
 import { MyPayslipsList } from "@/modules/ess/components/MyPayslipsList";
 import { MyActivityList } from "@/modules/ess/components/MyActivityList";
 import { useAuthStore } from "@/store/auth.store";
@@ -22,12 +24,16 @@ type Tab = (typeof TABS)[number];
 export function EssPage() {
   const { user } = useAuthStore();
   const {
-    loading, employee, directReports, attendance, leaves, teamLeaves, holidays, payroll, activity,
+    loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
+    holidays, payroll, activity,
     todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
-    clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave, decideTeamLeave,
+    clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
+    requestCorrection, decideInboxItem,
   } = useEss();
 
   const [applyOpen, setApplyOpen] = useState(false);
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [correctionDate, setCorrectionDate] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("Attendance");
 
   if (loading) {
@@ -60,7 +66,7 @@ export function EssPage() {
       />
 
       {directReports.length > 0 && (
-        <TeamApprovalsCard teamLeaves={teamLeaves} onDecide={decideTeamLeave} />
+        <InboxCard items={teamInbox} onDecide={decideInboxItem} />
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -89,7 +95,15 @@ export function EssPage() {
       </div>
 
       {tab === "Attendance" && (
-        <AttendanceCalendar attendance={attendance} leaves={leaves} holidays={holidays} />
+        <div className="space-y-5">
+          <AttendanceCalendar
+            attendance={attendance}
+            leaves={leaves}
+            holidays={holidays}
+            onRequestCorrection={(date) => { setCorrectionDate(date); setCorrectionOpen(true); }}
+          />
+          <MyCorrectionsList regularizations={regularizations} />
+        </div>
       )}
 
       {tab === "My Leaves" && (
@@ -105,6 +119,12 @@ export function EssPage() {
       {tab === "Activity" && <MyActivityList activity={activity} />}
 
       <ApplyLeaveForm open={applyOpen} onClose={() => setApplyOpen(false)} onSubmit={applyLeave} />
+      <RequestCorrectionForm
+        open={correctionOpen}
+        date={correctionDate}
+        onClose={() => setCorrectionOpen(false)}
+        onSubmit={requestCorrection}
+      />
     </div>
   );
 }
