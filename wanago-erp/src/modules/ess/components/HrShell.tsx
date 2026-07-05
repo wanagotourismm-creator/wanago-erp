@@ -23,7 +23,7 @@ type Props = {
 // conventions (same language as the main Sidebar's nav links).
 export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerSubtitle, headerRight, headerIcon: HeaderIcon, children }: Props) {
   return (
-    <div className="flex min-h-[calc(100vh-104px)] flex-col bg-card lg:min-h-[calc(100vh-104px)]">
+    <div className="flex min-h-[calc(100vh-64px)] flex-col bg-card lg:min-h-[calc(100vh-64px)]">
 
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-4 sm:px-6">
