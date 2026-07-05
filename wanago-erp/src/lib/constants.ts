@@ -124,6 +124,8 @@ export const FIRESTORE_COLLECTIONS = {
   CANDIDATES:        "candidates",
   PERFORMANCE_GOALS:   "performanceGoals",
   PERFORMANCE_REVIEWS: "performanceReviews",
+  TRAINING_PROGRAMS:    "trainingPrograms",
+  TRAINING_ENROLLMENTS: "trainingEnrollments",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
@@ -190,6 +192,7 @@ export const REF_FORMATS = {
   CANDIDATE: "CAND",
   GOAL:      "GOAL",
   REVIEW:    "REV",
+  TRAINING:  "TRN",
 } as const;
 
 // Recruitment pipeline stages, in order
@@ -248,4 +251,25 @@ export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
   in_progress: "In Progress",
   at_risk:     "At Risk",
   completed:   "Completed",
+};
+
+// Training & Development
+export const TRAINING_MODE_LABELS: Record<string, string> = {
+  online:  "Online",
+  offline: "Offline",
+  hybrid:  "Hybrid",
+};
+
+export const TRAINING_STATUS_LABELS: Record<string, string> = {
+  upcoming:  "Upcoming",
+  ongoing:   "Ongoing",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+export const ENROLLMENT_STATUS_LABELS: Record<string, string> = {
+  enrolled:    "Enrolled",
+  in_progress: "In Progress",
+  completed:   "Completed",
+  dropped:     "Dropped",
 };
