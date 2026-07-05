@@ -32,7 +32,7 @@ export function EssPage() {
   if (!employee) {
     return (
       <div className="space-y-5">
-        <PageHeader title="My Space" description="Your self-service portal" />
+        <PageHeader title="My HR" description="Your self-service portal" />
         <EmptyState
           title="No employee profile linked yet"
           description={`Your account (${user?.email}) isn't linked to an employee record. Ask HR to add or link your profile to use clock in/out and leave requests.`}
@@ -44,7 +44,7 @@ export function EssPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="My Space" description={`Welcome back, ${employee.fullName.split(" ")[0]}`} />
+      <PageHeader title="My HR" description={`Welcome back, ${employee.fullName.split(" ")[0]}`} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ClockCard

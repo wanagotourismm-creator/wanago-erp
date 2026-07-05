@@ -24,7 +24,7 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "layout-dashboard",
       },
       {
-        label: "My Space",
+        label: "My HR",
         href:  "/ess",
         icon:  "user-circle",
       },
