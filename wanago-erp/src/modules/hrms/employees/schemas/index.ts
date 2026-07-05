@@ -31,6 +31,10 @@ export const employeeSchema = z.object({
 
   officeId:   z.string().min(1),
   officeName: z.string().min(1),
+
+  // Explicit link to a login account — fixes/overrides the automatic
+  // email-based matching used by fetchEmployeeByUserId.
+  userId: z.string().optional().or(z.literal("")),
 });
 
 export type EmployeeSchema = z.infer<typeof employeeSchema>;

@@ -67,6 +67,7 @@ export async function createEmployee(
     uan:                data.uan || null,
     pfNumber:           data.pfNumber || null,
     panNumber:          data.panNumber || null,
+    userId:             data.userId || null,
   });
 }
 
@@ -74,7 +75,9 @@ export async function updateEmployee(
   id: string,
   data: Partial<EmployeeFormData>
 ): Promise<void> {
-  return repo.update(id, data as Partial<Employee>);
+  const patch: Partial<Employee> = { ...data };
+  if (data.userId !== undefined) patch.userId = data.userId || null;
+  return repo.update(id, patch);
 }
 
 export async function deleteEmployee(id: string): Promise<void> {

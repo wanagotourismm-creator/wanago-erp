@@ -49,8 +49,10 @@ export type Employee = FirestoreRecord & {
   // Documents
   documents: EmployeeDocument[];
 
-  // Linkage
-  userId?:    string;
+  // Linkage — explicitly set by an admin via the "Linked Login Account"
+  // field in EmployeeForm, or auto-backfilled on first My HR visit if the
+  // employee's email matches their Firebase Auth email exactly.
+  userId?:    string | null;
   officeId:   string;
   officeName: string;
 };

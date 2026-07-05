@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, Briefcase, Wallet } from "lucide-react";
+import { X, Loader2, User, Briefcase, Wallet, Link2 } from "lucide-react";
 import { employeeSchema, type EmployeeSchema } from "@/modules/hrms/employees/schemas";
 import { EMPLOYMENT_TYPE_LABELS, DEPARTMENTS } from "@/modules/hrms/employees/components/EmployeeBadges";
+import { fetchUsers } from "@/modules/admin/users/services/user-admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import type { Employee } from "@/modules/hrms/shared/types";
+import type { UserProfile } from "@/modules/auth/types";
 
 type Props = {
   open:      boolean;
@@ -43,6 +45,12 @@ const inputClass = cn(
 
 export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
+  const [users, setUsers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetchUsers().then(setUsers).catch(() => {});
+  }, [open]);
 
   const {
     register, handleSubmit, reset,
@@ -69,6 +77,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
           email:               employee.email ?? "",
           address:             employee.address ?? "",
           reportingManagerId:  employee.reportingManagerId ?? "",
+          userId:              employee.userId ?? "",
           dateOfJoining:       employee.dateOfJoining ?? "",
           bankAccountNumber:   employee.bankAccountNumber ?? "",
           bankName:            employee.bankName ?? "",
@@ -202,6 +211,28 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
                 </select>
               </Field>
             </div>
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Account Linkage */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Link2 size={14} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Account Linkage</p>
+            </div>
+            <Field label="Linked Login Account" error={errors.userId?.message}>
+              <select className={inputClass} {...register("userId")}>
+                <option value="">— Not linked —</option>
+                {users.map(u => (
+                  <option key={u.uid} value={u.uid}>{u.displayName} ({u.email})</option>
+                ))}
+              </select>
+            </Field>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Controls which login account this employee record belongs to — used for My HR, clock in/out, and manager approval routing.
+              Left blank, it links automatically the first time this person opens My HR, if their login email matches the email above.
+            </p>
           </div>
 
           <div className="border-t border-border" />
