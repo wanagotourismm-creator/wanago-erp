@@ -47,13 +47,8 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
   const { user } = useAuthStore();
   const [users, setUsers] = useState<UserProfile[]>([]);
 
-  useEffect(() => {
-    if (!open) return;
-    fetchUsers().then(setUsers).catch(() => {});
-  }, [open]);
-
   const {
-    register, handleSubmit, reset,
+    register, handleSubmit, reset, setValue,
     formState: { errors, isSubmitting },
   } = useForm<EmployeeSchema>({
     resolver: zodResolver(employeeSchema),
@@ -96,6 +91,18 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
       }
     }
   }, [open, employee, reset, user]);
+
+  // Fetched after the reset() above — reset() runs before this resolves, so
+  // if it also set "userId", the <select> can't select a matching <option>
+  // yet (none exist) and silently falls back to "— Not linked —". Re-apply
+  // the value once the options actually exist so the correct one shows.
+  useEffect(() => {
+    if (!open) return;
+    fetchUsers().then((list) => {
+      setUsers(list);
+      if (employee?.userId) setValue("userId", employee.userId);
+    }).catch(() => {});
+  }, [open, employee, setValue]);
 
   if (!open) return null;
 
