@@ -1,4 +1,4 @@
-import { orderBy } from "firebase/firestore";
+import { orderBy, where } from "firebase/firestore";
 import { collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase/client";
@@ -19,6 +19,24 @@ export async function fetchEmployees(): Promise<Employee[]> {
 
 export async function fetchEmployeeById(id: string): Promise<Employee | null> {
   return repo.findById(id);
+}
+
+// Resolves the logged-in Firebase Auth user to their Employee record. Falls
+// back to matching on email for records created before the userId linkage
+// existed, and backfills userId onto that record so future lookups are direct.
+export async function fetchEmployeeByUserId(uid: string, email?: string | null): Promise<Employee | null> {
+  const byUid = await repo.findMany({ constraints: [where("userId", "==", uid)] });
+  if (byUid.length > 0) return byUid[0];
+
+  if (email) {
+    const byEmail = await repo.findMany({ constraints: [where("email", "==", email)] });
+    if (byEmail.length > 0) {
+      const match = byEmail[0];
+      if (!match.userId) await repo.update(match.id, { userId: uid } as Partial<Employee>);
+      return { ...match, userId: uid };
+    }
+  }
+  return null;
 }
 
 export async function createEmployee(

@@ -9,7 +9,7 @@ import {
   Package, Store, Map, FileText, CreditCard,
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
   BarChart3, Settings, LogOut, Clock, X,
-  ShieldCheck, UserPlus, Target, GraduationCap,
+  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -42,6 +42,7 @@ const ICONS: Record<string, React.ElementType> = {
   "user-plus":        UserPlus,
   "target":           Target,
   "graduation-cap":   GraduationCap,
+  "user-circle":      UserCircle,
 };
 
 function MenuLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {

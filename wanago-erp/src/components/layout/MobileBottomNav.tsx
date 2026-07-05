@@ -8,7 +8,7 @@ import {
   Package, Store, Map, FileText, CreditCard,
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
   BarChart3, Settings, Clock,
-  ShieldCheck, UserPlus, Target, GraduationCap,
+  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -39,6 +39,7 @@ const ICONS: Record<string, React.ElementType> = {
   "user-plus":        UserPlus,
   "target":           Target,
   "graduation-cap":   GraduationCap,
+  "user-circle":      UserCircle,
 };
 
 // Fixed bottom tab bar for phones/tablets (below lg) — a touch-first

@@ -23,6 +23,11 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/dashboard",
         icon:  "layout-dashboard",
       },
+      {
+        label: "My Space",
+        href:  "/ess",
+        icon:  "user-circle",
+      },
     ],
   },
   {
