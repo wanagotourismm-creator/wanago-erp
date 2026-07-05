@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchUsers, createUserAccount, updateUserProfile, bulkUpdateUsers, type NewUserInput,
+  fetchUsers, createUserAccount, updateUserProfile, bulkUpdateUsers, deleteUserAccount, type NewUserInput,
 } from "@/modules/admin/users/services/user-admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { logActivity } from "@/lib/activity-log";
@@ -78,6 +78,21 @@ export function useAdminUsers() {
     }
   }
 
+  async function removeUser(uid: string): Promise<{ error: string | null }> {
+    const target = users.find((u) => u.uid === uid);
+    const { error } = await deleteUserAccount(uid);
+    if (error) return { error };
+    setUsers((prev) => prev.filter((u) => u.uid !== uid));
+    if (target) {
+      logActivity({
+        entityType: "User", entityName: target.displayName, action: "deleted",
+        detail: `Deleted user account ${target.email}`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+    }
+    return { error: null };
+  }
+
   async function bulkUpdate(
     uids: string[],
     data: Parameters<typeof bulkUpdateUsers>[1]
@@ -91,5 +106,5 @@ export function useAdminUsers() {
     });
   }
 
-  return { users, loading, error, load, addUser, editUser, toggleActive, bulkUpdate };
+  return { users, loading, error, load, addUser, editUser, toggleActive, removeUser, bulkUpdate };
 }

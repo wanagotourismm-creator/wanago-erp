@@ -4,7 +4,7 @@ import {
 import {
   collection, doc, getDocs, updateDoc, serverTimestamp, writeBatch,
 } from "firebase/firestore";
-import { db, secondaryAuth } from "@/lib/firebase/client";
+import { auth, db, secondaryAuth } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { createUserProfile } from "@/modules/auth/services/auth.service";
 import type { UserProfile } from "@/modules/auth/types";
@@ -79,6 +79,23 @@ export async function updateUserProfile(
     ...data,
     updatedAt: serverTimestamp(),
   });
+}
+
+// Permanently deletes the Firebase Auth account + Firestore profile via the
+// server (Firebase Admin SDK) — client SDKs can't delete other users'
+// accounts. Also unlinks any employee record pointing at this uid.
+export async function deleteUserAccount(uid: string): Promise<{ error: string | null }> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch("/api/admin/delete-user", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ uid }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return { error: data.error || "Failed to delete user" };
+  }
+  return { error: null };
 }
 
 export async function bulkUpdateUsers(

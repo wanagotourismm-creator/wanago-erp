@@ -29,11 +29,7 @@ export function getAdminAuth(): Auth | null {
   return a ? getAuth(a) : null;
 }
 
-// Verifies a Firebase ID token and checks the caller is admin/super_admin.
-// Used to gate the Integrations API — the one endpoint that can set/rotate
-// third-party API keys, so it needs real server-side identity verification
-// rather than the client-supplied-context trust the rest of this app uses.
-export async function requireAdmin(idToken: string | null): Promise<{ uid: string } | null> {
+async function verifyRole(idToken: string | null, allowedRoles: string[]): Promise<{ uid: string } | null> {
   if (!idToken) return null;
   const adminAuth = getAdminAuth();
   const adminDb = getAdminDb();
@@ -42,9 +38,23 @@ export async function requireAdmin(idToken: string | null): Promise<{ uid: strin
     const decoded = await adminAuth.verifyIdToken(idToken);
     const userDoc = await adminDb.collection("users").doc(decoded.uid).get();
     const role = userDoc.data()?.systemRole;
-    if (role !== "admin" && role !== "super_admin") return null;
+    if (!role || !allowedRoles.includes(role)) return null;
     return { uid: decoded.uid };
   } catch {
     return null;
   }
+}
+
+// Verifies a Firebase ID token and checks the caller is admin/super_admin.
+// Used to gate the Integrations API — the one endpoint that can set/rotate
+// third-party API keys, so it needs real server-side identity verification
+// rather than the client-supplied-context trust the rest of this app uses.
+export async function requireAdmin(idToken: string | null): Promise<{ uid: string } | null> {
+  return verifyRole(idToken, ["admin", "super_admin"]);
+}
+
+// Stricter than requireAdmin — for actions only a super_admin should take,
+// like permanently deleting a user's login account.
+export async function requireSuperAdmin(idToken: string | null): Promise<{ uid: string } | null> {
+  return verifyRole(idToken, ["super_admin"]);
 }

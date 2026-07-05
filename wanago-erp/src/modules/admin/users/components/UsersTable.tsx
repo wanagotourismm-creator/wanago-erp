@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit2, Power } from "lucide-react";
+import { Edit2, Power, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { initials, cn } from "@/lib/utils/helpers";
@@ -14,9 +14,11 @@ type Props = {
   onSelect:   (uids: string[]) => void;
   onEdit:     (user: UserProfile) => void;
   onToggle:   (user: UserProfile) => void;
+  // Omit to hide the delete action entirely (e.g. for non-super-admins).
+  onDelete?:  (user: UserProfile) => void;
 };
 
-export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggle }: Props) {
+export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggle, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (users.length === 0) {
@@ -120,6 +122,15 @@ export function UsersTable({ users, loading, selected, onSelect, onEdit, onToggl
                     >
                       <Power size={13} />
                     </button>
+                    {onDelete && (
+                      <button
+                        onClick={() => onDelete(u)}
+                        title="Delete permanently"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </td>
 

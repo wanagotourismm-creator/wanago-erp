@@ -31,30 +31,15 @@ import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealt
 import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
 import { CollectionExplorer } from "@/modules/admin/explorer/components/CollectionExplorer";
 import { AdminOverview, type AdminTabKey } from "@/modules/admin/overview/components/AdminOverview";
+import { HrShell, type HrNavGroup } from "@/modules/ess/components/HrShell";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { cn } from "@/lib/utils/helpers";
-import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
 import type { UserProfile } from "@/modules/auth/types";
 import type { Office } from "@/modules/admin/offices/types";
 
 type Tab = "overview" | AdminTabKey;
-
-type NavItem = { key: Tab; label: string; icon: React.ElementType; show: boolean };
-type NavGroup = { label: string; items: NavItem[] };
-
-function DarkButton({ icon, children, onClick }: { icon: React.ReactNode; children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10 transition-colors"
-    >
-      {icon}
-      {children}
-    </button>
-  );
-}
 
 export function AdminPage() {
   const { user } = useAuthStore();
@@ -66,7 +51,7 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
 
   const {
-    users, loading: usersLoading, addUser, editUser, toggleActive, bulkUpdate, load: loadUsers,
+    users, loading: usersLoading, addUser, editUser, toggleActive, removeUser, bulkUpdate, load: loadUsers,
   } = useAdminUsers();
   const {
     offices, loading: officesLoading, addOffice, editOffice, removeOffice, load: loadOffices,
@@ -89,215 +74,180 @@ export function AdminPage() {
     await toggleActive(u.uid, !u.isActive);
   }
 
+  async function handleDeleteUser(u: UserProfile) {
+    if (!confirm(`Permanently delete "${u.displayName}"'s login account? This removes their access entirely and cannot be undone — use Deactivate instead if you might need to restore access later.`)) return;
+    const { error } = await removeUser(u.uid);
+    if (error) alert(error);
+  }
+
   async function handleDeleteOffice(office: Office) {
     if (!confirm(`Delete office "${office.name}"? This cannot be undone.`)) return;
     await removeOffice(office.id);
   }
 
-  const navGroups: NavGroup[] = [
-    { label: "", items: [{ key: "overview", label: "Overview", icon: LayoutGrid, show: true }] },
-    { label: "People", items: [
-      { key: "users",   label: "Users",   icon: UsersIcon, show: canManageUsers },
-      { key: "offices", label: "Offices", icon: Building2, show: canManageOffices },
-    ] },
-    { label: "Communication", items: [
-      { key: "announcements", label: "Announcements", icon: Megaphone,    show: true },
-      { key: "holidays",      label: "Holidays",       icon: CalendarDays, show: true },
-    ] },
-    { label: "HR Operations", items: [
-      { key: "assets",  label: "Assets",     icon: Laptop, show: true },
-      { key: "tickets", label: "IT Support", icon: Ticket, show: true },
-    ] },
-    { label: "Strategy", items: [
-      { key: "goals", label: "Company Goals", icon: Target, show: true },
-    ] },
-    { label: "Configuration", items: [
-      { key: "settings",      label: "Company Settings",    icon: Settings2,   show: canManageSettings },
-      { key: "permissions",   label: "Roles & Permissions", icon: ShieldCheck, show: isSuperAdmin },
-      { key: "integrations",  label: "Integrations",        icon: KeyRound,    show: isSuperAdmin },
-    ] },
-    { label: "Data & Monitoring", items: [
-      { key: "export",   label: "Data Export",   icon: Download, show: true },
-      { key: "health",   label: "System Health", icon: Activity, show: true },
-      { key: "activity", label: "Activity Log",  icon: History,  show: true },
-    ] },
-    { label: "Danger Zone", items: [
-      { key: "trash",    label: "Trash",               icon: Trash2,   show: isSuperAdmin },
-      { key: "explorer", label: "Collection Explorer", icon: Database, show: isSuperAdmin },
-    ] },
-  ];
+  const navGroups: HrNavGroup[] = [
+    { label: "", items: [{ key: "overview", label: "Overview", icon: LayoutGrid }] },
+    {
+      label: "People",
+      items: [
+        canManageUsers   && { key: "users",   label: "Users",   icon: UsersIcon },
+        canManageOffices && { key: "offices", label: "Offices", icon: Building2 },
+      ].filter(Boolean) as HrNavGroup["items"],
+    },
+    {
+      label: "Communication",
+      items: [
+        { key: "announcements", label: "Announcements", icon: Megaphone },
+        { key: "holidays",      label: "Holidays",       icon: CalendarDays },
+      ],
+    },
+    {
+      label: "HR Operations",
+      items: [
+        { key: "assets",  label: "Assets",     icon: Laptop },
+        { key: "tickets", label: "IT Support", icon: Ticket },
+      ],
+    },
+    { label: "Strategy", items: [{ key: "goals", label: "Company Goals", icon: Target }] },
+    {
+      label: "Configuration",
+      items: [
+        canManageSettings && { key: "settings",     label: "Company Settings",    icon: Settings2 },
+        isSuperAdmin       && { key: "permissions",  label: "Roles & Permissions", icon: ShieldCheck },
+        isSuperAdmin       && { key: "integrations", label: "Integrations",       icon: KeyRound },
+      ].filter(Boolean) as HrNavGroup["items"],
+    },
+    {
+      label: "Data & Monitoring",
+      items: [
+        { key: "export",   label: "Data Export",   icon: Download },
+        { key: "health",   label: "System Health", icon: Activity },
+        { key: "activity", label: "Activity Log",  icon: History },
+      ],
+    },
+    {
+      label: "Danger Zone",
+      items: [
+        isSuperAdmin && { key: "trash",    label: "Trash",               icon: Trash2 },
+        isSuperAdmin && { key: "explorer", label: "Collection Explorer", icon: Database },
+      ].filter(Boolean) as HrNavGroup["items"],
+    },
+  ].filter((g) => g.items.length > 0);
 
-  const healthOk = healthCollections.length === 0 || healthCollections.every(c => c.ok);
+  const headerRight = (
+    <>
+      {tab === "users" && (
+        <>
+          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadUsers()}>Refresh</Button>
+          {canManageUsers && (
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingUser(null); setUserFormOpen(true); }}>Add User</Button>
+          )}
+        </>
+      )}
+      {tab === "offices" && (
+        <>
+          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadOffices()}>Refresh</Button>
+          {canManageOffices && (
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingOffice(null); setOfficeFormOpen(true); }}>Add Office</Button>
+          )}
+        </>
+      )}
+      {tab === "activity" && (
+        <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadActivity()}>Refresh</Button>
+      )}
+    </>
+  );
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-xl">
+    <div className={cn("space-y-0")}>
+      <HrShell
+        navGroups={navGroups}
+        activeKey={tab}
+        onNavigate={(k) => setTab(k as Tab)}
+        headerIcon={ShieldCheck}
+        headerTitle="Admin"
+        headerSubtitle={user ? `Signed in as ${user.displayName ?? user.email}` : ""}
+        headerRight={headerRight}
+      >
+        {tab === "overview" && (
+          <AdminOverview
+            users={users}
+            offices={offices}
+            trash={trashEntries}
+            healthCollections={healthCollections}
+            recentActivity={activity}
+            isSuperAdmin={isSuperAdmin}
+            canManageUsers={canManageUsers}
+            canManageOffices={canManageOffices}
+            canManageSettings={canManageSettings}
+            onNavigate={setTab}
+          />
+        )}
 
-      {/* Command bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
-            <ShieldCheck size={19} className="text-violet-400" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-400">Command Center</p>
-            <h1 className="text-lg font-bold text-white leading-tight">Admin</h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className={cn(
-            "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
-            healthOk ? "border-green-500/30 bg-green-500/10 text-green-400" : "border-red-500/30 bg-red-500/10 text-red-400"
-          )}>
-            <span className={cn("h-1.5 w-1.5 rounded-full", healthOk ? "bg-green-400" : "bg-red-400")} />
-            {healthOk ? "All systems operational" : "Attention needed"}
-          </span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-slate-300">
-            {user ? SYSTEM_ROLE_LABELS[user.systemRole] : ""}
-          </span>
-
-          {tab === "users" && (
-            <>
-              <DarkButton icon={<RefreshCw size={13} />} onClick={() => loadUsers()}>Refresh</DarkButton>
-              {canManageUsers && (
-                <Button size="sm" icon={<Plus size={13} />} onClick={() => { setEditingUser(null); setUserFormOpen(true); }}>
-                  Add User
-                </Button>
-              )}
-            </>
-          )}
-          {tab === "offices" && (
-            <>
-              <DarkButton icon={<RefreshCw size={13} />} onClick={() => loadOffices()}>Refresh</DarkButton>
-              {canManageOffices && (
-                <Button size="sm" icon={<Plus size={13} />} onClick={() => { setEditingOffice(null); setOfficeFormOpen(true); }}>
-                  Add Office
-                </Button>
-              )}
-            </>
-          )}
-          {tab === "activity" && (
-            <DarkButton icon={<RefreshCw size={13} />} onClick={() => loadActivity()}>Refresh</DarkButton>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row">
-
-        {/* Sidebar nav */}
-        <nav className="flex flex-shrink-0 gap-4 overflow-x-auto border-b border-white/10 bg-slate-950/60 p-3 lg:w-56 lg:flex-col lg:gap-5 lg:overflow-visible lg:border-b-0 lg:border-r">
-          {navGroups.map(group => {
-            const visibleItems = group.items.filter(i => i.show);
-            if (visibleItems.length === 0) return null;
-            return (
-              <div key={group.label || "root"} className="flex flex-shrink-0 flex-col gap-1">
-                {group.label && (
-                  <p className="hidden px-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 lg:block">{group.label}</p>
-                )}
-                <div className="flex gap-1 lg:flex-col">
-                  {visibleItems.map(item => (
-                    <button
-                      key={item.key}
-                      onClick={() => setTab(item.key)}
-                      className={cn(
-                        "flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition-colors",
-                        tab === item.key
-                          ? "bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30"
-                          : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-                      )}
-                    >
-                      <item.icon size={14} />
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </nav>
-
-        {/* Content */}
-        <main className="min-w-0 flex-1 bg-background p-6">
-
-          {tab === "overview" && (
-            <AdminOverview
-              users={users}
-              offices={offices}
-              trash={trashEntries}
-              healthCollections={healthCollections}
-              recentActivity={activity}
-              isSuperAdmin={isSuperAdmin}
-              canManageUsers={canManageUsers}
-              canManageOffices={canManageOffices}
-              canManageSettings={canManageSettings}
-              onNavigate={setTab}
-            />
-          )}
-
-          {tab === "users" && canManageUsers && (
-            <div className="space-y-3">
-              {selectedUsers.length > 0 && (
-                <BulkUserActions
-                  count={selectedUsers.length}
-                  offices={offices}
-                  onClear={() => setSelectedUsers([])}
-                  onApply={async (data) => { await bulkUpdate(selectedUsers, data); }}
-                />
-              )}
-              <UsersTable
-                users={users}
-                loading={usersLoading}
-                selected={selectedUsers}
-                onSelect={setSelectedUsers}
-                onEdit={(u) => { setEditingUser(u); setUserFormOpen(true); }}
-                onToggle={handleToggleActive}
+        {tab === "users" && canManageUsers && (
+          <div className="space-y-3">
+            {selectedUsers.length > 0 && (
+              <BulkUserActions
+                count={selectedUsers.length}
+                offices={offices}
+                onClear={() => setSelectedUsers([])}
+                onApply={async (data) => { await bulkUpdate(selectedUsers, data); }}
               />
-            </div>
-          )}
-
-          {tab === "offices" && canManageOffices && (
-            <OfficesTable
-              offices={offices}
-              loading={officesLoading}
-              onEdit={(o) => { setEditingOffice(o); setOfficeFormOpen(true); }}
-              onDelete={handleDeleteOffice}
+            )}
+            <UsersTable
+              users={users}
+              loading={usersLoading}
+              selected={selectedUsers}
+              onSelect={setSelectedUsers}
+              onEdit={(u) => { setEditingUser(u); setUserFormOpen(true); }}
+              onToggle={handleToggleActive}
+              onDelete={isSuperAdmin ? handleDeleteUser : undefined}
             />
-          )}
+          </div>
+        )}
 
-          {tab === "activity" && (
-            <ActivityLogTable activity={activity} loading={activityLoading} />
-          )}
+        {tab === "offices" && canManageOffices && (
+          <OfficesTable
+            offices={offices}
+            loading={officesLoading}
+            onEdit={(o) => { setEditingOffice(o); setOfficeFormOpen(true); }}
+            onDelete={handleDeleteOffice}
+          />
+        )}
 
-          {tab === "settings" && canManageSettings && !settingsLoading && (
-            <CompanySettingsForm settings={settings} saving={settingsSaving} isSuperAdmin={isSuperAdmin} onSave={saveSettings} />
-          )}
+        {tab === "activity" && (
+          <ActivityLogTable activity={activity} loading={activityLoading} />
+        )}
 
-          {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
-            <RolePermissionsEditor map={permissionMap} saving={permissionsSaving} onSave={savePermissions} />
-          )}
+        {tab === "settings" && canManageSettings && !settingsLoading && (
+          <CompanySettingsForm settings={settings} saving={settingsSaving} isSuperAdmin={isSuperAdmin} onSave={saveSettings} />
+        )}
 
-          {tab === "integrations" && isSuperAdmin && <IntegrationsPanel />}
+        {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
+          <RolePermissionsEditor map={permissionMap} saving={permissionsSaving} onSave={savePermissions} />
+        )}
 
-          {tab === "export" && <DataExportPanel />}
+        {tab === "integrations" && isSuperAdmin && <IntegrationsPanel />}
 
-          {tab === "announcements" && <AnnouncementComposer />}
+        {tab === "export" && <DataExportPanel />}
 
-          {tab === "holidays" && <HolidayCalendar />}
+        {tab === "announcements" && <AnnouncementComposer />}
 
-          {tab === "assets" && <AssetsPanel />}
+        {tab === "holidays" && <HolidayCalendar />}
 
-          {tab === "tickets" && <TicketsPanel />}
+        {tab === "assets" && <AssetsPanel />}
 
-          {tab === "goals" && <GoalsPanel />}
+        {tab === "tickets" && <TicketsPanel />}
 
-          {tab === "health" && <SystemHealthPanel />}
+        {tab === "goals" && <GoalsPanel />}
 
-          {tab === "trash" && isSuperAdmin && <TrashPanel />}
+        {tab === "health" && <SystemHealthPanel />}
 
-          {tab === "explorer" && isSuperAdmin && <CollectionExplorer />}
+        {tab === "trash" && isSuperAdmin && <TrashPanel />}
 
-        </main>
-      </div>
+        {tab === "explorer" && isSuperAdmin && <CollectionExplorer />}
+
+      </HrShell>
 
       <UserForm
         open={userFormOpen}
