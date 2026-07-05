@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
-  Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound,
+  Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound, BookOpen,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -26,6 +26,7 @@ import { DataExportPanel } from "@/modules/admin/export/components/DataExportPan
 import { AnnouncementComposer } from "@/modules/admin/announcements/components/AnnouncementComposer";
 import { HolidayCalendar } from "@/modules/admin/holidays/components/HolidayCalendar";
 import { AssetsPanel } from "@/modules/assets/components/AssetsPanel";
+import { HelpCenterPanel } from "@/modules/helpcenter/components/HelpCenterPanel";
 import { TicketsPanel } from "@/modules/tickets/components/TicketsPanel";
 import { GoalsPanel } from "@/modules/goals/components/GoalsPanel";
 import { IntegrationsPanel } from "@/modules/admin/integrations/components/IntegrationsPanel";
@@ -118,6 +119,7 @@ export function AdminPage() {
       items: [
         { key: "announcements", label: "Announcements", icon: Megaphone },
         { key: "holidays",      label: "Holidays",       icon: CalendarDays },
+        { key: "helpcenter",    label: "Help Center",    icon: BookOpen },
       ],
     },
     {
@@ -255,6 +257,8 @@ export function AdminPage() {
         {tab === "announcements" && <AnnouncementComposer />}
 
         {tab === "holidays" && <HolidayCalendar />}
+
+        {tab === "helpcenter" && <HelpCenterPanel />}
 
         {tab === "assets" && <AssetsPanel />}
 

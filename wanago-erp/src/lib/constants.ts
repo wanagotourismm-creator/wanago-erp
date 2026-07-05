@@ -132,6 +132,7 @@ export const FIRESTORE_COLLECTIONS = {
   COMPANY_GOALS:   "companyGoals",
   OBJECTIVES:      "objectives",
   GOAL_CHECKINS:   "goalCheckIns",
+  HELP_ARTICLES:   "helpArticles",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

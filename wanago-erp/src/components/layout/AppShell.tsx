@@ -6,6 +6,7 @@ import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { MobileMenuSheet } from "@/components/layout/MobileMenuSheet";
 import { RouteGuard } from "@/components/providers/RouteGuard";
 import { TeamSpacePanel } from "@/modules/teamspace/components/TeamSpacePanel";
+import { AIAssistantPanel } from "@/modules/aiassistant/components/AIAssistantPanel";
 import { cn } from "@/lib/utils/helpers";
 
 type Props = {
@@ -43,6 +44,7 @@ export function AppShell({ children, requiredPage, fullBleed }: Props) {
         <MobileMenuSheet />
 
         <TeamSpacePanel />
+        <AIAssistantPanel />
 
       </div>
     </RouteGuard>

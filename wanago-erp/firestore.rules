@@ -146,6 +146,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Help Center (AI assistant knowledge base) ────────────
+    match /helpArticles/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // ── All other collections ─────────────────────────────────
     match /{collection}/{id} {
       allow read: if isAuthenticated();

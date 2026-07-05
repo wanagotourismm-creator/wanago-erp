@@ -2,7 +2,7 @@
 
 import {
   Users as UsersIcon, Building2, Trash2, Activity, History, CalendarDays,
-  Megaphone, Download, Database, ShieldCheck, Settings2, ArrowRight,
+  Megaphone, Download, Database, ShieldCheck, Settings2, ArrowRight, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import type { UserProfile } from "@/modules/auth/types";
@@ -13,7 +13,8 @@ import type { ActivityLogEntry } from "@/lib/activity-log";
 
 export type AdminTabKey =
   | "users" | "offices" | "activity" | "settings" | "permissions" | "integrations"
-  | "export" | "announcements" | "holidays" | "assets" | "tickets" | "goals" | "health" | "trash" | "explorer";
+  | "export" | "announcements" | "holidays" | "assets" | "tickets" | "goals" | "health" | "trash" | "explorer"
+  | "helpcenter";
 
 type Props = {
   users:          UserProfile[];
@@ -49,6 +50,7 @@ export function AdminOverview({
     { key: "settings",      label: "Company Settings",     description: "Branding, tax, maintenance mode",     icon: Settings2,   show: canManageSettings },
     { key: "announcements", label: "Announcements",        description: "Broadcast to offices",                icon: Megaphone,   show: true },
     { key: "holidays",      label: "Holidays",              description: "Company holiday calendar",            icon: CalendarDays, show: true },
+    { key: "helpcenter",    label: "Help Center",           description: "Knowledge base for the AI Assistant", icon: BookOpen,     show: true },
     { key: "export",        label: "Data Export",           description: "Download CSVs",                       icon: Download,     show: true },
     { key: "health",        label: "System Health",         description: "Collection counts & connectivity",    icon: Activity,     show: true },
     { key: "trash",         label: "Trash",                 description: "Restore or purge deleted records",    icon: Trash2,       show: isSuperAdmin },
