@@ -10,6 +10,7 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   size?:     ButtonSize;
   loading?:  boolean;
   icon?:     React.ReactNode;
+  pill?:     boolean;
 };
 
 const variants: Record<ButtonVariant, string> = {
@@ -27,13 +28,14 @@ const sizes: Record<ButtonSize, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, Props>(
-  ({ variant = "primary", size = "md", loading, icon, children, className, disabled, ...props }, ref) => {
+  ({ variant = "primary", size = "md", loading, icon, pill = false, children, className, disabled, ...props }, ref) => {
     return (
       <button
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center rounded-lg font-medium",
+          "inline-flex items-center justify-center font-medium",
+          pill ? "rounded-full" : "rounded-xl",
           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:pointer-events-none disabled:opacity-50",
           variants[variant],

@@ -24,6 +24,8 @@
     --input:                0 0% 90%;
     --ring:                 146 58% 28%;
     --radius:               0.75rem;
+    --dark-surface:            220 20% 14%;
+    --dark-surface-foreground: 0 0% 95%;
   }
   .dark {
     --background:           220 20% 10%;
@@ -45,6 +47,8 @@
     --border:               220 20% 22%;
     --input:                220 20% 22%;
     --ring:                 146 58% 40%;
+    --dark-surface:            220 20% 20%;
+    --dark-surface-foreground: 0 0% 95%;
   }
 
   * { @apply border-border; box-sizing: border-box; }
@@ -106,6 +110,9 @@
   }
 
   .page-enter { animation: fadeIn 0.2s ease-out; }
+
+  .fluid-card { @apply transition-all duration-200; }
+  .fluid-card:hover { @apply shadow-card-hover -translate-y-0.5; }
 
   /* Theme border utility — apply to any element */
   .border-theme {

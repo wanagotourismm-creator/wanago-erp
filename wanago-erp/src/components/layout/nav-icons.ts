@@ -1,0 +1,36 @@
+import {
+  LayoutDashboard, Users, UserCheck, CalendarCheck,
+  Package, Store, Map, FileText, CreditCard,
+  Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
+  BarChart3, Settings, Clock,
+  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle, Gauge,
+} from "lucide-react";
+
+// Shared icon map keyed by nav-config's `icon: string` field — single
+// source of truth for Sidebar/TopNav/MobileBottomNav/MobileMenuSheet,
+// which previously each carried their own copy of this exact map.
+export const NAV_ICONS: Record<string, React.ElementType> = {
+  "layout-dashboard": LayoutDashboard,
+  "users":            Users,
+  "user-check":       UserCheck,
+  "calendar-check":   CalendarCheck,
+  "package":          Package,
+  "building-store":   Store,
+  "map":              Map,
+  "file-invoice":     FileText,
+  "credit-card":      CreditCard,
+  "receipt":          Receipt,
+  "speakerphone":     Megaphone,
+  "id-badge":         BadgeCheck,
+  "calendar-off":     CalendarOff,
+  "cash":             Wallet,
+  "clock":            Clock,
+  "chart-bar":        BarChart3,
+  "settings":         Settings,
+  "shield":           ShieldCheck,
+  "user-plus":        UserPlus,
+  "target":           Target,
+  "graduation-cap":   GraduationCap,
+  "user-circle":      UserCircle,
+  "gauge":            Gauge,
+};

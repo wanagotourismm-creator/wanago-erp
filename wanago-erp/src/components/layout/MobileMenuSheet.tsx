@@ -4,52 +4,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import {
-  LayoutDashboard, Users, UserCheck, CalendarCheck,
-  Package, Store, Map, FileText, CreditCard,
-  Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
-  BarChart3, Settings, LogOut, Clock, X,
-  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle, Gauge,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, X } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
-import { canAccessPage } from "@/lib/rbac";
-import { NAV_CONFIG, type NavItem } from "@/components/layout/nav-config";
+import { useVisibleNavGroups } from "@/components/layout/useVisibleNavGroups";
+import { NAV_ICONS } from "@/components/layout/nav-icons";
+import type { NavItem } from "@/components/layout/nav-config";
 import { cn, initials } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
-import type { SystemRole } from "@/types/rbac";
-
-const ICONS: Record<string, React.ElementType> = {
-  "layout-dashboard": LayoutDashboard,
-  "users":            Users,
-  "user-check":       UserCheck,
-  "calendar-check":   CalendarCheck,
-  "package":          Package,
-  "building-store":   Store,
-  "map":              Map,
-  "file-invoice":     FileText,
-  "credit-card":      CreditCard,
-  "receipt":          Receipt,
-  "speakerphone":     Megaphone,
-  "id-badge":         BadgeCheck,
-  "calendar-off":     CalendarOff,
-  "cash":             Wallet,
-  "clock":            Clock,
-  "chart-bar":        BarChart3,
-  "settings":         Settings,
-  "shield":           ShieldCheck,
-  "user-plus":        UserPlus,
-  "target":           Target,
-  "graduation-cap":   GraduationCap,
-  "user-circle":      UserCircle,
-  "gauge":            Gauge,
-};
 
 function MenuLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
   const pathname = usePathname();
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-  const Icon     = ICONS[item.icon] ?? LayoutDashboard;
+  const Icon     = NAV_ICONS[item.icon] ?? LayoutDashboard;
   return (
     <Link href={item.href} onClick={onNavigate}
       className={cn(
@@ -75,16 +43,7 @@ export function MobileMenuSheet() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const ab = initials(user?.displayName ?? "Wanago Admin") || "WA";
-
-  const visibleGroups = NAV_CONFIG.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => {
-      if (!item.roles) return true;
-      if (!user) return false;
-      return item.roles.includes(user.systemRole as SystemRole) ||
-        canAccessPage(user.systemRole as SystemRole, item.href.replace("/", ""));
-    }),
-  })).filter((g) => g.items.length > 0);
+  const visibleGroups = useVisibleNavGroups();
 
   if (!mobileSidebarOpen) return null;
 

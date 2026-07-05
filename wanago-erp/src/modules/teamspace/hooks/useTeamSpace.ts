@@ -7,6 +7,7 @@ import {
 } from "@/modules/teamspace/services/teamspace.service";
 import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
 import { useAuthStore } from "@/store/auth.store";
+import { useTeamSpaceUIStore } from "@/store/teamspace-ui.store";
 import type { Channel, Conversation, Message, TeamMember } from "@/modules/teamspace/types";
 import type { ChannelSchema } from "@/modules/teamspace/schemas";
 
@@ -14,7 +15,7 @@ export type ActiveConv = { type: "channel" | "dm"; id: string; label: string } |
 
 export function useTeamSpace() {
   const { user } = useAuthStore();
-  const [open, setOpen] = useState(false);
+  const { open, openPanel, closePanel, togglePanel } = useTeamSpaceUIStore();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -60,10 +61,6 @@ export function useTeamSpace() {
   }, [user, officeId, active]);
 
   useEffect(() => { if (open) loadSidebar(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const openPanel  = useCallback(() => setOpen(true), []);
-  const closePanel = useCallback(() => setOpen(false), []);
-  const togglePanel = useCallback(() => setOpen((o) => !o), []);
 
   // Subscribe to messages of the active conversation
   useEffect(() => {

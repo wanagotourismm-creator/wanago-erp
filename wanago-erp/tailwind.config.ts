@@ -62,6 +62,10 @@ const config: Config = {
         border:  "hsl(var(--border))",
         input:   "hsl(var(--input))",
         ring:    "hsl(var(--ring))",
+        "dark-surface": {
+          DEFAULT:    "hsl(var(--dark-surface))",
+          foreground: "hsl(var(--dark-surface-foreground))",
+        },
         sidebar: {
           DEFAULT:            "hsl(var(--sidebar-background))",
           foreground:         "hsl(var(--sidebar-foreground))",
@@ -109,6 +113,7 @@ const config: Config = {
         card: "0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06)",
         "card-hover": "0 4px 12px 0 rgb(0 0 0 / 0.12)",
         sidebar: "1px 0 0 0 hsl(var(--border))",
+        nav: "0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.06)",
       },
     },
   },

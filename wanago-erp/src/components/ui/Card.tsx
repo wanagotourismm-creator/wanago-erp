@@ -5,14 +5,19 @@ type Props = {
   className?: string;
   padding?:   "none" | "sm" | "md" | "lg";
   hover?:     boolean;
+  radius?:    "2xl" | "3xl";
+  tone?:      "default" | "dark";
 };
 
 const paddings = { none: "", sm: "p-4", md: "p-5", lg: "p-6" };
+const radiuses = { "2xl": "rounded-2xl", "3xl": "rounded-3xl" };
 
-export function Card({ children, className, padding = "md", hover = false }: Props) {
+export function Card({ children, className, padding = "md", hover = false, radius = "2xl", tone = "default" }: Props) {
   return (
     <div className={cn(
-      "rounded-2xl border bg-card shadow-sm transition-all duration-200",
+      "border shadow-sm transition-all duration-200",
+      radiuses[radius],
+      tone === "dark" ? "bg-dark-surface text-dark-surface-foreground border-transparent" : "bg-card",
       hover && "hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 cursor-pointer",
       paddings[padding],
       className
