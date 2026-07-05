@@ -7,6 +7,8 @@ import { useTeamSpaceUIStore } from "@/store/teamspace-ui.store";
 import { SearchBar } from "@/components/layout/SearchBar";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { NavPills } from "@/components/layout/NavPills";
+import { cn } from "@/lib/utils/helpers";
 
 function useBreadcrumb() {
   const pathname = usePathname();
@@ -15,10 +17,12 @@ function useBreadcrumb() {
   );
 }
 
-// Sits alongside the Sidebar (which owns navigation) — this bar is just
-// page title + search + Team Space + notifications + account menu.
+// Sits alongside the Sidebar (which owns navigation when expanded) — this
+// bar is page title + search + Team Space + notifications + account menu.
+// When the sidebar is collapsed to its icon rail, this also surfaces the
+// full nav (as pill dropdowns) so navigation stays reachable with labels.
 export function TopNav() {
-  const { toggleMobileSidebar } = useUIStore();
+  const { toggleMobileSidebar, sidebarCollapsed } = useUIStore();
   const { openPanel } = useTeamSpaceUIStore();
   const breadcrumb = useBreadcrumb();
 
@@ -34,10 +38,12 @@ export function TopNav() {
         <Menu size={17} />
       </button>
 
-      {/* Page title */}
-      <h1 className="min-w-0 truncate text-base font-bold text-foreground sm:text-lg">
+      {/* Page title — hidden at lg+ once the sidebar collapses, replaced by NavPills */}
+      <h1 className={cn("min-w-0 truncate text-base font-bold text-foreground sm:text-lg", sidebarCollapsed && "lg:hidden")}>
         {breadcrumb[breadcrumb.length - 1] ?? "Dashboard"}
       </h1>
+
+      {sidebarCollapsed && <NavPills />}
 
       <div className="flex-1" />
 
