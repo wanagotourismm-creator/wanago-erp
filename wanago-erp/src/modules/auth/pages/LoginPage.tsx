@@ -26,7 +26,9 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.45 }}
         >
-          We know, you wanna go.
+          We know
+          <br />
+          you wanna go
         </motion.p>
 
         {/* Login card — slides up last */}
