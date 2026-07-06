@@ -10,11 +10,11 @@ class AttendanceRepository extends BaseRepository<AttendanceRecord> {
 }
 const repo = new AttendanceRepository();
 
-function calcHours(clockIn?: string, clockOut?: string): number | null {
+function calcHours(clockIn?: string, clockOut?: string, breakMinutes = 0): number | null {
   if (!clockIn || !clockOut) return null;
   const [inH, inM] = clockIn.split(":").map(Number);
   const [outH, outM] = clockOut.split(":").map(Number);
-  const minutes = (outH * 60 + outM) - (inH * 60 + inM);
+  const minutes = (outH * 60 + outM) - (inH * 60 + inM) - breakMinutes;
   if (minutes <= 0) return null;
   return Math.round((minutes / 60) * 100) / 100;
 }
@@ -57,7 +57,7 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
     ...data,
     clockIn:     data.clockIn || null,
     clockOut:    data.clockOut || null,
-    hoursWorked: calcHours(data.clockIn, data.clockOut),
+    hoursWorked: calcHours(data.clockIn, data.clockOut, data.breakMinutes ?? 0),
     notes:       data.notes || null,
     breakStartTime: data.breakStartTime || null,
     breakMinutes:   data.breakMinutes ?? 0,
@@ -72,12 +72,13 @@ export async function updateAttendanceRecord(id: string, data: Partial<Attendanc
   const patch: Partial<AttendanceRecord> = { ...data };
   if (data.clockIn !== undefined) patch.clockIn = data.clockIn || null;
   if (data.clockOut !== undefined) patch.clockOut = data.clockOut || null;
-  if (data.clockIn !== undefined || data.clockOut !== undefined) {
+  if (data.clockIn !== undefined || data.clockOut !== undefined || data.breakMinutes !== undefined) {
     const existing = await repo.findById(id);
     if (existing) {
       const clockIn  = data.clockIn  !== undefined ? data.clockIn  : (existing.clockIn ?? undefined);
       const clockOut = data.clockOut !== undefined ? data.clockOut : (existing.clockOut ?? undefined);
-      patch.hoursWorked = calcHours(clockIn ?? undefined, clockOut ?? undefined);
+      const breakMinutes = data.breakMinutes !== undefined ? data.breakMinutes : (existing.breakMinutes ?? 0);
+      patch.hoursWorked = calcHours(clockIn ?? undefined, clockOut ?? undefined, breakMinutes);
     }
   }
   if (data.notes !== undefined) patch.notes = data.notes || null;

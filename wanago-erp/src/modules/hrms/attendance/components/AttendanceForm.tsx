@@ -113,8 +113,8 @@ export function AttendanceForm({ open, record, onClose, onSubmit, error }: Props
 
           {(status === "present" || status === "half_day" || status === "wfh") && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Clock In"><input className={inp} type="time" {...register("clockIn")} /></Field>
-              <Field label="Clock Out"><input className={inp} type="time" {...register("clockOut")} /></Field>
+              <Field label="Check In"><input className={inp} type="time" {...register("clockIn")} /></Field>
+              <Field label="Check Out"><input className={inp} type="time" {...register("clockOut")} /></Field>
             </div>
           )}
 

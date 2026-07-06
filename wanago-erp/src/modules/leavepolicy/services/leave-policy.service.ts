@@ -2,7 +2,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 
-export type LeaveTypeKey = "casual" | "sick" | "earned" | "emergency" | "wfh";
+export type LeaveTypeKey = "casual" | "sick" | "earned" | "emergency" | "wfh" | "loss_of_pay";
 
 export type LeaveTypePolicy = { enabled: boolean; annualDays: number };
 
@@ -13,23 +13,27 @@ export type LeavePolicy = {
 
 const DOC_ID = "leavePolicy";
 
-export const LEAVE_TYPE_ORDER: LeaveTypeKey[] = ["casual", "sick", "earned", "emergency", "wfh"];
+export const LEAVE_TYPE_ORDER: LeaveTypeKey[] = ["casual", "sick", "earned", "emergency", "wfh", "loss_of_pay"];
 
 export const LEAVE_TYPE_LABELS: Record<LeaveTypeKey, string> = {
   casual: "Casual Leave", sick: "Sick Leave", earned: "Earned Leave", emergency: "Emergency Leave", wfh: "Work From Home",
+  loss_of_pay: "Loss of Pay",
 };
 
 export const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// Casual + Sick enabled by default; everything else off until an admin
-// turns it on. Sunday is the default weekly off day.
+// Casual + Sick + Loss of Pay enabled by default; everything else off until
+// an admin turns it on. Sunday is the default weekly off day. Loss of Pay
+// has no real entitlement cap (it's unpaid leave, not an accrued balance) —
+// 365 just keeps it from ever reading as "exhausted".
 export const DEFAULT_LEAVE_POLICY: LeavePolicy = {
   leaveTypes: {
-    casual:    { enabled: true,  annualDays: 12 },
-    sick:      { enabled: true,  annualDays: 12 },
-    earned:    { enabled: false, annualDays: 15 },
-    emergency: { enabled: false, annualDays: 5 },
-    wfh:       { enabled: false, annualDays: 12 },
+    casual:      { enabled: true,  annualDays: 12 },
+    sick:        { enabled: true,  annualDays: 12 },
+    earned:      { enabled: false, annualDays: 15 },
+    emergency:   { enabled: false, annualDays: 5 },
+    wfh:         { enabled: false, annualDays: 12 },
+    loss_of_pay: { enabled: true,  annualDays: 365 },
   },
   weeklyOffDays: [0],
 };

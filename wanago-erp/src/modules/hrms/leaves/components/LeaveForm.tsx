@@ -100,6 +100,7 @@ export function LeaveForm({ open, leave, onClose, onSubmit }: Props) {
               <option value="earned">Earned</option>
               <option value="emergency">Emergency</option>
               <option value="wfh">Work From Home</option>
+              <option value="loss_of_pay">Loss of Pay</option>
             </select>
           </Field>
 

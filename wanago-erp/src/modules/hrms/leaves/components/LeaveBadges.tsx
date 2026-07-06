@@ -8,15 +8,16 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const TYPE_STYLES: Record<string, string> = {
-  casual:    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  sick:      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  earned:    "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  emergency: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  wfh:       "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
+  casual:      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  sick:        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  earned:      "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  emergency:   "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  wfh:         "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
+  loss_of_pay: "bg-slate-200 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300",
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  casual: "Casual", sick: "Sick", earned: "Earned", emergency: "Emergency", wfh: "WFH",
+  casual: "Casual", sick: "Sick", earned: "Earned", emergency: "Emergency", wfh: "WFH", loss_of_pay: "Loss of Pay",
 };
 
 export function LeaveStatusBadge({ status }: { status: string }) {

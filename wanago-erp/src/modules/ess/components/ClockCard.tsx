@@ -57,18 +57,18 @@ export function ClockCard({
       {todayRecord?.withinGeofence === false && (
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           <MapPinOff size={13} className="flex-shrink-0" />
-          Clocked in outside the office location
+          Checked in outside the office location
         </div>
       )}
 
       <div className="rounded-2xl border border-border bg-muted/30 p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-xs text-muted-foreground">Clock In</p>
+            <p className="text-xs text-muted-foreground">Check In</p>
             <p className="text-lg font-bold text-foreground">{todayRecord?.clockIn || "—"}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">Clock Out</p>
+            <p className="text-xs text-muted-foreground">Check Out</p>
             <p className="text-lg font-bold text-foreground">{todayRecord?.clockOut || "—"}</p>
           </div>
         </div>
@@ -106,14 +106,14 @@ export function ClockCard({
               title={isOnBreak ? "End your break first" : undefined}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-sm font-semibold text-white hover:bg-destructive/90 disabled:opacity-60 transition-colors shadow-sm">
               {busy ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
-              Clock Out
+              Check Out
             </button>
           </div>
         ) : (
           <button onClick={() => handle(onClockIn)} disabled={busy}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm">
             {busy ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />}
-            Clock In
+            Check In
           </button>
         )}
       </div>

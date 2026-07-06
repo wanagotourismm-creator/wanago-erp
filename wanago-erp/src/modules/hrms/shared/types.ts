@@ -78,7 +78,7 @@ export type PayrollRecord = FirestoreRecord & {
 export type LeaveRequest = FirestoreRecord & {
   employeeId: string;
   employeeName: string;
-  leaveType: "casual" | "sick" | "earned" | "emergency" | "wfh";
+  leaveType: "casual" | "sick" | "earned" | "emergency" | "wfh" | "loss_of_pay";
   fromDate: string;
   toDate: string;
   reason: string;

@@ -62,8 +62,8 @@ export function AttendanceDetailModal({ record, onClose, onEdit, onDelete }: Pro
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Timing</p>
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
-              <Row label="Clock In" value={record.clockIn} />
-              <Row label="Clock Out" value={record.clockOut} />
+              <Row label="Check In" value={record.clockIn} />
+              <Row label="Check Out" value={record.clockOut} />
               <Row label="Break Start" value={record.breakStartTime} />
               <Row label="Break Minutes" value={record.breakMinutes} />
               <Row label="Hours Worked" value={record.hoursWorked} />
@@ -77,8 +77,8 @@ export function AttendanceDetailModal({ record, onClose, onEdit, onDelete }: Pro
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
               <Row label="Within Geofence" value={record.withinGeofence === null ? null : record.withinGeofence ? "Yes" : "No"} />
-              <Row label="Clock In Lat" value={record.clockInLat} />
-              <Row label="Clock In Lng" value={record.clockInLng} />
+              <Row label="Check In Lat" value={record.clockInLat} />
+              <Row label="Check In Lng" value={record.clockInLng} />
             </div>
           </div>
 

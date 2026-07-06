@@ -71,8 +71,8 @@ export function RequestCorrectionForm({ open, date, onClose, onSubmit }: Props) 
           <Field label="Date *" error={errors.date?.message}><input className={inp} type="date" {...register("date")} /></Field>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Correct Clock In"><input className={inp} type="time" {...register("requestedClockIn")} /></Field>
-            <Field label="Correct Clock Out"><input className={inp} type="time" {...register("requestedClockOut")} /></Field>
+            <Field label="Correct Check In"><input className={inp} type="time" {...register("requestedClockIn")} /></Field>
+            <Field label="Correct Check Out"><input className={inp} type="time" {...register("requestedClockOut")} /></Field>
           </div>
 
           <Field label="Reason *" error={errors.reason?.message}>

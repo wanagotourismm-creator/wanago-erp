@@ -4,7 +4,7 @@ export const leaveRequestSchema = z
   .object({
     employeeId:   z.string().min(1, "Employee is required"),
     employeeName: z.string().min(1),
-    leaveType:    z.enum(["casual", "sick", "earned", "emergency", "wfh"]),
+    leaveType:    z.enum(["casual", "sick", "earned", "emergency", "wfh", "loss_of_pay"]),
     fromDate:     z.string().min(1, "From date is required"),
     toDate:       z.string().min(1, "To date is required"),
     reason:       z.string().min(3, "Reason is required"),

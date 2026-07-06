@@ -47,11 +47,11 @@ async function loadReportData(key: ReportKey): Promise<{ columns: string[]; rows
     case "attendance": {
       const data = await fetchAttendanceRecords();
       return {
-        columns: ["Employee", "Date", "Status", "Clock In", "Clock Out", "Hours"],
+        columns: ["Employee", "Date", "Status", "Check In", "Check Out", "Hours"],
         dateField: "Date",
         rows: data.map(a => ({
           Employee: a.employeeName, Date: formatDate(a.date), Status: a.status,
-          "Clock In": a.clockIn ?? "—", "Clock Out": a.clockOut ?? "—", Hours: a.hoursWorked ?? "—",
+          "Check In": a.clockIn ?? "—", "Check Out": a.clockOut ?? "—", Hours: a.hoursWorked ?? "—",
         })),
       };
     }

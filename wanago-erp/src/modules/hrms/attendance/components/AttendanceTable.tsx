@@ -25,7 +25,7 @@ export function AttendanceTable({ records, loading, onView, onEdit, onDelete }: 
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              {["Employee","Date","Status","Clock In","Clock Out","Hours","Notes",""].map(h => (
+              {["Employee","Date","Status","Check In","Check Out","Hours","Notes",""].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
               ))}
             </tr>
