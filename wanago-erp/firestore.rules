@@ -185,9 +185,15 @@ service cloud.firestore {
     }
 
     // ── All other collections ─────────────────────────────────
+    // create/update validate the standard fields; delete has no
+    // incoming request.resource to validate, so hasRequiredFields()
+    // must never gate it (it errors on a null request.resource,
+    // which silently denies every delete under this rule).
     match /{collection}/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && hasRequiredFields();
+      allow read:   if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated() && hasRequiredFields();
+      allow delete: if isAuthenticated();
     }
   }
 }

@@ -18,7 +18,7 @@ import {
   type QueryConstraint,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { db, auth } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import type { FirestoreRecord } from "@/types/global";
 
@@ -99,11 +99,18 @@ export class BaseRepository<T extends FirestoreRecord> {
     if (this.collectionName !== FIRESTORE_COLLECTIONS.TRASH) {
       const snap = await getDoc(this.docRef(id));
       if (snap.exists()) {
+        // The generic Firestore rule validates create/update writes via
+        // hasRequiredFields() — this trash copy needs those same fields
+        // or it gets silently rejected, leaving the original undeleted.
         await addDoc(collection(db, FIRESTORE_COLLECTIONS.TRASH), {
           collectionName: this.collectionName,
           originalId:     snap.id,
           data:           snap.data(),
           deletedAt:      serverTimestamp(),
+          createdAt:      serverTimestamp(),
+          updatedAt:      serverTimestamp(),
+          createdBy:      auth.currentUser?.uid ?? "system",
+          status:         "trashed",
         });
       }
     }
