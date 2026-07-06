@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { LoginBackdrop } from "@/modules/auth/components/LoginBackdrop";
 import { LoginForm } from "@/modules/auth/components/LoginForm";
@@ -16,23 +15,6 @@ export default function LoginPage() {
   return (
     <LoginBackdrop>
       <div className="w-full max-w-sm">
-
-        {/* Logo — fades and scales in first */}
-        <motion.div
-          className="relative mx-auto mb-5 h-11 w-48"
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-        >
-          <Image
-            src="/images/logo-white-clean.png"
-            alt="Wanago"
-            fill
-            className="object-contain"
-            priority
-            sizes="192px"
-          />
-        </motion.div>
 
         {/* Warm welcome line */}
         <motion.p
