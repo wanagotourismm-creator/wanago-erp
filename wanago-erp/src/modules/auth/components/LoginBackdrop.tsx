@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { Fraunces } from "next/font/google";
 import { motion } from "framer-motion";
 import { Plane, TreePalm, Compass, Mountain, Sunset, Sailboat } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
+
+// Warm display serif, scoped to the login screen only.
+const fraunces = Fraunces({ subsets: ["latin"], weight: ["500", "600"], style: ["italic"], display: "swap" });
 
 type FloatingIcon = {
   Icon: typeof Plane;
@@ -147,7 +151,7 @@ export function LoginBackdrop({ children }: { children: React.ReactNode }) {
 
       {/* Logo — top-left */}
       <motion.div
-        className="absolute left-5 top-5 z-20 h-12 w-52 sm:left-8 sm:top-7 sm:h-14 sm:w-64"
+        className="absolute left-5 top-5 z-20 h-16 w-64 sm:left-8 sm:top-7 sm:h-24 sm:w-96 lg:h-28 lg:w-[27rem]"
         initial={{ opacity: 0, x: -16 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
@@ -158,7 +162,7 @@ export function LoginBackdrop({ children }: { children: React.ReactNode }) {
           fill
           className="object-contain object-left"
           priority
-          sizes="256px"
+          sizes="432px"
         />
       </motion.div>
 
@@ -173,9 +177,42 @@ export function LoginBackdrop({ children }: { children: React.ReactNode }) {
         <p className="text-[11px] text-white/60 sm:text-xs">{date}</p>
       </motion.div>
 
-      {/* Foreground content — centered on mobile, shifted to the right on
-          larger screens so the scene stays visible on the left */}
-      <div className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center px-4 py-24 lg:items-end lg:justify-center lg:px-12 lg:py-0 xl:px-24">
+      {/* Foreground content — centered on mobile; on larger screens a left
+          showcase panel balances the sign-in card on the right */}
+      <div className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center gap-10 px-4 py-24 lg:flex-row lg:items-center lg:justify-between lg:px-14 lg:py-0 xl:px-24">
+
+        {/* Left showcase — desktop only, fills the space beside the card */}
+        <motion.div
+          className="hidden max-w-md lg:block"
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60">
+            Since 2022 · Wayanad, Kerala
+          </p>
+          <p
+            className={cn(fraunces.className, "mt-5 text-4xl italic leading-tight text-white xl:text-5xl")}
+            style={{ textShadow: "0 2px 16px rgba(0,0,0,0.3)" }}
+          >
+            Every journey
+            <br />
+            begins with
+            <br />
+            a dream.
+          </p>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            {["100+ Packages", "5 Founders", "Pan-India Trips"].map((stat) => (
+              <span
+                key={stat}
+                className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/85 backdrop-blur-sm"
+              >
+                {stat}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+
         {children}
       </div>
     </div>
