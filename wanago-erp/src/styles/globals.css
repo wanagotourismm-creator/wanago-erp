@@ -124,11 +124,26 @@
   .ring-theme {
     box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
   }
+
+  /* Login screen — slow sunrise/sunset-to-forest gradient (brand green +
+     warm gold), used only on the login page's backdrop. background-position
+     is a paint-only property (no layout reflow), kept intentionally slow. */
+  .travel-gradient-bg {
+    background: linear-gradient(120deg,
+      #0a2518 0%, #134a32 22%, #228050 45%, #c9a84c 68%, #e0904f 85%, #134a32 100%);
+    background-size: 300% 300%;
+    animation: travelGradientShift 30s ease-in-out infinite;
+  }
 }
 
 @keyframes shimmer {
   0%   { background-position: -1000px 0; }
   100% { background-position:  1000px 0; }
+}
+@keyframes travelGradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }

@@ -30,6 +30,7 @@
     "date-fns": "^4.1.0",
     "firebase": "^11.0.0",
     "firebase-admin": "^13.10.0",
+    "framer-motion": "^12.42.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.454.0",
