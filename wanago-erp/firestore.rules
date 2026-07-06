@@ -89,6 +89,32 @@ service cloud.firestore {
                       getUserRole() in ['super_admin','admin','finance'];
     }
 
+    // ── Operations (packages, suppliers, itineraries) ────────
+    match /packages/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','operations','sales'];
+    }
+
+    match /suppliers/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','operations'];
+    }
+
+    match /itineraries/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','operations','sales'];
+    }
+
+    // ── Marketing ─────────────────────────────────────────────
+    match /campaigns/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','marketing'];
+    }
+
     // ── HRMS ─────────────────────────────────────────────────
     match /hrmsEmployees/{id} {
       allow read: if isAuthenticated();

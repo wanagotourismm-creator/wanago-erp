@@ -1,0 +1,273 @@
+"use client";
+
+import { useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { X, Loader2, MapPin, CalendarDays, StickyNote, Plus, Trash2 } from "lucide-react";
+import { itinerarySchema, type ItinerarySchema } from "@/modules/itineraries/schemas";
+import { useAuthStore } from "@/store/auth.store";
+import { cn } from "@/lib/utils/helpers";
+import type { Itinerary } from "@/modules/itineraries/types";
+
+type Props = {
+  open:       boolean;
+  itinerary?: Itinerary | null;
+  onClose:    () => void;
+  onSubmit:   (data: ItinerarySchema) => Promise<void>;
+};
+
+function Field({ label, error, required, children }: {
+  label: string; error?: string; required?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+        {required && <span className="text-destructive">*</span>}
+      </label>
+      {children}
+      {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+    </div>
+  );
+}
+
+const inputClass = cn(
+  "w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-all",
+  "placeholder:text-muted-foreground/60",
+  "hover:border-primary/40",
+  "focus:border-primary focus:ring-0",
+  "[&:focus]:shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
+);
+
+export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
+  const { user } = useAuthStore();
+
+  const {
+    register, handleSubmit, reset, control,
+    formState: { errors, isSubmitting },
+  } = useForm<ItinerarySchema>({
+    resolver: zodResolver(itinerarySchema),
+    defaultValues: {
+      durationDays:    1,
+      itineraryStatus: "draft",
+      days:            [],
+      officeId:        user?.officeId   ?? "main",
+      officeName:      user?.officeName ?? "Head Office",
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: "days" });
+
+  useEffect(() => {
+    if (open) {
+      if (itinerary) {
+        reset({
+          ...itinerary,
+          packageName: itinerary.packageName ?? "",
+          notes:       itinerary.notes       ?? "",
+        });
+      } else {
+        reset({
+          durationDays:    1,
+          itineraryStatus: "draft",
+          days:            [],
+          officeId:        user?.officeId   ?? "main",
+          officeName:      user?.officeName ?? "Head Office",
+        });
+      }
+    }
+  }, [open, itinerary, reset, user]);
+
+  function handleAddDay() {
+    append({ dayNumber: fields.length + 1, title: "", description: "" });
+  }
+
+  function handleRemoveDay(index: number) {
+    remove(index);
+  }
+
+  // dayNumber always tracks the row's position, regardless of add/remove
+  // order — the user never edits it directly, so it's recomputed at submit
+  // time rather than kept in sync via a hidden, registered input.
+  function handleFormSubmit(data: ItinerarySchema) {
+    return onSubmit({
+      ...data,
+      days: data.days.map((d, i) => ({ ...d, dayNumber: i + 1 })),
+    });
+  }
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="modal-enter relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+              <MapPin size={16} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">
+                {itinerary ? "Edit Itinerary" : "Add New Itinerary"}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {itinerary ? `Editing ${itinerary.refNumber}` : "Plan out the trip day by day"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
+
+          {/* ── Trip Details ── */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin size={14} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Trip Details</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="col-span-2">
+                <Field label="Title" required error={errors.title?.message}>
+                  <input className={inputClass} placeholder="e.g. Bali Honeymoon Escape" {...register("title")} />
+                </Field>
+              </div>
+              <Field label="Destination" required error={errors.destination?.message}>
+                <input className={inputClass} placeholder="e.g. Bali, Indonesia" {...register("destination")} />
+              </Field>
+              <Field label="Duration (days)" required error={errors.durationDays?.message}>
+                <input className={inputClass} type="number" min={1} placeholder="5" {...register("durationDays")} />
+              </Field>
+              <Field label="Package" error={errors.packageName?.message}>
+                <input className={inputClass} placeholder="e.g. Bali Bliss 5N/6D" {...register("packageName")} />
+              </Field>
+              <Field label="Status" error={errors.itineraryStatus?.message}>
+                <select className={inputClass} {...register("itineraryStatus")}>
+                  <option value="draft">Draft</option>
+                  <option value="confirmed">Confirmed</option>
+                </select>
+              </Field>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border" />
+
+          {/* ── Day-by-day plan ── */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <CalendarDays size={14} className="text-primary" />
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Day-by-Day Plan</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddDay}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+              >
+                <Plus size={13} /> Add Day
+              </button>
+            </div>
+
+            {fields.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+                No days added yet — click &quot;Add Day&quot; to start building the plan
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="rounded-xl border border-border p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex-shrink-0 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                        Day {index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDay(index)}
+                        title="Remove day"
+                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    <Field label="Title" error={errors.days?.[index]?.title?.message}>
+                      <input className={inputClass} placeholder="e.g. Arrival & Beach Relaxation" {...register(`days.${index}.title`)} />
+                    </Field>
+                    <Field label="Description" error={errors.days?.[index]?.description?.message}>
+                      <textarea
+                        rows={2}
+                        placeholder="Describe the day's plan..."
+                        {...register(`days.${index}.description`)}
+                        className={cn(inputClass, "resize-none")}
+                      />
+                    </Field>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border" />
+
+          {/* ── Notes ── */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <StickyNote size={14} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Notes</p>
+            </div>
+            <Field label="Additional Notes" error={errors.notes?.message}>
+              <textarea
+                rows={3}
+                placeholder="Any special requirements, preferences, or notes..."
+                {...register("notes")}
+                className={cn(inputClass, "resize-none")}
+              />
+            </Field>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-primary/15 bg-muted/30 px-6 py-4">
+          <p className="text-xs text-muted-foreground">
+            {itinerary ? "Changes will be saved immediately" : "Itinerary will be added to your list"}
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit(handleFormSubmit)}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm"
+            >
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              {itinerary ? "Save Changes" : "Add Itinerary"}
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

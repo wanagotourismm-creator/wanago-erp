@@ -8,6 +8,7 @@ export type Booking = Omit<FirestoreRecord, "status"> & {
 
   destination:   string;
   tripType:      string;
+  packageId:     string | null;
   packageName:   string | null;
   travelDate:    string | null;
   returnDate:    string | null;

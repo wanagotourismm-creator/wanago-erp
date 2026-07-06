@@ -142,10 +142,9 @@ export const NAV_CONFIG: NavGroup[] = [
         roles: ["super_admin","admin"],
       },
       {
-        label: "Settings",
+        label: "My Account",
         href:  "/settings",
         icon:  "settings",
-        roles: ["super_admin","admin"],
       },
     ],
   },

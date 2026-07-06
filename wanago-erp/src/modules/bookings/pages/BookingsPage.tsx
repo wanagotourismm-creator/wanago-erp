@@ -53,6 +53,7 @@ export function BookingsPage() {
   async function handleSubmit(data: BookingSchema) {
     const payload = {
       ...data,
+      packageId:   data.packageId   || null,
       packageName: data.packageName || null,
       travelDate:  data.travelDate  || null,
       returnDate:  data.returnDate  || null,

@@ -56,12 +56,12 @@ export const PERMISSION_MAP: PermissionMap = {
 export const PAGE_ACCESS: PageAccess = {
   super_admin: ["*"],
   admin:       ["*"],
-  operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers"],
-  finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll"],
-  marketing:   ["dashboard", "ess", "leads", "customers", "marketing", "reports"],
-  hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports"],
-  sales:       ["dashboard", "ess", "leads", "customers", "bookings", "packages"],
-  support:     ["dashboard", "ess", "leads", "customers", "bookings"],
+  operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "settings"],
+  finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "settings"],
+  marketing:   ["dashboard", "ess", "leads", "customers", "marketing", "reports", "campaigns", "settings"],
+  hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "settings"],
+  sales:       ["dashboard", "ess", "leads", "customers", "bookings", "packages", "itineraries", "settings"],
+  support:     ["dashboard", "ess", "leads", "customers", "bookings", "settings"],
 };
 
 // ── Dynamic permission overrides ─────────────────────────────

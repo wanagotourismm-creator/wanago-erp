@@ -1,0 +1,66 @@
+import { where, type QueryConstraint } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/lib/firebase/client";
+import { expenseRepository } from "@/modules/expenses/services/expense.repository";
+import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import type { Expense, ExpenseFormData } from "@/modules/expenses/types";
+
+// Note: sorted client-side (not via Firestore orderBy) so filtered
+// queries only need single-field indexes, which Firestore creates
+// automatically — no manual composite index deployment required.
+export async function fetchExpenses(filters?: {
+  officeId?: string;
+}): Promise<Expense[]> {
+  const constraints: QueryConstraint[] = [];
+  if (filters?.officeId) constraints.push(where("officeId", "==", filters.officeId));
+  const expenses = await expenseRepository.findMany({ constraints });
+  return expenses.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
+}
+
+export async function fetchExpenseById(id: string): Promise<Expense | null> {
+  return expenseRepository.findById(id);
+}
+
+export async function createExpense(
+  data: ExpenseFormData,
+  createdBy: string
+): Promise<Expense> {
+  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.EXPENSES));
+  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
+  const refNumber = generateRefNumber("EXPENSE", ids);
+
+  return expenseRepository.create({
+    ...data,
+    refNumber,
+    createdBy,
+    status:        "active",
+    expenseStatus: data.expenseStatus || "pending",
+    vendor:        data.vendor || null,
+    notes:         data.notes  || null,
+    receiptUrl:    null,
+  });
+}
+
+export async function updateExpense(
+  id: string,
+  data: Partial<ExpenseFormData>
+): Promise<void> {
+  const patch: Partial<Expense> = { ...data };
+  if (data.vendor !== undefined) patch.vendor = data.vendor || null;
+  if (data.notes  !== undefined) patch.notes  = data.notes  || null;
+  return expenseRepository.update(id, patch);
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  return expenseRepository.delete(id);
+}
+
+export async function uploadReceipt(expenseId: string, file: File): Promise<string> {
+  const storageRef = ref(storage, `expenses/${expenseId}/receipt-${Date.now()}-${file.name}`);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  await expenseRepository.update(expenseId, { receiptUrl: url } as Partial<Expense>);
+  return url;
+}

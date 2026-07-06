@@ -1,18 +1,8 @@
 import type { Metadata } from "next";
+import { ItinerariesPage } from "@/modules/itineraries/pages/ItinerariesPage";
 
-export const metadata: Metadata = {
-  title: "Itineraries",
-};
+export const metadata: Metadata = { title: "Itineraries" };
 
 export default function Page() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <div className="max-w-xl rounded-3xl border border-muted/20 bg-card p-10 text-center shadow-sm">
-        <h1 className="text-3xl font-semibold">Itineraries</h1>
-        <p className="mt-4 text-base text-muted-foreground">
-          This page is currently a placeholder. The Itineraries section will be implemented here.
-        </p>
-      </div>
-    </div>
-  );
+  return <ItinerariesPage />;
 }

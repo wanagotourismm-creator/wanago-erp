@@ -7,6 +7,7 @@ export const bookingSchema = z.object({
 
   destination:   z.string().min(2, "Destination is required"),
   tripType:      z.string().min(1, "Trip type is required"),
+  packageId:     z.string().optional().or(z.literal("")),
   packageName:   z.string().optional().or(z.literal("")),
   travelDate:    z.string().optional().or(z.literal("")),
   returnDate:    z.string().optional().or(z.literal("")),

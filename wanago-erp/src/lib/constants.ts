@@ -201,6 +201,11 @@ export const REF_FORMATS = {
   REVIEW:    "REV",
   TRAINING:  "TRN",
   TICKET:    "TKT",
+  PACKAGE:   "PKG",
+  SUPPLIER:  "SUP",
+  ITINERARY: "ITN",
+  CAMPAIGN:  "CAM",
+  EXPENSE:   "EXP",
 } as const;
 
 // Recruitment pipeline stages, in order

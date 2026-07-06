@@ -6,10 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, User, MapPin, Wallet, StickyNote } from "lucide-react";
 import { bookingSchema, type BookingSchema } from "@/modules/bookings/schemas";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
+import { fetchPackages } from "@/modules/packages/services/package.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import { TRIP_TYPES } from "@/lib/constants";
 import type { Customer } from "@/modules/customers/types";
+import type { Package } from "@/modules/packages/types";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
@@ -45,6 +47,7 @@ const inputClass = cn(
 export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [packages,  setPackages]  = useState<Package[]>([]);
 
   const {
     register, handleSubmit, reset, watch, setValue,
@@ -63,6 +66,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
   useEffect(() => {
     if (!open) return;
     fetchCustomers().then(setCustomers).catch(() => {});
+    fetchPackages().then(setPackages).catch(() => {});
   }, [open]);
 
   useEffect(() => {
@@ -70,6 +74,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
       if (booking) {
         reset({
           ...booking,
+          packageId:   booking.packageId   ?? "",
           packageName: booking.packageName ?? "",
           travelDate:  booking.travelDate  ?? "",
           returnDate:  booking.returnDate  ?? "",
@@ -94,6 +99,14 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
     setValue("customerId", id);
     setValue("customerName", c?.fullName ?? "");
     setValue("customerPhone", c?.phone ?? "");
+  }
+
+  const selectedPackageId = watch("packageId");
+
+  function handlePackageChange(id: string) {
+    const p = packages.find(p => p.id === id);
+    setValue("packageId", id);
+    setValue("packageName", p?.title ?? "");
   }
 
   if (!open) return null;
@@ -176,8 +189,17 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
                   ))}
                 </select>
               </Field>
-              <Field label="Package Name" error={errors.packageName?.message}>
-                <input className={inputClass} placeholder="e.g. Maldives Honeymoon Special" {...register("packageName")} />
+              <Field label="Package" error={errors.packageId?.message}>
+                <select
+                  className={inputClass}
+                  value={selectedPackageId ?? ""}
+                  onChange={(e) => handlePackageChange(e.target.value)}
+                >
+                  <option value="">No package</option>
+                  {packages.map(p => (
+                    <option key={p.id} value={p.id}>{p.title} — {p.destination}</option>
+                  ))}
+                </select>
               </Field>
               <Field label="Travel Date" error={errors.travelDate?.message}>
                 <input className={inputClass} type="date" {...register("travelDate")} />

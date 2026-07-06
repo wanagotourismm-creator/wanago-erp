@@ -38,6 +38,7 @@ export async function createBooking(
     createdBy,
     status:        BOOKING_STATUS.PENDING_FINANCE,
     balanceAmount: data.totalAmount - data.advanceAmount,
+    packageId:     data.packageId   || null,
     packageName:   data.packageName || null,
     travelDate:    data.travelDate  || null,
     returnDate:    data.returnDate  || null,
