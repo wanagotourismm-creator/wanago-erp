@@ -19,6 +19,7 @@ import { InboxCard } from "@/modules/ess/components/InboxCard";
 import { HolidaysCard } from "@/modules/ess/components/HolidaysCard";
 import { LeaveBalanceChips } from "@/modules/ess/components/LeaveBalanceChips";
 import { AttendanceCalendar } from "@/modules/ess/components/AttendanceCalendar";
+import { AttendanceMonthSummary } from "@/modules/ess/components/AttendanceMonthSummary";
 import { MyCorrectionsList } from "@/modules/ess/components/MyCorrectionsList";
 import { MyPayslipsList } from "@/modules/ess/components/MyPayslipsList";
 import { MyActivityList } from "@/modules/ess/components/MyActivityList";
@@ -244,7 +245,7 @@ export function EssPage() {
         {section === "approvals" && isManager && <InboxCard items={teamInbox} onDecide={decideInboxItem} />}
 
         {section === "attendance" && (
-          <div className="space-y-5">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
             <AttendanceCalendar
               attendance={attendance}
               leaves={leaves}
@@ -252,7 +253,14 @@ export function EssPage() {
               weeklyOffDays={leavePolicy.weeklyOffDays}
               onRequestCorrection={(date) => { setCorrectionDate(date); setCorrectionOpen(true); }}
             />
-            <MyCorrectionsList regularizations={regularizations} />
+            <div className="min-w-0 flex-1 space-y-5">
+              <AttendanceMonthSummary attendance={attendance} leaves={leaves} holidays={holidays} />
+              {regularizations.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <MyCorrectionsList regularizations={regularizations} />
+                </div>
+              )}
+            </div>
           </div>
         )}
 

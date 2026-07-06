@@ -70,7 +70,7 @@ export function AttendanceCalendar({ attendance, leaves, holidays, weeklyOffDays
   const presentCount = attendance.filter((a) => a.date.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`) && a.status === "present").length;
 
   return (
-    <div className="fluid-card max-w-lg rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <div className="fluid-card w-full rounded-2xl border border-border bg-card p-5 shadow-sm lg:max-w-lg lg:flex-shrink-0">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
