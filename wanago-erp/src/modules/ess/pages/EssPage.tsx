@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutGrid, Users2, Inbox, Clock, CalendarDays, Laptop, LifeBuoy, Wallet, Activity, Sparkles,
-  CalendarPlus, PencilLine, Gauge, ArrowRight, UserCircle,
+  CalendarPlus, PencilLine, Gauge, ArrowRight, UserCircle, CheckCircle2, CalendarCheck,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useEss } from "@/modules/ess/hooks/useEss";
 import { useTeamRoster } from "@/modules/ess/hooks/useTeamRoster";
 import { HrShell, type HrNavGroup } from "@/modules/ess/components/HrShell";
+import { HrStatCard } from "@/modules/hrms/overview/components/HrStatCard";
 import { ClockCard } from "@/modules/ess/components/ClockCard";
 import { MyLeavesList } from "@/modules/ess/components/MyLeavesList";
 import { ApplyLeaveForm } from "@/modules/ess/components/ApplyLeaveForm";
@@ -53,6 +54,22 @@ export function EssPage() {
   const [correctionDate, setCorrectionDate] = useState<string | null>(null);
   const [assetRequestOpen, setAssetRequestOpen] = useState(false);
   const [reportIssueOpen, setReportIssueOpen] = useState(false);
+
+  const personalStats = useMemo(() => {
+    const monthPrefix = new Date().toISOString().slice(0, 7);
+    const thisMonthRecords = attendance.filter((a) => a.date.startsWith(monthPrefix));
+    const presentThisMonth = thisMonthRecords.filter((a) => a.status === "present" || a.status === "half_day" || a.status === "wfh").length;
+    const attendancePct = thisMonthRecords.length === 0 ? null : Math.round((presentThisMonth / thisMonthRecords.length) * 100);
+
+    const leaveBalanceRemaining = leaveBalances.reduce((sum, b) => sum + b.remaining, 0);
+    const myPendingRequests =
+      leaves.filter((l) => l.status === "pending").length +
+      regularizations.filter((r) => r.regularizationStatus === "pending").length +
+      assetRequests.filter((r) => r.requestStatus === "pending").length;
+    const openTickets = myTickets.filter((t) => t.ticketStatus === "open" || t.ticketStatus === "in_progress").length;
+
+    return { attendancePct, leaveBalanceRemaining, myPendingRequests, openTickets };
+  }, [attendance, leaveBalances, leaves, regularizations, assetRequests, myTickets]);
 
   if (loading) {
     return (
@@ -124,6 +141,37 @@ export function EssPage() {
                   {a.label}
                 </button>
               ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <HrStatCard
+                label="Attendance This Month"
+                value={personalStats.attendancePct === null ? "—" : `${personalStats.attendancePct}%`}
+                icon={CheckCircle2}
+              />
+              <HrStatCard
+                label="Leave Balance"
+                value={personalStats.leaveBalanceRemaining}
+                icon={CalendarCheck}
+              />
+              <HrStatCard
+                label="My Pending Requests"
+                value={personalStats.myPendingRequests}
+                icon={Inbox}
+              />
+              {isManager ? (
+                <HrStatCard
+                  label="Team Approvals"
+                  value={teamInbox.length}
+                  icon={Users2}
+                />
+              ) : (
+                <HrStatCard
+                  label="Open Tickets"
+                  value={personalStats.openTickets}
+                  icon={LifeBuoy}
+                />
+              )}
             </div>
 
             {isManager && (
