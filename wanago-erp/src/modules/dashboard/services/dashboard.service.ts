@@ -64,6 +64,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       overdueInvoices,
       newLeads,
       followUpPending,
+      totalLeads: leads.length,
     };
   } catch {
     return {
@@ -74,6 +75,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       overdueInvoices:   0,
       newLeads:          0,
       followUpPending:   0,
+      totalLeads:        0,
     };
   }
 }

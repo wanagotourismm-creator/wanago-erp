@@ -1,9 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useClock } from "@/modules/dashboard/hooks/useDashboard";
 import { useAuthStore } from "@/store/auth.store";
-import { Button } from "@/components/ui/Button";
-import { Plus, Download } from "lucide-react";
+import { Plus } from "lucide-react";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -23,6 +23,7 @@ type Props = { newLeads: number; followUpCount: number };
 
 export function GreetingBanner({ newLeads, followUpCount }: Props) {
   const { user } = useAuthStore();
+  const router   = useRouter();
   const clock    = useClock();
   const name     = user?.displayName ?? "there";
   const quote    = QUOTES[new Date().getDay() % QUOTES.length];
@@ -74,11 +75,10 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition-colors">
-              <Download size={13} />
-              Import Data
-            </button>
-            <button className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-primary hover:bg-white/90 transition-colors shadow-sm">
+            <button
+              onClick={() => router.push("/leads?new=1")}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-primary hover:bg-white/90 transition-colors shadow-sm"
+            >
               <Plus size={13} />
               Add Lead
             </button>

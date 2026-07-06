@@ -6,6 +6,7 @@ export type DashboardStats = {
   overdueInvoices:   number;
   newLeads:          number;
   followUpPending:   number;
+  totalLeads:        number;
 };
 
 export type LeadPipelineItem = {

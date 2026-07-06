@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 
@@ -6,16 +7,20 @@ type Props = {
   value:      string | number;
   sub?:       string;
   featured?:  boolean;
+  href?:      string;
 };
 
-export function StatCard({ label, value, sub, featured = false }: Props) {
-  return (
-    <div className={cn(
-      "relative rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer",
-      featured
-        ? "bg-primary text-white shadow-md"
-        : "bg-card border border-border text-foreground shadow-sm"
-    )}>
+export function StatCard({ label, value, sub, featured = false, href }: Props) {
+  const className = cn(
+    "relative block rounded-2xl p-5 transition-all duration-200",
+    href && "hover:-translate-y-0.5 hover:shadow-lg cursor-pointer",
+    featured
+      ? "bg-primary text-white shadow-md"
+      : "bg-card border border-border text-foreground shadow-sm"
+  );
+
+  const content = (
+    <>
       <div className="flex items-start justify-between mb-4">
         <p className={cn(
           "text-sm font-medium",
@@ -23,14 +28,16 @@ export function StatCard({ label, value, sub, featured = false }: Props) {
         )}>
           {label}
         </p>
-        <div className={cn(
-          "flex h-7 w-7 items-center justify-center rounded-full border transition-colors",
-          featured
-            ? "border-white/30 text-white/70 hover:bg-white/10"
-            : "border-border text-muted-foreground hover:bg-muted"
-        )}>
-          <ArrowUpRight size={14} />
-        </div>
+        {href && (
+          <div className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-full border transition-colors",
+            featured
+              ? "border-white/30 text-white/70 hover:bg-white/10"
+              : "border-border text-muted-foreground hover:bg-muted"
+          )}>
+            <ArrowUpRight size={14} />
+          </div>
+        )}
       </div>
 
       <p className={cn(
@@ -48,6 +55,11 @@ export function StatCard({ label, value, sub, featured = false }: Props) {
           {sub}
         </p>
       )}
-    </div>
+    </>
   );
+
+  if (href) {
+    return <Link href={href} className={className}>{content}</Link>;
+  }
+  return <div className={className}>{content}</div>;
 }

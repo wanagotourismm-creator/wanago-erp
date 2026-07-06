@@ -8,6 +8,31 @@ type Props = {
   data: RevenueDataPoint[];
 };
 
+const CONFIDENCE_LEVELS = ["High", "Med", "Low"] as const;
+const CONFIDENCE_COLORS: Record<(typeof CONFIDENCE_LEVELS)[number], string> = {
+  High: "text-green-600",
+  Med:  "text-amber-500",
+  Low:  "text-muted-foreground",
+};
+
+// Confidence is derived from the actual data's volatility (coefficient of
+// variation across the trailing months feeding the EMA), degraded one
+// level per additional month projected out — not a fixed High/Med/Low by
+// position, so a genuinely steady revenue history reads as more confident
+// than a spiky one, and thin/no history never claims "High".
+function confidenceFor(actual: RevenueDataPoint[], monthsOut: number) {
+  if (actual.length < 2) return { label: "Low" as const, color: CONFIDENCE_COLORS.Low };
+  const amounts = actual.map(d => d.amount);
+  const mean = amounts.reduce((s, a) => s + a, 0) / amounts.length;
+  if (mean === 0) return { label: "Low" as const, color: CONFIDENCE_COLORS.Low };
+  const variance = amounts.reduce((s, a) => s + (a - mean) ** 2, 0) / amounts.length;
+  const cv = Math.sqrt(variance) / mean;
+  const baseIndex = cv < 0.15 ? 0 : cv < 0.4 ? 1 : 2;
+  const index = Math.min(CONFIDENCE_LEVELS.length - 1, baseIndex + (monthsOut - 1));
+  const label = CONFIDENCE_LEVELS[index];
+  return { label, color: CONFIDENCE_COLORS[label] };
+}
+
 function getEMAForecast(data: RevenueDataPoint[]) {
   const actual = data.filter(d => d.amount > 0);
   const k      = 2 / (actual.length + 1);
@@ -19,11 +44,12 @@ function getEMAForecast(data: RevenueDataPoint[]) {
   const forecast = [];
   for (let i = 1; i <= 3; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const { label: confidence, color } = confidenceFor(actual, i);
     forecast.push({
-      label:      `${months[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
-      amount:     ema,
-      confidence: i === 1 ? "High" : i === 2 ? "Med" : "Low",
-      color:      i === 1 ? "text-green-600" : i === 2 ? "text-amber-500" : "text-muted-foreground",
+      label: `${months[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
+      amount: ema,
+      confidence,
+      color,
     });
     ema = ema * 0.95; // slight decay for future months
   }
@@ -55,7 +81,7 @@ export function RevenueForecast({ data }: Props) {
         <div>
           <CardTitle>Revenue Forecast</CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
-            EMA-based 3-month projection · Solid = actual · Dashed = AI forecast
+            EMA-based 3-month projection · Solid = actual · Dashed = forecast
           </p>
         </div>
       </CardHeader>

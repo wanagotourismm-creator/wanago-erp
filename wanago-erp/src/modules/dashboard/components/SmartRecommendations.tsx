@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, where, limit } from "firebase/firestore";
+import { collection, getDocs, query, where, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { toDate } from "@/lib/utils/helpers";
+import type { Timestamp } from "@/types/global";
 
 type Recommendation = {
   type:     string;
@@ -14,6 +16,8 @@ type Recommendation = {
   priority: "HIGH" | "MED" | "LOW";
 };
 
+const STALE_DAYS = 5;
+
 export function SmartRecommendations() {
   const [recs,    setRecs]    = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,23 +25,40 @@ export function SmartRecommendations() {
   useEffect(() => {
     async function load() {
       try {
-        const snap = await getDocs(
-          query(
-            collection(db, FIRESTORE_COLLECTIONS.LEADS),
-            where("stage", "==", "follow_up"),
-            limit(5)
-          )
-        );
-        const followUps = snap.docs.map(d => d.data().name ?? d.data().customerName ?? "Lead");
+        const [leadsSnap, overdueSnap] = await Promise.all([
+          getDocs(collection(db, FIRESTORE_COLLECTIONS.LEADS)),
+          getDocs(query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), where("status", "==", "overdue"), limit(5))),
+        ]);
+        const leads = leadsSnap.docs.map(d => d.data());
         const result: Recommendation[] = [];
+
+        const followUps = leads
+          .filter(l => l.stage === "follow_up")
+          .slice(0, 5)
+          .map(l => l.name ?? "Lead");
         if (followUps.length > 0) {
-          result.push({
-            type:     "follow_up",
-            label:    "Priority follow-ups today",
-            items:    followUps,
-            priority: "HIGH",
-          });
+          result.push({ type: "follow_up", label: "Priority follow-ups today", items: followUps, priority: "HIGH" });
         }
+
+        const staleCutoff = new Date();
+        staleCutoff.setDate(staleCutoff.getDate() - STALE_DAYS);
+        const stale = leads
+          .filter(l => !["won", "lost"].includes(l.stage))
+          .filter(l => {
+            const contacted = toDate(l.lastContactedAt as Timestamp | Date | string | null | undefined);
+            return !contacted || contacted < staleCutoff;
+          })
+          .slice(0, 5)
+          .map(l => l.name ?? "Lead");
+        if (stale.length > 0) {
+          result.push({ type: "stale_lead", label: `Leads not contacted in ${STALE_DAYS}+ days`, items: stale, priority: "MED" });
+        }
+
+        const overdue = overdueSnap.docs.map(d => d.data().customerName ?? d.data().refNumber ?? "Invoice");
+        if (overdue.length > 0) {
+          result.push({ type: "overdue_invoice", label: "Overdue invoices to chase", items: overdue, priority: "HIGH" });
+        }
+
         setRecs(result);
       } catch {
         setRecs([]);
@@ -53,7 +74,7 @@ export function SmartRecommendations() {
       <CardHeader>
         <div>
           <CardTitle>Smart Recommendations</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">AI-powered priorities for today</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Rule-based priorities for today</p>
         </div>
       </CardHeader>
 

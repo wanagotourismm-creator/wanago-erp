@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, Filter, RefreshCw } from "lucide-react";
 import { useLeads } from "@/modules/leads/hooks/useLeads";
 import { LeadsTable } from "@/modules/leads/components/LeadsTable";
@@ -28,12 +29,24 @@ const STAGE_FILTERS = [
 export function LeadsPage() {
   const { leads, loading, addLead, editLead, changeStage, removeLead, load } = useLeads();
   const { user } = useAuthStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [formOpen,    setFormOpen]    = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [stageFilter, setStageFilter] = useState("");
   const [search,      setSearch]      = useState("");
+
+  // Supports deep-linking straight into the Add Lead form, e.g. from the
+  // dashboard's "Add Lead" button (/leads?new=1).
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setEditingLead(null);
+      setFormOpen(true);
+      router.replace("/leads");
+    }
+  }, [searchParams, router]);
 
   // Filter leads
   const filtered = useMemo(() => {

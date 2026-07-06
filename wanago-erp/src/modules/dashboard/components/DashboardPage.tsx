@@ -65,22 +65,28 @@ export function DashboardPage() {
           label="Total Revenue"
           value={formatCurrency(stats?.totalRevenue ?? 0)}
           sub="From completed bookings"
+          href="/payments"
           featured
         />
         <StatCard
           label="Active Leads"
           value={stats?.activeLeads ?? 0}
           sub="In pipeline right now"
+          href="/leads"
         />
         <StatCard
           label="Confirmed Bookings"
           value={stats?.confirmedBookings ?? 0}
-          sub={`${stats?.confirmedBookings ?? 0} total · 0.0% CVR`}
+          sub={`${stats?.confirmedBookings ?? 0} total · ${
+            stats?.totalLeads ? ((stats.confirmedBookings / stats.totalLeads) * 100).toFixed(1) : "0.0"
+          }% CVR`}
+          href="/bookings"
         />
         <StatCard
           label="Pending Dues"
           value={formatCurrency(stats?.pendingDues ?? 0)}
           sub={`${stats?.overdueInvoices ?? 0} overdue invoice${(stats?.overdueInvoices ?? 0) !== 1 ? "s" : ""}`}
+          href="/invoices"
         />
       </div>
 
