@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   fetchBookings, createBooking, updateBooking,
   updateBookingStatus, deleteBooking,
   approveBookingAsFinance, approveBookingAsOperations,
 } from "@/modules/bookings/services/booking.service";
 import { useAuthStore } from "@/store/auth.store";
+import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
+import { scopeByAssignee } from "@/lib/rbac-scope";
 import { logActivity } from "@/lib/activity-log";
 import { BOOKING_STATUS } from "@/lib/constants";
 import type { Booking, BookingFormData } from "@/modules/bookings/types";
@@ -16,6 +18,14 @@ export function useBookings() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const { user } = useAuthStore();
+  const { employee } = useCurrentEmployee();
+
+  // A `sales` user only sees bookings assigned to them; every other role
+  // (including sales_head) sees the full unfiltered list.
+  const scopedBookings = useMemo(
+    () => scopeByAssignee(bookings, user?.systemRole ?? "sales", employee?.id ?? null),
+    [bookings, user?.systemRole, employee?.id]
+  );
 
   const load = useCallback(async (filters?: { status?: string }) => {
     setLoading(true);
@@ -150,7 +160,7 @@ export function useBookings() {
   }
 
   return {
-    bookings, loading, error, load, addBooking, editBooking, changeStatus,
+    bookings: scopedBookings, loading, error, load, addBooking, editBooking, changeStatus,
     approveFinance, approveOperations, removeBooking,
   };
 }

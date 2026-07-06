@@ -46,6 +46,15 @@ export const PERMISSION_MAP: PermissionMap = {
     "bookings:view_own", "bookings:create",
   ],
 
+  // Sees every sales rep's leads/customers/bookings plus the team
+  // performance view — everything sales can do, minus the "own only" limit.
+  sales_head: [
+    "leads:view_all", "leads:create", "leads:edit",
+    "customers:view_all", "customers:create",
+    "bookings:view_all", "bookings:create",
+    "reports:view",
+  ],
+
   support: [
     "leads:view_own",
     "customers:view_own",
@@ -62,6 +71,7 @@ export const PAGE_ACCESS: PageAccess = {
   marketing:   ["dashboard", "ess", "leads", "customers", "marketing", "reports", "campaigns", "settings"],
   hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "incentives", "settings"],
   sales:       ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "settings"],
+  sales_head:  ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "sales-team", "settings"],
   support:     ["dashboard", "ess", "leads", "customers", "bookings", "settings"],
 };
 

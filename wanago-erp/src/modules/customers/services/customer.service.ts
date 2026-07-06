@@ -41,6 +41,8 @@ export async function createCustomer(
     alternatePhone: data.alternatePhone || null,
     city:           data.city           || null,
     address:        data.address        || null,
+    assignedTo:     data.assignedTo     || null,
+    agentName:      data.agentName      || null,
     notes:          data.notes          || null,
   });
 }

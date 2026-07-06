@@ -14,6 +14,9 @@ export const customerSchema = z.object({
   officeId:       z.string().min(1),
   officeName:     z.string().min(1),
 
+  assignedTo:     z.string().optional().or(z.literal("")),
+  agentName:      z.string().optional().or(z.literal("")),
+
   notes:          z.string().optional().or(z.literal("")),
 });
 

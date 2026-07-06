@@ -136,6 +136,7 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
               <Row label="City" value={customer.city} />
               <Row label="Address" value={customer.address} />
               <Row label="Office" value={customer.officeName} />
+              {customer.agentName && <Row label="Assigned Agent" value={customer.agentName} />}
             </div>
           </div>
 

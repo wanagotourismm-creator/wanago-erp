@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, User, MapPin, BarChart2, StickyNote } from "lucide-react";
 import { leadSchema, type LeadSchema } from "@/modules/leads/schemas";
 import { useAuthStore } from "@/store/auth.store";
+import { SalesAgentSelect } from "@/components/shared/SalesAgentSelect";
 import { cn } from "@/lib/utils/helpers";
 import {
   LEAD_STAGE_LABELS, DEFAULT_LEAD_SOURCES, TRIP_TYPES,
@@ -249,8 +250,14 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
               </div>
 
               <div className="col-span-2">
-                <Field label="Agent Name" error={errors.agentName?.message}>
-                  <input className={inputClass} placeholder="Assigned agent name" {...register("agentName")} />
+                <Field label="Assigned To" error={errors.agentName?.message}>
+                  <SalesAgentSelect
+                    value={watch("assignedTo")}
+                    onChange={(id, name) => {
+                      setValue("assignedTo", id);
+                      setValue("agentName", name);
+                    }}
+                  />
                 </Field>
               </div>
             </div>

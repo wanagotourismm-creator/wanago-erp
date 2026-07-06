@@ -14,6 +14,14 @@ export type Customer = FirestoreRecord & {
   officeId:       string;
   officeName:     string;
 
+  // The Sales Executive (Employee.id) this customer belongs to, so a
+  // `sales` user only ever sees their own — paired with the denormalized
+  // name the same way assignedTo/agentName already work on Leads/Bookings.
+  // Optional so existing callers (lead-to-customer conversion, bulk
+  // import) don't need updating; both null/absent means unassigned.
+  assignedTo?:    string | null;
+  agentName?:     string | null;
+
   notes:          string | null;
   refNumber:      string;
 };

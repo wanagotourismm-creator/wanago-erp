@@ -27,6 +27,7 @@ export type SystemRole =
   | "finance"
   | "hr"
   | "sales"
+  | "sales_head"
   | "support";
 
 export type Permission =

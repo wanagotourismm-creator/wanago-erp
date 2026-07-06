@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   fetchCustomers, createCustomer, updateCustomer, deleteCustomer,
 } from "@/modules/customers/services/customer.service";
 import { useAuthStore } from "@/store/auth.store";
+import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
+import { scopeByAssignee } from "@/lib/rbac-scope";
 import { logActivity } from "@/lib/activity-log";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
 
@@ -13,6 +15,14 @@ export function useCustomers() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
   const { user } = useAuthStore();
+  const { employee } = useCurrentEmployee();
+
+  // A `sales` user only sees customers assigned to them; every other role
+  // (including sales_head) sees the full unfiltered list.
+  const scopedCustomers = useMemo(
+    () => scopeByAssignee(customers, user?.systemRole ?? "sales", employee?.id ?? null),
+    [customers, user?.systemRole, employee?.id]
+  );
 
   const load = useCallback(async (filters?: { customerType?: string }) => {
     setLoading(true);
@@ -74,5 +84,5 @@ export function useCustomers() {
     }
   }
 
-  return { customers, loading, error, load, addCustomer, editCustomer, removeCustomer };
+  return { customers: scopedCustomers, loading, error, load, addCustomer, editCustomer, removeCustomer };
 }

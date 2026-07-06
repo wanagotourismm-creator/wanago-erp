@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   fetchLeads, createLead, updateLead,
   updateLeadStage, deleteLead, convertLeadToCustomer,
 } from "@/modules/leads/services/lead.service";
 import { useAuthStore } from "@/store/auth.store";
+import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
+import { scopeByAssignee } from "@/lib/rbac-scope";
 import { logActivity } from "@/lib/activity-log";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
 
@@ -14,6 +16,14 @@ export function useLeads() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
   const { user } = useAuthStore();
+  const { employee } = useCurrentEmployee();
+
+  // A `sales` user only sees leads assigned to them; every other role
+  // (including sales_head) sees the full unfiltered list.
+  const scopedLeads = useMemo(
+    () => scopeByAssignee(leads, user?.systemRole ?? "sales", employee?.id ?? null),
+    [leads, user?.systemRole, employee?.id]
+  );
 
   const load = useCallback(async (filters?: { stage?: string }) => {
     setLoading(true);
@@ -95,5 +105,5 @@ export function useLeads() {
     }
   }
 
-  return { leads, loading, error, load, addLead, editLead, changeStage, removeLead };
+  return { leads: scopedLeads, loading, error, load, addLead, editLead, changeStage, removeLead };
 }

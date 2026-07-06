@@ -24,6 +24,10 @@ export type CompanySettings = {
   // formula is coming later, this just seeds a configurable % so the
   // calculation has something to read until then.
   incentiveRatePercent: number;
+  // Placeholder monthly incentive goal shown on each sales rep's
+  // motivational dashboard widget — adjust freely, not derived from
+  // anywhere real yet.
+  monthlyIncentiveTarget: number;
 };
 
 const DOC_ID = "company";
@@ -43,6 +47,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   maintenanceMessage: "We're performing scheduled maintenance. Please check back shortly.",
   gstEnabled:        false,
   incentiveRatePercent: 10,
+  monthlyIncentiveTarget: 20000,
 };
 
 export async function fetchCompanySettings(): Promise<CompanySettings> {

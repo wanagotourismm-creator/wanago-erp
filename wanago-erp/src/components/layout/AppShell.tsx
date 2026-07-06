@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
@@ -7,6 +8,7 @@ import { MobileMenuSheet } from "@/components/layout/MobileMenuSheet";
 import { RouteGuard } from "@/components/providers/RouteGuard";
 import { TeamSpacePanel } from "@/modules/teamspace/components/TeamSpacePanel";
 import { AIAssistantPanel } from "@/modules/aiassistant/components/AIAssistantPanel";
+import { useUIStore } from "@/store/ui.store";
 import { cn } from "@/lib/utils/helpers";
 
 type Props = {
@@ -19,6 +21,21 @@ type Props = {
 };
 
 export function AppShell({ children, requiredPage, fullBleed }: Props) {
+  const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
+  const prevCollapsedRef = useRef(useUIStore.getState().sidebarCollapsed);
+
+  // Pages with their own secondary nav rail (fullBleed) auto-collapse the
+  // main sidebar to avoid two side-by-side nav columns — restoring
+  // whatever it was set to once you navigate away. The sidebar itself
+  // stays hoverable/peekable while collapsed (see Sidebar.tsx).
+  useEffect(() => {
+    if (!fullBleed) return;
+    prevCollapsedRef.current = useUIStore.getState().sidebarCollapsed;
+    setSidebarCollapsed(true);
+    return () => setSidebarCollapsed(prevCollapsedRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullBleed]);
+
   return (
     <RouteGuard requiredPage={requiredPage}>
       <div className="flex h-screen w-full overflow-hidden bg-background">

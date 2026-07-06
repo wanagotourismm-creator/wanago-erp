@@ -7,6 +7,7 @@ import { X, Loader2, User, MapPin, Wallet, StickyNote } from "lucide-react";
 import { bookingSchema, type BookingSchema } from "@/modules/bookings/schemas";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
 import { fetchPackages } from "@/modules/packages/services/package.service";
+import { SalesAgentSelect } from "@/components/shared/SalesAgentSelect";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import { TRIP_TYPES } from "@/lib/constants";
@@ -210,8 +211,14 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
               <Field label="No. of Pax" required error={errors.pax?.message}>
                 <input className={inputClass} type="number" min={1} placeholder="2" {...register("pax")} />
               </Field>
-              <Field label="Agent Name" error={errors.agentName?.message}>
-                <input className={inputClass} placeholder="Assigned agent name" {...register("agentName")} />
+              <Field label="Assigned Agent" error={errors.assignedTo?.message}>
+                <SalesAgentSelect
+                  value={watch("assignedTo")}
+                  onChange={(id, name) => {
+                    setValue("assignedTo", id);
+                    setValue("agentName", name);
+                  }}
+                />
               </Field>
             </div>
           </div>

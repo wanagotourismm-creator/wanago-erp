@@ -157,6 +157,7 @@ export const SYSTEM_ROLES = {
   FINANCE:     "finance",
   HR:          "hr",
   SALES:       "sales",
+  SALES_HEAD:  "sales_head",
   SUPPORT:     "support",
 } as const;
 
@@ -168,6 +169,7 @@ export const SYSTEM_ROLE_LABELS: Record<string, string> = {
   finance:     "Finance",
   hr:          "HR",
   sales:       "Sales",
+  sales_head:  "Sales Head",
   support:     "Support",
 };
 

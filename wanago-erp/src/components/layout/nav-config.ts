@@ -57,6 +57,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "file-invoice",
         roles: ["super_admin","admin","sales"],
       },
+      {
+        label: "Sales Team",
+        href:  "/sales-team",
+        icon:  "chart-bar",
+        roles: ["sales_head","admin","super_admin"],
+      },
     ],
   },
   {

@@ -18,6 +18,7 @@ import { RevenueForecast }      from "@/modules/dashboard/components/RevenueFore
 import { TeamStatusDonut }      from "@/modules/dashboard/components/TeamStatusDonut";
 import { HiringStatsCard }      from "@/modules/dashboard/components/HiringStatsCard";
 import { SmartRecommendations } from "@/modules/dashboard/components/SmartRecommendations";
+import { MySalesProgress }      from "@/modules/dashboard/components/MySalesProgress";
 import { TopPerformers }        from "@/modules/dashboard/components/TopPerformers";
 import { DepartingSoon }        from "@/modules/dashboard/components/DepartingSoon";
 import { RecentActivity }       from "@/modules/dashboard/components/RecentActivity";
@@ -142,6 +143,9 @@ export function DashboardPage() {
               />
             </div>
           )}
+
+          {/* Sales-only motivational widget */}
+          <MySalesProgress />
 
           {/* Recommendations + Top Performers */}
           <div className="grid gap-4 lg:grid-cols-2">

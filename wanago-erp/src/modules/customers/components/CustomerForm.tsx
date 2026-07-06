@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, User, MapPin, StickyNote } from "lucide-react";
 import { customerSchema, type CustomerSchema } from "@/modules/customers/schemas";
 import { CUSTOMER_TYPES, CUSTOMER_SOURCES } from "@/modules/customers/components/CustomerBadges";
+import { SalesAgentSelect } from "@/components/shared/SalesAgentSelect";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import type { Customer } from "@/modules/customers/types";
@@ -44,7 +45,7 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
 
   const {
-    register, handleSubmit, reset,
+    register, handleSubmit, reset, watch, setValue,
     formState: { errors, isSubmitting },
   } = useForm<CustomerSchema>({
     resolver: zodResolver(customerSchema),
@@ -64,6 +65,8 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
           alternatePhone: customer.alternatePhone ?? "",
           city:           customer.city           ?? "",
           address:        customer.address        ?? "",
+          assignedTo:     customer.assignedTo     ?? "",
+          agentName:      customer.agentName      ?? "",
           notes:          customer.notes          ?? "",
         });
       } else {
@@ -149,6 +152,15 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
+              </Field>
+              <Field label="Assigned To" error={errors.assignedTo?.message}>
+                <SalesAgentSelect
+                  value={watch("assignedTo")}
+                  onChange={(id, name) => {
+                    setValue("assignedTo", id);
+                    setValue("agentName", name);
+                  }}
+                />
               </Field>
             </div>
           </div>

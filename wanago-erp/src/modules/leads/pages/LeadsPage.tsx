@@ -123,6 +123,11 @@ export function LeadsPage() {
       officeName: user?.officeName ?? "",
     });
 
+    // NOTE: `assignedTo` now identifies a real Employee.id (see SalesAgentSelect),
+    // not free text. The CSV "Assigned To" column below is passed through as-is —
+    // resolving an employee name/email in the sheet to a Firestore doc id is out
+    // of scope here, so bulk-imported rows should put the exact employee id in
+    // that column (or leave it blank and assign via the edit form afterwards).
     const candidate = {
       name:           raw["Name"]?.trim() ?? "",
       email:          raw["Email"]?.trim() ?? "",

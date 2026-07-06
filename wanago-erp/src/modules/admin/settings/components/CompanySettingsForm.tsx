@@ -153,6 +153,13 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
               Used to estimate sales incentives until the final commission formula is confirmed
             </p>
           </Field>
+          <Field label="Monthly Incentive Target (₹)">
+            <input className={inputClass} type="number" min={0} step={100} value={form.monthlyIncentiveTarget}
+              onChange={e => set("monthlyIncentiveTarget", Number(e.target.value))} />
+            <p className="text-xs text-muted-foreground">
+              Shown on each sales rep&apos;s dashboard as their monthly goal — a placeholder, adjust freely
+            </p>
+          </Field>
         </div>
       </div>
 
