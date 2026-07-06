@@ -139,6 +139,12 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    match /onboardingTasks/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','hr'];
+    }
+
     // ── Team Space ───────────────────────────────────────────
     match /teamspaceChannels/{id} {
       allow read: if isAuthenticated();

@@ -133,6 +133,7 @@ export const FIRESTORE_COLLECTIONS = {
   OBJECTIVES:      "objectives",
   GOAL_CHECKINS:   "goalCheckIns",
   HELP_ARTICLES:   "helpArticles",
+  ONBOARDING_TASKS: "onboardingTasks",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
@@ -206,6 +207,7 @@ export const REF_FORMATS = {
   ITINERARY: "ITN",
   CAMPAIGN:  "CAM",
   EXPENSE:   "EXP",
+  ONBOARDING: "ONB",
 } as const;
 
 // Recruitment pipeline stages, in order
