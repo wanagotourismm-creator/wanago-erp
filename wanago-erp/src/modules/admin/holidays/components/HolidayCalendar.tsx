@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, CalendarDays, Loader2 } from "lucide-react";
+import { Plus, Trash2, CalendarDays, Loader2, Sparkles } from "lucide-react";
 import { useHolidays } from "@/modules/admin/holidays/hooks/useHolidays";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,6 +9,38 @@ import { SkeletonTable } from "@/components/ui/Skeleton";
 import { formatDate, cn } from "@/lib/utils/helpers";
 import { useAuthStore } from "@/store/auth.store";
 import type { Office } from "@/modules/admin/offices/types";
+
+// National holidays are fixed-date and certain. Festival dates follow the
+// lunar/Islamic calendars and are best-effort estimates for 2026 — verify
+// against an official calendar before relying on them for payroll/leave
+// deductions, and edit/delete any entry below once added if it's off by a
+// day for your region.
+const INDIA_HOLIDAYS_2026: { name: string; date: string }[] = [
+  { name: "New Year's Day",              date: "2026-01-01" },
+  { name: "Makar Sankranti / Pongal",    date: "2026-01-14" },
+  { name: "Republic Day",                date: "2026-01-26" },
+  { name: "Maha Shivratri",              date: "2026-02-15" },
+  { name: "Holi",                        date: "2026-03-04" },
+  { name: "Ugadi / Gudi Padwa",          date: "2026-03-19" },
+  { name: "Eid-ul-Fitr",                 date: "2026-03-20" },
+  { name: "Ram Navami",                  date: "2026-03-27" },
+  { name: "Mahavir Jayanti",             date: "2026-03-31" },
+  { name: "Good Friday",                 date: "2026-04-03" },
+  { name: "Eid-ul-Adha (Bakrid)",        date: "2026-05-27" },
+  { name: "Buddha Purnima",              date: "2026-05-31" },
+  { name: "Muharram",                    date: "2026-06-16" },
+  { name: "Independence Day",            date: "2026-08-15" },
+  { name: "Milad-un-Nabi",               date: "2026-08-25" },
+  { name: "Raksha Bandhan",              date: "2026-08-28" },
+  { name: "Janmashtami",                 date: "2026-09-04" },
+  { name: "Ganesh Chaturthi",            date: "2026-09-14" },
+  { name: "Gandhi Jayanti",              date: "2026-10-02" },
+  { name: "Dussehra (Vijayadashami)",    date: "2026-10-20" },
+  { name: "Diwali (Deepavali)",          date: "2026-11-08" },
+  { name: "Bhai Dooj",                   date: "2026-11-10" },
+  { name: "Guru Nanak Jayanti",          date: "2026-11-24" },
+  { name: "Christmas",                   date: "2026-12-25" },
+];
 
 const inputClass = cn(
   "rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none transition-all",
@@ -24,6 +56,8 @@ export function HolidayCalendar() {
   const [officeId, setOfficeId] = useState("");
   const [adding,   setAdding]   = useState(false);
   const [error,    setError]    = useState<string | null>(null);
+  const [bulkAdding, setBulkAdding] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOffices().then(setOffices).catch(() => {});
@@ -47,6 +81,25 @@ export function HolidayCalendar() {
     }
   }
 
+  async function handleAddIndianHolidays() {
+    setBulkAdding(true);
+    setBulkResult(null);
+    try {
+      const existingDates = new Set(holidays.map(h => h.date));
+      const toAdd = INDIA_HOLIDAYS_2026.filter(h => !existingDates.has(h.date));
+      for (const h of toAdd) {
+        await addHoliday({ name: h.name, date: h.date, officeId: null, createdBy: user?.uid ?? "" });
+      }
+      const skipped = INDIA_HOLIDAYS_2026.length - toAdd.length;
+      setBulkResult(
+        `Added ${toAdd.length} holiday${toAdd.length === 1 ? "" : "s"}` +
+        (skipped > 0 ? `, skipped ${skipped} already on the calendar.` : ".")
+      );
+    } finally {
+      setBulkAdding(false);
+    }
+  }
+
   async function handleDelete(id: string, holidayName: string) {
     if (!confirm(`Delete holiday "${holidayName}"?`)) return;
     await removeHoliday(id);
@@ -58,10 +111,24 @@ export function HolidayCalendar() {
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-3">
-        <div className="flex items-center gap-2">
-          <CalendarDays size={14} className="text-primary" />
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">Add Holiday</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={14} className="text-primary" />
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">Add Holiday</p>
+          </div>
+          <button
+            onClick={handleAddIndianHolidays}
+            disabled={bulkAdding}
+            title="Adds national holidays and major festivals for 2026 — festival dates are best-effort estimates, verify before relying on them for payroll"
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+          >
+            {bulkAdding ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            Add Indian Holidays 2026
+          </button>
         </div>
+        {bulkResult && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">{bulkResult}</div>
+        )}
         {error && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
         )}

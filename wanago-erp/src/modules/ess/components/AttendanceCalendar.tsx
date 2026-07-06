@@ -70,7 +70,7 @@ export function AttendanceCalendar({ attendance, leaves, holidays, weeklyOffDays
   const presentCount = attendance.filter((a) => a.date.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`) && a.status === "present").length;
 
   return (
-    <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <div className="fluid-card max-w-lg rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
@@ -92,7 +92,7 @@ export function AttendanceCalendar({ attendance, leaves, holidays, weeklyOffDays
           <div key={i} className="text-center text-[10px] font-semibold uppercase text-muted-foreground/60">{d}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-1.5 justify-items-center">
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
           const dateStr = toDateStr(year, month, d);
@@ -103,7 +103,7 @@ export function AttendanceCalendar({ attendance, leaves, holidays, weeklyOffDays
           return (
             <button key={i} onClick={() => setSelected(dateStr)}
               className={cn(
-                "aspect-square rounded-full text-xs font-semibold flex items-center justify-center transition-all",
+                "flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all",
                 isFuture ? "text-muted-foreground/40" : DAY_COLORS[status],
                 isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-card"
               )}>
