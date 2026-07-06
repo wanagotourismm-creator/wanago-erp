@@ -8,6 +8,7 @@ export const packageSchema = z.object({
   durationDays:   z.coerce.number().min(0).optional().default(0),
   durationNights: z.coerce.number().min(0).optional().default(0),
   basePrice:      z.coerce.number().min(0).optional().default(0),
+  costPrice:      z.coerce.number().min(0).optional().default(0),
 
   inclusions:     z.string().optional().or(z.literal("")),
   exclusions:     z.string().optional().or(z.literal("")),

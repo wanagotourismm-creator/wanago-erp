@@ -49,6 +49,8 @@ export type Permission =
   | "bookings:edit"
   | "bookings:delete"
   | "bookings:approve"
+  | "bookings:finance_approve"
+  | "bookings:ops_approve"
   // Finance
   | "finance:view"
   | "finance:create"

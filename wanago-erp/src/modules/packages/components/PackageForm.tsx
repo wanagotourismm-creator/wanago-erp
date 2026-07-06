@@ -51,6 +51,7 @@ export function PackageForm({ open, pkg, onClose, onSubmit }: Props) {
       durationDays:   0,
       durationNights: 0,
       basePrice:      0,
+      costPrice:      0,
       packageStatus:  "active",
       officeId:       user?.officeId   ?? "main",
       officeName:     user?.officeName ?? "Head Office",
@@ -70,7 +71,7 @@ export function PackageForm({ open, pkg, onClose, onSubmit }: Props) {
         });
       } else {
         reset({
-          durationDays: 0, durationNights: 0, basePrice: 0,
+          durationDays: 0, durationNights: 0, basePrice: 0, costPrice: 0,
           packageStatus: "active",
           officeId:   user?.officeId   ?? "main",
           officeName: user?.officeName ?? "Head Office",
@@ -180,7 +181,13 @@ export function PackageForm({ open, pkg, onClose, onSubmit }: Props) {
               <Field label="Base Price (₹)" error={errors.basePrice?.message}>
                 <input className={inputClass} type="number" min={0} placeholder="50000" {...register("basePrice")} />
               </Field>
+              <Field label="Cost Price (₹)" error={errors.costPrice?.message}>
+                <input className={inputClass} type="number" min={0} placeholder="35000" {...register("costPrice")} />
+              </Field>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Cost Price is what this package costs the company — it seeds the profit figure Operations confirms on each booking.
+            </p>
           </div>
 
           {/* Divider */}

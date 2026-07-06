@@ -9,17 +9,24 @@ import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
-  bookings:   Booking[];
-  loading:    boolean;
-  canManage:  boolean;
-  canApprove: boolean;
-  onView:     (booking: Booking) => void;
-  onEdit:     (booking: Booking) => void;
-  onDelete:   (booking: Booking) => void;
-  onStatus:   (booking: Booking, status: string) => void;
+  bookings:            Booking[];
+  loading:             boolean;
+  canManage:           boolean;
+  canApprove:          boolean;
+  canFinanceApprove:   boolean;
+  canOpsApprove:       boolean;
+  onView:              (booking: Booking) => void;
+  onEdit:               (booking: Booking) => void;
+  onDelete:             (booking: Booking) => void;
+  onStatus:             (booking: Booking, status: string) => void;
+  onRequestFinanceApprove: (booking: Booking) => void;
+  onRequestOpsApprove:     (booking: Booking) => void;
 };
 
-export function BookingsTable({ bookings, loading, canManage, canApprove, onView, onEdit, onDelete, onStatus }: Props) {
+export function BookingsTable({
+  bookings, loading, canManage, canApprove, canFinanceApprove, canOpsApprove,
+  onView, onEdit, onDelete, onStatus, onRequestFinanceApprove, onRequestOpsApprove,
+}: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (bookings.length === 0) {
@@ -46,7 +53,11 @@ export function BookingsTable({ bookings, loading, canManage, canApprove, onView
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {bookings.map((b) => (
+            {bookings.map((b) => {
+              const showFinanceApprove = b.status === "pending_finance" && canFinanceApprove;
+              const showOpsApprove     = b.status === "ops_pending" && canOpsApprove;
+              const showDropdown       = canApprove && !showFinanceApprove && !showOpsApprove;
+              return (
               <tr
                 key={b.id}
                 onClick={() => onView(b)}
@@ -96,21 +107,37 @@ export function BookingsTable({ bookings, loading, canManage, canApprove, onView
                 </td>
 
                 {/* Status */}
-                <td className="px-4 py-3">
-                  {canApprove ? (
-                    <select
-                      value={b.status}
-                      onChange={(e) => onStatus(b, e.target.value)}
-                      className="rounded-lg border-0 bg-transparent p-0 text-xs font-medium focus:ring-0 cursor-pointer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {Object.entries(BOOKING_STATUS_LABELS).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
-                      ))}
-                    </select>
-                  ) : (
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-col items-start gap-1.5">
                     <BookingStatusBadge status={b.status} />
-                  )}
+                    {showFinanceApprove && (
+                      <button
+                        onClick={() => onRequestFinanceApprove(b)}
+                        className="rounded-lg bg-primary px-2 py-1 text-[11px] font-semibold text-white hover:bg-primary/90 transition-colors"
+                      >
+                        Approve as Finance
+                      </button>
+                    )}
+                    {showOpsApprove && (
+                      <button
+                        onClick={() => onRequestOpsApprove(b)}
+                        className="rounded-lg bg-primary px-2 py-1 text-[11px] font-semibold text-white hover:bg-primary/90 transition-colors"
+                      >
+                        Approve as Operations
+                      </button>
+                    )}
+                    {showDropdown && (
+                      <select
+                        value={b.status}
+                        onChange={(e) => onStatus(b, e.target.value)}
+                        className="rounded-lg border-0 bg-transparent p-0 text-xs font-medium focus:ring-0 cursor-pointer"
+                      >
+                        {Object.entries(BOOKING_STATUS_LABELS).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </td>
 
                 {/* Date */}
@@ -143,7 +170,8 @@ export function BookingsTable({ bookings, loading, canManage, canApprove, onView
                 </td>
 
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

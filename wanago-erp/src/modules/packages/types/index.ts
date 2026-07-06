@@ -7,6 +7,7 @@ export type Package = FirestoreRecord & {
   durationDays:  number;
   durationNights: number;
   basePrice:     number;
+  costPrice:     number;   // what the package costs the company — feeds the profit/incentive calculation on a booking
   inclusions:    string;
   exclusions:    string;
   validFrom:     string | null;

@@ -70,6 +70,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Quotations ───────────────────────────────────────────
+    match /quotations/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                       getUserRole() in ['super_admin','admin','sales'];
+      allow update: if isAuthenticated() &&
+                       getUserRole() in ['super_admin','admin','sales'];
+      allow delete: if isAdmin();
+    }
+
     // ── Finance (invoices, payments, expenses) ───────────────
     match /invoices/{id} {
       allow read: if isAuthenticated();

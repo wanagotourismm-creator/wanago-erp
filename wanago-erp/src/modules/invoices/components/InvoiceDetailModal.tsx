@@ -1,8 +1,11 @@
 "use client";
 
-import { X, Edit2, Trash2, Send, Receipt, Building2 } from "lucide-react";
+import { useState } from "react";
+import { X, Edit2, Trash2, Send, Receipt, Building2, Download, Loader2 } from "lucide-react";
 import { InvoiceStatusBadge, formatAmount } from "@/modules/invoices/components/InvoiceBadges";
 import { formatDate, initials } from "@/lib/utils/helpers";
+import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { generateDocumentPdf } from "@/lib/pdf/document-pdf";
 import type { Invoice } from "@/modules/invoices/types";
 
 type Props = {
@@ -24,9 +27,53 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDelete, onSend }: Props) {
+  const [downloading, setDownloading] = useState(false);
+
   if (!invoice) return null;
 
   const canMarkSent = invoice.status === "draft";
+
+  async function handleDownloadPdf() {
+    if (!invoice) return;
+    setDownloading(true);
+    try {
+      const settings = await fetchCompanySettings();
+      const taxAmount = invoice.taxAmount ?? 0;
+      const subtotal = invoice.totalAmount - taxAmount;
+      await generateDocumentPdf({
+        type: "invoice",
+        refNumber: invoice.refNumber,
+        date: invoice.issueDate,
+        dueDateOrValidUntil: invoice.dueDate,
+        company: {
+          businessName: settings.businessName,
+          address: settings.address,
+          city: settings.city,
+          phone: settings.phone,
+          email: settings.email,
+          gstNumber: settings.gstNumber,
+          gstEnabled: settings.gstEnabled,
+        },
+        customer: {
+          name: invoice.customerName,
+          phone: invoice.customerPhone,
+        },
+        lineItems: [{
+          description: invoice.bookingRef ? `Booking ${invoice.bookingRef}` : "Services rendered",
+          amount: subtotal,
+        }],
+        subtotal,
+        taxRate: invoice.taxRate,
+        taxAmount: invoice.taxAmount,
+        totalAmount: invoice.totalAmount,
+        amountPaid: invoice.amountPaid,
+        balanceDue: invoice.balanceDue,
+        notes: invoice.notes,
+      });
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -104,32 +151,41 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
         </div>
 
         {/* Footer */}
-        {canManage && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-primary/15 bg-muted/30 px-6 py-4">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onEdit(invoice)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
-              >
-                <Edit2 size={13} /> Edit
-              </button>
-              <button
-                onClick={() => onDelete(invoice)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 size={13} /> Delete
-              </button>
-            </div>
-            {canMarkSent && (
-              <button
-                onClick={() => onSend(invoice)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
-              >
-                <Send size={13} /> Mark Sent
-              </button>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-primary/15 bg-muted/30 px-6 py-4">
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <>
+                <button
+                  onClick={() => onEdit(invoice)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+                >
+                  <Edit2 size={13} /> Edit
+                </button>
+                <button
+                  onClick={() => onDelete(invoice)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              </>
             )}
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors disabled:opacity-60"
+            >
+              {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Download PDF
+            </button>
           </div>
-        )}
+          {canManage && canMarkSent && (
+            <button
+              onClick={() => onSend(invoice)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              <Send size={13} /> Mark Sent
+            </button>
+          )}
+        </div>
 
       </div>
     </div>

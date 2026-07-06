@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   fetchBookings, createBooking, updateBooking,
   updateBookingStatus, deleteBooking,
+  approveBookingAsFinance, approveBookingAsOperations,
 } from "@/modules/bookings/services/booking.service";
 import { useAuthStore } from "@/store/auth.store";
 import { logActivity } from "@/lib/activity-log";
+import { BOOKING_STATUS } from "@/lib/constants";
 import type { Booking, BookingFormData } from "@/modules/bookings/types";
 
 export function useBookings() {
@@ -75,6 +77,60 @@ export function useBookings() {
     }
   }
 
+  async function approveFinance(
+    id: string, paymentVerification: "full" | "partial"
+  ): Promise<{ error: string | null }> {
+    try {
+      const approvedBy = user?.uid ?? "";
+      await approveBookingAsFinance(id, approvedBy, paymentVerification);
+      setBookings(prev => prev.map(b => b.id === id ? {
+        ...b,
+        status:              BOOKING_STATUS.OPS_PENDING,
+        financeApprovedBy:   approvedBy,
+        financeApprovedAt:   new Date(),
+        paymentVerification,
+      } as Booking : b));
+      const booking = bookings.find(b => b.id === id);
+      if (booking) {
+        logActivity({
+          entityType: "Booking", entityName: booking.customerName, action: "status_changed",
+          detail: `${booking.refNumber} approved by Finance (${paymentVerification} payment received)`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
+      return { error: null };
+    } catch {
+      return { error: "Failed to approve booking" };
+    }
+  }
+
+  async function approveOperations(
+    id: string, profitAmount: number
+  ): Promise<{ error: string | null }> {
+    try {
+      const approvedBy = user?.uid ?? "";
+      await approveBookingAsOperations(id, approvedBy, profitAmount);
+      setBookings(prev => prev.map(b => b.id === id ? {
+        ...b,
+        status:        BOOKING_STATUS.CONFIRMED,
+        opsApprovedBy: approvedBy,
+        opsApprovedAt: new Date(),
+        profitAmount,
+      } as Booking : b));
+      const booking = bookings.find(b => b.id === id);
+      if (booking) {
+        logActivity({
+          entityType: "Booking", entityName: booking.customerName, action: "status_changed",
+          detail: `${booking.refNumber} approved by Operations (profit ₹${profitAmount})`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
+      return { error: null };
+    } catch {
+      return { error: "Failed to approve booking" };
+    }
+  }
+
   async function removeBooking(id: string): Promise<{ error: string | null }> {
     try {
       const booking = bookings.find(b => b.id === id);
@@ -93,5 +149,8 @@ export function useBookings() {
     }
   }
 
-  return { bookings, loading, error, load, addBooking, editBooking, changeStatus, removeBooking };
+  return {
+    bookings, loading, error, load, addBooking, editBooking, changeStatus,
+    approveFinance, approveOperations, removeBooking,
+  };
 }

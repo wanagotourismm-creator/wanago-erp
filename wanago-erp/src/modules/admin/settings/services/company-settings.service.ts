@@ -16,6 +16,14 @@ export type CompanySettings = {
   serviceChargeRate: number;
   maintenanceMode:   boolean;
   maintenanceMessage: string;
+  // Company doesn't collect GST today — this gates whether tax fields show
+  // up anywhere (invoice/quotation forms + PDFs) so it can be switched on
+  // later without any code change.
+  gstEnabled:        boolean;
+  // Placeholder rate for the profit-based sales incentive — the real
+  // formula is coming later, this just seeds a configurable % so the
+  // calculation has something to read until then.
+  incentiveRatePercent: number;
 };
 
 const DOC_ID = "company";
@@ -33,6 +41,8 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   serviceChargeRate: 0,
   maintenanceMode:   false,
   maintenanceMessage: "We're performing scheduled maintenance. Please check back shortly.",
+  gstEnabled:        false,
+  incentiveRatePercent: 10,
 };
 
 export async function fetchCompanySettings(): Promise<CompanySettings> {

@@ -1,19 +1,23 @@
 "use client";
 
-import { X, Phone, MapPin, Edit2, Trash2, Wallet, User } from "lucide-react";
+import { X, Phone, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
-import { formatDate, initials } from "@/lib/utils/helpers";
+import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
 import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
-  booking:    Booking | null;
-  canManage:  boolean;
-  canApprove: boolean;
-  onClose:    () => void;
-  onEdit:     (booking: Booking) => void;
-  onDelete:   (booking: Booking) => void;
-  onStatus:   (booking: Booking, status: string) => void;
+  booking:           Booking | null;
+  canManage:         boolean;
+  canApprove:        boolean;
+  canFinanceApprove: boolean;
+  canOpsApprove:     boolean;
+  onClose:           () => void;
+  onEdit:            (booking: Booking) => void;
+  onDelete:          (booking: Booking) => void;
+  onStatus:          (booking: Booking, status: string) => void;
+  onRequestFinanceApprove: (booking: Booking) => void;
+  onRequestOpsApprove:     (booking: Booking) => void;
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -25,8 +29,16 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function BookingDetailModal({ booking, canManage, canApprove, onClose, onEdit, onDelete, onStatus }: Props) {
+export function BookingDetailModal({
+  booking, canManage, canApprove, canFinanceApprove, canOpsApprove,
+  onClose, onEdit, onDelete, onStatus, onRequestFinanceApprove, onRequestOpsApprove,
+}: Props) {
   if (!booking) return null;
+
+  const showFinanceApprove = booking.status === "pending_finance" && canFinanceApprove;
+  const showOpsApprove     = booking.status === "ops_pending" && canOpsApprove;
+  const showDropdown       = canApprove && !showFinanceApprove && !showOpsApprove;
+  const hasApprovalTrail   = !!booking.financeApprovedBy || !!booking.opsApprovedBy;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -115,6 +127,23 @@ export function BookingDetailModal({ booking, canManage, canApprove, onClose, on
             </div>
           </div>
 
+          {hasApprovalTrail && (
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <ShieldCheck size={13} className="text-primary" />
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Approvals</p>
+              </div>
+              <div className="divide-y divide-border rounded-xl border border-border px-3">
+                {booking.financeApprovedBy && <Row label="Finance Approved By" value={booking.financeApprovedBy} />}
+                {booking.financeApprovedAt && <Row label="Finance Approved At" value={formatDateTime(booking.financeApprovedAt as never)} />}
+                {booking.paymentVerification && <Row label="Payment Verification" value={booking.paymentVerification === "full" ? "Full amount received" : "Partial advance received"} />}
+                {booking.opsApprovedBy && <Row label="Ops Approved By" value={booking.opsApprovedBy} />}
+                {booking.opsApprovedAt && <Row label="Ops Approved At" value={formatDateTime(booking.opsApprovedAt as never)} />}
+                {booking.profitAmount != null && <Row label="Profit Recorded" value={formatAmount(booking.profitAmount)} />}
+              </div>
+            </div>
+          )}
+
           {booking.notes && (
             <div>
               <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-primary">Notes</p>
@@ -146,7 +175,23 @@ export function BookingDetailModal({ booking, canManage, canApprove, onClose, on
               </>
             )}
           </div>
-          {canApprove && (
+          {showFinanceApprove && (
+            <button
+              onClick={() => onRequestFinanceApprove(booking)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              Approve as Finance
+            </button>
+          )}
+          {showOpsApprove && (
+            <button
+              onClick={() => onRequestOpsApprove(booking)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              Approve as Operations
+            </button>
+          )}
+          {showDropdown && (
             <select
               value={booking.status}
               onChange={(e) => onStatus(booking, e.target.value)}

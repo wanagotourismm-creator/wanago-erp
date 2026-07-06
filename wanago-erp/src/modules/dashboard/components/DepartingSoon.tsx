@@ -13,7 +13,7 @@ type Departure = {
   id:           string;
   customerName: string;
   destination:  string;
-  departureDate: unknown;
+  travelDate:   unknown;
   pax:          number;
   status:       string;
 };
@@ -30,13 +30,13 @@ export function DepartingSoon() {
         end.setDate(end.getDate() + 14);
 
         const snap = await getDocs(
-          query(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS), orderBy("departureDate", "asc"))
+          query(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS), orderBy("travelDate", "asc"))
         );
 
         const upcoming = snap.docs
           .map(d => ({ id: d.id, ...d.data() }) as Departure)
           .filter(b => {
-            const d = toDate(b.departureDate as never);
+            const d = toDate(b.travelDate as never);
             return d && d >= now && d <= end;
           })
           .slice(0, 5);
@@ -78,7 +78,7 @@ export function DepartingSoon() {
                 <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{d.destination}</p>
               </div>
               <div className="text-right flex-shrink-0 ml-3">
-                <p className="text-xs font-medium text-foreground">{formatDate(d.departureDate as never)}</p>
+                <p className="text-xs font-medium text-foreground">{formatDate(d.travelDate as never)}</p>
                 <p className="text-[10px] text-muted-foreground">{d.pax ?? 1} pax</p>
               </div>
             </div>

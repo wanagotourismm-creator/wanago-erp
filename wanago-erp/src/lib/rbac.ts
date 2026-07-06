@@ -9,6 +9,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "leads:view_all", "leads:view_own", "leads:create", "leads:edit", "leads:delete",
     "customers:view_all", "customers:view_own", "customers:create", "customers:edit", "customers:delete",
     "bookings:view_all", "bookings:view_own", "bookings:create", "bookings:edit", "bookings:delete", "bookings:approve",
+    "bookings:finance_approve", "bookings:ops_approve",
     "finance:view", "finance:create", "finance:edit", "finance:export",
     "hrms:view_all", "hrms:view_own", "hrms:manage",
     "reports:view", "reports:export",
@@ -18,12 +19,12 @@ export const PERMISSION_MAP: PermissionMap = {
   operations: [
     "leads:view_all",
     "customers:view_all",
-    "bookings:view_all", "bookings:edit", "bookings:approve",
+    "bookings:view_all", "bookings:edit", "bookings:approve", "bookings:ops_approve",
     "reports:view",
   ],
 
   finance: [
-    "bookings:view_all",
+    "bookings:view_all", "bookings:finance_approve",
     "finance:view", "finance:create", "finance:edit", "finance:export",
     "reports:view", "reports:export",
   ],
@@ -57,10 +58,10 @@ export const PAGE_ACCESS: PageAccess = {
   super_admin: ["*"],
   admin:       ["*"],
   operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "settings"],
-  finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "settings"],
+  finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "incentives", "settings"],
   marketing:   ["dashboard", "ess", "leads", "customers", "marketing", "reports", "campaigns", "settings"],
-  hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "settings"],
-  sales:       ["dashboard", "ess", "leads", "customers", "bookings", "packages", "itineraries", "settings"],
+  hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "incentives", "settings"],
+  sales:       ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "settings"],
   support:     ["dashboard", "ess", "leads", "customers", "bookings", "settings"],
 };
 

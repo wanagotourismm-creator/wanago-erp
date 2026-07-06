@@ -23,6 +23,8 @@ import { DepartingSoon }        from "@/modules/dashboard/components/DepartingSo
 import { RecentActivity }       from "@/modules/dashboard/components/RecentActivity";
 import { PayoutPanel }          from "@/modules/dashboard/components/PayoutPanel";
 import { PayrollSummaryCard }   from "@/modules/dashboard/components/PayrollSummaryCard";
+import { PendingDuesPanel }     from "@/modules/dashboard/components/PendingDuesPanel";
+import { InternationalFollowUps } from "@/modules/dashboard/components/InternationalFollowUps";
 import { SkeletonCard }         from "@/components/ui/Skeleton";
 import { formatCurrency }       from "@/lib/utils/helpers";
 
@@ -151,6 +153,12 @@ export function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <DepartingSoon />
             <RecentActivity />
+          </div>
+
+          {/* Pending Dues + International Follow-Ups */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <PendingDuesPanel />
+            <InternationalFollowUps />
           </div>
 
         </div>

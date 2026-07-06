@@ -7,6 +7,7 @@ import { X, Loader2, User, Wallet, StickyNote } from "lucide-react";
 import { invoiceSchema, type InvoiceSchema } from "@/modules/invoices/schemas";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
+import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import type { Customer } from "@/modules/customers/types";
@@ -49,6 +50,7 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [bookings,  setBookings]  = useState<Booking[]>([]);
+  const [gstEnabled, setGstEnabled] = useState(false);
 
   const {
     register, handleSubmit, reset, watch, setValue,
@@ -68,6 +70,11 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
     if (!open) return;
     fetchCustomers().then(setCustomers).catch(() => {});
     fetchBookings().then(setBookings).catch(() => {});
+    fetchCompanySettings().then(s => {
+      setGstEnabled(s.gstEnabled);
+      if (s.gstEnabled && !invoice) setValue("taxRate", s.taxRate);
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -92,6 +99,16 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
 
   const selectedCustomerId = watch("customerId");
   const selectedBookingId  = watch("bookingId");
+  const watchedTotalAmount = watch("totalAmount");
+  const watchedTaxRate     = watch("taxRate");
+  const computedTaxAmount  = gstEnabled && watchedTaxRate
+    ? Number(((Number(watchedTotalAmount) || 0) * (Number(watchedTaxRate) / 100)).toFixed(2))
+    : 0;
+
+  useEffect(() => {
+    if (gstEnabled) setValue("taxAmount", computedTaxAmount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gstEnabled, computedTaxAmount]);
 
   function handleCustomerChange(id: string) {
     const c = customers.find(c => c.id === id);
@@ -109,6 +126,10 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
       setValue("totalAmount", b.totalAmount);
       setValue("amountPaid", b.advanceAmount);
     }
+  }
+
+  function handleFormSubmit(data: InvoiceSchema) {
+    return onSubmit(gstEnabled ? data : { ...data, taxRate: null, taxAmount: null });
   }
 
   if (!open) return null;
@@ -205,6 +226,16 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
               <Field label="Due Date" error={errors.dueDate?.message}>
                 <input className={inputClass} type="date" {...register("dueDate")} />
               </Field>
+              {gstEnabled && (
+                <>
+                  <Field label="Tax Rate (%)" error={errors.taxRate?.message}>
+                    <input className={inputClass} type="number" min={0} max={100} step={0.1} placeholder="e.g. 18" {...register("taxRate")} />
+                  </Field>
+                  <Field label="Tax Amount (₹)">
+                    <input className={cn(inputClass, "bg-muted/50 text-muted-foreground")} readOnly value={computedTaxAmount} />
+                  </Field>
+                </>
+              )}
             </div>
           </div>
 
@@ -243,7 +274,7 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
               Cancel
             </button>
             <button
-              onClick={handleSubmit(onSubmit)}
+              onClick={handleSubmit(handleFormSubmit)}
               disabled={isSubmitting}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm"
             >

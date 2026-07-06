@@ -139,6 +139,20 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
             <input className={inputClass} type="number" min={0} max={100} step={0.1} value={form.serviceChargeRate}
               onChange={e => set("serviceChargeRate", Number(e.target.value))} />
           </Field>
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <input type="checkbox" className="h-4 w-4 rounded border-input" checked={form.gstEnabled}
+                onChange={e => set("gstEnabled", e.target.checked)} />
+              GST Enabled (shows tax fields on invoices/quotations and their PDFs)
+            </label>
+          </div>
+          <Field label="Incentive Rate (%)">
+            <input className={inputClass} type="number" min={0} max={100} step={0.1} value={form.incentiveRatePercent}
+              onChange={e => set("incentiveRatePercent", Number(e.target.value))} />
+            <p className="text-xs text-muted-foreground">
+              Used to estimate sales incentives until the final commission formula is confirmed
+            </p>
+          </Field>
         </div>
       </div>
 

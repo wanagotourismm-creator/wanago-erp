@@ -1,4 +1,4 @@
-import { where, type QueryConstraint } from "firebase/firestore";
+import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { bookingRepository } from "@/modules/bookings/services/booking.repository";
@@ -10,12 +10,14 @@ import type { Booking, BookingFormData } from "@/modules/bookings/types";
 // queries only need single-field indexes, which Firestore creates
 // automatically — no manual composite index deployment required.
 export async function fetchBookings(filters?: {
-  status?:   string;
-  officeId?: string;
+  status?:     string;
+  officeId?:   string;
+  customerId?: string;
 }): Promise<Booking[]> {
   const constraints: QueryConstraint[] = [];
-  if (filters?.status)   constraints.push(where("status",   "==", filters.status));
-  if (filters?.officeId) constraints.push(where("officeId", "==", filters.officeId));
+  if (filters?.status)     constraints.push(where("status",     "==", filters.status));
+  if (filters?.officeId)   constraints.push(where("officeId",   "==", filters.officeId));
+  if (filters?.customerId) constraints.push(where("customerId", "==", filters.customerId));
   const bookings = await bookingRepository.findMany({ constraints });
   return bookings.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
 }
@@ -45,6 +47,13 @@ export async function createBooking(
     assignedTo:    data.assignedTo  || null,
     agentName:     data.agentName   || null,
     notes:         data.notes       || null,
+    financeApprovedBy:   null,
+    financeApprovedAt:   null,
+    paymentVerification: null,
+    opsApprovedBy:       null,
+    opsApprovedAt:       null,
+    profitAmount:        null,
+    followUpNotifiedAt:  null,
   });
 }
 
@@ -69,6 +78,36 @@ export async function updateBookingStatus(
   status: string
 ): Promise<void> {
   return bookingRepository.update(id, { status } as Partial<Booking>);
+}
+
+// Finance verifies how much of the amount has actually come in, then the
+// booking moves into Operations' queue.
+export async function approveBookingAsFinance(
+  id: string,
+  approvedBy: string,
+  paymentVerification: "full" | "partial"
+): Promise<void> {
+  return bookingRepository.update(id, {
+    status:              BOOKING_STATUS.OPS_PENDING,
+    financeApprovedBy:   approvedBy,
+    financeApprovedAt:   serverTimestamp(),
+    paymentVerification,
+  } as Partial<Booking>);
+}
+
+// Operations cross-verifies and records the deal's real profit — this is
+// what confirms the booking and is what the incentive calculation reads.
+export async function approveBookingAsOperations(
+  id: string,
+  approvedBy: string,
+  profitAmount: number
+): Promise<void> {
+  return bookingRepository.update(id, {
+    status:        BOOKING_STATUS.CONFIRMED,
+    opsApprovedBy: approvedBy,
+    opsApprovedAt: serverTimestamp(),
+    profitAmount,
+  } as Partial<Booking>);
 }
 
 export async function deleteBooking(id: string): Promise<void> {

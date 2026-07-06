@@ -51,6 +51,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "calendar-check",
         roles: ["super_admin","admin","sales","operations","finance","support"],
       },
+      {
+        label: "Quotations",
+        href:  "/quotations",
+        icon:  "file-invoice",
+        roles: ["super_admin","admin","sales"],
+      },
     ],
   },
   {
@@ -96,6 +102,12 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/expenses",
         icon:  "receipt",
         roles: ["super_admin","admin","finance"],
+      },
+      {
+        label: "Incentives",
+        href:  "/incentives",
+        icon:  "cash",
+        roles: ["super_admin","admin","finance","hr"],
       },
     ],
   },

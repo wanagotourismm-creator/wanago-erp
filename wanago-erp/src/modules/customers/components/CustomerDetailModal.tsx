@@ -1,9 +1,16 @@
 "use client";
 
-import { X, Phone, Mail, MapPin, Edit2, Trash2, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Phone, Mail, MapPin, Edit2, Trash2, User, Briefcase } from "lucide-react";
 import { CustomerTypeBadge } from "@/modules/customers/components/CustomerBadges";
-import { formatDate, initials } from "@/lib/utils/helpers";
+import { formatDate, formatCurrency, initials } from "@/lib/utils/helpers";
+import { fetchBookings } from "@/modules/bookings/services/booking.service";
+import { BookingStatusBadge } from "@/modules/bookings/components/BookingBadges";
+import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
+import { InvoiceStatusBadge } from "@/modules/invoices/components/InvoiceBadges";
 import type { Customer } from "@/modules/customers/types";
+import type { Booking } from "@/modules/bookings/types";
+import type { Invoice } from "@/modules/invoices/types";
 
 type Props = {
   customer:  Customer | null;
@@ -12,6 +19,31 @@ type Props = {
   onEdit:    (customer: Customer) => void;
   onDelete:  (customer: Customer) => void;
 };
+
+function paymentBadgeFor(booking: Booking, invoices: Invoice[]) {
+  const invoice = invoices.find((inv) => inv.bookingId === booking.id);
+  if (invoice) return <InvoiceStatusBadge status={invoice.status} />;
+
+  if (booking.balanceAmount <= 0) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        Paid
+      </span>
+    );
+  }
+  if (booking.balanceAmount > 0 && booking.advanceAmount > 0) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+        Partially Paid
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+      Unpaid
+    </span>
+  );
+}
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -23,7 +55,28 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDelete }: Props) {
+  const [bookings, setBookings]         = useState<Booking[]>([]);
+  const [invoices, setInvoices]         = useState<Invoice[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+
+  useEffect(() => {
+    if (!customer) { setBookings([]); setInvoices([]); return; }
+    let cancelled = false;
+    setLoadingBookings(true);
+    Promise.all([fetchBookings({ customerId: customer.id }), fetchInvoices()])
+      .then(([b, i]) => {
+        if (cancelled) return;
+        setBookings(b);
+        setInvoices(i);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingBookings(false); });
+    return () => { cancelled = true; };
+  }, [customer?.id]);
+
   if (!customer) return null;
+
+  const totalPendingDues = bookings.reduce((sum, b) => sum + Math.max(b.balanceAmount, 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -84,6 +137,45 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
               <Row label="Address" value={customer.address} />
               <Row label="Office" value={customer.officeName} />
             </div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <Briefcase size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Bookings & Payments</p>
+            </div>
+            {loadingBookings ? (
+              <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">Loading…</p>
+            ) : bookings.length === 0 ? (
+              <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">No bookings yet</p>
+            ) : (
+              <>
+                <div className="divide-y divide-border rounded-xl border border-border px-3">
+                  {bookings.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between gap-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{b.destination}</p>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                          <span className="text-[11px] text-muted-foreground">{b.refNumber}</span>
+                          <BookingStatusBadge status={b.status} />
+                        </div>
+                      </div>
+                      <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                        {paymentBadgeFor(b, invoices)}
+                        <span className="text-[11px] text-muted-foreground">
+                          {b.balanceAmount > 0 ? `${formatCurrency(b.balanceAmount)} due` : "Paid"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {totalPendingDues > 0 && (
+                  <p className="mt-2 text-xs font-medium text-destructive">
+                    Total pending dues: {formatCurrency(totalPendingDues)}
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
           {customer.notes && (

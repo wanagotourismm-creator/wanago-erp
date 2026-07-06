@@ -56,6 +56,8 @@ export async function createInvoice(
     bookingId:  data.bookingId  || null,
     bookingRef: data.bookingRef || null,
     notes:      data.notes      || null,
+    taxRate:    data.taxRate   ?? null,
+    taxAmount:  data.taxAmount ?? null,
   });
 }
 

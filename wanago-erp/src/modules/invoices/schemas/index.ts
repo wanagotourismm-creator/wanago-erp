@@ -10,6 +10,8 @@ export const invoiceSchema = z.object({
 
   totalAmount:   z.coerce.number().min(0, "Total amount is required"),
   amountPaid:    z.coerce.number().min(0).default(0),
+  taxRate:       z.coerce.number().min(0).optional().nullable(),
+  taxAmount:     z.coerce.number().min(0).optional().nullable(),
 
   issueDate:     z.string().min(1, "Issue date is required"),
   dueDate:       z.string().optional().or(z.literal("")),
