@@ -30,14 +30,14 @@ type Props = {
 
 export function HrOverviewDashboard({ onAddEmployee, onPostJob, onApproveLeave }: Props) {
   const {
-    loading, employeesToday,
+    loading, loadError, employeesToday,
     headcount, attendancePct,
     headcountTrendPct, attendanceTrend,
     newHiresThisMonth, newHiresTrend,
     openJobsCount, jobsTrend,
     pendingLeavesCount, pendingLeavesTrend,
     upcomingReviewsCount, reviewsTrend,
-    headcountTrend, upcomingEvents, recentActivity,
+    headcountTrend, upcomingEvents, recentActivity, reload,
   } = useHrOverview();
   const { total: deptTotal, departments } = useEmployeeBreakdown();
 
@@ -45,6 +45,20 @@ export function HrOverviewDashboard({ onAddEmployee, onPostJob, onApproveLeave }
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4">
+        <div>
+          <p className="text-sm font-semibold text-destructive">Overview failed to load</p>
+          <p className="mt-0.5 text-xs text-destructive/80">{loadError}</p>
+        </div>
+        <button onClick={() => reload()} className="flex-shrink-0 rounded-xl border border-destructive/40 bg-background px-4 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors">
+          Retry
+        </button>
       </div>
     );
   }

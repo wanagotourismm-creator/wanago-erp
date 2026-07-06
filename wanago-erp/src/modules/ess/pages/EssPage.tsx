@@ -37,11 +37,11 @@ export function EssPage() {
   const { user } = useAuthStore();
   const router = useRouter();
   const {
-    loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
+    loading, loadError, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances, leavePolicy, enabledLeaveTypes,
     clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
-    requestCorrection, requestAsset, reportIssue, decideInboxItem,
+    requestCorrection, requestAsset, reportIssue, decideInboxItem, reload,
   } = useEss();
 
   const isManager = directReports.length > 0;
@@ -91,6 +91,18 @@ export function EssPage() {
     );
   }
 
+  const errorBanner = loadError && (
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4">
+      <div>
+        <p className="text-sm font-semibold text-destructive">Some of your HR data failed to load</p>
+        <p className="mt-0.5 text-xs text-destructive/80">{loadError}</p>
+      </div>
+      <button onClick={() => reload()} className="flex-shrink-0 rounded-xl border border-destructive/40 bg-background px-4 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors">
+        Retry
+      </button>
+    </div>
+  );
+
   const navGroups: HrNavGroup[] = [
     { label: "", items: [{ key: "overview", label: "Overview", icon: LayoutGrid }] },
     ...(isManager ? [{
@@ -116,6 +128,7 @@ export function EssPage() {
 
   return (
     <div className="space-y-5">
+      {errorBanner}
       <HrShell
         navGroups={navGroups}
         activeKey={section}

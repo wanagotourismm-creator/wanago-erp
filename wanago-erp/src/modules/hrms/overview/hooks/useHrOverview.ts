@@ -75,6 +75,7 @@ function buildHeadcountTrend(employees: Employee[]): HeadcountTrendPoint[] {
 
 export function useHrOverview() {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
@@ -86,6 +87,7 @@ export function useHrOverview() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [emps, att, lvs, regs, jobs, reviews] = await Promise.all([
         fetchEmployees(),
@@ -123,6 +125,8 @@ export function useHrOverview() {
         return d >= past30 && d < now;
       }).length;
       setReviewsTrend(computeTrend(upcoming.length, pastWindowCount));
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Failed to load HR overview data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -225,7 +229,7 @@ export function useHrOverview() {
   const headcountTrend = buildHeadcountTrend(employees);
 
   return {
-    loading, employeesToday, departmentSummaries,
+    loading, loadError, employeesToday, departmentSummaries,
     headcount, attendancePct, onLeaveToday, absentToday, unmarkedToday, awaitingApproval,
     headcountTrendPct, attendanceTrend,
     newHiresThisMonth, newHiresTrend,

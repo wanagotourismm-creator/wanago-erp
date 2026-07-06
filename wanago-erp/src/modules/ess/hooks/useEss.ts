@@ -40,6 +40,7 @@ export type InboxItem =
 export function useEss() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [directReports, setDirectReports] = useState<Employee[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -60,6 +61,7 @@ export function useEss() {
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const [emp, hols, policy] = await Promise.all([
         fetchEmployeeByUserId(user.uid, user.email),
@@ -108,6 +110,13 @@ export function useEss() {
           setTeamAssetRequests([]);
         }
       }
+    } catch (e) {
+      // A missing Firestore composite index (or any other load failure) used
+      // to fail this Promise.all silently, leaving attendance/leaves/etc in
+      // their empty initial state — which made check-in look "already done"
+      // as far as Firestore was concerned while the UI still showed the
+      // "Check In" button. Surface it instead of swallowing it.
+      setLoadError(e instanceof Error ? e.message : "Failed to load your HR data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -344,7 +353,7 @@ export function useEss() {
   }
 
   return {
-    loading, employee, directReports, attendance, leaves, regularizations, teamInbox,
+    loading, loadError, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
     leavePolicy, enabledLeaveTypes,
