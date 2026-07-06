@@ -43,8 +43,8 @@ export function HrShell({ navGroups, activeKey, onNavigate, headerTitle, headerS
 
       <div className="flex flex-1 flex-col lg:flex-row">
 
-        {/* Nav rail */}
-        <nav className="flex flex-shrink-0 gap-4 overflow-x-auto border-b border-border bg-muted/20 p-3 lg:w-56 lg:flex-col lg:gap-5 lg:overflow-visible lg:border-b-0 lg:border-r">
+        {/* Nav rail — sticky + independently scrollable on desktop, like the main sidebar, so it doesn't get cut off when there are more tools than fit on screen */}
+        <nav className="flex flex-shrink-0 gap-4 overflow-x-auto border-b border-border bg-muted/20 p-3 lg:sticky lg:top-0 lg:max-h-[calc(100vh-64px)] lg:w-56 lg:flex-col lg:gap-5 lg:self-start lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r scrollbar-thin">
           {navGroups.map((group) => (
             <div key={group.label || "root"} className="flex flex-shrink-0 flex-col gap-1">
               {group.label && (
