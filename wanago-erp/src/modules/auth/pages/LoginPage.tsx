@@ -5,10 +5,12 @@ import { motion } from "framer-motion";
 import { LoginBackdrop } from "@/modules/auth/components/LoginBackdrop";
 import { LoginForm } from "@/modules/auth/components/LoginForm";
 import { ForgotPasswordForm } from "@/modules/auth/components/ForgotPasswordForm";
+import { AboutUsModal } from "@/modules/auth/components/AboutUsModal";
 import { useThemeStore, THEMES } from "@/store/theme.store";
 
 export default function LoginPage() {
   const [view, setView] = useState<"login" | "forgot">("login");
+  const [aboutOpen, setAboutOpen] = useState(false);
   const { colorTheme, setColorTheme } = useThemeStore();
   const theme = THEMES.find(t => t.id === colorTheme) ?? THEMES[0];
 
@@ -16,14 +18,15 @@ export default function LoginPage() {
     <LoginBackdrop>
       <div className="w-full max-w-sm">
 
-        {/* Warm welcome line */}
+        {/* Brand tagline */}
         <motion.p
-          className="mb-8 text-center text-sm font-medium text-white/85"
+          className="mb-8 text-center text-xl font-extrabold uppercase tracking-wide text-white sm:text-2xl"
+          style={{ textShadow: "0 2px 12px rgba(0,0,0,0.25)" }}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.45 }}
         >
-          &ldquo;Great teams build great travel experiences.&rdquo;
+          We know, you wanna go.
         </motion.p>
 
         {/* Login card — slides up last */}
@@ -80,17 +83,27 @@ export default function LoginPage() {
           </div>
         </motion.div>
 
-        <motion.p
-          className="mt-5 text-center text-xs text-white/50"
+        <motion.div
+          className="mt-5 text-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 1.2 }}
         >
-          Wanago™ ERP · Travel Management System
-          <br />© {new Date().getFullYear()} Wanago. All rights reserved.
-        </motion.p>
+          <button
+            onClick={() => setAboutOpen(true)}
+            className="rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/85 backdrop-blur-sm transition-all hover:border-white/40 hover:bg-white/20"
+          >
+            About Us
+          </button>
+          <p className="mt-4 text-xs text-white/50">
+            Wanago™ ERP · Travel Management System
+            <br />© {new Date().getFullYear()} Wanago. All rights reserved.
+          </p>
+        </motion.div>
 
       </div>
+
+      <AboutUsModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </LoginBackdrop>
   );
 }
