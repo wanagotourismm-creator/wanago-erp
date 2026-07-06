@@ -1,7 +1,10 @@
 "use client";
 
+import { Fraunces } from "next/font/google";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Compass } from "lucide-react";
+
+const fraunces = Fraunces({ subsets: ["latin"], weight: ["600", "700"], style: ["normal", "italic"], display: "swap" });
 
 type Props = {
   open:    boolean;
@@ -37,7 +40,7 @@ export function AboutUsModal({ open, onClose }: Props) {
                 </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Introducing</p>
-                  <h2 className="text-lg font-bold text-gray-900">Wanago</h2>
+                  <h2 className={`${fraunces.className} text-xl font-semibold text-gray-900`}>Wanago</h2>
                 </div>
               </div>
               <button
@@ -73,7 +76,7 @@ export function AboutUsModal({ open, onClose }: Props) {
               </p>
 
               <div className="!mt-6 rounded-2xl px-5 py-4" style={{ background: "rgba(34,128,80,0.07)" }}>
-                <p className="text-center text-base font-bold italic" style={{ color: "#228050" }}>
+                <p className={`${fraunces.className} text-center text-lg italic`} style={{ color: "#228050" }}>
                   &ldquo;We know, you wanna go.&rdquo;
                 </p>
                 <p className="mt-2 text-center text-xs font-medium text-gray-500">

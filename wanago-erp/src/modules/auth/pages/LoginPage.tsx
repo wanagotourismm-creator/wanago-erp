@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { Fraunces } from "next/font/google";
 import { motion } from "framer-motion";
 import { LoginBackdrop } from "@/modules/auth/components/LoginBackdrop";
 import { LoginForm } from "@/modules/auth/components/LoginForm";
 import { ForgotPasswordForm } from "@/modules/auth/components/ForgotPasswordForm";
 import { AboutUsModal } from "@/modules/auth/components/AboutUsModal";
 import { useThemeStore, THEMES } from "@/store/theme.store";
+
+// Warm display serif, scoped to the login screen only — kept out of
+// tailwind.config's global font-sans so it never touches the dashboard.
+const fraunces = Fraunces({ subsets: ["latin"], weight: ["600", "700"], style: ["normal", "italic"], display: "swap" });
 
 export default function LoginPage() {
   const [view, setView] = useState<"login" | "forgot">("login");
@@ -20,8 +25,8 @@ export default function LoginPage() {
 
         {/* Brand tagline */}
         <motion.p
-          className="mb-8 text-center text-xl font-extrabold uppercase tracking-wide text-white sm:text-2xl"
-          style={{ textShadow: "0 2px 12px rgba(0,0,0,0.25)" }}
+          className={`${fraunces.className} mb-8 text-center text-3xl italic tracking-tight text-white sm:text-left sm:text-4xl`}
+          style={{ textShadow: "0 2px 16px rgba(0,0,0,0.3)" }}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.45 }}
@@ -43,7 +48,7 @@ export default function LoginPage() {
           }}
         >
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className={`${fraunces.className} text-2xl font-semibold text-gray-900`}>
               {view === "login" ? "Welcome back" : "Reset Password"}
             </h1>
             <p className="mt-1 text-sm text-gray-400">

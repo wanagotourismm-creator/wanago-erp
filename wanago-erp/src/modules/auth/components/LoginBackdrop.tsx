@@ -173,8 +173,9 @@ export function LoginBackdrop({ children }: { children: React.ReactNode }) {
         <p className="text-[11px] text-white/60 sm:text-xs">{date}</p>
       </motion.div>
 
-      {/* Foreground content */}
-      <div className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center px-4 py-24">
+      {/* Foreground content — centered on mobile, shifted to the right on
+          larger screens so the scene stays visible on the left */}
+      <div className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center px-4 py-24 lg:items-end lg:justify-center lg:px-12 lg:py-0 xl:px-24">
         {children}
       </div>
     </div>
