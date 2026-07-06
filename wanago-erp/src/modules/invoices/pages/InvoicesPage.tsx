@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw, FileText, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, FileText, Clock, CheckCircle2, AlertTriangle, UploadCloud } from "lucide-react";
 import { useInvoices } from "@/modules/invoices/hooks/useInvoices";
 import { InvoicesTable } from "@/modules/invoices/components/InvoicesTable";
 import { InvoiceDetailModal } from "@/modules/invoices/components/InvoiceDetailModal";
@@ -13,8 +13,29 @@ import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { cn } from "@/lib/utils/helpers";
 import { INVOICE_STATUS_LABELS } from "@/lib/constants";
-import type { Invoice } from "@/modules/invoices/types";
+import { BulkImportModal, type TemplateColumn, type ParseRowResult } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { invoiceSchema } from "@/modules/invoices/schemas";
+import { fetchCustomers } from "@/modules/customers/services/customer.service";
+import { fetchBookings } from "@/modules/bookings/services/booking.service";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Invoice, InvoiceFormData } from "@/modules/invoices/types";
 import type { InvoiceSchema } from "@/modules/invoices/schemas";
+import type { Customer } from "@/modules/customers/types";
+import type { Booking } from "@/modules/bookings/types";
+import type { Office } from "@/modules/admin/offices/types";
+
+const INVOICE_TEMPLATE_COLUMNS: TemplateColumn[] = [
+  { key: "customerPhone", label: "Customer Phone", required: true, example: "9876543210" },
+  { key: "bookingRef",    label: "Booking Ref",     example: "BOOKING-0001" },
+  { key: "totalAmount",   label: "Total Amount",    required: true, example: "150000" },
+  { key: "amountPaid",    label: "Amount Paid",     example: "50000" },
+  { key: "issueDate",     label: "Issue Date",      required: true, example: "2026-07-01" },
+  { key: "dueDate",       label: "Due Date",        example: "2026-07-15" },
+  { key: "office",        label: "Office",          example: "Head Office" },
+  { key: "notes",         label: "Notes",           example: "" },
+];
 
 const STATUS_FILTERS = [
   { value: "", label: "All" },
@@ -33,6 +54,17 @@ export function InvoicesPage() {
   const [statusFilter,    setStatusFilter]    = useState("");
   const [search,          setSearch]          = useState("");
 
+  const [importOpen, setImportOpen] = useState(false);
+  const [customers,  setCustomers]  = useState<Customer[]>([]);
+  const [bookings,   setBookings]   = useState<Booking[]>([]);
+  const [offices,    setOffices]    = useState<Office[]>([]);
+
+  useEffect(() => {
+    fetchCustomers().then(setCustomers).catch(() => {});
+    fetchBookings().then(setBookings).catch(() => {});
+    fetchOffices().then(setOffices).catch(() => {});
+  }, []);
+
   const filtered = useMemo(() => {
     return invoices.filter((i) => {
       const matchStatus = !statusFilter || i.status === statusFilter;
@@ -48,6 +80,75 @@ export function InvoicesPage() {
     const dueAmount = invoices.reduce((sum, i) => sum + i.balanceDue, 0);
     return { total: invoices.length, paid, overdue, dueAmount };
   }, [invoices]);
+
+  const exportRows = useMemo(() => filtered.map((i) => ({
+    "Customer Phone": i.customerPhone,
+    "Booking Ref":    i.bookingRef ?? "",
+    "Total Amount":   i.totalAmount,
+    "Amount Paid":    i.amountPaid,
+    "Issue Date":     i.issueDate,
+    "Due Date":       i.dueDate ?? "",
+    "Office":         i.officeName,
+    "Notes":          i.notes ?? "",
+  })), [filtered]);
+
+  function onParseRow(raw: Record<string, string>): ParseRowResult<InvoiceFormData> {
+    const phone = raw["Customer Phone"]?.trim();
+    const customer = customers.find((c) => c.phone === phone);
+    if (!customer) {
+      return { error: `No customer found with phone '${phone ?? ""}' — import/create the customer first` };
+    }
+
+    const bookingRefRaw = raw["Booking Ref"]?.trim();
+    const booking = bookingRefRaw ? bookings.find((b) => b.refNumber === bookingRefRaw) : undefined;
+
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId:   user?.officeId   ?? "main",
+      officeName: user?.officeName ?? "Head Office",
+    });
+
+    const candidate = {
+      bookingId:     booking?.id ?? "",
+      bookingRef:    booking?.refNumber ?? "",
+      customerId:    customer.id,
+      customerName:  customer.fullName,
+      customerPhone: customer.phone,
+      totalAmount:   raw["Total Amount"] ?? "",
+      amountPaid:    raw["Amount Paid"] || "0",
+      issueDate:     raw["Issue Date"] ?? "",
+      dueDate:       raw["Due Date"] ?? "",
+      officeId:      office.officeId,
+      officeName:    office.officeName,
+      notes:         raw["Notes"] ?? "",
+    };
+
+    const parsed = invoiceSchema.safeParse(candidate);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid row" };
+    }
+
+    const data: InvoiceFormData = {
+      ...parsed.data,
+      bookingId:  parsed.data.bookingId  || null,
+      bookingRef: parsed.data.bookingRef || null,
+      dueDate:    parsed.data.dueDate    || null,
+      notes:      parsed.data.notes      || null,
+      createdBy:  user?.uid ?? "",
+    };
+
+    return { data };
+  }
+
+  async function onImportRows(rows: InvoiceFormData[]): Promise<{ created: number; failed: number }> {
+    let created = 0;
+    let failed = 0;
+    for (const row of rows) {
+      const { error } = await addInvoice(row);
+      if (error) failed++;
+      else created++;
+    }
+    return { created, failed };
+  }
 
   async function handleSubmit(data: InvoiceSchema) {
     const payload = {
@@ -91,6 +192,12 @@ export function InvoicesPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            <BulkExportButton filenameBase="invoices" rows={exportRows} />
+            {canCreate && (
+              <Button variant="outline" size="sm" icon={<UploadCloud size={14} />} onClick={() => setImportOpen(true)}>
+                Import
+              </Button>
+            )}
             {canCreate && (
               <Button
                 size="sm"
@@ -182,6 +289,17 @@ export function InvoicesPage() {
         invoice={editingInvoice}
         onClose={() => { setFormOpen(false); setEditingInvoice(null); }}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal<InvoiceFormData>
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Invoices"
+        description="Upload a .csv or .xlsx file to create many invoices at once"
+        templateColumns={INVOICE_TEMPLATE_COLUMNS}
+        onParseRow={onParseRow}
+        onImport={onImportRows}
       />
 
     </div>

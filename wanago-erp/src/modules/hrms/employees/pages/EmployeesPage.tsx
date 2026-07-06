@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw, Users, UserCheck, UserX, Clock } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, Users, UserCheck, UserX, Clock, Upload } from "lucide-react";
 import { useEmployees } from "@/modules/hrms/employees/hooks/useEmployees";
 import { EmployeeDirectory } from "@/modules/hrms/employees/components/EmployeeDirectory";
 import { EmployeeForm } from "@/modules/hrms/employees/components/EmployeeForm";
@@ -12,7 +12,15 @@ import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { cn } from "@/lib/utils/helpers";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { createEmployee } from "@/modules/hrms/employees/services/employee.service";
+import { employeeSchema } from "@/modules/hrms/employees/schemas";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
 import type { Employee } from "@/modules/hrms/shared/types";
+import type { EmployeeFormData } from "@/modules/hrms/employees/types";
 import type { EmployeeSchema } from "@/modules/hrms/employees/schemas";
 
 export function EmployeesPage() {
@@ -25,6 +33,10 @@ export function EmployeesPage() {
   const [profileEmployee, setProfileEmployee] = useState<Employee | null>(null);
   const [deptFilter,       setDeptFilter]      = useState("");
   const [search,           setSearch]          = useState("");
+  const [importOpen,       setImportOpen]      = useState(false);
+  const [offices,          setOffices]         = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
   const filtered = useMemo(() => {
     return employees.filter(e => {
@@ -73,6 +85,146 @@ export function EmployeesPage() {
     await removeEmployee(employee.id);
   }
 
+  const exportRows = useMemo(() => filtered.map((e) => ({
+    "Full Name":            e.fullName,
+    Gender:                 e.gender ?? "",
+    "Date of Birth":        e.dateOfBirth ?? "",
+    "Mobile Number":        e.mobileNumber,
+    Email:                  e.email ?? "",
+    Address:                e.address ?? "",
+    Department:             e.department,
+    Designation:            e.designation,
+    "Reporting Manager":    e.reportingManagerName ?? "",
+    "Employment Type":      e.employmentType,
+    "Date of Joining":      e.dateOfJoining ?? "",
+    "Probation Status":     e.probationStatus,
+    "Employee Status":      e.employeeStatus,
+    "Basic Salary":         e.basicSalary,
+    HRA:                    e.hra,
+    Allowances:             e.allowances,
+    "Bank Account Number":  e.bankAccountNumber ?? "",
+    "Bank Name":            e.bankName ?? "",
+    "IFSC Code":            e.ifscCode ?? "",
+    UAN:                    e.uan ?? "",
+    "PF Number":            e.pfNumber ?? "",
+    "PAN Number":           e.panNumber ?? "",
+    Office:                 e.officeName,
+  })), [filtered]);
+
+  const templateColumns: TemplateColumn[] = [
+    { key: "fullName", label: "Full Name", required: true, example: "Priya Sharma" },
+    { key: "gender", label: "Gender", example: "female" },
+    { key: "dateOfBirth", label: "Date of Birth", example: "1995-06-15" },
+    { key: "mobileNumber", label: "Mobile Number", required: true, example: "9876543210" },
+    { key: "email", label: "Email", example: "priya@example.com" },
+    { key: "address", label: "Address" },
+    { key: "department", label: "Department", required: true, example: "Sales" },
+    { key: "designation", label: "Designation", required: true, example: "Executive" },
+    { key: "reportingManager", label: "Reporting Manager", example: "EMPLOYEE-0001 or full name" },
+    { key: "employmentType", label: "Employment Type", required: true, example: "full_time" },
+    { key: "dateOfJoining", label: "Date of Joining", example: "2026-01-01" },
+    { key: "probationStatus", label: "Probation Status", required: true, example: "probation" },
+    { key: "employeeStatus", label: "Employee Status", required: true, example: "active" },
+    { key: "basicSalary", label: "Basic Salary", required: true, example: "30000" },
+    { key: "hra", label: "HRA", example: "5000" },
+    { key: "allowances", label: "Allowances", example: "2000" },
+    { key: "bankAccountNumber", label: "Bank Account Number" },
+    { key: "bankName", label: "Bank Name" },
+    { key: "ifscCode", label: "IFSC Code" },
+    { key: "uan", label: "UAN" },
+    { key: "pfNumber", label: "PF Number" },
+    { key: "panNumber", label: "PAN Number" },
+    { key: "office", label: "Office", example: "Head Office" },
+  ];
+
+  // Reporting Manager is matched against employees that exist before the
+  // import starts (the `employees` array captured in this closure) — a new
+  // hire's manager in the same file is NOT resolved (no two-pass lookup),
+  // so blank/unmatched just leaves the row without a manager, same as
+  // picking "No manager" in the manual form.
+  function onParseRow(raw: Record<string, string>) {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId: user?.officeId ?? "",
+      officeName: user?.officeName ?? "",
+    });
+
+    const managerRaw = raw["Reporting Manager"]?.trim().toLowerCase();
+    const manager = managerRaw
+      ? employees.find(e =>
+          e.employeeCode.toLowerCase() === managerRaw ||
+          e.fullName.toLowerCase() === managerRaw
+        )
+      : undefined;
+
+    const candidate = {
+      fullName:            raw["Full Name"] ?? "",
+      gender:              (raw["Gender"]?.trim().toLowerCase() || undefined) as EmployeeSchema["gender"],
+      dateOfBirth:         raw["Date of Birth"] ?? "",
+      mobileNumber:        raw["Mobile Number"] ?? "",
+      email:               raw["Email"] ?? "",
+      address:             raw["Address"] ?? "",
+      department:          raw["Department"] ?? "",
+      designation:         raw["Designation"] ?? "",
+      reportingManagerId:  manager?.id ?? "",
+      employmentType:      (raw["Employment Type"]?.trim() || "") as EmployeeSchema["employmentType"],
+      dateOfJoining:       raw["Date of Joining"] ?? "",
+      probationStatus:     (raw["Probation Status"]?.trim() || "") as EmployeeSchema["probationStatus"],
+      employeeStatus:      (raw["Employee Status"]?.trim() || "") as EmployeeSchema["employeeStatus"],
+      basicSalary:         raw["Basic Salary"] ?? "",
+      hra:                 raw["HRA"] || "0",
+      allowances:          raw["Allowances"] || "0",
+      bankAccountNumber:   raw["Bank Account Number"] ?? "",
+      bankName:            raw["Bank Name"] ?? "",
+      ifscCode:            raw["IFSC Code"] ?? "",
+      uan:                 raw["UAN"] ?? "",
+      pfNumber:            raw["PF Number"] ?? "",
+      panNumber:           raw["PAN Number"] ?? "",
+      officeId:            office.officeId,
+      officeName:          office.officeName,
+      userId:              "",
+    };
+    const check = employeeSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+    return {
+      data: {
+        ...check.data,
+        reportingManagerName: manager?.fullName ?? "",
+      } as EmployeeSchema & { reportingManagerName: string },
+    };
+  }
+
+  async function onImport(rows: (EmployeeSchema & { reportingManagerName: string })[]) {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const { reportingManagerName, ...rest } = row;
+      const payload: EmployeeFormData = {
+        ...rest,
+        gender:             rest.gender || null,
+        dateOfBirth:        rest.dateOfBirth || null,
+        email:              rest.email || null,
+        address:            rest.address || null,
+        reportingManagerId: rest.reportingManagerId || null,
+        reportingManagerName: reportingManagerName || null,
+        dateOfJoining:      rest.dateOfJoining || null,
+        bankAccountNumber:  rest.bankAccountNumber || null,
+        bankName:           rest.bankName || null,
+        ifscCode:           rest.ifscCode || null,
+        uan:                rest.uan || null,
+        pfNumber:           rest.pfNumber || null,
+        panNumber:          rest.panNumber || null,
+        userId:             null,
+        createdBy:          user?.uid ?? "",
+      };
+      try {
+        await createEmployee(payload, user?.uid ?? "");
+        created++;
+      } catch {
+        failed++;
+      }
+    }
+    return { created, failed };
+  }
+
   return (
     <div className="space-y-5">
 
@@ -84,6 +236,12 @@ export function EmployeesPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            {canManage && (
+              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+                Import
+              </Button>
+            )}
+            <BulkExportButton filenameBase="employees" rows={exportRows} />
             {canManage && (
               <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingEmployee(null); setFormOpen(true); }}>
                 Add Employee
@@ -163,6 +321,16 @@ export function EmployeesPage() {
           setProfileEmployee(updated);
           load();
         }}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Employees"
+        templateColumns={templateColumns}
+        onParseRow={onParseRow}
+        onImport={onImport}
       />
 
     </div>

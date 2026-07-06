@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Search, Filter, RefreshCw } from "lucide-react";
+import { Plus, Search, Filter, RefreshCw, Upload } from "lucide-react";
 import { useLeads } from "@/modules/leads/hooks/useLeads";
 import { LeadsTable } from "@/modules/leads/components/LeadsTable";
 import { LeadForm } from "@/modules/leads/components/LeadForm";
@@ -12,8 +12,35 @@ import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { LEAD_STAGE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils/helpers";
-import type { Lead } from "@/modules/leads/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
+import { leadSchema } from "@/modules/leads/schemas";
+import type { Lead, LeadFormData } from "@/modules/leads/types";
 import type { LeadSchema } from "@/modules/leads/schemas";
+
+const LEAD_TEMPLATE_COLUMNS: TemplateColumn[] = [
+  { key: "name",           label: "Name",              required: true, example: "Rahul Sharma" },
+  { key: "phone",          label: "Phone",             required: true, example: "+91 98765 43210" },
+  { key: "destination",    label: "Destination",       required: true, example: "Maldives" },
+  { key: "email",          label: "Email",             example: "rahul@example.com" },
+  { key: "alternatePhone", label: "Alternate Phone",   example: "+91 98765 43211" },
+  { key: "tripType",       label: "Trip Type",         example: "honeymoon" },
+  { key: "travelDate",     label: "Travel Date",       example: "2026-08-01" },
+  { key: "returnDate",     label: "Return Date",       example: "2026-08-08" },
+  { key: "duration",       label: "Duration (Nights)", example: "7" },
+  { key: "pax",            label: "Pax",               example: "2" },
+  { key: "budget",         label: "Budget",            example: "150000" },
+  { key: "stage",          label: "Stage",             example: "new" },
+  { key: "priority",       label: "Priority",          example: "warm" },
+  { key: "source",         label: "Source",            example: "Website" },
+  { key: "assignedTo",     label: "Assigned To",       example: "" },
+  { key: "agentName",      label: "Agent Name",        example: "" },
+  { key: "officeName",     label: "Office",            example: "Head Office" },
+  { key: "notes",          label: "Notes",             example: "" },
+];
 
 const STAGE_FILTERS = [
   { value: "",          label: "All Leads" },
@@ -37,6 +64,10 @@ export function LeadsPage() {
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [stageFilter, setStageFilter] = useState("");
   const [search,      setSearch]      = useState("");
+  const [importOpen,  setImportOpen]  = useState(false);
+  const [offices,     setOffices]     = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
   // Supports deep-linking straight into the Add Lead form, e.g. from the
   // dashboard's "Add Lead" button (/leads?new=1).
@@ -64,6 +95,94 @@ export function LeadsPage() {
     leads.forEach(l => { counts[l.stage] = (counts[l.stage] ?? 0) + 1; });
     return counts;
   }, [leads]);
+
+  const exportRows = useMemo(() => filtered.map((l) => ({
+    "Name":               l.name,
+    "Phone":              l.phone,
+    "Destination":        l.destination,
+    "Email":              l.email ?? "",
+    "Alternate Phone":    l.alternatePhone ?? "",
+    "Trip Type":          l.tripType ?? "",
+    "Travel Date":        l.travelDate ?? "",
+    "Return Date":        l.returnDate ?? "",
+    "Duration (Nights)":  l.duration ?? "",
+    "Pax":                l.pax ?? "",
+    "Budget":             l.budget ?? "",
+    "Stage":              l.stage,
+    "Priority":           l.priority,
+    "Source":             l.source ?? "",
+    "Assigned To":        l.assignedTo ?? "",
+    "Agent Name":         l.agentName ?? "",
+    "Office":             l.officeName,
+    "Notes":              l.notes ?? "",
+  })), [filtered]);
+
+  function onParseLeadRow(raw: Record<string, string>): { data: LeadFormData } | { error: string } {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId:   user?.officeId   ?? "",
+      officeName: user?.officeName ?? "",
+    });
+
+    const candidate = {
+      name:           raw["Name"]?.trim() ?? "",
+      email:          raw["Email"]?.trim() ?? "",
+      phone:          raw["Phone"]?.trim() ?? "",
+      alternatePhone: raw["Alternate Phone"]?.trim() ?? "",
+      destination:    raw["Destination"]?.trim() ?? "",
+      tripType:       raw["Trip Type"]?.trim() ?? "",
+      travelDate:     raw["Travel Date"]?.trim() ?? "",
+      returnDate:     raw["Return Date"]?.trim() ?? "",
+      duration:       raw["Duration (Nights)"]?.trim() || undefined,
+      pax:            raw["Pax"]?.trim() || undefined,
+      budget:         raw["Budget"]?.trim() || undefined,
+      stage:          raw["Stage"]?.trim() || "new",
+      priority:       raw["Priority"]?.trim() || "warm",
+      source:         raw["Source"]?.trim() ?? "",
+      assignedTo:     raw["Assigned To"]?.trim() ?? "",
+      agentName:      raw["Agent Name"]?.trim() ?? "",
+      officeId:       office.officeId,
+      officeName:     office.officeName,
+      notes:          raw["Notes"]?.trim() ?? "",
+    };
+
+    const check = leadSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+
+    const d = check.data;
+    const data: LeadFormData = {
+      name:            d.name,
+      email:           d.email || null,
+      phone:           d.phone,
+      alternatePhone:  d.alternatePhone || null,
+      destination:     d.destination,
+      tripType:        d.tripType || null,
+      travelDate:      d.travelDate || null,
+      returnDate:      d.returnDate || null,
+      duration:        d.duration ?? null,
+      pax:             d.pax ?? null,
+      budget:          d.budget ?? null,
+      stage:           d.stage || "new",
+      priority:        d.priority || "warm",
+      source:          d.source || null,
+      assignedTo:      d.assignedTo || null,
+      agentName:       d.agentName || null,
+      officeId:        d.officeId,
+      officeName:      d.officeName,
+      notes:           d.notes || null,
+      lastContactedAt: null,
+      createdBy:       user?.uid ?? "",
+    };
+    return { data };
+  }
+
+  async function onImportLeads(rows: LeadFormData[]): Promise<{ created: number; failed: number }> {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const { error } = await addLead(row);
+      if (error) failed++; else created++;
+    }
+    return { created, failed };
+  }
 
   async function handleSubmit(data: LeadSchema) {
     const payload = {
@@ -116,6 +235,10 @@ export function LeadsPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+            <BulkExportButton filenameBase="leads" rows={exportRows} />
             <Button
               size="sm"
               icon={<Plus size={14} />}
@@ -198,6 +321,16 @@ export function LeadsPage() {
         lead={editingLead}
         onClose={() => { setFormOpen(false); setEditingLead(null); }}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal<LeadFormData>
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Leads"
+        templateColumns={LEAD_TEMPLATE_COLUMNS}
+        onParseRow={onParseLeadRow}
+        onImport={onImportLeads}
       />
 
     </div>

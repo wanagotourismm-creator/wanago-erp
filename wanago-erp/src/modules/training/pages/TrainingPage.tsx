@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, RefreshCw, GraduationCap, Users, CheckCircle2, Clock } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, RefreshCw, GraduationCap, Users, CheckCircle2, Clock, Upload } from "lucide-react";
 import { useTrainingPrograms } from "@/modules/training/programs/hooks/useTrainingPrograms";
 import { useEnrollments } from "@/modules/training/enrollments/hooks/useEnrollments";
 import { TrainingProgramsGrid } from "@/modules/training/programs/components/TrainingProgramsGrid";
@@ -14,7 +14,14 @@ import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { cn } from "@/lib/utils/helpers";
-import type { TrainingProgram } from "@/modules/training/programs/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { createTrainingProgram } from "@/modules/training/programs/services/program.service";
+import { trainingProgramSchema } from "@/modules/training/programs/schemas";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
+import type { TrainingProgram, TrainingProgramFormData } from "@/modules/training/programs/types";
 import type { TrainingProgramSchema } from "@/modules/training/programs/schemas";
 import type { TrainingEnrollment } from "@/modules/training/enrollments/types";
 import type { TrainingEnrollmentSchema } from "@/modules/training/enrollments/schemas";
@@ -38,6 +45,10 @@ export function TrainingPage() {
   const [editingProgram,  setEditingProgram]  = useState<TrainingProgram | null>(null);
   const [enrollFormOpen,  setEnrollFormOpen]  = useState(false);
   const [viewingEnrollment, setViewingEnrollment] = useState<TrainingEnrollment | null>(null);
+  const [programImportOpen, setProgramImportOpen] = useState(false);
+  const [offices, setOffices] = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices); }, []);
 
   const stats = useMemo(() => ({
     activePrograms: programs.filter(p => p.status === "ongoing" || p.status === "upcoming").length,
@@ -52,6 +63,77 @@ export function TrainingPage() {
     else await addProgram(payload);
     setProgramFormOpen(false);
     setEditingProgram(null);
+  }
+
+  const programExportRows = useMemo(() => programs.map((p) => ({
+    Title:       p.title,
+    Description: p.description ?? "",
+    Category:    p.category,
+    Trainer:     p.trainerName,
+    Mode:        p.mode,
+    "Start Date": p.startDate,
+    "End Date":  p.endDate ?? "",
+    Office:      p.officeName,
+  })), [programs]);
+
+  const programTemplateColumns: TemplateColumn[] = [
+    { key: "title", label: "Title", required: true, example: "Customer Service Excellence" },
+    { key: "description", label: "Description" },
+    { key: "category", label: "Category", required: true, example: "Soft Skills" },
+    { key: "trainerName", label: "Trainer", required: true, example: "Jane Doe" },
+    { key: "mode", label: "Mode", example: "online" },
+    { key: "startDate", label: "Start Date", required: true, example: "2026-01-01" },
+    { key: "endDate", label: "End Date", example: "2026-01-05" },
+    { key: "office", label: "Office", example: "Head Office" },
+  ];
+
+  const MODE_MAP: Record<string, TrainingProgramSchema["mode"]> = {
+    online: "online",
+    offline: "offline",
+    hybrid: "hybrid",
+  };
+
+  function onParseProgramRow(raw: Record<string, string>) {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId: user?.officeId ?? "",
+      officeName: user?.officeName ?? "",
+    });
+    const rawMode = raw["Mode"]?.trim().toLowerCase() ?? "";
+    const mode = MODE_MAP[rawMode] ?? "offline";
+    const candidate = {
+      title: raw["Title"] ?? "",
+      description: raw["Description"] ?? "",
+      category: raw["Category"] ?? "",
+      trainerName: raw["Trainer"] ?? "",
+      mode,
+      startDate: raw["Start Date"] ?? "",
+      endDate: raw["End Date"] ?? "",
+      officeId: office.officeId,
+      officeName: office.officeName,
+    };
+    const check = trainingProgramSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+    return { data: check.data };
+  }
+
+  async function onImportPrograms(rows: TrainingProgramSchema[]) {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const payload: TrainingProgramFormData = {
+        ...row,
+        description: row.description || null,
+        endDate:     row.endDate      || null,
+        createdBy:   user?.uid ?? "",
+      };
+      try {
+        await createTrainingProgram(payload, user?.uid ?? "");
+        created++;
+      } catch {
+        failed++;
+      }
+    }
+    await loadPrograms();
+    return { created, failed };
   }
 
   async function handleProgramDelete(program: TrainingProgram) {
@@ -81,6 +163,10 @@ export function TrainingPage() {
             {tab === "programs" && (
               <>
                 <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadPrograms()}>Refresh</Button>
+                {canManage && (
+                  <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setProgramImportOpen(true)}>Import</Button>
+                )}
+                <BulkExportButton filenameBase="training-programs" rows={programExportRows} />
                 {canManage && (
                   <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingProgram(null); setProgramFormOpen(true); }}>New Program</Button>
                 )}
@@ -190,6 +276,15 @@ export function TrainingPage() {
         programs={programs.filter(p => p.status !== "cancelled")}
         onClose={() => setEnrollFormOpen(false)}
         onSubmit={handleEnrollSubmit}
+      />
+
+      <BulkImportModal
+        open={programImportOpen}
+        onClose={() => setProgramImportOpen(false)}
+        title="Training Programs"
+        templateColumns={programTemplateColumns}
+        onParseRow={onParseProgramRow}
+        onImport={onImportPrograms}
       />
 
     </div>

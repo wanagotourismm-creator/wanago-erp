@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useCustomers } from "@/modules/customers/hooks/useCustomers";
 import { CustomersTable } from "@/modules/customers/components/CustomersTable";
 import { CustomerDetailModal } from "@/modules/customers/components/CustomerDetailModal";
@@ -12,10 +12,29 @@ import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { cn } from "@/lib/utils/helpers";
-import type { Customer } from "@/modules/customers/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
+import { customerSchema } from "@/modules/customers/schemas";
+import type { Customer, CustomerFormData } from "@/modules/customers/types";
 import type { CustomerSchema } from "@/modules/customers/schemas";
 
 const TYPE_FILTERS = [{ value: "", label: "All Customers" }, ...CUSTOMER_TYPES];
+
+const CUSTOMER_TEMPLATE_COLUMNS: TemplateColumn[] = [
+  { key: "fullName",       label: "Full Name",       required: true, example: "Priya Nair" },
+  { key: "phone",          label: "Phone",           required: true, example: "+91 98765 43210" },
+  { key: "customerType",   label: "Customer Type",   required: true, example: "individual" },
+  { key: "source",         label: "Source",          required: true, example: "Referral" },
+  { key: "email",          label: "Email",           example: "priya@example.com" },
+  { key: "alternatePhone", label: "Alternate Phone", example: "" },
+  { key: "city",           label: "City",            example: "Mumbai" },
+  { key: "address",        label: "Address",         example: "" },
+  { key: "officeName",     label: "Office",          example: "Head Office" },
+  { key: "notes",          label: "Notes",           example: "" },
+];
 
 export function CustomersPage() {
   const { customers, loading, addCustomer, editCustomer, removeCustomer, load } = useCustomers();
@@ -28,6 +47,10 @@ export function CustomersPage() {
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [typeFilter,      setTypeFilter]      = useState("");
   const [search,          setSearch]          = useState("");
+  const [importOpen,      setImportOpen]      = useState(false);
+  const [offices,         setOffices]         = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
   const filtered = useMemo(() => {
     return customers.filter((c) => {
@@ -43,6 +66,69 @@ export function CustomersPage() {
     customers.forEach(c => { counts[c.customerType] = (counts[c.customerType] ?? 0) + 1; });
     return counts;
   }, [customers]);
+
+  const exportRows = useMemo(() => filtered.map((c) => ({
+    "Full Name":       c.fullName,
+    "Phone":           c.phone,
+    "Customer Type":   c.customerType,
+    "Source":          c.source,
+    "Email":           c.email ?? "",
+    "Alternate Phone": c.alternatePhone ?? "",
+    "City":            c.city ?? "",
+    "Address":         c.address ?? "",
+    "Office":          c.officeName,
+    "Notes":           c.notes ?? "",
+  })), [filtered]);
+
+  function onParseCustomerRow(raw: Record<string, string>): { data: CustomerFormData } | { error: string } {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId:   user?.officeId   ?? "",
+      officeName: user?.officeName ?? "",
+    });
+
+    const candidate = {
+      fullName:       raw["Full Name"]?.trim() ?? "",
+      email:          raw["Email"]?.trim() ?? "",
+      phone:          raw["Phone"]?.trim() ?? "",
+      alternatePhone: raw["Alternate Phone"]?.trim() ?? "",
+      customerType:   raw["Customer Type"]?.trim() || "individual",
+      city:           raw["City"]?.trim() ?? "",
+      address:        raw["Address"]?.trim() ?? "",
+      source:         raw["Source"]?.trim() ?? "",
+      officeId:       office.officeId,
+      officeName:     office.officeName,
+      notes:          raw["Notes"]?.trim() ?? "",
+    };
+
+    const check = customerSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+
+    const d = check.data;
+    const data: CustomerFormData = {
+      fullName:       d.fullName,
+      email:          d.email || null,
+      phone:          d.phone,
+      alternatePhone: d.alternatePhone || null,
+      customerType:   d.customerType,
+      city:           d.city || null,
+      address:        d.address || null,
+      source:         d.source,
+      officeId:       d.officeId,
+      officeName:     d.officeName,
+      notes:          d.notes || null,
+      createdBy:      user?.uid ?? "",
+    };
+    return { data };
+  }
+
+  async function onImportCustomers(rows: CustomerFormData[]): Promise<{ created: number; failed: number }> {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const { error } = await addCustomer(row);
+      if (error) failed++; else created++;
+    }
+    return { created, failed };
+  }
 
   async function handleSubmit(data: CustomerSchema) {
     const payload = {
@@ -89,6 +175,10 @@ export function CustomersPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+            <BulkExportButton filenameBase="customers" rows={exportRows} />
             {canCreate && (
               <Button
                 size="sm"
@@ -163,6 +253,16 @@ export function CustomersPage() {
         customer={editingCustomer}
         onClose={() => { setFormOpen(false); setEditingCustomer(null); }}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal<CustomerFormData>
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Customers"
+        templateColumns={CUSTOMER_TEMPLATE_COLUMNS}
+        onParseRow={onParseCustomerRow}
+        onImport={onImportCustomers}
       />
 
     </div>

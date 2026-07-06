@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useItineraries } from "@/modules/itineraries/hooks/useItineraries";
 import { ItinerariesTable } from "@/modules/itineraries/components/ItinerariesTable";
 import { ItineraryForm } from "@/modules/itineraries/components/ItineraryForm";
@@ -10,13 +10,43 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
-import type { Itinerary } from "@/modules/itineraries/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import { itinerarySchema } from "@/modules/itineraries/schemas";
+import type { Office } from "@/modules/admin/offices/types";
+import type { Itinerary, ItineraryFormData } from "@/modules/itineraries/types";
 import type { ItinerarySchema } from "@/modules/itineraries/schemas";
 
 const STATUS_FILTERS = [
   { value: "",          label: "All Itineraries" },
   { value: "draft",     label: "Draft"     },
   { value: "confirmed", label: "Confirmed" },
+];
+
+// A flat spreadsheet row can't hold a nested days[] array directly, so the
+// day-by-day plan is collapsed into numbered column pairs — Day 1 Title /
+// Day 1 Description through Day 10 Title / Day 10 Description. 10 is enough
+// for a first version; rows with no day columns filled import fine with an
+// empty days[] (the schema defaults it to []).
+const MAX_IMPORT_DAYS = 10;
+
+const DAY_TEMPLATE_COLUMNS: TemplateColumn[] = Array.from({ length: MAX_IMPORT_DAYS }, (_, idx) => idx + 1)
+  .flatMap((n) => [
+    { key: `day${n}Title`,       label: `Day ${n} Title`,       example: n === 1 ? "Arrival & Check-in" : "" },
+    { key: `day${n}Description`, label: `Day ${n} Description`, example: n === 1 ? "Airport pickup, hotel check-in, welcome dinner" : "" },
+  ]);
+
+const ITINERARY_TEMPLATE_COLUMNS: TemplateColumn[] = [
+  { key: "title",        label: "Title",              required: true, example: "Bali Honeymoon Escape" },
+  { key: "destination",  label: "Destination",        required: true, example: "Bali, Indonesia" },
+  { key: "durationDays", label: "Duration (Days)",    required: true, example: "5" },
+  { key: "package",      label: "Package",            example: "Bali Bliss 5N/6D" },
+  { key: "status",       label: "Status",             example: "draft" },
+  { key: "office",       label: "Office",             example: "Head Office" },
+  { key: "notes",        label: "Notes",              example: "" },
+  ...DAY_TEMPLATE_COLUMNS,
 ];
 
 export function ItinerariesPage() {
@@ -28,6 +58,10 @@ export function ItinerariesPage() {
   const [viewingItinerary, setViewingItinerary] = useState<Itinerary | null>(null);
   const [statusFilter,    setStatusFilter]    = useState("");
   const [search,          setSearch]          = useState("");
+  const [importOpen,      setImportOpen]      = useState(false);
+  const [offices,         setOffices]         = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
   // Filter itineraries
   const filtered = useMemo(() => {
@@ -45,6 +79,78 @@ export function ItinerariesPage() {
     itineraries.forEach(i => { counts[i.itineraryStatus] = (counts[i.itineraryStatus] ?? 0) + 1; });
     return counts;
   }, [itineraries]);
+
+  const exportRows = useMemo(() => filtered.map((i) => {
+    const row: Record<string, unknown> = {
+      "Title":              i.title,
+      "Destination":        i.destination,
+      "Duration (Days)":    i.durationDays,
+      "Package":            i.packageName ?? "",
+      "Status":             i.itineraryStatus,
+      "Office":             i.officeName,
+      "Notes":              i.notes ?? "",
+    };
+    for (let n = 1; n <= MAX_IMPORT_DAYS; n++) {
+      const day = i.days.find((d) => d.dayNumber === n);
+      row[`Day ${n} Title`]       = day?.title ?? "";
+      row[`Day ${n} Description`] = day?.description ?? "";
+    }
+    return row;
+  }), [filtered]);
+
+  function onParseItineraryRow(raw: Record<string, string>): { data: ItineraryFormData } | { error: string } {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId:   user?.officeId   ?? "",
+      officeName: user?.officeName ?? "",
+    });
+
+    const days: { dayNumber: number; title: string; description: string }[] = [];
+    for (let n = 1; n <= MAX_IMPORT_DAYS; n++) {
+      const title = raw[`Day ${n} Title`]?.trim();
+      if (title) {
+        days.push({ dayNumber: n, title, description: raw[`Day ${n} Description`]?.trim() ?? "" });
+      }
+    }
+
+    const candidate = {
+      title:           raw["Title"]?.trim() ?? "",
+      destination:     raw["Destination"]?.trim() ?? "",
+      durationDays:    raw["Duration (Days)"]?.trim() || "1",
+      packageName:     raw["Package"]?.trim() ?? "",
+      days,
+      officeId:        office.officeId,
+      officeName:      office.officeName,
+      notes:           raw["Notes"]?.trim() ?? "",
+      itineraryStatus: raw["Status"]?.trim() || "draft",
+    };
+
+    const check = itinerarySchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+
+    const d = check.data;
+    const data: ItineraryFormData = {
+      title:           d.title,
+      destination:     d.destination,
+      durationDays:    d.durationDays,
+      packageName:     d.packageName || null,
+      days:            d.days,
+      officeId:        d.officeId,
+      officeName:      d.officeName,
+      notes:           d.notes || null,
+      itineraryStatus: d.itineraryStatus,
+      createdBy:       user?.uid ?? "",
+    };
+    return { data };
+  }
+
+  async function onImportItineraries(rows: ItineraryFormData[]): Promise<{ created: number; failed: number }> {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const { error } = await addItinerary(row);
+      if (error) failed++; else created++;
+    }
+    return { created, failed };
+  }
 
   async function handleSubmit(data: ItinerarySchema) {
     const payload = {
@@ -88,6 +194,10 @@ export function ItinerariesPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+            <BulkExportButton filenameBase="itineraries" rows={exportRows} />
             <Button
               size="sm"
               icon={<Plus size={14} />}
@@ -168,6 +278,17 @@ export function ItinerariesPage() {
         itinerary={editingItinerary}
         onClose={() => { setFormOpen(false); setEditingItinerary(null); }}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal<ItineraryFormData>
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Itineraries"
+        description="Upload a .csv or .xlsx file. The day-by-day plan uses paired columns Day 1 Title/Description through Day 10 Title/Description — only days with a Title filled in are imported."
+        templateColumns={ITINERARY_TEMPLATE_COLUMNS}
+        onParseRow={onParseItineraryRow}
+        onImport={onImportItineraries}
       />
 
     </div>

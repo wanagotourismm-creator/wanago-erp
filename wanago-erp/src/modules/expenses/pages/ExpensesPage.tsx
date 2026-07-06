@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw, Receipt, Clock, CheckCircle2, Banknote } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, Receipt, Clock, CheckCircle2, Banknote, Upload } from "lucide-react";
 import { useExpenses } from "@/modules/expenses/hooks/useExpenses";
 import { ExpensesTable } from "@/modules/expenses/components/ExpensesTable";
 import { ExpenseDetailModal } from "@/modules/expenses/components/ExpenseDetailModal";
@@ -11,7 +11,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
-import type { Expense } from "@/modules/expenses/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { createExpense } from "@/modules/expenses/services/expense.service";
+import { expenseSchema } from "@/modules/expenses/schemas";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
+import type { Expense, ExpenseFormData } from "@/modules/expenses/types";
 import type { ExpenseSchema } from "@/modules/expenses/schemas";
 
 const STATUS_FILTERS = [
@@ -31,6 +38,10 @@ export function ExpensesPage() {
   const [viewingExpense, setViewingExpense] = useState<Expense | null>(null);
   const [statusFilter,   setStatusFilter]   = useState("");
   const [search,         setSearch]         = useState("");
+  const [importOpen,     setImportOpen]     = useState(false);
+  const [offices,        setOffices]        = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices); }, []);
 
   const filtered = useMemo(() => {
     return expenses.filter((e) => {
@@ -65,6 +76,68 @@ export function ExpensesPage() {
     setEditingExpense(null);
   }
 
+  const exportRows = useMemo(() => filtered.map((e) => ({
+    Category:    e.category,
+    Amount:      e.amount,
+    "Expense Date": e.expenseDate,
+    Vendor:      e.vendor ?? "",
+    Description: e.description,
+    Office:      e.officeName,
+    Notes:       e.notes ?? "",
+    Status:      e.expenseStatus,
+  })), [filtered]);
+
+  const templateColumns: TemplateColumn[] = [
+    { key: "category", label: "Category", required: true, example: "Travel" },
+    { key: "amount", label: "Amount", required: true, example: "1500" },
+    { key: "expenseDate", label: "Expense Date", required: true, example: "2026-01-01" },
+    { key: "vendor", label: "Vendor", example: "Acme Corp" },
+    { key: "description", label: "Description", required: true, example: "Taxi fare" },
+    { key: "office", label: "Office", example: "Head Office" },
+    { key: "notes", label: "Notes" },
+    { key: "status", label: "Status", example: "pending" },
+  ];
+
+  function onParseRow(raw: Record<string, string>) {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId: user?.officeId ?? "",
+      officeName: user?.officeName ?? "",
+    });
+    const candidate = {
+      category: raw["Category"] ?? "",
+      amount: raw["Amount"] ?? "",
+      expenseDate: raw["Expense Date"] ?? "",
+      vendor: raw["Vendor"] ?? "",
+      description: raw["Description"] ?? "",
+      officeId: office.officeId,
+      officeName: office.officeName,
+      notes: raw["Notes"] ?? "",
+      expenseStatus: (raw["Status"]?.trim() || "pending") as ExpenseSchema["expenseStatus"],
+    };
+    const check = expenseSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+    return { data: check.data };
+  }
+
+  async function onImport(rows: ExpenseSchema[]) {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const payload: ExpenseFormData = {
+        ...row,
+        vendor: row.vendor || null,
+        notes:  row.notes  || null,
+        createdBy: user?.uid ?? "",
+      };
+      try {
+        await createExpense(payload, user?.uid ?? "");
+        created++;
+      } catch {
+        failed++;
+      }
+    }
+    return { created, failed };
+  }
+
   function handleEdit(expense: Expense) {
     setViewingExpense(null);
     setEditingExpense(expense);
@@ -92,6 +165,10 @@ export function ExpensesPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+            <BulkExportButton filenameBase="expenses" rows={exportRows} />
             <Button
               size="sm"
               icon={<Plus size={14} />}
@@ -179,6 +256,17 @@ export function ExpensesPage() {
         expense={editingExpense}
         onClose={() => { setFormOpen(false); setEditingExpense(null); }}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Expenses"
+        description="Upload a .csv or .xlsx file to create many expenses at once (receipts must be attached manually afterward)"
+        templateColumns={templateColumns}
+        onParseRow={onParseRow}
+        onImport={onImport}
       />
 
     </div>

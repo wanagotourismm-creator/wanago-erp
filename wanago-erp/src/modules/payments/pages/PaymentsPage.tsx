@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw, Wallet, TrendingUp, Calendar } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, Wallet, TrendingUp, Calendar, Upload } from "lucide-react";
 import { usePayments } from "@/modules/payments/hooks/usePayments";
 import { PaymentsTable } from "@/modules/payments/components/PaymentsTable";
 import { PaymentDetailModal } from "@/modules/payments/components/PaymentDetailModal";
@@ -11,7 +11,18 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
-import type { Payment } from "@/modules/payments/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { createPayment } from "@/modules/payments/services/payment.service";
+import { paymentSchema } from "@/modules/payments/schemas";
+import { fetchCustomers } from "@/modules/customers/services/customer.service";
+import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
+import type { Customer } from "@/modules/customers/types";
+import type { Invoice } from "@/modules/invoices/types";
+import type { Payment, PaymentFormData } from "@/modules/payments/types";
 import type { PaymentSchema } from "@/modules/payments/schemas";
 
 export function PaymentsPage() {
@@ -23,6 +34,16 @@ export function PaymentsPage() {
   const [formOpen,       setFormOpen]       = useState(false);
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
   const [search,         setSearch]         = useState("");
+  const [importOpen,     setImportOpen]     = useState(false);
+  const [offices,        setOffices]        = useState<Office[]>([]);
+  const [customers,      setCustomers]      = useState<Customer[]>([]);
+  const [invoices,       setInvoices]       = useState<Invoice[]>([]);
+
+  useEffect(() => {
+    fetchOffices().then(setOffices).catch(() => {});
+    fetchCustomers().then(setCustomers).catch(() => {});
+    fetchInvoices().then(setInvoices).catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
@@ -62,6 +83,89 @@ export function PaymentsPage() {
     await removePayment(payment.id);
   }
 
+  const exportRows = useMemo(() => filtered.map((p) => ({
+    "Invoice Ref":     p.invoiceRef ?? "",
+    "Customer Phone":  customers.find(c => c.id === p.customerId)?.phone ?? "",
+    "Customer Name":   p.customerName,
+    Amount:            p.amount,
+    "Payment Method":  p.paymentMethod,
+    "Payment Date":    p.paymentDate,
+    "Reference No.":   p.referenceNumber ?? "",
+    Office:            p.officeName,
+    Notes:             p.notes ?? "",
+  })), [filtered, customers]);
+
+  const templateColumns: TemplateColumn[] = [
+    { key: "invoiceRef", label: "Invoice Ref", example: "INV-0001" },
+    { key: "customerPhone", label: "Customer Phone", required: true, example: "9876543210" },
+    { key: "amount", label: "Amount", required: true, example: "50000" },
+    { key: "paymentMethod", label: "Payment Method", required: true, example: "Cash" },
+    { key: "paymentDate", label: "Payment Date", required: true, example: "2026-01-01" },
+    { key: "referenceNumber", label: "Reference No.", example: "UTR12345" },
+    { key: "office", label: "Office", example: "Head Office" },
+    { key: "notes", label: "Notes" },
+  ];
+
+  // Customer match is required (by phone); Invoice match is optional (by ref
+  // number) — an unmatched/blank invoice ref just leaves the payment
+  // standalone, same as picking "No invoice" in the manual form.
+  function onParseRow(raw: Record<string, string>) {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId: user?.officeId ?? "",
+      officeName: user?.officeName ?? "",
+    });
+
+    const phone = raw["Customer Phone"]?.trim();
+    const customer = customers.find(c => c.phone === phone);
+    if (!customer) return { error: `No customer found with phone "${phone ?? ""}"` };
+
+    const invoiceRefRaw = raw["Invoice Ref"]?.trim();
+    const invoice = invoiceRefRaw
+      ? invoices.find(i => i.refNumber.toLowerCase() === invoiceRefRaw.toLowerCase())
+      : undefined;
+
+    const candidate = {
+      invoiceId:       invoice?.id ?? "",
+      invoiceRef:      invoice?.refNumber ?? "",
+      customerId:      customer.id,
+      customerName:    customer.fullName,
+      amount:          raw["Amount"] ?? "",
+      paymentMethod:   raw["Payment Method"] ?? "",
+      paymentDate:     raw["Payment Date"] ?? "",
+      referenceNumber: raw["Reference No."] ?? "",
+      officeId:        office.officeId,
+      officeName:      office.officeName,
+      notes:           raw["Notes"] ?? "",
+    };
+    const check = paymentSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+    return { data: check.data };
+  }
+
+  // Sequential (not Promise.all) on purpose: createPayment has a side effect
+  // that patches the linked invoice's amountPaid, so concurrent payments
+  // against the same invoice would race on that read-modify-write update.
+  async function onImport(rows: PaymentSchema[]) {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const payload: PaymentFormData = {
+        ...row,
+        invoiceId:       row.invoiceId       || null,
+        invoiceRef:      row.invoiceRef      || null,
+        referenceNumber: row.referenceNumber || null,
+        notes:           row.notes           || null,
+        createdBy:       user?.uid ?? "",
+      };
+      try {
+        await createPayment(payload, user?.uid ?? "");
+        created++;
+      } catch {
+        failed++;
+      }
+    }
+    return { created, failed };
+  }
+
   return (
     <div className="space-y-5">
 
@@ -73,6 +177,12 @@ export function PaymentsPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            {canCreate && (
+              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+                Import
+              </Button>
+            )}
+            <BulkExportButton filenameBase="payments" rows={exportRows} />
             {canCreate && (
               <Button size="sm" icon={<Plus size={14} />} onClick={() => setFormOpen(true)}>
                 Record Payment
@@ -137,6 +247,16 @@ export function PaymentsPage() {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Payments"
+        templateColumns={templateColumns}
+        onParseRow={onParseRow}
+        onImport={onImport}
       />
 
     </div>

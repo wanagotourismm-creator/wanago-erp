@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { usePackages } from "@/modules/packages/hooks/usePackages";
 import { PackagesTable } from "@/modules/packages/components/PackagesTable";
 import { PackageForm } from "@/modules/packages/components/PackageForm";
@@ -10,13 +10,35 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
-import type { Package } from "@/modules/packages/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
+import { packageSchema } from "@/modules/packages/schemas";
+import type { Package, PackageFormData } from "@/modules/packages/types";
 import type { PackageSchema } from "@/modules/packages/schemas";
 
 const STATUS_FILTERS = [
   { value: "",         label: "All Packages" },
   { value: "active",   label: "Active"       },
   { value: "inactive", label: "Inactive"     },
+];
+
+const PACKAGE_TEMPLATE_COLUMNS: TemplateColumn[] = [
+  { key: "title",          label: "Title",              required: true, example: "Maldives Honeymoon Special" },
+  { key: "destination",    label: "Destination",        required: true, example: "Maldives" },
+  { key: "category",       label: "Category",           required: true, example: "Honeymoon" },
+  { key: "durationDays",   label: "Duration (Days)",    example: "5" },
+  { key: "durationNights", label: "Duration (Nights)",  example: "4" },
+  { key: "basePrice",      label: "Base Price",         example: "50000" },
+  { key: "inclusions",     label: "Inclusions",         example: "" },
+  { key: "exclusions",     label: "Exclusions",         example: "" },
+  { key: "validFrom",      label: "Valid From",         example: "2026-01-01" },
+  { key: "validTo",        label: "Valid To",           example: "2026-12-31" },
+  { key: "packageStatus",  label: "Status",             example: "active" },
+  { key: "officeName",     label: "Office",             example: "Head Office" },
+  { key: "notes",          label: "Notes",              example: "" },
 ];
 
 export function PackagesPage() {
@@ -28,6 +50,10 @@ export function PackagesPage() {
   const [viewingPackage, setViewingPackage] = useState<Package | null>(null);
   const [statusFilter,   setStatusFilter]   = useState("");
   const [search,         setSearch]         = useState("");
+  const [importOpen,     setImportOpen]     = useState(false);
+  const [offices,        setOffices]        = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
   const filtered = useMemo(() => {
     return packages.filter((p) => {
@@ -43,6 +69,79 @@ export function PackagesPage() {
     packages.forEach(p => { counts[p.packageStatus] = (counts[p.packageStatus] ?? 0) + 1; });
     return counts;
   }, [packages]);
+
+  const exportRows = useMemo(() => filtered.map((p) => ({
+    "Title":              p.title,
+    "Destination":        p.destination,
+    "Category":           p.category,
+    "Duration (Days)":    p.durationDays,
+    "Duration (Nights)":  p.durationNights,
+    "Base Price":         p.basePrice,
+    "Inclusions":         p.inclusions ?? "",
+    "Exclusions":         p.exclusions ?? "",
+    "Valid From":         p.validFrom ?? "",
+    "Valid To":           p.validTo ?? "",
+    "Status":             p.packageStatus,
+    "Office":             p.officeName,
+    "Notes":              p.notes ?? "",
+  })), [filtered]);
+
+  function onParsePackageRow(raw: Record<string, string>): { data: PackageFormData } | { error: string } {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId:   user?.officeId   ?? "",
+      officeName: user?.officeName ?? "",
+    });
+
+    const statusRaw = raw["Status"]?.trim().toLowerCase();
+    const candidate = {
+      title:          raw["Title"]?.trim() ?? "",
+      destination:    raw["Destination"]?.trim() ?? "",
+      category:       raw["Category"]?.trim() ?? "",
+      durationDays:   raw["Duration (Days)"]?.trim() || "0",
+      durationNights: raw["Duration (Nights)"]?.trim() || "0",
+      basePrice:      raw["Base Price"]?.trim() || "0",
+      inclusions:     raw["Inclusions"]?.trim() ?? "",
+      exclusions:     raw["Exclusions"]?.trim() ?? "",
+      validFrom:      raw["Valid From"]?.trim() ?? "",
+      validTo:        raw["Valid To"]?.trim() ?? "",
+      officeId:       office.officeId,
+      officeName:     office.officeName,
+      notes:          raw["Notes"]?.trim() ?? "",
+      packageStatus:  statusRaw === "inactive" ? "inactive" : "active",
+    };
+
+    const check = packageSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+
+    const d = check.data;
+    const data: PackageFormData = {
+      title:          d.title,
+      destination:    d.destination,
+      category:       d.category,
+      durationDays:   d.durationDays ?? 0,
+      durationNights: d.durationNights ?? 0,
+      basePrice:      d.basePrice ?? 0,
+      inclusions:     d.inclusions || "",
+      exclusions:     d.exclusions || "",
+      validFrom:      d.validFrom || null,
+      validTo:        d.validTo || null,
+      officeId:       d.officeId,
+      officeName:     d.officeName,
+      notes:          d.notes || null,
+      packageStatus:  d.packageStatus ?? "active",
+      createdBy:      user?.uid ?? "",
+    };
+    return { data };
+  }
+
+  async function onImportPackages(rows: PackageFormData[]): Promise<{ created: number; failed: number }> {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const { error } = await addPackage(row);
+      if (error) failed++; else created++;
+    }
+    return { created, failed };
+  }
 
   async function handleSubmit(data: PackageSchema) {
     const payload = {
@@ -89,6 +188,10 @@ export function PackagesPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+            <BulkExportButton filenameBase="packages" rows={exportRows} />
             <Button
               size="sm"
               icon={<Plus size={14} />}
@@ -159,6 +262,16 @@ export function PackagesPage() {
         pkg={editingPackage}
         onClose={() => { setFormOpen(false); setEditingPackage(null); }}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal<PackageFormData>
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Packages"
+        templateColumns={PACKAGE_TEMPLATE_COLUMNS}
+        onParseRow={onParsePackageRow}
+        onImport={onImportPackages}
       />
 
     </div>

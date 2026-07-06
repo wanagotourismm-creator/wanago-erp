@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useCampaigns } from "@/modules/campaigns/hooks/useCampaigns";
 import { CampaignsTable } from "@/modules/campaigns/components/CampaignsTable";
 import { CampaignForm } from "@/modules/campaigns/components/CampaignForm";
@@ -10,7 +10,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
-import type { Campaign } from "@/modules/campaigns/types";
+import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
+import { BulkExportButton } from "@/components/bulk/BulkExportButton";
+import { resolveOffice } from "@/lib/bulk/resolveOffice";
+import { createCampaign } from "@/modules/campaigns/services/campaign.service";
+import { campaignSchema } from "@/modules/campaigns/schemas";
+import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import type { Office } from "@/modules/admin/offices/types";
+import type { Campaign, CampaignFormData } from "@/modules/campaigns/types";
 import type { CampaignSchema } from "@/modules/campaigns/schemas";
 
 const STATUS_FILTERS: { value: Campaign["campaignStatus"] | ""; label: string }[] = [
@@ -30,6 +37,10 @@ export function CampaignsPage() {
   const [viewingCampaign,  setViewingCampaign]  = useState<Campaign | null>(null);
   const [statusFilter,    setStatusFilter]    = useState<Campaign["campaignStatus"] | "">("");
   const [search,          setSearch]          = useState("");
+  const [importOpen,      setImportOpen]      = useState(false);
+  const [offices,         setOffices]         = useState<Office[]>([]);
+
+  useEffect(() => { fetchOffices().then(setOffices); }, []);
 
   // Filter campaigns
   const filtered = useMemo(() => {
@@ -69,6 +80,73 @@ export function CampaignsPage() {
     setEditingCampaign(null);
   }
 
+  const exportRows = useMemo(() => filtered.map((c) => ({
+    Name:            c.name,
+    Channel:         c.channel,
+    "Campaign Type": c.campaignType,
+    "Start Date":    c.startDate,
+    "End Date":      c.endDate ?? "",
+    Budget:          c.budget ?? "",
+    Office:          c.officeName,
+    Notes:           c.notes ?? "",
+    Status:          c.campaignStatus,
+  })), [filtered]);
+
+  const templateColumns: TemplateColumn[] = [
+    { key: "name", label: "Name", required: true, example: "Summer Getaway Promo" },
+    { key: "channel", label: "Channel", required: true, example: "Instagram" },
+    { key: "campaignType", label: "Campaign Type", example: "Social Media" },
+    { key: "startDate", label: "Start Date", required: true, example: "2026-01-01" },
+    { key: "endDate", label: "End Date", example: "2026-02-01" },
+    { key: "budget", label: "Budget", example: "50000" },
+    { key: "office", label: "Office", example: "Head Office" },
+    { key: "notes", label: "Notes" },
+    { key: "status", label: "Status", example: "draft" },
+  ];
+
+  function onParseRow(raw: Record<string, string>) {
+    const office = resolveOffice(raw["Office"], offices, {
+      officeId: user?.officeId ?? "",
+      officeName: user?.officeName ?? "",
+    });
+    const candidate = {
+      name: raw["Name"] ?? "",
+      channel: raw["Channel"] ?? "",
+      campaignType: raw["Campaign Type"] ?? "",
+      startDate: raw["Start Date"] ?? "",
+      endDate: raw["End Date"] ?? "",
+      budget: raw["Budget"] || undefined,
+      officeId: office.officeId,
+      officeName: office.officeName,
+      notes: raw["Notes"] ?? "",
+      campaignStatus: (raw["Status"]?.trim() || "draft") as CampaignSchema["campaignStatus"],
+    };
+    const check = campaignSchema.safeParse(candidate);
+    if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
+    return { data: check.data };
+  }
+
+  async function onImport(rows: CampaignSchema[]) {
+    let created = 0, failed = 0;
+    for (const row of rows) {
+      const payload: CampaignFormData = {
+        ...row,
+        endDate:      row.endDate      || null,
+        budget:       row.budget       ?? null,
+        notes:        row.notes        || null,
+        campaignType: row.campaignType || "",
+        createdBy:    user?.uid ?? "",
+      };
+      try {
+        await createCampaign(payload, user?.uid ?? "");
+        created++;
+      } catch {
+        failed++;
+      }
+    }
+    return { created, failed };
+  }
+
   function handleEdit(campaign: Campaign) {
     setViewingCampaign(null);
     setEditingCampaign(campaign);
@@ -92,6 +170,10 @@ export function CampaignsPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+            <BulkExportButton filenameBase="campaigns" rows={exportRows} />
             <Button
               size="sm"
               icon={<Plus size={14} />}
@@ -172,6 +254,16 @@ export function CampaignsPage() {
         campaign={editingCampaign}
         onClose={() => { setFormOpen(false); setEditingCampaign(null); }}
         onSubmit={handleSubmit}
+      />
+
+      {/* Bulk import */}
+      <BulkImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Campaigns"
+        templateColumns={templateColumns}
+        onParseRow={onParseRow}
+        onImport={onImport}
       />
 
     </div>
