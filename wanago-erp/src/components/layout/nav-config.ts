@@ -86,6 +86,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "map",
         roles: ["super_admin","admin","operations","sales"],
       },
+      {
+        label: "Approvals",
+        href:  "/operations-approvals",
+        icon:  "id-badge",
+        roles: ["super_admin","admin","operations"],
+      },
     ],
   },
   {
@@ -119,7 +125,7 @@ export const NAV_CONFIG: NavGroup[] = [
         label: "Approvals",
         href:  "/approvals",
         icon:  "id-badge",
-        roles: ["super_admin","admin","finance","operations"],
+        roles: ["super_admin","admin","finance"],
       },
     ],
   },

@@ -68,7 +68,7 @@ export const PERMISSION_MAP: PermissionMap = {
 export const PAGE_ACCESS: PageAccess = {
   super_admin: ["*"],
   admin:       ["*"],
-  operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "approvals", "settings"],
+  operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "ops-approvals", "settings"],
   finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "incentives", "approvals", "settings"],
   marketing:   ["dashboard", "ess", "leads", "customers", "marketing", "reports", "campaigns", "settings"],
   hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "incentives", "settings"],

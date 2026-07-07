@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Inbox, RefreshCw, Wallet, Briefcase } from "lucide-react";
+import { useState } from "react";
+import { Inbox, RefreshCw, Wallet } from "lucide-react";
 import { useApprovals } from "@/modules/approvals/hooks/useApprovals";
 import { RejectReasonModal } from "@/modules/approvals/components/RejectReasonModal";
 import { FinanceApprovalModal } from "@/modules/bookings/components/FinanceApprovalModal";
-import { OpsApprovalModal } from "@/modules/bookings/components/OpsApprovalModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
@@ -13,10 +12,8 @@ import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { formatCurrency } from "@/lib/utils/helpers";
-import { fetchPackages } from "@/modules/packages/services/package.service";
 import type { ApprovalItem } from "@/modules/approvals/types";
 import type { Booking } from "@/modules/bookings/types";
-import type { Package } from "@/modules/packages/types";
 
 const KIND_META: Record<ApprovalItem["kind"], { label: string; variant: "info" | "warning" | "success" }> = {
   "booking-finance": { label: "Booking",   variant: "info"    },
@@ -25,25 +22,22 @@ const KIND_META: Record<ApprovalItem["kind"], { label: string; variant: "info" |
   "invoice":         { label: "Invoice",   variant: "success" },
 };
 
+// Finance-only Approvals Inbox — Bookings pending Finance sign-off,
+// Quotations/Invoices pending Finance approval. Operations approvals live
+// on their own separate page/nav item (OperationsApprovalsPage) — the two
+// are kept apart rather than sharing one page, since they're two different
+// departments reviewing two different sets of requests.
 export function ApprovalsPage() {
   const { user } = useAuthStore();
-  const { financeQueue, opsQueue, loading, approveItem, rejectItem, reload } = useApprovals();
+  const { financeQueue, loading, approveItem, rejectItem, reload } = useApprovals();
 
   const canSeeFinance = !!user && (
     hasPermission(user.systemRole, "bookings:finance_approve") ||
     hasPermission(user.systemRole, "quotations:finance_approve") ||
     hasPermission(user.systemRole, "invoices:finance_approve")
   );
-  const canSeeOps = !!user && hasPermission(user.systemRole, "bookings:ops_approve");
 
-  const [packages, setPackages] = useState<Package[]>([]);
-  useEffect(() => { fetchPackages().then(setPackages).catch(() => {}); }, []);
-
-  // Booking approvals need extra input (payment verification / profit
-  // amount), so "Approve" opens the existing dedicated modals instead of
-  // approving inline like quotations/invoices do.
   const [financeApprovingItem, setFinanceApprovingItem] = useState<ApprovalItem & { kind: "booking-finance" } | null>(null);
-  const [opsApprovingItem,     setOpsApprovingItem]     = useState<ApprovalItem & { kind: "booking-ops" }     | null>(null);
   const [rejectingItem,        setRejectingItem]        = useState<ApprovalItem | null>(null);
 
   async function handleApproveInline(item: ApprovalItem & { kind: "quotation" | "invoice" }) {
@@ -70,8 +64,7 @@ export function ApprovalsPage() {
             variant="primary"
             onClick={() => {
               if (item.kind === "booking-finance") setFinanceApprovingItem(item);
-              else if (item.kind === "booking-ops") setOpsApprovingItem(item);
-              else handleApproveInline(item);
+              else handleApproveInline(item as ApprovalItem & { kind: "quotation" | "invoice" });
             }}
           >
             Approve
@@ -88,8 +81,8 @@ export function ApprovalsPage() {
     <div className="space-y-5">
 
       <PageHeader
-        title="Approvals Inbox"
-        description="Review pending bookings, quotations, and invoices awaiting Finance/Operations sign-off"
+        title="Finance Approvals"
+        description="Review pending bookings, quotations, and invoices awaiting Finance sign-off"
         actions={
           <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()}>
             Refresh
@@ -114,37 +107,11 @@ export function ApprovalsPage() {
         </section>
       )}
 
-      {canSeeOps && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Briefcase size={16} className="text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Operations Approvals</h2>
-            <span className="text-xs text-muted-foreground">({opsQueue.length})</span>
-          </div>
-          {!loading && opsQueue.length === 0 ? (
-            <EmptyState icon={<Inbox size={22} />} title="No pending Operations approvals" description="Finance-approved bookings awaiting Operations sign-off will appear here." />
-          ) : (
-            <div className="space-y-2">
-              {opsQueue.map(renderRow)}
-            </div>
-          )}
-        </section>
-      )}
-
       <FinanceApprovalModal
         booking={financeApprovingItem ? (financeApprovingItem.data as Booking) : null}
         onClose={() => setFinanceApprovingItem(null)}
         onConfirm={(paymentVerification) =>
           financeApprovingItem ? approveItem(financeApprovingItem, paymentVerification) : Promise.resolve({ error: null })
-        }
-      />
-
-      <OpsApprovalModal
-        booking={opsApprovingItem ? (opsApprovingItem.data as Booking) : null}
-        packages={packages}
-        onClose={() => setOpsApprovingItem(null)}
-        onConfirm={(profitAmount) =>
-          opsApprovingItem ? approveItem(opsApprovingItem, profitAmount) : Promise.resolve({ error: null })
         }
       />
 
