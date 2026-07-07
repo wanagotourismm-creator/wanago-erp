@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -77,7 +76,6 @@ export function Sidebar() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const ab = initials(user?.displayName ?? "Wanago Admin") || "WA";
-  const [hovering, setHovering] = useState(false);
 
   const visibleGroups = NAV_CONFIG.map((group) => ({
     ...group,
@@ -161,8 +159,6 @@ export function Sidebar() {
 
   return (
     <aside
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
       className={cn(
         "hidden lg:flex relative z-30 flex-col h-screen transition-all duration-300 ease-in-out",
         "border-r border-border bg-card",
@@ -174,25 +170,14 @@ export function Sidebar() {
       {renderNav(sidebarCollapsed)}
       {renderUser(sidebarCollapsed)}
 
-      {/* Collapse toggle */}
+      {/* Collapse toggle — a real width change, so the page content always
+          reflows to match (unlike a hover-preview overlay, which looked
+          like content was cut off behind the sidebar). */}
       <button onClick={toggleSidebar}
         className="absolute -right-3 top-[76px] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm transition-colors"
         aria-label={sidebarCollapsed ? "Expand" : "Collapse"}>
         {sidebarCollapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
       </button>
-
-      {/* Hover flyout: shows full expanded content over page content without affecting layout width */}
-      {sidebarCollapsed && hovering && (
-        <div className={cn(
-          "absolute left-0 top-0 z-50 flex h-full w-[240px] flex-col",
-          "border-r border-border bg-card shadow-2xl",
-          "transition-all duration-200 ease-in-out"
-        )}>
-          {renderLogo(false)}
-          {renderNav(false)}
-          {renderUser(false)}
-        </div>
-      )}
     </aside>
   );
 }
