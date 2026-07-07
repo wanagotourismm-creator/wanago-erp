@@ -4,6 +4,9 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "regions": ["bom1"],
+  "crons": [
+    { "path": "/api/cron/daily-reminders", "schedule": "30 3 * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -5,6 +5,30 @@ import { invoiceRepository } from "@/modules/invoices/services/invoice.repositor
 import { FIRESTORE_COLLECTIONS, INVOICE_STATUS, type InvoiceStatus } from "@/lib/constants";
 import { generateRefNumber, toDate } from "@/lib/utils/helpers";
 import type { Invoice, InvoiceFormData } from "@/modules/invoices/types";
+import { notifyUser } from "@/lib/notify";
+import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
+
+// Notifications are best-effort — a failure here must never break the
+// invoice creation/approval flow itself.
+async function notifyFinanceApprovers(invoice: Invoice): Promise<void> {
+  try {
+    const approvers = await fetchUsersByPermission("invoices:finance_approve");
+    await Promise.all(
+      approvers.map((u) =>
+        notifyUser({
+          userId:   u.id,
+          email:    u.email,
+          title:    `New invoice ${invoice.refNumber} needs Finance approval`,
+          body:     `${invoice.customerName} — ${invoice.totalAmount}`,
+          link:     "/approvals",
+          category: "approval",
+        })
+      )
+    );
+  } catch {
+    // ignore — notifications must not block invoice creation/update
+  }
+}
 
 function computeStatus(
   prevStatus: InvoiceStatus | undefined,
@@ -46,7 +70,7 @@ export async function createInvoice(
   const refNumber = generateRefNumber("INVOICE", ids);
   const dueDate   = data.dueDate || null;
 
-  return invoiceRepository.create({
+  const invoice = await invoiceRepository.create({
     ...data,
     refNumber,
     createdBy,
@@ -65,6 +89,10 @@ export async function createInvoice(
     financeRejectedAt:       null,
     financeRejectionReason:  null,
   });
+
+  await notifyFinanceApprovers(invoice);
+
+  return invoice;
 }
 
 export async function updateInvoice(
@@ -89,27 +117,73 @@ export async function updateInvoice(
       patch.financeApprovalStatus = "pending";
     }
   }
-  return invoiceRepository.update(id, patch);
+
+  await invoiceRepository.update(id, patch);
+
+  if (existing?.financeApprovalStatus === "rejected") {
+    const updated = await invoiceRepository.findById(id);
+    if (updated) await notifyFinanceApprovers(updated);
+  }
 }
 
 // Finance must approve an invoice before it can be marked sent.
 export async function approveInvoiceFinance(id: string, approvedBy: string): Promise<void> {
-  return invoiceRepository.update(id, {
+  const existing = await invoiceRepository.findById(id);
+
+  await invoiceRepository.update(id, {
     financeApprovalStatus: "approved",
     financeApprovedBy:     approvedBy,
     financeApprovedAt:     serverTimestamp(),
   } as Partial<Invoice>);
+
+  if (existing) {
+    try {
+      const creator = await fetchUserById(existing.createdBy);
+      if (creator) {
+        await notifyUser({
+          userId:   creator.id,
+          email:    creator.email,
+          title:    `Invoice ${existing.refNumber} approved by Finance`,
+          body:     `${existing.customerName} — ${existing.totalAmount} — this invoice can now be marked sent.`,
+          link:     "/invoices",
+          category: "approval",
+        });
+      }
+    } catch {
+      // ignore — notifications must not block the approval flow
+    }
+  }
 }
 
 // Finance rejects the invoice with a reason instead of approving — editing
 // the invoice later (see updateInvoice) automatically resubmits it.
 export async function rejectInvoiceFinance(id: string, rejectedBy: string, reason: string): Promise<void> {
-  return invoiceRepository.update(id, {
+  const existing = await invoiceRepository.findById(id);
+
+  await invoiceRepository.update(id, {
     financeApprovalStatus:  "rejected",
     financeRejectedBy:      rejectedBy,
     financeRejectedAt:      serverTimestamp(),
     financeRejectionReason: reason,
   } as Partial<Invoice>);
+
+  if (existing) {
+    try {
+      const creator = await fetchUserById(existing.createdBy);
+      if (creator) {
+        await notifyUser({
+          userId:   creator.id,
+          email:    creator.email,
+          title:    `Invoice ${existing.refNumber} rejected by Finance`,
+          body:     `${existing.customerName} — ${existing.totalAmount} — reason: ${reason}. Edit and resubmit to send it back for approval.`,
+          link:     "/invoices",
+          category: "approval",
+        });
+      }
+    } catch {
+      // ignore — notifications must not block the rejection flow
+    }
+  }
 }
 
 export async function markInvoiceSent(id: string): Promise<void> {

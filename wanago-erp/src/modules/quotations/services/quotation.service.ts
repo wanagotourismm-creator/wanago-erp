@@ -6,6 +6,48 @@ import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { generateRefNumber, toDate } from "@/lib/utils/helpers";
 import { createBooking } from "@/modules/bookings/services/booking.service";
 import type { Quotation, QuotationFormData, QuotationLineItem } from "@/modules/quotations/types";
+import { notifyUser } from "@/lib/notify";
+import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
+
+// Notification helpers below are best-effort — a failure here must never
+// break the actual quotation creation/approval/rejection flow.
+
+async function notifyFinanceApprovers(quotation: Quotation): Promise<void> {
+  try {
+    const approvers = await fetchUsersByPermission("quotations:finance_approve");
+    await Promise.all(
+      approvers.map((u) =>
+        notifyUser({
+          userId:   u.id,
+          email:    u.email,
+          title:    `New quotation ${quotation.refNumber} needs Finance approval`,
+          body:     `${quotation.customerName} — ${quotation.totalAmount}`,
+          link:     "/approvals",
+          category: "approval",
+        })
+      )
+    );
+  } catch {
+    // Notification failures must not block the quotation flow.
+  }
+}
+
+async function notifyCreator(createdBy: string, title: string, body: string): Promise<void> {
+  try {
+    const creator = await fetchUserById(createdBy);
+    if (!creator) return;
+    await notifyUser({
+      userId:   creator.id,
+      email:    creator.email,
+      title,
+      body,
+      link:     "/quotations",
+      category: "approval",
+    });
+  } catch {
+    // Notification failures must not block the quotation flow.
+  }
+}
 
 function computeTotals(lineItems: QuotationLineItem[], taxRate: number | null | undefined) {
   const subtotal    = lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0);
@@ -41,7 +83,7 @@ export async function createQuotation(
   const refNumber = generateRefNumber("QUOTATION", ids);
   const { subtotal, taxAmount, totalAmount } = computeTotals(data.lineItems, data.taxRate);
 
-  return quotationRepository.create({
+  const quotation = await quotationRepository.create({
     ...data,
     refNumber,
     createdBy,
@@ -62,6 +104,10 @@ export async function createQuotation(
     financeRejectedAt:       null,
     financeRejectionReason:  null,
   });
+
+  await notifyFinanceApprovers(quotation);
+
+  return quotation;
 }
 
 export async function updateQuotation(
@@ -84,7 +130,13 @@ export async function updateQuotation(
       patch.financeApprovalStatus = "pending";
     }
   }
-  return quotationRepository.update(id, patch);
+
+  await quotationRepository.update(id, patch);
+
+  if (existing?.financeApprovalStatus === "rejected") {
+    const updated = await quotationRepository.findById(id);
+    if (updated) await notifyFinanceApprovers(updated);
+  }
 }
 
 export async function deleteQuotation(id: string): Promise<void> {
@@ -92,20 +144,40 @@ export async function deleteQuotation(id: string): Promise<void> {
 }
 
 export async function approveQuotationFinance(id: string, approvedBy: string): Promise<void> {
-  return quotationRepository.update(id, {
+  const existing = await quotationRepository.findById(id);
+
+  await quotationRepository.update(id, {
     financeApprovalStatus: "approved",
     financeApprovedBy: approvedBy,
     financeApprovedAt: serverTimestamp(),
   } as Partial<Quotation>);
+
+  if (existing) {
+    await notifyCreator(
+      existing.createdBy,
+      `Quotation ${existing.refNumber} approved`,
+      `${existing.customerName}'s quotation has been approved by Finance and can now be converted to a booking.`
+    );
+  }
 }
 
 export async function rejectQuotationFinance(id: string, rejectedBy: string, reason: string): Promise<void> {
-  return quotationRepository.update(id, {
+  const existing = await quotationRepository.findById(id);
+
+  await quotationRepository.update(id, {
     financeApprovalStatus: "rejected",
     financeRejectedBy: rejectedBy,
     financeRejectedAt: serverTimestamp(),
     financeRejectionReason: reason,
   } as Partial<Quotation>);
+
+  if (existing) {
+    await notifyCreator(
+      existing.createdBy,
+      `Quotation ${existing.refNumber} rejected`,
+      `${existing.customerName}'s quotation was rejected by Finance: ${reason}. Edit and resubmit it to send it back for approval.`
+    );
+  }
 }
 
 // Mirrors leads' convertLeadToCustomer pattern: reads from the source

@@ -5,6 +5,50 @@ import { bookingRepository } from "@/modules/bookings/services/booking.repositor
 import { FIRESTORE_COLLECTIONS, BOOKING_STATUS } from "@/lib/constants";
 import { generateRefNumber, toDate } from "@/lib/utils/helpers";
 import type { Booking, BookingFormData } from "@/modules/bookings/types";
+import { notifyUser } from "@/lib/notify";
+import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
+
+// Notification helpers below are best-effort — a failure here must never
+// break the actual booking creation/approval/rejection flow, so every
+// call site wraps them in try/catch even though notifyUser itself is
+// documented to never throw (fetchUsersByPermission/fetchUserById can).
+
+async function notifyApprovers(permission: "bookings:finance_approve" | "bookings:ops_approve", booking: Booking, stage: "Finance" | "Operations") {
+  try {
+    const approvers = await fetchUsersByPermission(permission);
+    await Promise.all(
+      approvers.map((u) =>
+        notifyUser({
+          userId: u.id,
+          email: u.email,
+          title: `Booking ${booking.refNumber} needs ${stage} approval`,
+          body: `${booking.customerName} — ${booking.destination} (${booking.totalAmount}) — submitted by ${booking.agentName ?? "a sales agent"}.`,
+          link: "/approvals",
+          category: "approval",
+        })
+      )
+    );
+  } catch {
+    // Notification failures must not block the booking flow.
+  }
+}
+
+async function notifyCreator(createdBy: string, title: string, body: string) {
+  try {
+    const creator = await fetchUserById(createdBy);
+    if (!creator) return;
+    await notifyUser({
+      userId: creator.id,
+      email: creator.email,
+      title,
+      body,
+      link: "/bookings",
+      category: "approval",
+    });
+  } catch {
+    // Notification failures must not block the booking flow.
+  }
+}
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
 // queries only need single-field indexes, which Firestore creates
@@ -34,7 +78,7 @@ export async function createBooking(
   const ids       = existing.docs.map(d => d.data().refNumber ?? "");
   const refNumber = generateRefNumber("BOOKING", ids);
 
-  return bookingRepository.create({
+  const booking = await bookingRepository.create({
     ...data,
     refNumber,
     createdBy,
@@ -56,6 +100,10 @@ export async function createBooking(
     profitAmount:        null,
     followUpNotifiedAt:  null,
   });
+
+  await notifyApprovers("bookings:finance_approve", booking, "Finance");
+
+  return booking;
 }
 
 export async function updateBooking(
@@ -74,16 +122,30 @@ export async function updateBooking(
     // Editing a rejected booking is the entire "resubmit" mechanism — it
     // automatically puts the booking back in the right pending queue and
     // clears the previous rejection trail.
+    let resubmittedTo: "Finance" | "Operations" | null = null;
     if (existing.status === BOOKING_STATUS.FINANCE_REJECTED) {
       patch.status                 = BOOKING_STATUS.PENDING_FINANCE;
       patch.financeRejectedBy      = null;
       patch.financeRejectedAt      = null;
       patch.financeRejectionReason = null;
+      resubmittedTo = "Finance";
     } else if (existing.status === BOOKING_STATUS.OPS_REJECTED) {
       patch.status              = BOOKING_STATUS.OPS_PENDING;
       patch.opsRejectedBy       = null;
       patch.opsRejectedAt       = null;
       patch.opsRejectionReason  = null;
+      resubmittedTo = "Operations";
+    }
+
+    if (resubmittedTo) {
+      await bookingRepository.update(id, patch);
+      const resubmitted = { ...existing, ...patch } as Booking;
+      await notifyApprovers(
+        resubmittedTo === "Finance" ? "bookings:finance_approve" : "bookings:ops_approve",
+        resubmitted,
+        resubmittedTo
+      );
+      return;
     }
   }
   return bookingRepository.update(id, patch);
@@ -103,12 +165,23 @@ export async function approveBookingAsFinance(
   approvedBy: string,
   paymentVerification: "full" | "partial"
 ): Promise<void> {
-  return bookingRepository.update(id, {
+  const existing = await bookingRepository.findById(id);
+
+  await bookingRepository.update(id, {
     status:              BOOKING_STATUS.OPS_PENDING,
     financeApprovedBy:   approvedBy,
     financeApprovedAt:   serverTimestamp(),
     paymentVerification,
   } as Partial<Booking>);
+
+  if (existing) {
+    await notifyApprovers("bookings:ops_approve", { ...existing, status: BOOKING_STATUS.OPS_PENDING } as Booking, "Operations");
+    await notifyCreator(
+      existing.createdBy,
+      `Booking ${existing.refNumber} approved by Finance`,
+      `${existing.customerName}'s booking has been approved by Finance and is now with Operations for final approval.`
+    );
+  }
 }
 
 // Operations cross-verifies and records the deal's real profit — this is
@@ -118,12 +191,22 @@ export async function approveBookingAsOperations(
   approvedBy: string,
   profitAmount: number
 ): Promise<void> {
-  return bookingRepository.update(id, {
+  const existing = await bookingRepository.findById(id);
+
+  await bookingRepository.update(id, {
     status:        BOOKING_STATUS.CONFIRMED,
     opsApprovedBy: approvedBy,
     opsApprovedAt: serverTimestamp(),
     profitAmount,
   } as Partial<Booking>);
+
+  if (existing) {
+    await notifyCreator(
+      existing.createdBy,
+      `Booking ${existing.refNumber} confirmed`,
+      `${existing.customerName}'s booking has been approved by Operations and is now fully confirmed.`
+    );
+  }
 }
 
 // Finance rejects the booking with a reason instead of approving — editing
@@ -133,12 +216,22 @@ export async function rejectBookingAsFinance(
   rejectedBy: string,
   reason: string
 ): Promise<void> {
-  return bookingRepository.update(id, {
+  const existing = await bookingRepository.findById(id);
+
+  await bookingRepository.update(id, {
     status:                 BOOKING_STATUS.FINANCE_REJECTED,
     financeRejectedBy:      rejectedBy,
     financeRejectedAt:      serverTimestamp(),
     financeRejectionReason: reason,
   } as Partial<Booking>);
+
+  if (existing) {
+    await notifyCreator(
+      existing.createdBy,
+      `Booking ${existing.refNumber} rejected by Finance`,
+      `${existing.customerName}'s booking was rejected by Finance. Reason: ${reason}`
+    );
+  }
 }
 
 // Operations rejects the booking with a reason instead of approving —
@@ -148,12 +241,22 @@ export async function rejectBookingAsOperations(
   rejectedBy: string,
   reason: string
 ): Promise<void> {
-  return bookingRepository.update(id, {
+  const existing = await bookingRepository.findById(id);
+
+  await bookingRepository.update(id, {
     status:              BOOKING_STATUS.OPS_REJECTED,
     opsRejectedBy:       rejectedBy,
     opsRejectedAt:       serverTimestamp(),
     opsRejectionReason:  reason,
   } as Partial<Booking>);
+
+  if (existing) {
+    await notifyCreator(
+      existing.createdBy,
+      `Booking ${existing.refNumber} rejected by Operations`,
+      `${existing.customerName}'s booking was rejected by Operations. Reason: ${reason}`
+    );
+  }
 }
 
 export async function deleteBooking(id: string): Promise<void> {
