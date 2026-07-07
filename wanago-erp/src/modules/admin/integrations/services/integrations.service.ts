@@ -5,12 +5,19 @@ async function authHeader(): Promise<Record<string, string>> {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
-export async function fetchIntegrationStatus(): Promise<Record<string, boolean>> {
+export type IntegrationStatus = {
+  configured: Record<string, boolean>;
+  // Only populated for non-secret fields (e.g. a "from" email address) —
+  // true secrets (API keys/tokens) never come back from the server.
+  values: Record<string, string>;
+};
+
+export async function fetchIntegrationStatus(): Promise<IntegrationStatus> {
   const headers = await authHeader();
   const res = await fetch("/api/admin/integrations", { headers });
   if (!res.ok) throw new Error("Failed to load integration status");
   const data = await res.json();
-  return data.configured ?? {};
+  return { configured: data.configured ?? {}, values: data.values ?? {} };
 }
 
 export async function saveIntegrationSecrets(patch: Record<string, string>): Promise<void> {

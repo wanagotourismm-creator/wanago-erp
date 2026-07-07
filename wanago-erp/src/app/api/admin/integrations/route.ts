@@ -4,11 +4,18 @@ import { getAdminDb, requireAdmin } from "@/lib/firebase/admin";
 export const runtime = "nodejs";
 
 const DOC_PATH = ["integrationSecrets", "keys"] as const;
-const FIELDS = [
-  "anthropicApiKey", "openaiApiKey",
-  "resendApiKey", "resendFromEmail",
-  "twilioAccountSid", "twilioAuthToken", "twilioWhatsappNumber",
+
+// True secrets — never sent back to the client once saved, only whether
+// each is configured (the UI shows them masked/write-only).
+const SECRET_FIELDS = [
+  "anthropicApiKey", "openaiApiKey", "resendApiKey", "twilioAccountSid", "twilioAuthToken",
 ] as const;
+// Plain identifiers, not secrets (an email "from" address / a phone
+// number) — safe to send back so the admin can actually see and edit
+// what's configured instead of it always looking blank.
+const PLAIN_FIELDS = ["resendFromEmail", "twilioWhatsappNumber"] as const;
+
+const FIELDS = [...SECRET_FIELDS, ...PLAIN_FIELDS] as const;
 
 function bearerToken(req: NextRequest): string | null {
   const header = req.headers.get("authorization");
@@ -28,7 +35,10 @@ export async function GET(req: NextRequest) {
   const configured: Record<string, boolean> = {};
   for (const f of FIELDS) configured[f] = typeof data[f] === "string" && data[f].length > 0;
 
-  return NextResponse.json({ configured });
+  const values: Record<string, string> = {};
+  for (const f of PLAIN_FIELDS) if (configured[f]) values[f] = data[f];
+
+  return NextResponse.json({ configured, values });
 }
 
 export async function POST(req: NextRequest) {

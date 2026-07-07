@@ -5,7 +5,11 @@ import { Check, KeyRound, Loader2, Sparkles, Mail, MessageCircle } from "lucide-
 import { fetchIntegrationStatus, saveIntegrationSecrets } from "@/modules/admin/integrations/services/integrations.service";
 import { cn } from "@/lib/utils/helpers";
 
-type FieldDef = { key: string; label: string; placeholder: string };
+// `secret: true` (the default) means write-only — masked input, never
+// redisplayed once saved, matching the API's SECRET_FIELDS. `secret:
+// false` fields (a from-address, a phone number — not sensitive) come
+// back from the server as plain text and are directly visible/editable.
+type FieldDef = { key: string; label: string; placeholder: string; secret?: boolean };
 type Section = { title: string; icon: React.ElementType; fields: FieldDef[] };
 
 const SECTIONS: Section[] = [
@@ -20,7 +24,7 @@ const SECTIONS: Section[] = [
     title: "Email (Resend)", icon: Mail,
     fields: [
       { key: "resendApiKey", label: "Resend API Key", placeholder: "re_..." },
-      { key: "resendFromEmail", label: "From Address", placeholder: "Wanago HR <hr@yourdomain.com>" },
+      { key: "resendFromEmail", label: "From Address", placeholder: "Wanago HR <hr@yourdomain.com>", secret: false },
     ],
   },
   {
@@ -28,10 +32,14 @@ const SECTIONS: Section[] = [
     fields: [
       { key: "twilioAccountSid", label: "Account SID", placeholder: "AC..." },
       { key: "twilioAuthToken", label: "Auth Token", placeholder: "•••••••••" },
-      { key: "twilioWhatsappNumber", label: "WhatsApp Number", placeholder: "+14155238886" },
+      { key: "twilioWhatsappNumber", label: "WhatsApp Number", placeholder: "+14155238886", secret: false },
     ],
   },
 ];
+
+const PLAIN_FIELD_KEYS = new Set(
+  SECTIONS.flatMap((s) => s.fields).filter((f) => f.secret === false).map((f) => f.key)
+);
 
 const inputClass = cn(
   "w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-all",
@@ -41,6 +49,10 @@ const inputClass = cn(
 export function IntegrationsPanel() {
   const [configured, setConfigured] = useState<Record<string, boolean>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
+  // The last-known-saved value for plain (non-secret) fields — used to
+  // tell an actual edit apart from the pre-filled value on load, and to
+  // restore the display after saving (draft otherwise resets to empty).
+  const [initialValues, setInitialValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +60,15 @@ export function IntegrationsPanel() {
 
   useEffect(() => {
     fetchIntegrationStatus()
-      .then(setConfigured)
+      .then(({ configured, values }) => {
+        setConfigured(configured);
+        setInitialValues(values);
+        // Pre-fill plain (non-secret) fields with their real current value
+        // so they show up as actually configured, not blank — secrets are
+        // never returned by the server, so draft stays empty for those
+        // until the admin types a new one.
+        setDraft((prev) => ({ ...values, ...prev }));
+      })
       .catch(() => setError("Couldn't load integration status"))
       .finally(() => setLoading(false));
   }, []);
@@ -58,13 +78,21 @@ export function IntegrationsPanel() {
     setError(null);
     setSaved(false);
     try {
-      const patch = Object.fromEntries(Object.entries(draft).filter(([, v]) => v.trim().length > 0));
+      const patch = Object.fromEntries(
+        Object.entries(draft).filter(([k, v]) => v.trim().length > 0 && v !== initialValues[k])
+      );
       if (Object.keys(patch).length === 0) return;
       await saveIntegrationSecrets(patch);
       const next = { ...configured };
       for (const k of Object.keys(patch)) next[k] = true;
       setConfigured(next);
-      setDraft({});
+      // Only plain fields' new values stick around client-side — a
+      // freshly-typed secret is sent once and then dropped from state,
+      // same as the original write-only behavior.
+      const plainPatch = Object.fromEntries(Object.entries(patch).filter(([k]) => PLAIN_FIELD_KEYS.has(k)));
+      const nextInitial = { ...initialValues, ...plainPatch };
+      setInitialValues(nextInitial);
+      setDraft(nextInitial);
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -77,7 +105,9 @@ export function IntegrationsPanel() {
     return <div className="flex h-40 items-center justify-center"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>;
   }
 
-  const hasDraft = Object.values(draft).some((v) => v.trim().length > 0);
+  // A plain field pre-filled from the server shouldn't count as "changed"
+  // by itself — only an actual edit (value differs from what was loaded).
+  const hasDraft = Object.entries(draft).some(([k, v]) => v.trim().length > 0 && v !== initialValues[k]);
 
   return (
     <div className="space-y-5">
@@ -87,7 +117,7 @@ export function IntegrationsPanel() {
           <p className="text-sm font-semibold text-foreground">Integrations</p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Keys are write-only — once saved they&apos;re never displayed again, only whether each is configured. Leave a field blank to keep its current value.
+          API keys and tokens are write-only — once saved they&apos;re never displayed again, only whether each is configured. Non-secret fields (like a from-address or phone number) show their current value and can be edited directly. Leave a field blank to keep its current value.
         </p>
       </div>
 
@@ -114,10 +144,10 @@ export function IntegrationsPanel() {
                   )}
                 </label>
                 <input
-                  type="password"
+                  type={f.secret === false ? "text" : "password"}
                   autoComplete="off"
                   className={inputClass}
-                  placeholder={configured[f.key] ? "•••••••• (leave blank to keep)" : f.placeholder}
+                  placeholder={f.secret === false || !configured[f.key] ? f.placeholder : "•••••••• (leave blank to keep)"}
                   value={draft[f.key] ?? ""}
                   onChange={(e) => setDraft((p) => ({ ...p, [f.key]: e.target.value }))}
                 />

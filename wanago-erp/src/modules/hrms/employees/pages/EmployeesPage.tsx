@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, RefreshCw, Users, UserCheck, UserX, Clock, Upload } from "lucide-react";
+import { Plus, Search, RefreshCw, Users, UserCheck, UserX, Clock, Upload, Mail, Loader2 } from "lucide-react";
 import { useEmployees } from "@/modules/hrms/employees/hooks/useEmployees";
 import { EmployeeDirectory } from "@/modules/hrms/employees/components/EmployeeDirectory";
 import { EmployeeForm } from "@/modules/hrms/employees/components/EmployeeForm";
@@ -35,6 +35,7 @@ export function EmployeesPage() {
   const [search,           setSearch]          = useState("");
   const [importOpen,       setImportOpen]      = useState(false);
   const [offices,          setOffices]         = useState<Office[]>([]);
+  const [sendingWelcome,   setSendingWelcome]  = useState(false);
 
   useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
@@ -83,6 +84,35 @@ export function EmployeesPage() {
   async function handleDelete(employee: Employee) {
     if (!confirm(`Delete employee "${employee.fullName}"? This cannot be undone.`)) return;
     await removeEmployee(employee.id);
+  }
+
+  async function handleSendWelcomeToAll() {
+    const recipients = employees.filter(e => e.email);
+    const skipped = employees.length - recipients.length;
+    if (recipients.length === 0) {
+      alert("No employees have an email on file — nothing to send.");
+      return;
+    }
+    if (!confirm(`Send the "Welcome to Team Wanago" email to all ${recipients.length} employee${recipients.length !== 1 ? "s" : ""} with an email on file?${skipped ? ` (${skipped} skipped — no email on file.)` : ""}`)) {
+      return;
+    }
+
+    setSendingWelcome(true);
+    let sent = 0, failed = 0;
+    for (const employee of recipients) {
+      try {
+        const res = await fetch("/api/hrms/send-welcome-email", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ to: employee.email, fullName: employee.fullName, designation: employee.designation }),
+        });
+        if (res.ok) sent++; else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    setSendingWelcome(false);
+    alert(`Sent ${sent} welcome email${sent !== 1 ? "s" : ""}.${failed ? ` ${failed} failed.` : ""}${skipped ? ` ${skipped} skipped (no email on file).` : ""}`);
   }
 
   const exportRows = useMemo(() => filtered.map((e) => ({
@@ -242,6 +272,16 @@ export function EmployeesPage() {
               </Button>
             )}
             <BulkExportButton filenameBase="employees" rows={exportRows} />
+            {canManage && (
+              <Button
+                variant="outline" size="sm"
+                icon={sendingWelcome ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                disabled={sendingWelcome}
+                onClick={handleSendWelcomeToAll}
+              >
+                Send Welcome Email to All
+              </Button>
+            )}
             {canManage && (
               <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingEmployee(null); setFormOpen(true); }}>
                 Add Employee

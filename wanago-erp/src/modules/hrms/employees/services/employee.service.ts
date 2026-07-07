@@ -39,6 +39,19 @@ export async function fetchEmployeeByUserId(uid: string, email?: string | null):
   return null;
 }
 
+// Best-effort — a failed/unsent welcome email must never block adding the
+// employee. Posts to an API route rather than importing notify-server.ts
+// directly, since that pulls in firebase-admin (Node-only, can't bundle
+// into this client-side service).
+function sendWelcomeEmail(employee: Employee): void {
+  if (!employee.email) return;
+  fetch("/api/hrms/send-welcome-email", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to: employee.email, fullName: employee.fullName, designation: employee.designation }),
+  }).catch(() => {});
+}
+
 export async function createEmployee(
   data: EmployeeFormData,
   createdBy: string
@@ -47,7 +60,7 @@ export async function createEmployee(
   const ids           = existing.docs.map(d => d.data().employeeCode ?? "");
   const employeeCode  = generateRefNumber("EMPLOYEE", ids);
 
-  return repo.create({
+  const employee = await repo.create({
     ...data,
     employeeCode,
     createdBy,
@@ -70,6 +83,9 @@ export async function createEmployee(
     monthlyProfitTarget: data.monthlyProfitTarget ?? null,
     userId:             data.userId || null,
   });
+
+  sendWelcomeEmail(employee);
+  return employee;
 }
 
 export async function updateEmployee(
