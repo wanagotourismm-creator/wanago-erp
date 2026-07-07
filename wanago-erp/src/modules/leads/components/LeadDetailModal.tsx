@@ -1,9 +1,15 @@
 "use client";
 
-import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User } from "lucide-react";
+import { useState } from "react";
+import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall, MessageCircle } from "lucide-react";
 import { StageBadge, PriorityBadge } from "@/modules/leads/components/LeadBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
-import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
+import { formatDate, formatDateTime, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
+import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
+import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
+import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
+import type { CallLogSchema } from "@/modules/call-logs/schemas";
+import type { CallLogFormData, CallMethod, CallDirection } from "@/modules/call-logs/types";
 import type { Lead } from "@/modules/leads/types";
 
 type Props = {
@@ -24,12 +30,54 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Props) {
+  const [callFormOpen, setCallFormOpen] = useState(false);
+  const [callPrefill, setCallPrefill] = useState<{ method: CallMethod; direction: CallDirection } | null>(null);
+  const [callLogRefreshKey, setCallLogRefreshKey] = useState(0);
+  const { addCallLog } = useCallLogs({ leadId: lead?.id });
+
   if (!lead) return null;
 
   const canQuote = !["quoted", "negotiation", "won", "lost"].includes(lead.stage);
   const canMarkWon = ["quoted", "negotiation"].includes(lead.stage);
 
+  function openLogCallForm(prefill: { method: CallMethod; direction: CallDirection } | null) {
+    setCallPrefill(prefill);
+    setCallFormOpen(true);
+  }
+
+  function handlePhoneCallClick() {
+    if (window.confirm("Log this call?")) {
+      openLogCallForm({ method: "phone", direction: "outbound" });
+    }
+  }
+
+  function handleWhatsAppClick() {
+    if (window.confirm("Log this call?")) {
+      openLogCallForm({ method: "whatsapp", direction: "outbound" });
+    }
+  }
+
+  async function handleLogCall(data: CallLogSchema, recordingFile: File | null) {
+    const fullData: CallLogFormData = {
+      ...data,
+      leadId: lead!.id,
+      customerId: null,
+      contactName: lead!.name,
+      phone: lead!.phone,
+      durationMinutes: data.durationMinutes ?? null,
+      notes: data.notes ? data.notes : null,
+      followUpNeeded: data.followUpNeeded ?? false,
+      followUpDate: data.followUpDate ? data.followUpDate : null,
+    };
+    const { error } = await addCallLog(fullData, recordingFile);
+    if (!error) {
+      setCallFormOpen(false);
+      setCallLogRefreshKey((k) => k + 1);
+    }
+  }
+
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
@@ -73,9 +121,36 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Pr
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Contact</p>
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
-              <Row label="Phone" value={<PhoneLink phone={lead.phone} />} />
+              <Row
+                label="Phone"
+                value={
+                  <span onClickCapture={handlePhoneCallClick}>
+                    <PhoneLink phone={lead.phone} />
+                  </span>
+                }
+              />
               {lead.alternatePhone && <Row label="Alternate Phone" value={lead.alternatePhone} />}
               {lead.email && <Row label="Email" value={<span className="inline-flex items-center gap-1.5"><Mail size={12} />{lead.email}</span>} />}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openLogCallForm(null)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+              >
+                <PhoneCall size={12} /> Log a Call
+              </button>
+              {lead.phone && (
+                <a
+                  href={buildWhatsAppLink(lead.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleWhatsAppClick}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+                >
+                  <MessageCircle size={12} /> Call via WhatsApp
+                </a>
+              )}
             </div>
           </div>
 
@@ -115,6 +190,8 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Pr
               </p>
             </div>
           )}
+
+          <CallLogHistory key={callLogRefreshKey} leadId={lead.id} />
 
         </div>
 
@@ -158,5 +235,17 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Pr
 
       </div>
     </div>
+
+    <CallLogForm
+      open={callFormOpen}
+      onClose={() => setCallFormOpen(false)}
+      onSubmit={handleLogCall}
+      contactName={lead.name}
+      phone={lead.phone}
+      leadId={lead.id}
+      prefillMethod={callPrefill?.method}
+      prefillDirection={callPrefill?.direction}
+    />
+    </>
   );
 }

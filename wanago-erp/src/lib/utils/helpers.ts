@@ -89,6 +89,19 @@ export function slugify(str: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+// ── Phone / WhatsApp helpers ─────────────────────────────────
+// wa.me links need the full international number (country code + number,
+// digits only, no leading +). Numbers in this app are stored as plain
+// 10-digit local numbers, so this only prepends India's country code when
+// the cleaned number looks like one — anything else (already has a
+// country code, or an unexpected format) passes through unchanged rather
+// than guessing wrong.
+export function buildWhatsAppLink(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const withCountryCode = digits.length === 10 ? `91${digits}` : digits;
+  return `https://wa.me/${withCountryCode}`;
+}
+
 // ── Number helpers ────────────────────────────────────────────
 export function compactNumber(n: number): string {
   if (n >= 1_00_00_000) return `${(n / 1_00_00_000).toFixed(1)}Cr`;

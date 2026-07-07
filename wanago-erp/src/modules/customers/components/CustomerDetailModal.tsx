@@ -1,17 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase } from "lucide-react";
+import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle } from "lucide-react";
 import { CustomerTypeBadge } from "@/modules/customers/components/CustomerBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
-import { formatDate, formatCurrency, initials } from "@/lib/utils/helpers";
+import { formatDate, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { BookingStatusBadge } from "@/modules/bookings/components/BookingBadges";
 import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
 import { InvoiceStatusBadge } from "@/modules/invoices/components/InvoiceBadges";
+import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
+import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
+import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
 import type { Customer } from "@/modules/customers/types";
 import type { Booking } from "@/modules/bookings/types";
 import type { Invoice } from "@/modules/invoices/types";
+import type { CallLogSchema } from "@/modules/call-logs/schemas";
+import type { CallMethod, CallDirection } from "@/modules/call-logs/types";
 
 type Props = {
   customer:  Customer | null;
@@ -60,6 +65,15 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
+  const [callFormOpen, setCallFormOpen] = useState(false);
+  const [callPrefill, setCallPrefill] = useState<{ method: CallMethod; direction: CallDirection }>({
+    method: "phone",
+    direction: "outbound",
+  });
+  const [callLogRefreshKey, setCallLogRefreshKey] = useState(0);
+
+  const { addCallLog } = useCallLogs({ customerId: customer?.id });
+
   useEffect(() => {
     if (!customer) { setBookings([]); setInvoices([]); return; }
     let cancelled = false;
@@ -78,6 +92,39 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
   if (!customer) return null;
 
   const totalPendingDues = bookings.reduce((sum, b) => sum + Math.max(b.balanceAmount, 0), 0);
+
+  function openLogCallForm() {
+    setCallPrefill({ method: "phone", direction: "outbound" });
+    setCallFormOpen(true);
+  }
+
+  function confirmAndLogCall(method: CallMethod) {
+    if (window.confirm("Log this call?")) {
+      setCallPrefill({ method, direction: "outbound" });
+      setCallFormOpen(true);
+    }
+  }
+
+  async function handleLogCall(data: CallLogSchema, recordingFile: File | null) {
+    if (!customer) return;
+    const { error } = await addCallLog(
+      {
+        ...data,
+        customerId: customer.id,
+        leadId: null,
+        contactName: customer.fullName,
+        phone: customer.phone,
+        durationMinutes: data.durationMinutes ?? null,
+        notes: data.notes || null,
+        followUpDate: data.followUpDate || null,
+      },
+      recordingFile
+    );
+    if (!error) {
+      setCallLogRefreshKey((k) => k + 1);
+    }
+    setCallFormOpen(false);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -122,9 +169,35 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Contact</p>
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
-              <Row label="Phone" value={<PhoneLink phone={customer.phone} iconSize={12} />} />
+              <Row
+                label="Phone"
+                value={
+                  <span onClick={() => confirmAndLogCall("phone")}>
+                    <PhoneLink phone={customer.phone} iconSize={12} />
+                  </span>
+                }
+              />
               {customer.alternatePhone && <Row label="Alternate Phone" value={customer.alternatePhone} />}
               {customer.email && <Row label="Email" value={<span className="inline-flex items-center gap-1.5"><Mail size={12} />{customer.email}</span>} />}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                onClick={openLogCallForm}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+              >
+                <PhoneCall size={12} /> Log a Call
+              </button>
+              {customer.phone && (
+                <a
+                  href={buildWhatsAppLink(customer.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => confirmAndLogCall("whatsapp")}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+                >
+                  <MessageCircle size={12} /> Call via WhatsApp
+                </a>
+              )}
             </div>
           </div>
 
@@ -180,6 +253,8 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
             )}
           </div>
 
+          <CallLogHistory key={callLogRefreshKey} customerId={customer.id} />
+
           {customer.notes && (
             <div>
               <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-primary">Notes</p>
@@ -212,6 +287,17 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
         )}
 
       </div>
+
+      <CallLogForm
+        open={callFormOpen}
+        onClose={() => setCallFormOpen(false)}
+        onSubmit={handleLogCall}
+        contactName={customer.fullName}
+        phone={customer.phone}
+        customerId={customer.id}
+        prefillMethod={callPrefill.method}
+        prefillDirection={callPrefill.direction}
+      />
     </div>
   );
 }
