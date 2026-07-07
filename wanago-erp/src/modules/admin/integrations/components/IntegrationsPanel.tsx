@@ -78,19 +78,35 @@ export function IntegrationsPanel() {
     setError(null);
     setSaved(false);
     try {
-      const patch = Object.fromEntries(
-        Object.entries(draft).filter(([k, v]) => v.trim().length > 0 && v !== initialValues[k])
-      );
-      if (Object.keys(patch).length === 0) return;
-      await saveIntegrationSecrets(patch);
-      const next = { ...configured };
-      for (const k of Object.keys(patch)) next[k] = true;
-      setConfigured(next);
+      const patch: Record<string, string> = {};
+      const clear: string[] = [];
+      for (const [k, v] of Object.entries(draft)) {
+        const trimmed = v.trim();
+        if (trimmed.length > 0 && trimmed !== initialValues[k]) {
+          patch[k] = trimmed;
+        } else if (trimmed.length === 0 && PLAIN_FIELD_KEYS.has(k) && initialValues[k]) {
+          // A plain field that was previously set and is now blank means
+          // "remove this," not "no change" — secrets can't express this
+          // (they're never round-tripped, so a blank one is ambiguous and
+          // is left alone, same as before).
+          clear.push(k);
+        }
+      }
+      if (Object.keys(patch).length === 0 && clear.length === 0) return;
+
+      await saveIntegrationSecrets(patch, clear);
+
+      const nextConfigured = { ...configured };
+      for (const k of Object.keys(patch)) nextConfigured[k] = true;
+      for (const k of clear) nextConfigured[k] = false;
+      setConfigured(nextConfigured);
+
       // Only plain fields' new values stick around client-side — a
       // freshly-typed secret is sent once and then dropped from state,
       // same as the original write-only behavior.
       const plainPatch = Object.fromEntries(Object.entries(patch).filter(([k]) => PLAIN_FIELD_KEYS.has(k)));
       const nextInitial = { ...initialValues, ...plainPatch };
+      for (const k of clear) delete nextInitial[k];
       setInitialValues(nextInitial);
       setDraft(nextInitial);
       setSaved(true);
@@ -106,8 +122,13 @@ export function IntegrationsPanel() {
   }
 
   // A plain field pre-filled from the server shouldn't count as "changed"
-  // by itself — only an actual edit (value differs from what was loaded).
-  const hasDraft = Object.entries(draft).some(([k, v]) => v.trim().length > 0 && v !== initialValues[k]);
+  // by itself — only an actual edit (a new value, or clearing one that was
+  // previously set) counts.
+  const hasDraft = Object.entries(draft).some(([k, v]) => {
+    const trimmed = v.trim();
+    if (trimmed.length > 0) return trimmed !== initialValues[k];
+    return PLAIN_FIELD_KEYS.has(k) && !!initialValues[k];
+  });
 
   return (
     <div className="space-y-5">

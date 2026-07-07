@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb, requireAdmin } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -48,19 +49,25 @@ export async function POST(req: NextRequest) {
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: "Server isn't configured for this yet" }, { status: 501 });
 
-  let body: Record<string, unknown>;
+  let body: { values?: Record<string, unknown>; clear?: string[] };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  // Blank/omitted fields mean "leave unchanged" — this is a write-only form,
-  // so there's no way for the client to know (or send back) the existing value.
-  const patch: Record<string, string> = {};
+  // Blank/omitted fields mean "leave unchanged" (this is a write-only form
+  // for secrets — there's no way to distinguish "no new value typed" from
+  // "clear the existing one"). Plain fields are round-tripped though, so
+  // the client can tell those two cases apart and explicitly ask to clear
+  // via `clear`, which actually removes the field rather than skipping it.
+  const patch: Record<string, FieldValue | string> = {};
   for (const f of FIELDS) {
-    const v = body[f];
+    const v = body.values?.[f];
     if (typeof v === "string" && v.trim().length > 0) patch[f] = v.trim();
+  }
+  for (const f of body.clear ?? []) {
+    if ((FIELDS as readonly string[]).includes(f)) patch[f] = FieldValue.delete();
   }
 
   if (Object.keys(patch).length === 0) {

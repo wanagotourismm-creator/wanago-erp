@@ -20,12 +20,12 @@ export async function fetchIntegrationStatus(): Promise<IntegrationStatus> {
   return { configured: data.configured ?? {}, values: data.values ?? {} };
 }
 
-export async function saveIntegrationSecrets(patch: Record<string, string>): Promise<void> {
+export async function saveIntegrationSecrets(values: Record<string, string>, clear: string[] = []): Promise<void> {
   const headers = await authHeader();
   const res = await fetch("/api/admin/integrations", {
     method: "POST",
     headers: { ...headers, "content-type": "application/json" },
-    body: JSON.stringify(patch),
+    body: JSON.stringify({ values, clear }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
