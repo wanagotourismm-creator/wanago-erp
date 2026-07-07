@@ -1,9 +1,11 @@
 "use client";
 
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Pencil, Phone, Trash2 } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { PhoneLink } from "@/components/shared/PhoneLink";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials } from "@/lib/utils/helpers";
 import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
@@ -36,9 +38,11 @@ export function BookingsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+    <>
+      {/* Desktop table — unchanged */}
+      <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               {["Customer", "Trip", "Travel Date", "Amount", "Balance", "Status", "Date", ""].map((h) => (
@@ -150,6 +154,81 @@ export function BookingsTable({
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+
+      {/* Mobile card list — swipe left to reveal Call/Edit/Delete */}
+      <div className="sm:hidden space-y-2.5">
+        {bookings.map((b) => {
+          const actions: SwipeAction[] = [
+            ...(b.customerPhone ? [{
+              key:       "call",
+              icon:      <Phone size={16} />,
+              label:     "Call",
+              onClick:   () => { window.location.href = `tel:${b.customerPhone}`; },
+              className: "bg-green-600",
+            }] : []),
+            ...(canManage ? [
+              {
+                key:       "edit",
+                icon:      <Pencil size={16} />,
+                label:     "Edit",
+                onClick:   () => onEdit(b),
+                className: "bg-blue-600",
+              },
+              {
+                key:       "delete",
+                icon:      <Trash2 size={16} />,
+                label:     "Delete",
+                onClick:   () => onDelete(b),
+                className: "bg-red-600",
+              },
+            ] : []),
+          ];
+
+          return (
+            <SwipeableRow
+              key={b.id}
+              actions={actions}
+              onTap={() => onView(b)}
+              className="rounded-xl border border-border"
+            >
+              <div className="rounded-xl bg-card p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {initials(b.customerName)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">{b.customerName}</p>
+                      <p className="text-[11px] text-muted-foreground">{b.refNumber}</p>
+                    </div>
+                  </div>
+                  <BookingStatusBadge status={b.status} />
+                </div>
+
+                <div className="mt-2.5 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">{b.destination}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {b.pax} pax {b.packageName ? `· ${b.packageName}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                    {b.travelDate ? formatDate(b.travelDate) : "—"}
+                  </span>
+                </div>
+
+                <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                  <PhoneLink phone={b.customerPhone} iconSize={12} className="text-xs text-muted-foreground" />
+                  <span className={b.balanceAmount > 0 ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
+                    {b.balanceAmount > 0 ? formatAmount(b.balanceAmount) : "Paid"}
+                  </span>
+                </div>
+              </div>
+            </SwipeableRow>
+          );
+        })}
+      </div>
+    </>
   );
 }

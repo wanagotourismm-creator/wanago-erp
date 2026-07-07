@@ -7,6 +7,7 @@ import { useLeads } from "@/modules/leads/hooks/useLeads";
 import { LeadsTable } from "@/modules/leads/components/LeadsTable";
 import { LeadForm } from "@/modules/leads/components/LeadForm";
 import { LeadDetailModal } from "@/modules/leads/components/LeadDetailModal";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
@@ -255,61 +256,67 @@ export function LeadsPage() {
         }
       />
 
-      {/* Stage filter tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-        {STAGE_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setStageFilter(f.value)}
-            className={cn(
-              "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all",
-              stageFilter === f.value
-                ? "bg-primary text-white shadow-sm"
-                : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
-            )}
-          >
-            {f.label}
-            {f.value && stageCounts[f.value] !== undefined && (
-              <span className={cn(
-                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                stageFilter === f.value ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-              )}>
-                {stageCounts[f.value] ?? 0}
-              </span>
-            )}
-            {!f.value && (
-              <span className={cn(
-                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                stageFilter === f.value ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-              )}>
-                {leads.length}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <PullToRefresh onRefresh={load}>
+        <div className="space-y-5">
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search by name, phone, destination..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-input bg-card pl-9 pr-4 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-        />
-      </div>
+          {/* Stage filter tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {STAGE_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setStageFilter(f.value)}
+                className={cn(
+                  "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all",
+                  stageFilter === f.value
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                )}
+              >
+                {f.label}
+                {f.value && stageCounts[f.value] !== undefined && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                    stageFilter === f.value ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  )}>
+                    {stageCounts[f.value] ?? 0}
+                  </span>
+                )}
+                {!f.value && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                    stageFilter === f.value ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  )}>
+                    {leads.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
-      {/* Table */}
-      <LeadsTable
-        leads={filtered}
-        loading={loading}
-        onView={setViewingLead}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onStage={(lead, stage) => changeStage(lead.id, stage)}
-      />
+          {/* Search */}
+          <div className="relative max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by name, phone, destination..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-input bg-card pl-9 pr-4 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          {/* Table */}
+          <LeadsTable
+            leads={filtered}
+            loading={loading}
+            onView={setViewingLead}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onStage={(lead, stage) => changeStage(lead.id, stage)}
+          />
+
+        </div>
+      </PullToRefresh>
 
       {/* Detail popup */}
       <LeadDetailModal

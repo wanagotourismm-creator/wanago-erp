@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useCustomers } from "@/modules/customers/hooks/useCustomers";
 import { CustomersTable } from "@/modules/customers/components/CustomersTable";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { CustomerDetailModal } from "@/modules/customers/components/CustomerDetailModal";
 import { CustomerForm } from "@/modules/customers/components/CustomerForm";
 import { CUSTOMER_TYPES } from "@/modules/customers/components/CustomerBadges";
@@ -229,14 +230,16 @@ export function CustomersPage() {
       </div>
 
       {/* Table */}
-      <CustomersTable
-        customers={filtered}
-        loading={loading}
-        canManage={canManage}
-        onView={setViewingCustomer}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      <PullToRefresh onRefresh={load}>
+        <CustomersTable
+          customers={filtered}
+          loading={loading}
+          canManage={canManage}
+          onView={setViewingCustomer}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      </PullToRefresh>
 
       {/* Detail popup */}
       <CustomerDetailModal

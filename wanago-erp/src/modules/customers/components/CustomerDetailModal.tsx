@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Phone, Mail, MapPin, Edit2, Trash2, User, Briefcase } from "lucide-react";
+import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase } from "lucide-react";
 import { CustomerTypeBadge } from "@/modules/customers/components/CustomerBadges";
+import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatCurrency, initials } from "@/lib/utils/helpers";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { BookingStatusBadge } from "@/modules/bookings/components/BookingBadges";
@@ -121,7 +122,7 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Contact</p>
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
-              <Row label="Phone" value={<span className="inline-flex items-center gap-1.5"><Phone size={12} />{customer.phone}</span>} />
+              <Row label="Phone" value={<PhoneLink phone={customer.phone} iconSize={12} />} />
               {customer.alternatePhone && <Row label="Alternate Phone" value={customer.alternatePhone} />}
               {customer.email && <Row label="Email" value={<span className="inline-flex items-center gap-1.5"><Mail size={12} />{customer.email}</span>} />}
             </div>

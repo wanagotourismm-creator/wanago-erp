@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { MobileMenuSheet } from "@/components/layout/MobileMenuSheet";
+import { OfflineBanner } from "@/components/layout/OfflineBanner";
 import { RouteGuard } from "@/components/providers/RouteGuard";
 import { TeamSpacePanel } from "@/modules/teamspace/components/TeamSpacePanel";
 import { AIAssistantPanel } from "@/modules/aiassistant/components/AIAssistantPanel";
@@ -45,6 +46,7 @@ export function AppShell({ children, requiredPage, fullBleed }: Props) {
 
         {/* Main content area */}
         <div className="flex flex-1 flex-col overflow-hidden">
+          <OfflineBanner />
           <TopNav />
           <main className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden",

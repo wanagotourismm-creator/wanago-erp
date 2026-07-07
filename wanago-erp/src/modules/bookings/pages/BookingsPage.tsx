@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, RefreshCw, Briefcase, Clock, CheckCircle2, Wallet, UploadCloud } from "lucide-react";
 import { useBookings } from "@/modules/bookings/hooks/useBookings";
 import { BookingsTable } from "@/modules/bookings/components/BookingsTable";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { BookingDetailModal } from "@/modules/bookings/components/BookingDetailModal";
 import { BookingForm } from "@/modules/bookings/components/BookingForm";
 import { formatAmount } from "@/modules/bookings/components/BookingBadges";
@@ -55,6 +57,8 @@ export function BookingsPage() {
   const canCreate  = !!user && hasPermission(user.systemRole, "bookings:create");
   const canManage  = !!user && hasPermission(user.systemRole, "bookings:edit");
   const canApprove = !!user && hasPermission(user.systemRole, "bookings:approve");
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [formOpen,       setFormOpen]       = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -66,6 +70,16 @@ export function BookingsPage() {
   const [customers,  setCustomers]  = useState<Customer[]>([]);
   const [packages,   setPackages]   = useState<Package[]>([]);
   const [offices,    setOffices]    = useState<Office[]>([]);
+
+  // Supports deep-linking straight into the New Booking form, e.g. from a
+  // PWA home-screen shortcut (/bookings?new=1).
+  useEffect(() => {
+    if (searchParams.get("new") === "1" && canCreate) {
+      setEditingBooking(null);
+      setFormOpen(true);
+      router.replace("/bookings");
+    }
+  }, [searchParams, router, canCreate]);
 
   useEffect(() => {
     fetchCustomers().then(setCustomers).catch(() => {});
@@ -287,16 +301,18 @@ export function BookingsPage() {
       </div>
 
       {/* Table */}
-      <BookingsTable
-        bookings={filtered}
-        loading={loading}
-        canManage={canManage}
-        canApprove={canApprove}
-        onView={setViewingBooking}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onStatus={(booking, status) => changeStatus(booking.id, status)}
-      />
+      <PullToRefresh onRefresh={load}>
+        <BookingsTable
+          bookings={filtered}
+          loading={loading}
+          canManage={canManage}
+          canApprove={canApprove}
+          onView={setViewingBooking}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onStatus={(booking, status) => changeStatus(booking.id, status)}
+        />
+      </PullToRefresh>
 
       {/* Detail popup */}
       <BookingDetailModal

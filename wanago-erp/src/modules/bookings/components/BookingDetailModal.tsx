@@ -1,7 +1,8 @@
 "use client";
 
-import { X, Phone, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck } from "lucide-react";
+import { X, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
+import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
 import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
@@ -72,7 +73,7 @@ export function BookingDetailModal({
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Contact</p>
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
-              <Row label="Phone" value={<span className="inline-flex items-center gap-1.5"><Phone size={12} />{booking.customerPhone}</span>} />
+              <Row label="Phone" value={<PhoneLink phone={booking.customerPhone} iconSize={12} />} />
             </div>
           </div>
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, Receipt, Paperclip, StickyNote } from "lucide-react";
+import { X, Loader2, Receipt, Paperclip, StickyNote, Camera } from "lucide-react";
 import { expenseSchema, type ExpenseSchema } from "@/modules/expenses/schemas";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
@@ -46,6 +46,7 @@ const today = new Date().toISOString().slice(0, 10);
 export function ExpenseForm({ open, expense, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register, handleSubmit, reset,
@@ -167,12 +168,30 @@ export function ExpenseForm({ open, expense, onClose, onSubmit }: Props) {
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Receipt</p>
             </div>
             <Field label={expense?.receiptUrl ? "Replace Receipt" : "Attach Receipt"}>
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
-                className="w-full text-sm text-muted-foreground file:mr-3 file:rounded-xl file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20"
-              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+                  className="w-full text-sm text-muted-foreground file:mr-3 file:rounded-xl file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-xl border-0 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                >
+                  <Camera size={13} />
+                  Take Photo
+                </button>
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+                  className="hidden"
+                />
+              </div>
             </Field>
             {expense?.receiptUrl && !receiptFile && (
               <p className="mt-1.5 text-xs text-muted-foreground">

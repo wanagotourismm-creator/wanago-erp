@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   X, Upload, FileText, Trash2, Loader2, User, Briefcase, Wallet, History, Camera, Link2, Users2,
 } from "lucide-react";
@@ -38,6 +38,8 @@ export function EmployeeProfile({ open, employee, employees, onClose, onUpdated 
   const [docLabel, setDocLabel] = useState(DOCUMENT_LABELS[0]);
   const [activity, setActivity] = useState<ActivityLogEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  const photoCameraInputRef = useRef<HTMLInputElement>(null);
+  const docCameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open || !employee) return;
@@ -112,11 +114,18 @@ export function EmployeeProfile({ open, employee, employees, onClose, onUpdated 
                 {initials(employee.fullName)}
               </div>
             )}
-            <label className="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm hover:bg-primary/90 transition-colors">
+            <label className="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm hover:bg-primary/90 transition-colors" title="Choose photo">
               {uploadingPhoto ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
               <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto}
                 onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
             </label>
+            <button type="button" title="Take Photo" disabled={uploadingPhoto}
+              onClick={() => photoCameraInputRef.current?.click()}
+              className="absolute -bottom-1 -left-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-60">
+              <Camera size={12} />
+            </button>
+            <input ref={photoCameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" disabled={uploadingPhoto}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
           </div>
           <p className="text-base font-semibold text-foreground">{employee.fullName}</p>
           <p className="text-xs text-muted-foreground">{employee.designation} · {employee.employeeCode}</p>
@@ -236,17 +245,25 @@ export function EmployeeProfile({ open, employee, employees, onClose, onUpdated 
 
           {tab === "documents" && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select value={docLabel} onChange={e => setDocLabel(e.target.value)}
                   className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none hover:border-primary/40 focus:border-primary">
                   {DOCUMENT_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors">
+                <label className="inline-flex flex-shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors">
                   {uploadingDoc ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                   Upload
                   <input type="file" className="hidden" disabled={!!uploadingDoc}
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleDocUpload(f); }} />
                 </label>
+                <button type="button" disabled={!!uploadingDoc}
+                  onClick={() => docCameraInputRef.current?.click()}
+                  className="inline-flex flex-shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors disabled:opacity-60">
+                  <Camera size={13} />
+                  Take Photo
+                </button>
+                <input ref={docCameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" disabled={!!uploadingDoc}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleDocUpload(f); }} />
               </div>
 
               {employee.documents.length === 0 ? (

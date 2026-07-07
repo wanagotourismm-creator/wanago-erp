@@ -15,5 +15,11 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
+    // Long-press the installed app icon to jump straight into a form,
+    // skipping the dashboard. Both routes already support ?new=1 deep-links.
+    shortcuts: [
+      { name: "Add Lead",    url: "/leads?new=1",    icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Add Booking", url: "/bookings?new=1", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+    ],
   };
 }
