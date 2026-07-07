@@ -98,7 +98,8 @@ export function EmployeesPage() {
     }
 
     setSendingWelcome(true);
-    let sent = 0, failed = 0;
+    const succeeded: string[] = [];
+    const failed: string[] = [];
     for (const employee of recipients) {
       try {
         const res = await fetch("/api/hrms/send-welcome-email", {
@@ -106,13 +107,19 @@ export function EmployeesPage() {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ to: employee.email, fullName: employee.fullName, designation: employee.designation }),
         });
-        if (res.ok) sent++; else failed++;
+        if (res.ok) succeeded.push(employee.fullName);
+        else failed.push(employee.fullName);
       } catch {
-        failed++;
+        failed.push(employee.fullName);
       }
     }
     setSendingWelcome(false);
-    alert(`Sent ${sent} welcome email${sent !== 1 ? "s" : ""}.${failed ? ` ${failed} failed.` : ""}${skipped ? ` ${skipped} skipped (no email on file).` : ""}`);
+
+    let summary = `Sent ${succeeded.length} welcome email${succeeded.length !== 1 ? "s" : ""}.`;
+    if (succeeded.length) summary += `\n\nSent to: ${succeeded.join(", ")}`;
+    if (failed.length)    summary += `\n\nFailed (${failed.length}): ${failed.join(", ")}`;
+    if (skipped)          summary += `\n\nSkipped, no email on file (${skipped}): ${employees.filter(e => !e.email).map(e => e.fullName).join(", ")}`;
+    alert(summary);
   }
 
   const exportRows = useMemo(() => filtered.map((e) => ({
