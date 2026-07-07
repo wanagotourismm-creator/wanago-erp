@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, KeyRound, Loader2, Sparkles, Mail, MessageCircle } from "lucide-react";
+import { Check, KeyRound, Loader2, Sparkles, Mail, MessageCircle, Send } from "lucide-react";
 import { fetchIntegrationStatus, saveIntegrationSecrets } from "@/modules/admin/integrations/services/integrations.service";
 import { cn } from "@/lib/utils/helpers";
 
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils/helpers";
 // false` fields (a from-address, a phone number — not sensitive) come
 // back from the server as plain text and are directly visible/editable.
 type FieldDef = { key: string; label: string; placeholder: string; secret?: boolean };
-type Section = { title: string; icon: React.ElementType; fields: FieldDef[] };
+type Section = { title: string; icon: React.ElementType; description?: string; fields: FieldDef[] };
 
 const SECTIONS: Section[] = [
   {
@@ -21,7 +21,16 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: "Email (Gmail SMTP)", icon: Send,
+    description: "Preferred — sends real email from your own Gmail address, no domain needed. Requires 2-Step Verification turned on for the Gmail account, then an App Password generated at myaccount.google.com/apppasswords.",
+    fields: [
+      { key: "gmailUser", label: "Gmail Address", placeholder: "wanagotourismm@gmail.com", secret: false },
+      { key: "gmailAppPassword", label: "App Password", placeholder: "16-character app password" },
+    ],
+  },
+  {
     title: "Email (Resend)", icon: Mail,
+    description: "Fallback — only used if Gmail SMTP above isn't configured. Sending to anyone other than your own address requires verifying a domain at resend.com/domains.",
     fields: [
       { key: "resendApiKey", label: "Resend API Key", placeholder: "re_..." },
       { key: "resendFromEmail", label: "From Address", placeholder: "Wanago HR <hr@yourdomain.com>", secret: false },
@@ -147,13 +156,16 @@ export function IntegrationsPanel() {
 
       {SECTIONS.map((section) => (
         <div key={section.title} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-1.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <section.icon size={14} className="text-primary" />
             </div>
             <p className="text-sm font-semibold text-foreground">{section.title}</p>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {section.description && (
+            <p className="mb-4 pl-10 text-xs text-muted-foreground">{section.description}</p>
+          )}
+          <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2", !section.description && "mt-4")}>
             {section.fields.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

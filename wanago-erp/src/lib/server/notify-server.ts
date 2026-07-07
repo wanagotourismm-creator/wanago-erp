@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import nodemailer from "nodemailer";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
@@ -69,12 +70,41 @@ function renderWelcomeEmailHtml(fullName: string, designation: string) {
   </div>`;
 }
 
-// Shared low-level sender — every email (generic notification or a named
-// template like the welcome email) funnels through this one Resend call.
-async function sendRawEmail(params: { to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string }> {
+// Gmail SMTP is authenticated as the real Gmail account (via an app
+// password), so it can actually send to any real recipient with no domain
+// verification needed — unlike Resend's default sender, which is a
+// sandbox that can only email the account owner. Preferred whenever it's
+// configured; Resend is the fallback for when it isn't.
+let gmailTransport: ReturnType<typeof nodemailer.createTransport> | null = null;
+let gmailTransportUser: string | null = null;
+
+async function sendViaGmail(params: { to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string } | null> {
+  const user = await getIntegrationSecret("gmailUser", "GMAIL_USER");
+  const pass = await getIntegrationSecret("gmailAppPassword", "GMAIL_APP_PASSWORD");
+  if (!user || !pass) return null; // not configured — caller falls back to Resend
+
+  if (!gmailTransport || gmailTransportUser !== user) {
+    gmailTransport = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
+    gmailTransportUser = user;
+  }
+
+  try {
+    await gmailTransport.sendMail({
+      from: `Wanago Travel & Co <${user}>`,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to send via Gmail" };
+  }
+}
+
+async function sendViaResend(params: { to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = await getIntegrationSecret("resendApiKey", "RESEND_API_KEY");
   if (!apiKey) {
-    return { ok: false, error: "Email isn't set up yet — add a Resend API key in Admin → Integrations." };
+    return { ok: false, error: "Email isn't set up yet — configure Gmail SMTP or a Resend API key in Admin → Integrations." };
   }
 
   const fromEmail = await getIntegrationSecret("resendFromEmail", "RESEND_FROM_EMAIL");
@@ -94,6 +124,15 @@ async function sendRawEmail(params: { to: string; subject: string; html: string 
     return { ok: false, error: `Failed to send email: ${text}` };
   }
   return { ok: true };
+}
+
+// Shared low-level sender — every email (generic notification or a named
+// template like the welcome email) funnels through here. Tries Gmail SMTP
+// first (if configured), falls back to Resend.
+async function sendRawEmail(params: { to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string }> {
+  const viaGmail = await sendViaGmail(params);
+  if (viaGmail) return viaGmail;
+  return sendViaResend(params);
 }
 
 // Server-side email send — the actual Resend call, shared by the
