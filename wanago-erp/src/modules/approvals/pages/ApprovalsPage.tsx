@@ -5,6 +5,9 @@ import { Inbox, RefreshCw, Wallet } from "lucide-react";
 import { useApprovals } from "@/modules/approvals/hooks/useApprovals";
 import { RejectReasonModal } from "@/modules/approvals/components/RejectReasonModal";
 import { FinanceApprovalModal } from "@/modules/bookings/components/FinanceApprovalModal";
+import { BookingDetailModal } from "@/modules/bookings/components/BookingDetailModal";
+import { QuotationDetailModal } from "@/modules/quotations/components/QuotationDetailModal";
+import { InvoiceDetailModal } from "@/modules/invoices/components/InvoiceDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
@@ -14,6 +17,8 @@ import { hasPermission } from "@/lib/rbac";
 import { formatCurrency } from "@/lib/utils/helpers";
 import type { ApprovalItem } from "@/modules/approvals/types";
 import type { Booking } from "@/modules/bookings/types";
+import type { Quotation } from "@/modules/quotations/types";
+import type { Invoice } from "@/modules/invoices/types";
 
 const KIND_META: Record<ApprovalItem["kind"], { label: string; variant: "info" | "warning" | "success" }> = {
   "booking-finance": { label: "Booking",   variant: "info"    },
@@ -39,6 +44,7 @@ export function ApprovalsPage() {
 
   const [financeApprovingItem, setFinanceApprovingItem] = useState<ApprovalItem & { kind: "booking-finance" } | null>(null);
   const [rejectingItem,        setRejectingItem]        = useState<ApprovalItem | null>(null);
+  const [viewingItem,          setViewingItem]          = useState<ApprovalItem | null>(null);
 
   async function handleApproveInline(item: ApprovalItem & { kind: "quotation" | "invoice" }) {
     await approveItem(item, user?.uid ?? "");
@@ -47,7 +53,11 @@ export function ApprovalsPage() {
   function renderRow(item: ApprovalItem) {
     const meta = KIND_META[item.kind];
     return (
-      <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div
+        key={`${item.kind}-${item.id}`}
+        onClick={() => setViewingItem(item)}
+        className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div className="flex items-center gap-3 min-w-0">
           <Badge variant={meta.variant}>{meta.label}</Badge>
           <div className="min-w-0">
@@ -57,8 +67,11 @@ export function ApprovalsPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
           <span className="text-sm font-semibold text-foreground">{formatCurrency(item.amount)}</span>
+          <Button size="sm" variant="outline" onClick={() => setViewingItem(item)}>
+            View Details
+          </Button>
           <Button
             size="sm"
             variant="primary"
@@ -124,6 +137,39 @@ export function ApprovalsPage() {
           const { error } = await rejectItem(rejectingItem, user?.uid ?? "", reason);
           if (error) throw new Error(error);
         }}
+      />
+
+      {/* Read-only full-detail viewers — same modals used everywhere else
+          in the app, so Finance sees exactly what Sales entered before
+          deciding. No manage/edit/delete/approve actions wired here; those
+          stay on this page's own Approve/Reject buttons. */}
+      <BookingDetailModal
+        booking={viewingItem?.kind === "booking-finance" ? (viewingItem.data as Booking) : null}
+        canManage={false}
+        canApprove={false}
+        onClose={() => setViewingItem(null)}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onStatus={() => {}}
+      />
+
+      <QuotationDetailModal
+        quotation={viewingItem?.kind === "quotation" ? (viewingItem.data as Quotation) : null}
+        canEdit={false}
+        canDelete={false}
+        onClose={() => setViewingItem(null)}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onConvert={() => {}}
+      />
+
+      <InvoiceDetailModal
+        invoice={viewingItem?.kind === "invoice" ? (viewingItem.data as Invoice) : null}
+        canManage={false}
+        onClose={() => setViewingItem(null)}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onSend={() => {}}
       />
 
     </div>

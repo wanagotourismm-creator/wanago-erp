@@ -5,6 +5,7 @@ import { Inbox, RefreshCw, Briefcase } from "lucide-react";
 import { useApprovals } from "@/modules/approvals/hooks/useApprovals";
 import { RejectReasonModal } from "@/modules/approvals/components/RejectReasonModal";
 import { OpsApprovalModal } from "@/modules/bookings/components/OpsApprovalModal";
+import { BookingDetailModal } from "@/modules/bookings/components/BookingDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
@@ -32,10 +33,15 @@ export function OperationsApprovalsPage() {
 
   const [opsApprovingItem, setOpsApprovingItem] = useState<ApprovalItem & { kind: "booking-ops" } | null>(null);
   const [rejectingItem,    setRejectingItem]    = useState<ApprovalItem | null>(null);
+  const [viewingItem,      setViewingItem]      = useState<ApprovalItem | null>(null);
 
   function renderRow(item: ApprovalItem) {
     return (
-      <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div
+        key={`${item.kind}-${item.id}`}
+        onClick={() => setViewingItem(item)}
+        className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div className="flex items-center gap-3 min-w-0">
           <Badge variant="info">Booking</Badge>
           <div className="min-w-0">
@@ -45,8 +51,11 @@ export function OperationsApprovalsPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
           <span className="text-sm font-semibold text-foreground">{formatCurrency(item.amount)}</span>
+          <Button size="sm" variant="outline" onClick={() => setViewingItem(item)}>
+            View Details
+          </Button>
           <Button
             size="sm"
             variant="primary"
@@ -110,6 +119,20 @@ export function OperationsApprovalsPage() {
           const { error } = await rejectItem(rejectingItem, user?.uid ?? "", reason);
           if (error) throw new Error(error);
         }}
+      />
+
+      {/* Read-only full-detail viewer — same modal used everywhere else in
+          the app, so Operations sees exactly what Sales/Finance entered
+          before deciding. No manage/edit/delete/approve actions wired
+          here; those stay on this page's own Approve/Reject buttons. */}
+      <BookingDetailModal
+        booking={viewingItem ? (viewingItem.data as Booking) : null}
+        canManage={false}
+        canApprove={false}
+        onClose={() => setViewingItem(null)}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onStatus={() => {}}
       />
 
     </div>
