@@ -52,6 +52,16 @@ function sendWelcomeEmail(employee: Employee): void {
   }).catch(() => {});
 }
 
+// Best-effort — tells the rest of the team about the new hire (in-app +
+// email, one per teammate). Never blocks employee creation if it fails.
+function announceNewHire(employee: Employee): void {
+  fetch("/api/hrms/announce-new-hire", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ employeeId: employee.id, fullName: employee.fullName, designation: employee.designation }),
+  }).catch(() => {});
+}
+
 export async function createEmployee(
   data: EmployeeFormData,
   createdBy: string
@@ -85,6 +95,7 @@ export async function createEmployee(
   });
 
   sendWelcomeEmail(employee);
+  announceNewHire(employee);
   return employee;
 }
 

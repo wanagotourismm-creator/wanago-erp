@@ -41,32 +41,44 @@ const TRAVEL_QUOTES: { text: string; author: string }[] = [
 function renderWelcomeEmailHtml(fullName: string, designation: string) {
   const quote = TRAVEL_QUOTES[Math.floor(Math.random() * TRAVEL_QUOTES.length)];
   const logoUrl = `${appUrl()}/images/logo-dark-clean.png`;
+  // Full-bleed table layout (100% width, no outer margin/background) so the
+  // email fills the client's viewport edge-to-edge instead of floating as a
+  // small card inside visible gray/white margins.
   return `
-  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;background:#f4f4f5;padding:32px 16px;">
-    <div style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:32px 24px;text-align:center;">
-        <img src="${logoUrl}" alt="Wanago" width="140" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;" />
-      </div>
-      <div style="padding:32px 28px;">
-        <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#16a34a;margin:0 0 12px;">Welcome to Team Wanago</p>
-        <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${fullName}! 👋</h1>
-        <p style="font-size:14px;color:#444;line-height:1.7;margin:0 0 16px;">
-          We're thrilled to welcome you to <strong>Wanago Travel &amp; Co</strong> as our new <strong>${designation}</strong>.
-          Your journey with us starts now, and we can't wait to see the places we'll go together.
-        </p>
-        <div style="border-left:3px solid #16a34a;background:#f0fdf4;padding:14px 18px;border-radius:0 10px 10px 0;margin:20px 0;">
-          <p style="font-size:14px;color:#166534;font-style:italic;line-height:1.6;margin:0;">"${quote.text}"</p>
-          <p style="font-size:12px;color:#16a34a;margin:8px 0 0;font-weight:600;">— ${quote.author}</p>
-        </div>
-        <p style="font-size:14px;color:#444;line-height:1.7;margin:16px 0 24px;">
-          Log in to Wanago ERP to explore your dashboard, meet the team, and get started.
-        </p>
-        <a href="${appUrl()}/dashboard" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">Go to Wanago ERP</a>
-      </div>
-      <div style="background:#fafafa;padding:16px 28px;text-align:center;border-top:1px solid #eee;">
-        <p style="font-size:11px;color:#999;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
-      </div>
-    </div>
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <img src="${logoUrl}" alt="Wanago" width="150" style="display:inline-block;background:#fff;padding:12px 18px;border-radius:10px;" />
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#16a34a;margin:0 0 12px;">Welcome to Team Wanago</p>
+          <h1 style="font-size:24px;margin:0 0 16px;color:#111;">Hi ${fullName}! 👋</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
+            We're thrilled to welcome you to <strong>Wanago Travel &amp; Co</strong> as our new <strong>${designation}</strong>.
+            Your journey with us starts now, and we can't wait to see the places we'll go together.
+          </p>
+          <div style="border-left:3px solid #16a34a;background:#f0fdf4;padding:16px 20px;border-radius:0 10px 10px 0;margin:0 0 24px;">
+            <p style="font-size:14px;color:#166534;font-style:italic;line-height:1.6;margin:0;">"${quote.text}"</p>
+            <p style="font-size:12px;color:#16a34a;margin:8px 0 0;font-weight:600;">— ${quote.author}</p>
+          </div>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 28px;">
+            Log in to Wanago ERP to explore your dashboard, meet the team, and get started.
+          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#16a34a;">
+            <a href="${appUrl()}/dashboard" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">Go to Wanago ERP</a>
+          </td></tr></table>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team Wanago</strong> — welcoming you aboard! ✈️</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+        </td>
+      </tr>
+    </table>
   </div>`;
 }
 
