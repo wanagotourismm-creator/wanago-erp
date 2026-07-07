@@ -6,8 +6,6 @@ import { useBookings } from "@/modules/bookings/hooks/useBookings";
 import { BookingsTable } from "@/modules/bookings/components/BookingsTable";
 import { BookingDetailModal } from "@/modules/bookings/components/BookingDetailModal";
 import { BookingForm } from "@/modules/bookings/components/BookingForm";
-import { FinanceApprovalModal } from "@/modules/bookings/components/FinanceApprovalModal";
-import { OpsApprovalModal } from "@/modules/bookings/components/OpsApprovalModal";
 import { formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -51,20 +49,16 @@ const STATUS_FILTERS = [
 export function BookingsPage() {
   const {
     bookings, loading, addBooking, editBooking, changeStatus,
-    approveFinance, approveOperations, removeBooking, load,
+    removeBooking, load,
   } = useBookings();
   const { user } = useAuthStore();
-  const canCreate         = !!user && hasPermission(user.systemRole, "bookings:create");
-  const canManage         = !!user && hasPermission(user.systemRole, "bookings:edit");
-  const canApprove        = !!user && hasPermission(user.systemRole, "bookings:approve");
-  const canFinanceApprove = !!user && hasPermission(user.systemRole, "bookings:finance_approve");
-  const canOpsApprove     = !!user && hasPermission(user.systemRole, "bookings:ops_approve");
+  const canCreate  = !!user && hasPermission(user.systemRole, "bookings:create");
+  const canManage  = !!user && hasPermission(user.systemRole, "bookings:edit");
+  const canApprove = !!user && hasPermission(user.systemRole, "bookings:approve");
 
   const [formOpen,       setFormOpen]       = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [viewingBooking, setViewingBooking] = useState<Booking | null>(null);
-  const [financeApprovingBooking, setFinanceApprovingBooking] = useState<Booking | null>(null);
-  const [opsApprovingBooking,     setOpsApprovingBooking]     = useState<Booking | null>(null);
   const [statusFilter,   setStatusFilter]   = useState("");
   const [search,         setSearch]         = useState("");
 
@@ -298,14 +292,10 @@ export function BookingsPage() {
         loading={loading}
         canManage={canManage}
         canApprove={canApprove}
-        canFinanceApprove={canFinanceApprove}
-        canOpsApprove={canOpsApprove}
         onView={setViewingBooking}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStatus={(booking, status) => changeStatus(booking.id, status)}
-        onRequestFinanceApprove={setFinanceApprovingBooking}
-        onRequestOpsApprove={setOpsApprovingBooking}
       />
 
       {/* Detail popup */}
@@ -313,37 +303,10 @@ export function BookingsPage() {
         booking={viewingBooking ? filtered.find(b => b.id === viewingBooking.id) ?? viewingBooking : null}
         canManage={canManage}
         canApprove={canApprove}
-        canFinanceApprove={canFinanceApprove}
-        canOpsApprove={canOpsApprove}
         onClose={() => setViewingBooking(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStatus={(booking, status) => changeStatus(booking.id, status)}
-        onRequestFinanceApprove={setFinanceApprovingBooking}
-        onRequestOpsApprove={setOpsApprovingBooking}
-      />
-
-      {/* Finance approval confirmation */}
-      <FinanceApprovalModal
-        booking={financeApprovingBooking}
-        onClose={() => setFinanceApprovingBooking(null)}
-        onConfirm={(paymentVerification) =>
-          financeApprovingBooking
-            ? approveFinance(financeApprovingBooking.id, paymentVerification)
-            : Promise.resolve({ error: null })
-        }
-      />
-
-      {/* Operations approval confirmation */}
-      <OpsApprovalModal
-        booking={opsApprovingBooking}
-        packages={packages}
-        onClose={() => setOpsApprovingBooking(null)}
-        onConfirm={(profitAmount) =>
-          opsApprovingBooking
-            ? approveOperations(opsApprovingBooking.id, profitAmount)
-            : Promise.resolve({ error: null })
-        }
       />
 
       {/* Form drawer */}

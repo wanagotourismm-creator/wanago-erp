@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, MapPin, Wallet, StickyNote } from "lucide-react";
+import { X, Loader2, User, MapPin, Wallet, StickyNote, Lock } from "lucide-react";
 import { bookingSchema, type BookingSchema } from "@/modules/bookings/schemas";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
 import { fetchPackages } from "@/modules/packages/services/package.service";
 import { SalesAgentSelect } from "@/components/shared/SalesAgentSelect";
+import { canReassignSalesAgent } from "@/lib/rbac-scope";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import { TRIP_TYPES } from "@/lib/constants";
@@ -95,6 +96,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
   }, [open, booking, reset, user]);
 
   const selectedCustomerId = watch("customerId");
+  const isLocked = !!watch("assignedTo") && !canReassignSalesAgent(user?.systemRole ?? "sales");
 
   function handleCustomerChange(id: string) {
     const c = customers.find(c => c.id === id);
@@ -102,6 +104,8 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
     setValue("customerName", c?.fullName ?? "");
     setValue("customerPhone", c?.phone ?? "");
     setValue("leadId", c?.convertedFromLeadId ?? null);
+    setValue("assignedTo", c?.assignedTo ?? "");
+    setValue("agentName", c?.agentName ?? "");
   }
 
   const selectedPackageId = watch("packageId");
@@ -214,13 +218,27 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
                 <input className={inputClass} type="number" min={1} placeholder="2" {...register("pax")} />
               </Field>
               <Field label="Assigned Agent" error={errors.assignedTo?.message}>
-                <SalesAgentSelect
-                  value={watch("assignedTo")}
-                  onChange={(id, name) => {
-                    setValue("assignedTo", id);
-                    setValue("agentName", name);
-                  }}
-                />
+                {isLocked ? (
+                  <div className="flex items-center justify-between rounded-xl border border-input bg-muted/40 px-3 py-2.5">
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                      <Lock size={13} className="text-muted-foreground" />
+                      {watch("agentName")}
+                    </span>
+                  </div>
+                ) : (
+                  <SalesAgentSelect
+                    value={watch("assignedTo")}
+                    onChange={(id, name) => {
+                      setValue("assignedTo", id);
+                      setValue("agentName", name);
+                    }}
+                  />
+                )}
+                {isLocked && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Only Admin/Sales Head can reassign once claimed
+                  </p>
+                )}
               </Field>
             </div>
           </div>

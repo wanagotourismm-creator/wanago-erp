@@ -1,5 +1,5 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { invoiceRepository } from "@/modules/invoices/services/invoice.repository";
 import { FIRESTORE_COLLECTIONS, INVOICE_STATUS, type InvoiceStatus } from "@/lib/constants";
@@ -58,6 +58,12 @@ export async function createInvoice(
     notes:      data.notes      || null,
     taxRate:    data.taxRate   ?? null,
     taxAmount:  data.taxAmount ?? null,
+    financeApprovalStatus:   "pending",
+    financeApprovedBy:       null,
+    financeApprovedAt:       null,
+    financeRejectedBy:       null,
+    financeRejectedAt:       null,
+    financeRejectionReason:  null,
   });
 }
 
@@ -66,9 +72,9 @@ export async function updateInvoice(
   data: Partial<InvoiceFormData>
 ): Promise<void> {
   const patch: Partial<Invoice> = { ...data };
-  if (data.totalAmount !== undefined || data.amountPaid !== undefined || data.dueDate !== undefined) {
-    const existing = await invoiceRepository.findById(id);
-    if (existing) {
+  const existing = await invoiceRepository.findById(id);
+  if (existing) {
+    if (data.totalAmount !== undefined || data.amountPaid !== undefined || data.dueDate !== undefined) {
       const totalAmount = data.totalAmount ?? existing.totalAmount;
       const amountPaid  = data.amountPaid  ?? existing.amountPaid;
       const dueDate     = data.dueDate !== undefined ? (data.dueDate || null) : existing.dueDate;
@@ -76,13 +82,42 @@ export async function updateInvoice(
       patch.status      = computeStatus(existing.status, totalAmount, amountPaid, dueDate);
       patch.dueDate      = dueDate;
     }
+    // Editing a Finance-rejected invoice automatically resubmits it — no
+    // separate "resubmit" button. Rejection history (by/at/reason) is left
+    // intact until overwritten by a future rejection.
+    if (existing.financeApprovalStatus === "rejected") {
+      patch.financeApprovalStatus = "pending";
+    }
   }
   return invoiceRepository.update(id, patch);
+}
+
+// Finance must approve an invoice before it can be marked sent.
+export async function approveInvoiceFinance(id: string, approvedBy: string): Promise<void> {
+  return invoiceRepository.update(id, {
+    financeApprovalStatus: "approved",
+    financeApprovedBy:     approvedBy,
+    financeApprovedAt:     serverTimestamp(),
+  } as Partial<Invoice>);
+}
+
+// Finance rejects the invoice with a reason instead of approving — editing
+// the invoice later (see updateInvoice) automatically resubmits it.
+export async function rejectInvoiceFinance(id: string, rejectedBy: string, reason: string): Promise<void> {
+  return invoiceRepository.update(id, {
+    financeApprovalStatus:  "rejected",
+    financeRejectedBy:      rejectedBy,
+    financeRejectedAt:      serverTimestamp(),
+    financeRejectionReason: reason,
+  } as Partial<Invoice>);
 }
 
 export async function markInvoiceSent(id: string): Promise<void> {
   const invoice = await invoiceRepository.findById(id);
   if (!invoice) return;
+  if (invoice.financeApprovalStatus !== "approved") {
+    throw new Error("Invoice must be approved by Finance before it can be sent.");
+  }
   const status = computeStatus(INVOICE_STATUS.SENT, invoice.totalAmount, invoice.amountPaid, invoice.dueDate);
   return invoiceRepository.update(id, { status });
 }

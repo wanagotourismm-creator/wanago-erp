@@ -46,6 +46,17 @@ export type Booking = Omit<FirestoreRecord, "status"> & {
   opsApprovedAt:       Timestamp | Date | string | FieldValue | null;
   profitAmount:        number | null;
 
+  // Rejection trail — set when Finance/Ops rejects instead of approving.
+  // Editing a rejected booking automatically clears these and puts it back
+  // in the right pending queue (see updateBooking) — this is the entire
+  // "resubmit" mechanism, no dedicated action needed.
+  financeRejectedBy?:     string | null;
+  financeRejectedAt?:     Timestamp | Date | string | FieldValue | null;
+  financeRejectionReason?: string | null;
+  opsRejectedBy?:         string | null;
+  opsRejectedAt?:         Timestamp | Date | string | FieldValue | null;
+  opsRejectionReason?:    string | null;
+
   // Set once the international-package 10-day-before-travel follow-up
   // reminder has fired, so it doesn't re-notify on every check.
   followUpNotifiedAt: Timestamp | Date | string | FieldValue | null;
@@ -56,4 +67,6 @@ export type BookingFormData = Omit<
   | "id" | "createdAt" | "updatedAt" | "refNumber" | "status" | "balanceAmount"
   | "financeApprovedBy" | "financeApprovedAt" | "paymentVerification"
   | "opsApprovedBy" | "opsApprovedAt" | "profitAmount" | "followUpNotifiedAt"
+  | "financeRejectedBy" | "financeRejectedAt" | "financeRejectionReason"
+  | "opsRejectedBy" | "opsRejectedAt" | "opsRejectionReason"
 >;

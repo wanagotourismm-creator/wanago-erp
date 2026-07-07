@@ -111,5 +111,7 @@ export async function convertLeadToCustomer(lead: Lead, createdBy: string): Prom
     notes:          `Converted from lead ${lead.refNumber} (${lead.destination})`,
     createdBy,
     convertedFromLeadId: lead.id,
+    assignedTo:     lead.assignedTo ?? null,
+    agentName:      lead.agentName  ?? null,
   }, createdBy);
 }

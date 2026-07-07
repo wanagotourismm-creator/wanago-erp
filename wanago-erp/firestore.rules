@@ -76,7 +76,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
                        getUserRole() in ['super_admin','admin','sales'];
       allow update: if isAuthenticated() &&
-                       getUserRole() in ['super_admin','admin','sales'];
+                       getUserRole() in ['super_admin','admin','sales','finance'];
       allow delete: if isAdmin();
     }
 

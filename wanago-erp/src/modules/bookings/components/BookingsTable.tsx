@@ -13,19 +13,15 @@ type Props = {
   loading:             boolean;
   canManage:           boolean;
   canApprove:          boolean;
-  canFinanceApprove:   boolean;
-  canOpsApprove:       boolean;
   onView:              (booking: Booking) => void;
   onEdit:               (booking: Booking) => void;
   onDelete:             (booking: Booking) => void;
   onStatus:             (booking: Booking, status: string) => void;
-  onRequestFinanceApprove: (booking: Booking) => void;
-  onRequestOpsApprove:     (booking: Booking) => void;
 };
 
 export function BookingsTable({
-  bookings, loading, canManage, canApprove, canFinanceApprove, canOpsApprove,
-  onView, onEdit, onDelete, onStatus, onRequestFinanceApprove, onRequestOpsApprove,
+  bookings, loading, canManage, canApprove,
+  onView, onEdit, onDelete, onStatus,
 }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
@@ -53,11 +49,7 @@ export function BookingsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {bookings.map((b) => {
-              const showFinanceApprove = b.status === "pending_finance" && canFinanceApprove;
-              const showOpsApprove     = b.status === "ops_pending" && canOpsApprove;
-              const showDropdown       = canApprove && !showFinanceApprove && !showOpsApprove;
-              return (
+            {bookings.map((b) => (
               <tr
                 key={b.id}
                 onClick={() => onView(b)}
@@ -110,23 +102,7 @@ export function BookingsTable({
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex flex-col items-start gap-1.5">
                     <BookingStatusBadge status={b.status} />
-                    {showFinanceApprove && (
-                      <button
-                        onClick={() => onRequestFinanceApprove(b)}
-                        className="rounded-lg bg-primary px-2 py-1 text-[11px] font-semibold text-white hover:bg-primary/90 transition-colors"
-                      >
-                        Approve as Finance
-                      </button>
-                    )}
-                    {showOpsApprove && (
-                      <button
-                        onClick={() => onRequestOpsApprove(b)}
-                        className="rounded-lg bg-primary px-2 py-1 text-[11px] font-semibold text-white hover:bg-primary/90 transition-colors"
-                      >
-                        Approve as Operations
-                      </button>
-                    )}
-                    {showDropdown && (
+                    {canApprove && (
                       <select
                         value={b.status}
                         onChange={(e) => onStatus(b, e.target.value)}
@@ -170,8 +146,7 @@ export function BookingsTable({
                 </td>
 
               </tr>
-              );
-            })}
+            ))}
           </tbody>
         </table>
       </div>

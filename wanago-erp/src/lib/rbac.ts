@@ -10,6 +10,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "customers:view_all", "customers:view_own", "customers:create", "customers:edit", "customers:delete",
     "bookings:view_all", "bookings:view_own", "bookings:create", "bookings:edit", "bookings:delete", "bookings:approve",
     "bookings:finance_approve", "bookings:ops_approve",
+    "quotations:finance_approve", "invoices:finance_approve",
     "finance:view", "finance:create", "finance:edit", "finance:export",
     "hrms:view_all", "hrms:view_own", "hrms:manage",
     "reports:view", "reports:export",
@@ -25,6 +26,7 @@ export const PERMISSION_MAP: PermissionMap = {
 
   finance: [
     "bookings:view_all", "bookings:finance_approve",
+    "quotations:finance_approve", "invoices:finance_approve",
     "finance:view", "finance:create", "finance:edit", "finance:export",
     "reports:view", "reports:export",
   ],
@@ -66,12 +68,12 @@ export const PERMISSION_MAP: PermissionMap = {
 export const PAGE_ACCESS: PageAccess = {
   super_admin: ["*"],
   admin:       ["*"],
-  operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "settings"],
-  finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "incentives", "settings"],
+  operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "approvals", "settings"],
+  finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "incentives", "approvals", "settings"],
   marketing:   ["dashboard", "ess", "leads", "customers", "marketing", "reports", "campaigns", "settings"],
   hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "incentives", "settings"],
   sales:       ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "settings"],
-  sales_head:  ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "sales-team", "settings"],
+  sales_head:  ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "sales-team", "incentives", "settings"],
   support:     ["dashboard", "ess", "leads", "customers", "bookings", "settings"],
 };
 

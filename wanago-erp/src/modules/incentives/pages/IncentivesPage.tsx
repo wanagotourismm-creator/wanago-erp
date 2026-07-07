@@ -13,7 +13,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable, SkeletonCard } from "@/components/ui/Skeleton";
 import { formatCurrency, initials, cn } from "@/lib/utils/helpers";
 import { useAuthStore } from "@/store/auth.store";
-import { hasPermission } from "@/lib/rbac";
 import type { AgentIncentiveSummary } from "@/modules/incentives/types";
 
 const MONTH_LABELS = [
@@ -65,7 +64,12 @@ export function IncentivesPage() {
   const [selected, setSelected] = useState("all");
   const [tab, setTab] = useState<Tab>("overview");
 
-  const canManageSettings = !!user && hasPermission(user.systemRole, "admin:settings");
+  // Only Admin/Sales Head set the incentive structure — Finance/HR can view
+  // Overview/Rewards to verify the numbers but never edit Settings.
+  const canManageSettings = !!user && (
+    user.systemRole === "admin" || user.systemRole === "super_admin" || user.systemRole === "sales_head"
+  );
+  const visibleTabs = TABS.filter((t) => t.key !== "settings" || canManageSettings);
 
   const filtered = useMemo(() => {
     if (selected === "all") return summaries;
@@ -100,7 +104,7 @@ export function IncentivesPage() {
       />
 
       <div className="flex items-center gap-1 border-b border-border">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={cn(
               "flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors -mb-px",

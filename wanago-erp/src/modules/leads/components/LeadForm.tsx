@@ -3,10 +3,11 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, MapPin, BarChart2, StickyNote } from "lucide-react";
+import { X, Loader2, User, MapPin, BarChart2, StickyNote, Lock } from "lucide-react";
 import { leadSchema, type LeadSchema } from "@/modules/leads/schemas";
 import { useAuthStore } from "@/store/auth.store";
 import { SalesAgentSelect } from "@/components/shared/SalesAgentSelect";
+import { canReassignSalesAgent } from "@/lib/rbac-scope";
 import { cn } from "@/lib/utils/helpers";
 import {
   LEAD_STAGE_LABELS, DEFAULT_LEAD_SOURCES, TRIP_TYPES,
@@ -67,6 +68,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
   });
 
   const selectedPriority = watch("priority");
+  const isLocked = !!watch("assignedTo") && !canReassignSalesAgent(user?.systemRole ?? "sales");
 
   useEffect(() => {
     if (open) {
@@ -253,13 +255,28 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
 
               <div className="col-span-2">
                 <Field label="Assigned To" error={errors.agentName?.message}>
-                  <SalesAgentSelect
-                    value={watch("assignedTo")}
-                    onChange={(id, name) => {
-                      setValue("assignedTo", id);
-                      setValue("agentName", name);
-                    }}
-                  />
+                  {isLocked ? (
+                    <div className="flex items-center justify-between rounded-xl border border-input bg-muted/40 px-3 py-2.5">
+                      <span className="flex items-center gap-2 text-sm text-foreground">
+                        <Lock size={13} className="text-muted-foreground" />
+                        {watch("agentName")}
+                      </span>
+                    </div>
+                  ) : (
+                    <SalesAgentSelect
+                      value={watch("assignedTo")}
+                      onChange={(id, name) => {
+                        setValue("assignedTo", id);
+                        setValue("agentName", name);
+                      }}
+                      disabled={false}
+                    />
+                  )}
+                  {isLocked && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Only Admin/Sales Head can reassign once claimed
+                    </p>
+                  )}
                 </Field>
               </div>
 

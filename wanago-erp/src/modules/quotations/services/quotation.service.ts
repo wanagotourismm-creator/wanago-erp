@@ -1,5 +1,5 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { quotationRepository } from "@/modules/quotations/services/quotation.repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
@@ -55,6 +55,12 @@ export async function createQuotation(
     notes:              data.notes      || null,
     taxRate:            data.taxRate    ?? null,
     convertedBookingId: null,
+    financeApprovalStatus:   "pending",
+    financeApprovedBy:       null,
+    financeApprovedAt:       null,
+    financeRejectedBy:       null,
+    financeRejectedAt:       null,
+    financeRejectionReason:  null,
   });
 }
 
@@ -63,9 +69,9 @@ export async function updateQuotation(
   data: Partial<QuotationFormData>
 ): Promise<void> {
   const patch: Partial<Quotation> = { ...data };
-  if (data.lineItems !== undefined || data.taxRate !== undefined) {
-    const existing = await quotationRepository.findById(id);
-    if (existing) {
+  const existing = await quotationRepository.findById(id);
+  if (existing) {
+    if (data.lineItems !== undefined || data.taxRate !== undefined) {
       const lineItems = data.lineItems ?? existing.lineItems;
       const taxRate   = data.taxRate !== undefined ? data.taxRate : existing.taxRate;
       const { subtotal, taxAmount, totalAmount } = computeTotals(lineItems, taxRate);
@@ -73,6 +79,9 @@ export async function updateQuotation(
       patch.taxAmount   = taxAmount;
       patch.totalAmount = totalAmount;
       patch.taxRate     = taxRate;
+    }
+    if (existing.financeApprovalStatus === "rejected") {
+      patch.financeApprovalStatus = "pending";
     }
   }
   return quotationRepository.update(id, patch);
@@ -82,6 +91,23 @@ export async function deleteQuotation(id: string): Promise<void> {
   return quotationRepository.delete(id);
 }
 
+export async function approveQuotationFinance(id: string, approvedBy: string): Promise<void> {
+  return quotationRepository.update(id, {
+    financeApprovalStatus: "approved",
+    financeApprovedBy: approvedBy,
+    financeApprovedAt: serverTimestamp(),
+  } as Partial<Quotation>);
+}
+
+export async function rejectQuotationFinance(id: string, rejectedBy: string, reason: string): Promise<void> {
+  return quotationRepository.update(id, {
+    financeApprovalStatus: "rejected",
+    financeRejectedBy: rejectedBy,
+    financeRejectedAt: serverTimestamp(),
+    financeRejectionReason: reason,
+  } as Partial<Quotation>);
+}
+
 // Mirrors leads' convertLeadToCustomer pattern: reads from the source
 // record, creates the target record, then updates the source to point
 // at it and mark it converted.
@@ -89,6 +115,11 @@ export async function convertQuotationToBooking(
   quotation: Quotation,
   createdBy: string
 ): Promise<void> {
+  const fresh = await quotationRepository.findById(quotation.id);
+  if (!fresh || fresh.financeApprovalStatus !== "approved") {
+    throw new Error("Quotation must be approved by Finance before it can be converted to a booking.");
+  }
+
   const booking = await createBooking({
     customerId:    quotation.customerId,
     customerName:  quotation.customerName,

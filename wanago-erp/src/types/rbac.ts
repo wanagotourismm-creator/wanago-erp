@@ -52,6 +52,10 @@ export type Permission =
   | "bookings:approve"
   | "bookings:finance_approve"
   | "bookings:ops_approve"
+  // Quotations
+  | "quotations:finance_approve"
+  // Invoices
+  | "invoices:finance_approve"
   // Finance
   | "finance:view"
   | "finance:create"

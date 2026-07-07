@@ -5,6 +5,7 @@ import {
   fetchBookings, createBooking, updateBooking,
   updateBookingStatus, deleteBooking,
   approveBookingAsFinance, approveBookingAsOperations,
+  rejectBookingAsFinance, rejectBookingAsOperations,
 } from "@/modules/bookings/services/booking.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
@@ -62,12 +63,12 @@ export function useBookings() {
   ): Promise<{ error: string | null }> {
     try {
       await updateBooking(id, data);
-      setBookings(prev => prev.map(b => {
-        if (b.id !== id) return b;
-        const totalAmount   = data.totalAmount   ?? b.totalAmount;
-        const advanceAmount = data.advanceAmount ?? b.advanceAmount;
-        return { ...b, ...data, balanceAmount: totalAmount - advanceAmount };
-      }));
+      // A full refetch (rather than an optimistic shallow merge) is needed
+      // because updateBooking may also silently resubmit a rejected
+      // booking server-side (status reset + cleared rejection fields),
+      // which wouldn't be reflected in the caller's partial `data`.
+      const updated = await fetchBookings();
+      setBookings(updated);
       return { error: null };
     } catch {
       return { error: "Failed to update booking" };
@@ -141,6 +142,58 @@ export function useBookings() {
     }
   }
 
+  async function rejectFinance(
+    id: string, rejectedBy: string, reason: string
+  ): Promise<{ error: string | null }> {
+    try {
+      await rejectBookingAsFinance(id, rejectedBy, reason);
+      setBookings(prev => prev.map(b => b.id === id ? {
+        ...b,
+        status:                 BOOKING_STATUS.FINANCE_REJECTED,
+        financeRejectedBy:      rejectedBy,
+        financeRejectedAt:      new Date(),
+        financeRejectionReason: reason,
+      } as Booking : b));
+      const booking = bookings.find(b => b.id === id);
+      if (booking) {
+        logActivity({
+          entityType: "Booking", entityName: booking.customerName, action: "status_changed",
+          detail: `${booking.refNumber} rejected by Finance (${reason})`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
+      return { error: null };
+    } catch {
+      return { error: "Failed to reject booking" };
+    }
+  }
+
+  async function rejectOperations(
+    id: string, rejectedBy: string, reason: string
+  ): Promise<{ error: string | null }> {
+    try {
+      await rejectBookingAsOperations(id, rejectedBy, reason);
+      setBookings(prev => prev.map(b => b.id === id ? {
+        ...b,
+        status:              BOOKING_STATUS.OPS_REJECTED,
+        opsRejectedBy:       rejectedBy,
+        opsRejectedAt:       new Date(),
+        opsRejectionReason:  reason,
+      } as Booking : b));
+      const booking = bookings.find(b => b.id === id);
+      if (booking) {
+        logActivity({
+          entityType: "Booking", entityName: booking.customerName, action: "status_changed",
+          detail: `${booking.refNumber} rejected by Operations (${reason})`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
+      return { error: null };
+    } catch {
+      return { error: "Failed to reject booking" };
+    }
+  }
+
   async function removeBooking(id: string): Promise<{ error: string | null }> {
     try {
       const booking = bookings.find(b => b.id === id);
@@ -161,6 +214,6 @@ export function useBookings() {
 
   return {
     bookings: scopedBookings, loading, error, load, addBooking, editBooking, changeStatus,
-    approveFinance, approveOperations, removeBooking,
+    approveFinance, approveOperations, rejectFinance, rejectOperations, removeBooking,
   };
 }

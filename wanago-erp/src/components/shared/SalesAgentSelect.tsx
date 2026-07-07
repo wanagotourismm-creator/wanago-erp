@@ -15,13 +15,14 @@ type Props = {
   onChange:   (employeeId: string, employeeName: string) => void;
   className?: string;
   placeholder?: string;
+  disabled?:  boolean;
 };
 
 // Real dropdown of active Sales-department employees, replacing free-text
 // "assigned agent" inputs. Sets both the id (assignedTo) and denormalized
 // name (agentName) together — the same dual-field pattern used for
 // customer/package selects elsewhere in this codebase.
-export function SalesAgentSelect({ value, onChange, className, placeholder = "Select sales executive..." }: Props) {
+export function SalesAgentSelect({ value, onChange, className, placeholder = "Select sales executive...", disabled }: Props) {
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   useEffect(() => {
@@ -34,8 +35,9 @@ export function SalesAgentSelect({ value, onChange, className, placeholder = "Se
 
   return (
     <select
-      className={className ?? inputClass}
+      className={cn(className ?? inputClass, disabled && "opacity-60 cursor-not-allowed")}
       value={value ?? ""}
+      disabled={disabled}
       onChange={(e) => {
         const selected = employees.find((emp) => emp.id === e.target.value);
         onChange(e.target.value, selected?.fullName ?? "");

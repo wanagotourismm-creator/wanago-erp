@@ -63,12 +63,27 @@ export async function updateBooking(
   data: Partial<BookingFormData>
 ): Promise<void> {
   const patch: Partial<Booking> = { ...data };
-  if (data.totalAmount !== undefined || data.advanceAmount !== undefined) {
-    const existing = await bookingRepository.findById(id);
-    if (existing) {
+  const existing = await bookingRepository.findById(id);
+  if (existing) {
+    if (data.totalAmount !== undefined || data.advanceAmount !== undefined) {
       const totalAmount   = data.totalAmount   ?? existing.totalAmount;
       const advanceAmount = data.advanceAmount ?? existing.advanceAmount;
       patch.balanceAmount = totalAmount - advanceAmount;
+    }
+
+    // Editing a rejected booking is the entire "resubmit" mechanism — it
+    // automatically puts the booking back in the right pending queue and
+    // clears the previous rejection trail.
+    if (existing.status === BOOKING_STATUS.FINANCE_REJECTED) {
+      patch.status                 = BOOKING_STATUS.PENDING_FINANCE;
+      patch.financeRejectedBy      = null;
+      patch.financeRejectedAt      = null;
+      patch.financeRejectionReason = null;
+    } else if (existing.status === BOOKING_STATUS.OPS_REJECTED) {
+      patch.status              = BOOKING_STATUS.OPS_PENDING;
+      patch.opsRejectedBy       = null;
+      patch.opsRejectedAt       = null;
+      patch.opsRejectionReason  = null;
     }
   }
   return bookingRepository.update(id, patch);
@@ -108,6 +123,36 @@ export async function approveBookingAsOperations(
     opsApprovedBy: approvedBy,
     opsApprovedAt: serverTimestamp(),
     profitAmount,
+  } as Partial<Booking>);
+}
+
+// Finance rejects the booking with a reason instead of approving — editing
+// the booking later (see updateBooking) automatically resubmits it.
+export async function rejectBookingAsFinance(
+  id: string,
+  rejectedBy: string,
+  reason: string
+): Promise<void> {
+  return bookingRepository.update(id, {
+    status:                 BOOKING_STATUS.FINANCE_REJECTED,
+    financeRejectedBy:      rejectedBy,
+    financeRejectedAt:      serverTimestamp(),
+    financeRejectionReason: reason,
+  } as Partial<Booking>);
+}
+
+// Operations rejects the booking with a reason instead of approving —
+// editing the booking later (see updateBooking) automatically resubmits it.
+export async function rejectBookingAsOperations(
+  id: string,
+  rejectedBy: string,
+  reason: string
+): Promise<void> {
+  return bookingRepository.update(id, {
+    status:              BOOKING_STATUS.OPS_REJECTED,
+    opsRejectedBy:       rejectedBy,
+    opsRejectedAt:       serverTimestamp(),
+    opsRejectionReason:  reason,
   } as Partial<Booking>);
 }
 

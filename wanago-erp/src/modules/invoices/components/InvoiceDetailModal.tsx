@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, Edit2, Trash2, Send, Receipt, Building2, Download, Loader2 } from "lucide-react";
 import { InvoiceStatusBadge, formatAmount } from "@/modules/invoices/components/InvoiceBadges";
-import { formatDate, initials } from "@/lib/utils/helpers";
+import { cn, formatDate, initials } from "@/lib/utils/helpers";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { generateDocumentPdf } from "@/lib/pdf/document-pdf";
 import type { Invoice } from "@/modules/invoices/types";
@@ -26,12 +26,35 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+const FINANCE_APPROVAL_STYLES: Record<Invoice["financeApprovalStatus"], string> = {
+  pending:  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  approved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+};
+
+const FINANCE_APPROVAL_LABELS: Record<Invoice["financeApprovalStatus"], string> = {
+  pending:  "Pending Finance Approval",
+  approved: "Finance Approved",
+  rejected: "Finance Rejected",
+};
+
+function FinanceApprovalBadge({ status }: { status: Invoice["financeApprovalStatus"] }) {
+  return (
+    <span className={cn(
+      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+      FINANCE_APPROVAL_STYLES[status]
+    )}>
+      {FINANCE_APPROVAL_LABELS[status]}
+    </span>
+  );
+}
+
 export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDelete, onSend }: Props) {
   const [downloading, setDownloading] = useState(false);
 
   if (!invoice) return null;
 
-  const canMarkSent = invoice.status === "draft";
+  const canMarkSent = invoice.status === "draft" && invoice.financeApprovalStatus === "approved";
 
   async function handleDownloadPdf() {
     if (!invoice) return;
@@ -105,7 +128,13 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
 
           <div className="flex flex-wrap items-center gap-2">
             <InvoiceStatusBadge status={invoice.status} />
+            <FinanceApprovalBadge status={invoice.financeApprovalStatus} />
           </div>
+          {invoice.financeApprovalStatus === "rejected" && invoice.financeRejectionReason && (
+            <p className="text-xs text-muted-foreground">
+              Rejection reason: {invoice.financeRejectionReason}
+            </p>
+          )}
 
           <div>
             <div className="mb-1 flex items-center gap-2">

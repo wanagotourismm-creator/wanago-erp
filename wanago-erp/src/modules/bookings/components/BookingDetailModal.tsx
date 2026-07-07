@@ -10,14 +10,10 @@ type Props = {
   booking:           Booking | null;
   canManage:         boolean;
   canApprove:        boolean;
-  canFinanceApprove: boolean;
-  canOpsApprove:     boolean;
   onClose:           () => void;
   onEdit:            (booking: Booking) => void;
   onDelete:          (booking: Booking) => void;
   onStatus:          (booking: Booking, status: string) => void;
-  onRequestFinanceApprove: (booking: Booking) => void;
-  onRequestOpsApprove:     (booking: Booking) => void;
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -30,15 +26,13 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function BookingDetailModal({
-  booking, canManage, canApprove, canFinanceApprove, canOpsApprove,
-  onClose, onEdit, onDelete, onStatus, onRequestFinanceApprove, onRequestOpsApprove,
+  booking, canManage, canApprove,
+  onClose, onEdit, onDelete, onStatus,
 }: Props) {
   if (!booking) return null;
 
-  const showFinanceApprove = booking.status === "pending_finance" && canFinanceApprove;
-  const showOpsApprove     = booking.status === "ops_pending" && canOpsApprove;
-  const showDropdown       = canApprove && !showFinanceApprove && !showOpsApprove;
-  const hasApprovalTrail   = !!booking.financeApprovedBy || !!booking.opsApprovedBy;
+  const hasApprovalTrail = !!booking.financeApprovedBy || !!booking.opsApprovedBy
+    || !!booking.financeRejectedAt || !!booking.opsRejectedAt;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -140,6 +134,18 @@ export function BookingDetailModal({
                 {booking.opsApprovedBy && <Row label="Ops Approved By" value={booking.opsApprovedBy} />}
                 {booking.opsApprovedAt && <Row label="Ops Approved At" value={formatDateTime(booking.opsApprovedAt as never)} />}
                 {booking.profitAmount != null && <Row label="Profit Recorded" value={formatAmount(booking.profitAmount)} />}
+                {booking.financeRejectedAt && (
+                  <Row
+                    label="Rejected by Finance"
+                    value={<span className="text-destructive">{booking.financeRejectionReason ?? "No reason given"}</span>}
+                  />
+                )}
+                {booking.opsRejectedAt && (
+                  <Row
+                    label="Rejected by Operations"
+                    value={<span className="text-destructive">{booking.opsRejectionReason ?? "No reason given"}</span>}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -175,23 +181,7 @@ export function BookingDetailModal({
               </>
             )}
           </div>
-          {showFinanceApprove && (
-            <button
-              onClick={() => onRequestFinanceApprove(booking)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
-            >
-              Approve as Finance
-            </button>
-          )}
-          {showOpsApprove && (
-            <button
-              onClick={() => onRequestOpsApprove(booking)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
-            >
-              Approve as Operations
-            </button>
-          )}
-          {showDropdown && (
+          {canApprove && (
             <select
               value={booking.status}
               onChange={(e) => onStatus(booking, e.target.value)}

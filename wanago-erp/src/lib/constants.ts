@@ -27,7 +27,9 @@ export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
 export const BOOKING_STATUS = {
   PENDING_FINANCE:  "pending_finance",
   FINANCE_APPROVED: "finance_approved",
+  FINANCE_REJECTED: "finance_rejected",
   OPS_PENDING:      "ops_pending",
+  OPS_REJECTED:     "ops_rejected",
   CONFIRMED:        "confirmed",
   COMPLETED:        "completed",
   CANCELLED:        "cancelled",
@@ -38,7 +40,9 @@ export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS]
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   pending_finance:  "Pending Finance",
   finance_approved: "Finance Approved",
+  finance_rejected: "Finance Rejected",
   ops_pending:      "Ops Pending",
+  ops_rejected:     "Ops Rejected",
   confirmed:        "Confirmed",
   completed:        "Completed",
   cancelled:        "Cancelled",
