@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeColorProvider } from "@/components/providers/ThemeColorProvider";
+import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegister";
 import "@/styles/globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -10,10 +11,27 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 export const metadata: Metadata = {
   title: { default: "Wanago ERP", template: "%s | Wanago ERP" },
   description: "Operations Management System for Wanago Tourism",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/icon-192.png",   sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Wanago ERP",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width", initialScale: 1,
+  themeColor: "#228050",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AuthProvider>
           </ThemeColorProvider>
         </ThemeProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
