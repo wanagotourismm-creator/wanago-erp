@@ -55,7 +55,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
   const [loginBusy, setLoginBusy] = useState(false);
 
   const {
-    register, handleSubmit, reset, setValue,
+    register, handleSubmit, reset, setValue, watch,
     formState: { errors, isSubmitting },
   } = useForm<EmployeeSchema>({
     resolver: zodResolver(employeeSchema),
@@ -94,6 +94,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
           uan:                 employee.uan ?? "",
           pfNumber:            employee.pfNumber ?? "",
           panNumber:           employee.panNumber ?? "",
+          monthlyProfitTarget: employee.monthlyProfitTarget ?? null,
         });
       } else {
         reset({
@@ -118,10 +119,13 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
     }).catch(() => {});
   }, [open, employee, setValue]);
 
+  const selectedDepartment = watch("department");
+
   if (!open) return null;
 
   const otherEmployees = employees.filter(e => e.id !== employee?.id);
   const isNewEmployee = !employee;
+  const isSalesDepartment = selectedDepartment === "Sales";
 
   // For a brand-new employee, optionally creates the login account first
   // (Firebase Auth + users profile, via the same secondary-app pattern as
@@ -370,6 +374,16 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
               <Field label="PAN Number">
                 <input className={inputClass} {...register("panNumber")} />
               </Field>
+              {isSalesDepartment && (
+                <div className="col-span-2">
+                  <Field label="Monthly Profit Target (₹)" error={errors.monthlyProfitTarget?.message}>
+                    <input className={inputClass} type="number" min={0} {...register("monthlyProfitTarget")} />
+                  </Field>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Used by the sales incentive engine to calculate this agent&apos;s tiered bonus — leave blank to use the company default.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -46,6 +46,13 @@ export type Employee = FirestoreRecord & {
   pfNumber:          string | null;
   panNumber:         string | null;
 
+  // Sales incentives — the individually-assigned monthly profit target
+  // used by the incentives engine's tiered calculation. Relevant only for
+  // Sales-department employees; null falls back to the settings-level
+  // default target. Optional so existing employee records don't need
+  // backfilling.
+  monthlyProfitTarget?: number | null;
+
   // Documents
   documents: EmployeeDocument[];
 

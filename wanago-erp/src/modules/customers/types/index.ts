@@ -22,6 +22,11 @@ export type Customer = FirestoreRecord & {
   assignedTo?:    string | null;
   agentName?:     string | null;
 
+  // Set when this customer was converted from a Lead, so a later Booking
+  // can carry the linkage forward (see Booking.leadId) — needed for the
+  // incentives engine's Fast Closure Bonus / Self-Generated Lead Bonus.
+  convertedFromLeadId?: string | null;
+
   notes:          string | null;
   refNumber:      string;
 };

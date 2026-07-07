@@ -29,6 +29,9 @@ export const employeeSchema = z.object({
   pfNumber:          z.string().optional().or(z.literal("")),
   panNumber:         z.string().optional().or(z.literal("")),
 
+  // Sales incentives — individually-assigned monthly profit target.
+  monthlyProfitTarget: z.coerce.number().min(0).optional().nullable(),
+
   officeId:   z.string().min(1),
   officeName: z.string().min(1),
 

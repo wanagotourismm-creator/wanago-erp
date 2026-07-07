@@ -73,22 +73,24 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
       if (lead) {
         reset({
           ...lead,
-          email:          lead.email          ?? "",
-          alternatePhone: lead.alternatePhone ?? "",
-          notes:          lead.notes          ?? "",
-          assignedTo:     lead.assignedTo     ?? "",
-          agentName:      lead.agentName      ?? "",
-          travelDate:     lead.travelDate     ?? "",
-          returnDate:     lead.returnDate     ?? "",
-          tripType:       lead.tripType       ?? "",
-          source:         lead.source         ?? "",
-          pax:            lead.pax            ?? undefined,
+          email:           lead.email           ?? "",
+          alternatePhone:  lead.alternatePhone  ?? "",
+          notes:           lead.notes           ?? "",
+          assignedTo:      lead.assignedTo      ?? "",
+          agentName:       lead.agentName       ?? "",
+          travelDate:      lead.travelDate      ?? "",
+          returnDate:      lead.returnDate      ?? "",
+          tripType:        lead.tripType        ?? "",
+          source:          lead.source          ?? "",
+          pax:             lead.pax             ?? undefined,
+          isSelfGenerated: lead.isSelfGenerated ?? false,
         });
       } else {
         reset({
           stage: "new", priority: "warm", pax: 1,
-          officeId:   user?.officeId   ?? "main",
-          officeName: user?.officeName ?? "Head Office",
+          officeId:        user?.officeId   ?? "main",
+          officeName:      user?.officeName ?? "Head Office",
+          isSelfGenerated: false,
         });
       }
     }
@@ -259,6 +261,18 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
                     }}
                   />
                 </Field>
+              </div>
+
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input"
+                    checked={watch("isSelfGenerated") ?? false}
+                    onChange={e => setValue("isSelfGenerated", e.target.checked)}
+                  />
+                  Self-generated lead (sourced directly by me, not assigned)
+                </label>
               </div>
             </div>
           </div>

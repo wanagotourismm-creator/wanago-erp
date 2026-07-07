@@ -67,6 +67,7 @@ export async function createEmployee(
     uan:                data.uan || null,
     pfNumber:           data.pfNumber || null,
     panNumber:          data.panNumber || null,
+    monthlyProfitTarget: data.monthlyProfitTarget ?? null,
     userId:             data.userId || null,
   });
 }

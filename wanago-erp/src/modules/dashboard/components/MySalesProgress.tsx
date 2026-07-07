@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
 import { useIncentives } from "@/modules/incentives/hooks/useIncentives";
-import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { fetchIncentiveSettings } from "@/modules/incentives/settings/services/incentive-settings.service";
 import { fetchPackages } from "@/modules/packages/services/package.service";
 import { fetchLeads } from "@/modules/leads/services/lead.service";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -44,14 +44,14 @@ export function MySalesProgress() {
 
     async function load() {
       try {
-        const [settings, activePackages, leads] = await Promise.all([
-          fetchCompanySettings(),
+        const [incentiveSettings, activePackages, leads] = await Promise.all([
+          fetchIncentiveSettings(),
           fetchPackages({ packageStatus: "active" }),
           fetchLeads({ assignedTo: employee!.id }),
         ]);
         if (cancelled) return;
 
-        setTarget(settings.monthlyIncentiveTarget);
+        setTarget(employee!.monthlyProfitTarget || incentiveSettings.defaultMonthlyProfitTarget);
         setPackages(activePackages);
 
         const staleCutoff = new Date();
@@ -156,7 +156,10 @@ export function MySalesProgress() {
           {/* Incentive progress */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-foreground">Monthly incentive</span>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                Monthly incentive
+                {mySummary?.tierLabel && <Badge variant="outline">{mySummary.tierLabel}</Badge>}
+              </span>
               <span className="text-xs text-muted-foreground">
                 {formatCurrency(achieved)} / {formatCurrency(target)}
               </span>

@@ -1,4 +1,5 @@
-import type { FirestoreRecord } from "@/types/global";
+import type { FieldValue } from "firebase/firestore";
+import type { FirestoreRecord, Timestamp } from "@/types/global";
 
 export type Lead = FirestoreRecord & {
   // Identity
@@ -23,6 +24,15 @@ export type Lead = FirestoreRecord & {
   source:         string | null;
   assignedTo:     string | null;
   agentName:      string | null;
+
+  // Stamped whenever assignedTo is set/changed — the clock the Fast
+  // Closure Bonus measures from (see incentives module). Optional so
+  // existing callers (bulk import, older records) don't need updating.
+  assignedAt?:    Timestamp | FieldValue | null;
+
+  // Sourced directly by the agent rather than assigned by admin/marketing
+  // — feeds the Self-Generated Lead Bonus. Optional, defaults to false.
+  isSelfGenerated?: boolean;
 
   // Office
   officeId:       string;

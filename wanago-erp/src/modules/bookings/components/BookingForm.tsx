@@ -82,6 +82,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
           assignedTo:  booking.assignedTo  ?? "",
           agentName:   booking.agentName   ?? "",
           notes:       booking.notes       ?? "",
+          leadId:      booking.leadId      ?? null,
         });
       } else {
         reset({
@@ -100,6 +101,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
     setValue("customerId", id);
     setValue("customerName", c?.fullName ?? "");
     setValue("customerPhone", c?.phone ?? "");
+    setValue("leadId", c?.convertedFromLeadId ?? null);
   }
 
   const selectedPackageId = watch("packageId");

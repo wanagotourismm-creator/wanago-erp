@@ -4,6 +4,7 @@ export const bookingSchema = z.object({
   customerId:    z.string().min(1, "Customer is required"),
   customerName:  z.string().min(1),
   customerPhone: z.string().min(1),
+  leadId:        z.string().optional().nullable(),
 
   destination:   z.string().min(2, "Destination is required"),
   tripType:      z.string().min(1, "Trip type is required"),

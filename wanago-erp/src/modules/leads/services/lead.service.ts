@@ -48,6 +48,7 @@ export async function createLead(
     alternatePhone:  data.alternatePhone || null,
     notes:           data.notes || null,
     assignedTo:      data.assignedTo || null,
+    assignedAt:      data.assignedTo ? serverTimestamp() : null,
     agentName:       data.agentName || null,
     tripType:        data.tripType || null,
     source:          data.source || null,
@@ -59,7 +60,21 @@ export async function updateLead(
   id: string,
   data: Partial<LeadFormData>
 ): Promise<void> {
-  return leadRepository.update(id, data as Partial<Lead>);
+  const updateData: Partial<Lead> = { ...data as Partial<Lead> };
+
+  if ("assignedTo" in data) {
+    const existing = await fetchLeadById(id);
+    const previousAssignedTo = existing?.assignedTo ?? null;
+    const nextAssignedTo     = data.assignedTo ?? null;
+
+    if (nextAssignedTo && nextAssignedTo !== previousAssignedTo) {
+      updateData.assignedAt = serverTimestamp();
+    } else if (!nextAssignedTo) {
+      updateData.assignedAt = null;
+    }
+  }
+
+  return leadRepository.update(id, updateData);
 }
 
 export async function updateLeadStage(
@@ -95,5 +110,6 @@ export async function convertLeadToCustomer(lead: Lead, createdBy: string): Prom
     officeName:     lead.officeName,
     notes:          `Converted from lead ${lead.refNumber} (${lead.destination})`,
     createdBy,
+    convertedFromLeadId: lead.id,
   }, createdBy);
 }

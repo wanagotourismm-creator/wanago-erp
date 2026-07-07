@@ -23,6 +23,12 @@ export type Booking = Omit<FirestoreRecord, "status"> & {
   assignedTo:    string | null;
   agentName:     string | null;
 
+  // Carried over from the customer's convertedFromLeadId (if any) when the
+  // booking is created — links back to the originating Lead so the
+  // incentives engine can measure Fast Closure / Self-Generated bonuses.
+  // Optional; null/absent means this booking has no linked lead.
+  leadId?:       string | null;
+
   officeId:      string;
   officeName:    string;
 

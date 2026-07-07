@@ -164,7 +164,7 @@ export function Sidebar() {
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       className={cn(
-        "hidden lg:flex relative flex-col h-screen transition-all duration-300 ease-in-out",
+        "hidden lg:flex relative z-30 flex-col h-screen transition-all duration-300 ease-in-out",
         "border-r border-border bg-card",
         "lg:sticky lg:top-0",
         sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[240px]"

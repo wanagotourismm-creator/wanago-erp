@@ -47,6 +47,7 @@ export async function createBooking(
     assignedTo:    data.assignedTo  || null,
     agentName:     data.agentName   || null,
     notes:         data.notes       || null,
+    leadId:        data.leadId      ?? null,
     financeApprovedBy:   null,
     financeApprovedAt:   null,
     paymentVerification: null,
