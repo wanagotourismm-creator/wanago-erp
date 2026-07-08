@@ -316,9 +316,31 @@ export function useEss() {
     try {
       const requester = await fetchEmployeeById(employeeId);
       if (!requester) return;
+      // Leave gets its own mood-aware email (see sendLeaveDecisionEmailFor)
+      // sent separately — skip the generic one here so the requester
+      // doesn't get two emails for the same decision.
       await notifyUser({
-        userId: requester.userId ?? null, email: requester.email, phone: requester.mobileNumber,
+        userId: requester.userId ?? null, email: category === "leave" ? null : requester.email, phone: requester.mobileNumber,
         title, body, link: "/ess", category,
+      });
+    } catch { /* best-effort */ }
+  }
+
+  // Sick leave gets a "take care and rest" message + a wellness quote;
+  // every other leave type gets an "enjoy your day" message + a travel
+  // quote; rejections get a gentler, quote-free-of-celebration note —
+  // richer than the generic notifyUser email, so it's sent on its own.
+  async function sendLeaveDecisionEmailFor(leave: LeaveRequest, decision: "approve" | "reject") {
+    try {
+      const requester = await fetchEmployeeById(leave.employeeId);
+      if (!requester?.email) return;
+      await fetch("/api/hrms/send-leave-decision-email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          to: requester.email, fullName: requester.fullName, leaveType: leave.leaveType,
+          fromDate: leave.fromDate, toDate: leave.toDate, decision,
+        }),
       });
     } catch { /* best-effort */ }
   }
@@ -333,6 +355,7 @@ export function useEss() {
         setTeamLeaves((p) => p.filter((l) => l.id !== item.id));
         notifyRequesterOfDecision(item.leave.employeeId, `Your leave request was ${verb}`,
           `Your ${item.leave.leaveType} leave from ${item.leave.fromDate} to ${item.leave.toDate} was ${verb}.`, "leave");
+        sendLeaveDecisionEmailFor(item.leave, decision);
       } else if (item.kind === "regularization") {
         if (decision === "approve") await approveRegularization(item.id, user.uid);
         else await rejectRegularization(item.id, user.uid);

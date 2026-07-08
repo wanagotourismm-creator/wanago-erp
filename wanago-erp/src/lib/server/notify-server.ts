@@ -9,20 +9,6 @@ function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
 }
 
-function renderEmailHtml(subject: string, body: string, link?: string) {
-  const cta = link
-    ? `<a href="${appUrl()}${link}" style="display:inline-block;margin-top:20px;background:#16a34a;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;">Open Wanago ERP</a>`
-    : "";
-  return `
-  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-    <p style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#16a34a;margin:0 0 8px;">Wanago Travel &amp; Co</p>
-    <h1 style="font-size:18px;margin:0 0 12px;color:#111;">${subject}</h1>
-    <p style="font-size:14px;color:#444;line-height:1.6;white-space:pre-wrap;">${body}</p>
-    ${cta}
-    <p style="font-size:11px;color:#999;margin-top:32px;">You're receiving this because of activity on your Wanago ERP account.</p>
-  </div>`;
-}
-
 const TRAVEL_QUOTES: { text: string; author: string }[] = [
   { text: "The world is a book, and those who do not travel read only one page.", author: "Saint Augustine" },
   { text: "Travel is the only thing you buy that makes you richer.", author: "Anonymous" },
@@ -37,6 +23,95 @@ const TRAVEL_QUOTES: { text: string; author: string }[] = [
   { text: "We travel not to escape life, but for life not to escape us.", author: "Anonymous" },
   { text: "The journey of a thousand miles begins with a single step.", author: "Lao Tzu" },
 ];
+
+// Shown on rest/recovery-themed emails (a sick leave approval) instead of
+// the travel quotes — a "go have an adventure" line reads oddly when
+// someone's actually unwell.
+const REST_QUOTES: { text: string; author: string }[] = [
+  { text: "Take rest; a field that has rested gives a bountiful crop.", author: "Ovid" },
+  { text: "Health is the greatest gift, contentment the greatest wealth.", author: "Buddha" },
+  { text: "Rest and self-care are so important. When you take time to replenish your spirit, it allows you to serve others from the overflow.", author: "Eleanor Brown" },
+  { text: "Taking care of yourself doesn't mean me first, it means me too.", author: "L.R. Knost" },
+  { text: "Sometimes the most productive thing you can do is rest.", author: "Anonymous" },
+  { text: "The greatest wealth is health.", author: "Virgil" },
+];
+
+// The general-purpose pool used by the everyday notification template
+// (asset requests, attendance corrections, approvals, reminders) — team/
+// work themed rather than travel themed, so it fits any kind of update.
+const GENERAL_QUOTES: { text: string; author: string }[] = [
+  { text: "Great things in business are never done by one person. They're done by a team of people.", author: "Steve Jobs" },
+  { text: "Alone we can do so little; together we can do so much.", author: "Helen Keller" },
+  { text: "The strength of the team is each individual member.", author: "Phil Jackson" },
+  { text: "Coming together is a beginning, staying together is progress, working together is success.", author: "Henry Ford" },
+  { text: "Teamwork makes the dream work.", author: "John C. Maxwell" },
+  { text: "It is amazing what you can accomplish if you do not care who gets the credit.", author: "Harry S. Truman" },
+  { text: "Individually, we are one drop. Together, we are an ocean.", author: "Ryunosuke Satoro" },
+  { text: "Success is best when it's shared.", author: "Howard Schultz" },
+];
+
+const CATEGORY_META: Record<NotificationCategory, { icon: string; label: string }> = {
+  leave:          { icon: "🌴", label: "Leave" },
+  regularization: { icon: "🕒", label: "Attendance" },
+  asset:          { icon: "💻", label: "Asset Request" },
+  ticket:         { icon: "🎫", label: "Support Ticket" },
+  system:         { icon: "🎉", label: "Team Wanago" },
+  followup:       { icon: "⏰", label: "Reminder" },
+  approval:       { icon: "📄", label: "Approval" },
+};
+
+// Full-bleed, brand-colored card used for every generic notification email
+// (asset/leave/regularization requests, Finance/Operations approvals,
+// reminders) — same premium look as the welcome email instead of a bare
+// paragraph of text. Tone (green vs. red header) is inferred from the
+// subject line, since every caller already writes "...approved"/
+// "...rejected" into it.
+function renderEmailHtml(subject: string, body: string, link?: string, category?: NotificationCategory) {
+  const lower = subject.toLowerCase();
+  const isApproved = lower.includes("approved") || lower.includes("confirmed");
+  const isRejected = lower.includes("rejected");
+  const headerGradient = isRejected ? "linear-gradient(135deg,#dc2626,#b91c1c)" : "linear-gradient(135deg,#16a34a,#15803d)";
+  const meta = category ? CATEGORY_META[category] : undefined;
+  const headline = isApproved ? "✅" : isRejected ? "📋" : (meta?.icon ?? "📣");
+  const quote = GENERAL_QUOTES[Math.floor(Math.random() * GENERAL_QUOTES.length)];
+  const logoUrl = `${appUrl()}/images/logo-dark-clean.png`;
+
+  const cta = link
+    ? `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#16a34a;">
+        <a href="${appUrl()}${link}" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">Open Wanago ERP</a>
+      </td></tr></table>`
+    : "";
+
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:${headerGradient};padding:36px 24px;text-align:center;">
+          <img src="${logoUrl}" alt="Wanago" width="130" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;margin-bottom:14px;" />
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">${meta?.label ?? "Wanago Travel & Co"}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <p style="font-size:32px;margin:0 0 12px;line-height:1;">${headline}</p>
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">${subject}</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;white-space:pre-wrap;margin:0 0 24px;">${body}</p>
+          <div style="border-left:3px solid #16a34a;background:#f0fdf4;padding:16px 20px;border-radius:0 10px 10px 0;margin:0 0 28px;">
+            <p style="font-size:14px;color:#166534;font-style:italic;line-height:1.6;margin:0;">"${quote.text}"</p>
+            <p style="font-size:12px;color:#16a34a;margin:8px 0 0;font-weight:600;">— ${quote.author}</p>
+          </div>
+          ${cta}
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team Wanago</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
 
 function renderWelcomeEmailHtml(fullName: string, designation: string) {
   const quote = TRAVEL_QUOTES[Math.floor(Math.random() * TRAVEL_QUOTES.length)];
@@ -71,6 +146,76 @@ function renderWelcomeEmailHtml(fullName: string, designation: string) {
             <a href="${appUrl()}/dashboard" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">Go to Wanago ERP</a>
           </td></tr></table>
           <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team Wanago</strong> — welcoming you aboard! ✈️</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  casual: "Casual Leave", sick: "Sick Leave", earned: "Earned Leave", emergency: "Emergency Leave",
+  wfh: "Work From Home", loss_of_pay: "Loss of Pay",
+};
+
+// A leave decision gets its own template rather than the generic one — the
+// tone genuinely needs to differ: sick leave shouldn't say "enjoy your day,"
+// and a rejection shouldn't carry a celebratory quote at all.
+function renderLeaveDecisionEmailHtml(params: {
+  fullName: string; leaveType: string; fromDate: string; toDate: string; decision: "approve" | "reject";
+}) {
+  const { fullName, leaveType, fromDate, toDate, decision } = params;
+  const typeLabel = LEAVE_TYPE_LABELS[leaveType] ?? leaveType;
+  const dateRange = fromDate === toDate ? fromDate : `${fromDate} to ${toDate}`;
+  const isSick = leaveType === "sick";
+  const approved = decision === "approve";
+  const logoUrl = `${appUrl()}/images/logo-dark-clean.png`;
+
+  const headerGradient = approved ? "linear-gradient(135deg,#16a34a,#15803d)" : "linear-gradient(135deg,#dc2626,#b91c1c)";
+  const icon = approved ? (isSick ? "🤍" : "🌴") : "📋";
+  const heading = approved ? `Your ${typeLabel} is approved!` : `About your ${typeLabel} request`;
+
+  let message: string;
+  let quote: { text: string; author: string };
+  if (approved && isSick) {
+    message = `Your sick leave from <strong>${dateRange}</strong> has been approved. Take care of yourself, get plenty of rest, and we hope you feel better very soon.`;
+    quote = REST_QUOTES[Math.floor(Math.random() * REST_QUOTES.length)];
+  } else if (approved) {
+    message = `Your ${typeLabel.toLowerCase()} from <strong>${dateRange}</strong> has been approved. Enjoy your day — you've earned it!`;
+    quote = TRAVEL_QUOTES[Math.floor(Math.random() * TRAVEL_QUOTES.length)];
+  } else {
+    message = `Your ${typeLabel.toLowerCase()} request for <strong>${dateRange}</strong> couldn't be approved this time. Reach out to your reporting manager if you'd like to discuss it or pick different dates.`;
+    quote = GENERAL_QUOTES[Math.floor(Math.random() * GENERAL_QUOTES.length)];
+  }
+
+  const accent = approved ? { border: "#16a34a", bg: "#f0fdf4", text: "#166534", author: "#16a34a" }
+                           : { border: "#dc2626", bg: "#fef2f2", text: "#991b1b", author: "#b91c1c" };
+
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:${headerGradient};padding:36px 24px;text-align:center;">
+          <img src="${logoUrl}" alt="Wanago" width="130" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;" />
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <p style="font-size:32px;margin:0 0 12px;line-height:1;">${icon}</p>
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${fullName}, ${heading}</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 24px;">${message}</p>
+          <div style="border-left:3px solid ${accent.border};background:${accent.bg};padding:16px 20px;border-radius:0 10px 10px 0;margin:0 0 28px;">
+            <p style="font-size:14px;color:${accent.text};font-style:italic;line-height:1.6;margin:0;">"${quote.text}"</p>
+            <p style="font-size:12px;color:${accent.author};margin:8px 0 0;font-weight:600;">— ${quote.author}</p>
+          </div>
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#16a34a;">
+            <a href="${appUrl()}/ess" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">View in Wanago ERP</a>
+          </td></tr></table>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team Wanago</strong></p>
         </td>
       </tr>
       <tr>
@@ -152,9 +297,9 @@ async function sendRawEmail(params: { to: string; subject: string; html: string 
 // server-side (like the daily reminders cron) that can't hit its own
 // relative API routes.
 export async function sendEmail(params: {
-  to: string; subject: string; body: string; link?: string;
+  to: string; subject: string; body: string; link?: string; category?: NotificationCategory;
 }): Promise<{ ok: boolean; error?: string }> {
-  return sendRawEmail({ to: params.to, subject: params.subject, html: renderEmailHtml(params.subject, params.body, params.link) });
+  return sendRawEmail({ to: params.to, subject: params.subject, html: renderEmailHtml(params.subject, params.body, params.link, params.category) });
 }
 
 // Premium "Welcome to Team Wanago" email — sent once per new hire
@@ -205,8 +350,19 @@ export async function notifyUserServer(params: {
     );
   }
   if (params.email) {
-    tasks.push(sendEmail({ to: params.email, subject: params.title, body: params.body, link: params.link }).catch(() => {}));
+    tasks.push(sendEmail({ to: params.email, subject: params.title, body: params.body, link: params.link, category: params.category }).catch(() => {}));
   }
 
   await Promise.allSettled(tasks);
+}
+
+// Leave decisions get their own mood-aware email (sick vs. every other
+// leave type reads very differently) rather than the generic template.
+// Sent alongside the in-app notification, not instead of it.
+export async function sendLeaveDecisionEmail(params: {
+  to: string; fullName: string; leaveType: string; fromDate: string; toDate: string; decision: "approve" | "reject";
+}): Promise<{ ok: boolean; error?: string }> {
+  const typeLabel = LEAVE_TYPE_LABELS[params.leaveType] ?? params.leaveType;
+  const subject = params.decision === "approve" ? `Your ${typeLabel} is approved ✅` : `Update on your ${typeLabel} request`;
+  return sendRawEmail({ to: params.to, subject, html: renderLeaveDecisionEmailHtml(params) });
 }

@@ -23,7 +23,7 @@ export async function notifyUser(params: {
       fetch("/api/notify/email", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to: params.email, subject: params.title, body: params.body, link: params.link }),
+        body: JSON.stringify({ to: params.email, subject: params.title, body: params.body, link: params.link, category: params.category }),
       }).catch(() => {})
     );
   }
