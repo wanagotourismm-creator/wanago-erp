@@ -29,6 +29,11 @@ export type TrainingStep = FirestoreRecord & {
   explanationEn:  string;
   explanationMl:  string;
   quiz:           TrainingStepQuiz | null;
+  // Cached TTS voiceover — generated once per step+language on first
+  // request (see /api/onboarding-training/tts) and reused forever after,
+  // so the same narration is never re-generated (and re-billed).
+  audioUrlEn:     string | null;
+  audioUrlMl:     string | null;
 };
 
 // One doc per (user, module) — id is deterministic (`${userId}__${moduleId}`)

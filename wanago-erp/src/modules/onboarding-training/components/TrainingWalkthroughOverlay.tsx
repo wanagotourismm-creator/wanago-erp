@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, CheckCircle2, X } from "lucide-react";
 import { useTrainingWalkthrough } from "@/modules/onboarding-training/hooks/useTrainingWalkthrough";
+import { useTrainingAudio } from "@/modules/onboarding-training/hooks/useTrainingAudio";
 import { TrainingTooltip } from "@/modules/onboarding-training/components/TrainingTooltip";
 import { TrainingQuizModal } from "@/modules/onboarding-training/components/TrainingQuizModal";
 
@@ -16,6 +17,8 @@ export function TrainingWalkthroughOverlay() {
     quizModalOpen, quizSelected, quizResult, justCompleted, moduleTitle,
     setLanguage, selectAnswer, submitQuiz, reviewStep, goNext, goBack, exit, dismissCompletion,
   } = useTrainingWalkthrough();
+
+  const audio = useTrainingAudio(currentStep, language);
 
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [searching, setSearching] = useState(true);
@@ -127,6 +130,8 @@ export function TrainingWalkthroughOverlay() {
         {moduleTitle}
       </div>
 
+      <audio ref={audio.audioRef} className="hidden" />
+
       {(!searching || hasRect) && (
         <TrainingTooltip
           step={currentStep}
@@ -141,6 +146,11 @@ export function TrainingWalkthroughOverlay() {
           onNext={goNext}
           onBack={goBack}
           onExit={exit}
+          audioStatus={audio.status}
+          audioPlaying={audio.playing}
+          audioMessage={audio.message}
+          onToggleAudio={audio.toggle}
+          onReplayAudio={audio.replay}
         />
       )}
 

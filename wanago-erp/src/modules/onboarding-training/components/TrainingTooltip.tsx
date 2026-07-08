@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, X, Languages, HelpCircle, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, HelpCircle, AlertTriangle, Play, Pause, RotateCcw, Loader2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import type { TrainingStep } from "@/modules/onboarding-training/types";
+import type { AudioStatus } from "@/modules/onboarding-training/hooks/useTrainingAudio";
 
 type Props = {
   step:         TrainingStep;
@@ -17,11 +18,17 @@ type Props = {
   onNext:  () => void;
   onBack:  () => void;
   onExit:  () => void;
+  audioStatus:  AudioStatus;
+  audioPlaying: boolean;
+  audioMessage: string | null;
+  onToggleAudio: () => void;
+  onReplayAudio: () => void;
 };
 
 export function TrainingTooltip({
   step, style, notFound, language, stepNumber, totalSteps, isLastStep, quizPassed,
   onLanguageChange, onNext, onBack, onExit,
+  audioStatus, audioPlaying, audioMessage, onToggleAudio, onReplayAudio,
 }: Props) {
   const explanation = language === "en" ? step.explanationEn : step.explanationMl;
   const hasQuiz = !!step.quiz;
@@ -59,6 +66,32 @@ export function TrainingTooltip({
           </div>
         )}
         <p className="text-sm leading-relaxed text-foreground">{explanation}</p>
+
+        <div className="mt-2.5 flex items-center gap-2">
+          {audioStatus === "loading" && (
+            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Loader2 size={12} className="animate-spin" /> Preparing voiceover…
+            </span>
+          )}
+          {audioStatus === "ready" && (
+            <>
+              <button onClick={onToggleAudio}
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors">
+                {audioPlaying ? <Pause size={12} /> : <Play size={12} className="ml-0.5" />}
+              </button>
+              <button onClick={onReplayAudio} title="Replay" className="text-muted-foreground hover:text-foreground">
+                <RotateCcw size={13} />
+              </button>
+              <span className="text-[11px] text-muted-foreground">Voiceover {audioPlaying ? "playing" : "ready"}</span>
+            </>
+          )}
+          {(audioStatus === "unavailable" || audioStatus === "error") && (
+            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70" title={audioMessage ?? undefined}>
+              <VolumeX size={12} /> {audioStatus === "unavailable" ? "Voiceover not set up yet" : "Voiceover unavailable"}
+            </span>
+          )}
+        </div>
+
         {needsQuiz && (
           <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
             <HelpCircle size={12} /> This step has a quiz — answer it to continue.

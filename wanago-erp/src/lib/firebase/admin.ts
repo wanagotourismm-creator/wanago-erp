@@ -1,6 +1,7 @@
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth } from "firebase-admin/auth";
+import { getStorage } from "firebase-admin/storage";
 
 let app: App | null = null;
 
@@ -27,6 +28,17 @@ export function getAdminDb(): Firestore | null {
 export function getAdminAuth(): Auth | null {
   const a = getAdminApp();
   return a ? getAuth(a) : null;
+}
+
+// Server-side Storage access (bypasses Storage security rules entirely,
+// same as getAdminDb() does for Firestore) — used for writes that need to
+// happen outside any user's own request context, like caching generated
+// TTS audio once for every employee to reuse.
+export function getAdminStorage() {
+  const a = getAdminApp();
+  if (!a) return null;
+  const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  return bucketName ? getStorage(a).bucket(bucketName) : getStorage(a).bucket();
 }
 
 async function verifyRole(idToken: string | null, allowedRoles: string[]): Promise<{ uid: string } | null> {

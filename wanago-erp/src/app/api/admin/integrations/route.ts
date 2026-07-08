@@ -10,7 +10,7 @@ const DOC_PATH = ["integrationSecrets", "keys"] as const;
 // each is configured (the UI shows them masked/write-only).
 const SECRET_FIELDS = [
   "anthropicApiKey", "openaiApiKey", "resendApiKey", "twilioAccountSid", "twilioAuthToken",
-  "gmailAppPassword",
+  "gmailAppPassword", "googleTtsApiKey",
 ] as const;
 // Plain identifiers, not secrets (an email "from" address / a phone
 // number) — safe to send back so the admin can actually see and edit

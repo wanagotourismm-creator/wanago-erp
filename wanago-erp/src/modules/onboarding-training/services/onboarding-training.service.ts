@@ -70,11 +70,17 @@ export async function createTrainingStep(
     explanationEn:  data.explanationEn,
     explanationMl:  data.explanationMl,
     quiz:           toQuiz(data),
+    audioUrlEn:     null,
+    audioUrlMl:     null,
     status:         "active",
     createdBy,
   });
 }
 
+// Editing a step's text invalidates any cached voiceover for it — both
+// languages are cleared unconditionally rather than diffed, so a stale
+// narration can never linger after an edit. The next time either language
+// is played, /api/onboarding-training/tts regenerates it once.
 export async function updateTrainingStep(id: string, data: TrainingStepSchema): Promise<void> {
   return stepRepo.update(id, {
     targetPath:     data.targetPath,
@@ -82,6 +88,8 @@ export async function updateTrainingStep(id: string, data: TrainingStepSchema): 
     explanationEn:  data.explanationEn,
     explanationMl:  data.explanationMl,
     quiz:           toQuiz(data),
+    audioUrlEn:     null,
+    audioUrlMl:     null,
   });
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, KeyRound, Loader2, Sparkles, Mail, MessageCircle, Send } from "lucide-react";
+import { Check, KeyRound, Loader2, Sparkles, Mail, MessageCircle, Send, Volume2 } from "lucide-react";
 import { fetchIntegrationStatus, saveIntegrationSecrets } from "@/modules/admin/integrations/services/integrations.service";
 import { cn } from "@/lib/utils/helpers";
 
@@ -34,6 +34,13 @@ const SECTIONS: Section[] = [
     fields: [
       { key: "resendApiKey", label: "Resend API Key", placeholder: "re_..." },
       { key: "resendFromEmail", label: "From Address", placeholder: "Wanago HR <hr@yourdomain.com>", secret: false },
+    ],
+  },
+  {
+    title: "Training Voiceover (Google Cloud TTS)", icon: Volume2,
+    description: "Powers auto-read-aloud narration on Onboarding Training steps, in English and Malayalam. Get a key at console.cloud.google.com → APIs & Services → Credentials, with the Cloud Text-to-Speech API enabled. Free tier covers roughly the first 1M characters/month for most voice types; without a key, training falls back to text-only.",
+    fields: [
+      { key: "googleTtsApiKey", label: "Google Cloud TTS API Key", placeholder: "AIza..." },
     ],
   },
   {
