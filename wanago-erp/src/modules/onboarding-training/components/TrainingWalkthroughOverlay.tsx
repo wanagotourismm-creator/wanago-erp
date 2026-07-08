@@ -174,6 +174,7 @@ export function TrainingWalkthroughOverlay() {
           onBack={goBack}
           onExit={exit}
           audioStatus={audio.status}
+          audioBackend={audio.backend}
           audioPlaying={audio.playing}
           audioMessage={audio.message}
           onToggleAudio={audio.toggle}

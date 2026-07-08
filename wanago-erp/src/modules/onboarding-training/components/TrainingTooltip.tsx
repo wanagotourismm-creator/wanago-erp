@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight, X, HelpCircle, AlertTriangle, Play, Pause, RotateCcw, Loader2, VolumeX, Clapperboard } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import type { TrainingStep } from "@/modules/onboarding-training/types";
-import type { AudioStatus } from "@/modules/onboarding-training/hooks/useTrainingAudio";
+import type { AudioStatus, AudioBackend } from "@/modules/onboarding-training/hooks/useTrainingAudio";
 
 type Props = {
   step:         TrainingStep;
@@ -19,6 +19,7 @@ type Props = {
   onBack:  () => void;
   onExit:  () => void;
   audioStatus:  AudioStatus;
+  audioBackend: AudioBackend;
   audioPlaying: boolean;
   audioMessage: string | null;
   onToggleAudio: () => void;
@@ -30,7 +31,7 @@ type Props = {
 export function TrainingTooltip({
   step, style, notFound, language, stepNumber, totalSteps, isLastStep, quizPassed,
   onLanguageChange, onNext, onBack, onExit,
-  audioStatus, audioPlaying, audioMessage, onToggleAudio, onReplayAudio,
+  audioStatus, audioBackend, audioPlaying, audioMessage, onToggleAudio, onReplayAudio,
   autoAdvance, onToggleAutoAdvance,
 }: Props) {
   const explanation = language === "en" ? step.explanationEn : step.explanationMl;
@@ -92,7 +93,9 @@ export function TrainingTooltip({
               <button onClick={onReplayAudio} title="Replay" className="text-muted-foreground hover:text-foreground">
                 <RotateCcw size={13} />
               </button>
-              <span className="text-[11px] text-muted-foreground">Voiceover {audioPlaying ? "playing" : "ready"}</span>
+              <span className="text-[11px] text-muted-foreground">
+                Voiceover {audioPlaying ? "playing" : "ready"}{audioBackend === "browser" && " (device)"}
+              </span>
             </>
           )}
           {(audioStatus === "unavailable" || audioStatus === "error") && (
