@@ -132,5 +132,6 @@ export function useTrainingContentAdmin() {
     steps, loadingSteps,
     addModule, editModule, removeModule,
     addStep, editStep, removeStep, moveStep,
+    reloadModules: loadModules,
   };
 }

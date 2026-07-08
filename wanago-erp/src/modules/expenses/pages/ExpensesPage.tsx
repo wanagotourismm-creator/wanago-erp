@@ -159,6 +159,7 @@ export function ExpensesPage() {
 
       <PageHeader
         title="Expenses"
+        tourId="tour-expenses-header"
         description={`${expenses.length} total expense${expenses.length !== 1 ? "s" : ""}`}
         actions={
           <>
@@ -173,6 +174,7 @@ export function ExpensesPage() {
               size="sm"
               icon={<Plus size={14} />}
               onClick={() => { setEditingExpense(null); setFormOpen(true); }}
+              data-tour-id="tour-expenses-add"
             >
               New Expense
             </Button>

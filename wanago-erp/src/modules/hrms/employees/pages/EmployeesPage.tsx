@@ -267,6 +267,7 @@ export function EmployeesPage() {
 
       <PageHeader
         title="Employees"
+        tourId="tour-employees-header"
         description={`${employees.length} employee${employees.length !== 1 ? "s" : ""} in your directory`}
         actions={
           <>
@@ -290,7 +291,7 @@ export function EmployeesPage() {
               </Button>
             )}
             {canManage && (
-              <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingEmployee(null); setFormOpen(true); }}>
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingEmployee(null); setFormOpen(true); }} data-tour-id="tour-employees-add">
                 Add Employee
               </Button>
             )}

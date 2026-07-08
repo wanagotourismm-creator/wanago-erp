@@ -110,7 +110,7 @@ export function ClockCard({
             </button>
           </div>
         ) : (
-          <button onClick={() => handle(onClockIn)} disabled={busy}
+          <button onClick={() => handle(onClockIn)} disabled={busy} data-tour-id="tour-ess-checkin"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm">
             {busy ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />}
             Check In

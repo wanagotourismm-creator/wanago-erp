@@ -188,6 +188,7 @@ export function ItinerariesPage() {
 
       <PageHeader
         title="Itineraries"
+        tourId="tour-itineraries-header"
         description={`${itineraries.length} total itinerar${itineraries.length !== 1 ? "ies" : "y"}`}
         actions={
           <>
@@ -202,6 +203,7 @@ export function ItinerariesPage() {
               size="sm"
               icon={<Plus size={14} />}
               onClick={() => { setEditingItinerary(null); setFormOpen(true); }}
+              data-tour-id="tour-itineraries-add"
             >
               Add Itinerary
             </Button>

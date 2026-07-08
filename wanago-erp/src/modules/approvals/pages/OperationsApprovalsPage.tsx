@@ -76,9 +76,10 @@ export function OperationsApprovalsPage() {
 
       <PageHeader
         title="Operations Approvals"
+        tourId="tour-opsapprovals-header"
         description="Review Finance-approved bookings awaiting Operations sign-off"
         actions={
-          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()}>
+          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()} data-tour-id="tour-opsapprovals-refresh">
             Refresh
           </Button>
         }

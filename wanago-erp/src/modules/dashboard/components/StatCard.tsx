@@ -8,9 +8,10 @@ type Props = {
   sub?:       string;
   featured?:  boolean;
   href?:      string;
+  tourId?:    string;
 };
 
-export function StatCard({ label, value, sub, featured = false, href }: Props) {
+export function StatCard({ label, value, sub, featured = false, href, tourId }: Props) {
   const className = cn(
     "relative block rounded-2xl p-5 transition-all duration-200",
     href && "hover:-translate-y-0.5 hover:shadow-lg cursor-pointer",
@@ -59,7 +60,7 @@ export function StatCard({ label, value, sub, featured = false, href }: Props) {
   );
 
   if (href) {
-    return <Link href={href} className={className}>{content}</Link>;
+    return <Link href={href} className={className} data-tour-id={tourId}>{content}</Link>;
   }
-  return <div className={className}>{content}</div>;
+  return <div className={className} data-tour-id={tourId}>{content}</div>;
 }

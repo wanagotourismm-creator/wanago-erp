@@ -186,6 +186,7 @@ export function PackagesPage() {
 
       <PageHeader
         title="Packages"
+        tourId="tour-packages-header"
         description={`${packages.length} package${packages.length !== 1 ? "s" : ""} in your catalog`}
         actions={
           <>
@@ -200,6 +201,7 @@ export function PackagesPage() {
               size="sm"
               icon={<Plus size={14} />}
               onClick={() => { setEditingPackage(null); setFormOpen(true); }}
+              data-tour-id="tour-packages-add"
             >
               Add Package
             </Button>

@@ -5,14 +5,20 @@ type Props = {
   description?: string;
   actions?:    React.ReactNode;
   className?:  string;
+  // Lets the Onboarding Training walkthrough spotlight "you're on the
+  // right page" as a stable anchor, independent of any permission-gated
+  // action button that may or may not render for a given employee.
+  tourId?:     string;
 };
 
-export function PageHeader({ title, description, actions, className }: Props) {
+export function PageHeader({ title, description, actions, className, tourId }: Props) {
   return (
-    <div className={cn(
-      "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6",
-      className
-    )}>
+    <div
+      data-tour-id={tourId}
+      className={cn(
+        "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6",
+        className
+      )}>
       <div>
         <h1 className="text-xl font-semibold text-foreground">{title}</h1>
         {description && (

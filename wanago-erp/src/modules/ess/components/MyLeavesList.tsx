@@ -25,7 +25,7 @@ export function MyLeavesList({ leaves, onApply, onCancel }: Props) {
             <p className="text-xs text-muted-foreground">{leaves.length} request{leaves.length === 1 ? "" : "s"}</p>
           </div>
         </div>
-        <button onClick={onApply}
+        <button onClick={onApply} data-tour-id="tour-ess-apply-leave"
           className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm">
           <Plus size={13} /> Apply
         </button>

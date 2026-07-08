@@ -150,6 +150,7 @@ export function ReportsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Reports"
+        tourId="tour-reports-header"
         description="Generate and export reports across HR, attendance, payroll, and recruitment"
       />
 

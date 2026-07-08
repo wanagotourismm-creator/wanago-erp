@@ -178,6 +178,7 @@ export function SuppliersPage() {
 
       <PageHeader
         title="Suppliers"
+        tourId="tour-suppliers-header"
         description={`${suppliers.length} total supplier${suppliers.length !== 1 ? "s" : ""} in your directory`}
         actions={
           <>
@@ -193,6 +194,7 @@ export function SuppliersPage() {
                 size="sm"
                 icon={<Plus size={14} />}
                 onClick={() => { setEditingSupplier(null); setFormOpen(true); }}
+                data-tour-id="tour-suppliers-add"
               >
                 Add Supplier
               </Button>

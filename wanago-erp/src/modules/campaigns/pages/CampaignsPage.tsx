@@ -164,6 +164,7 @@ export function CampaignsPage() {
 
       <PageHeader
         title="Campaigns"
+        tourId="tour-campaigns-header"
         description={`${campaigns.length} total campaign${campaigns.length !== 1 ? "s" : ""} tracked`}
         actions={
           <>
@@ -178,6 +179,7 @@ export function CampaignsPage() {
               size="sm"
               icon={<Plus size={14} />}
               onClick={() => { setEditingCampaign(null); setFormOpen(true); }}
+              data-tour-id="tour-campaigns-add"
             >
               Add Campaign
             </Button>

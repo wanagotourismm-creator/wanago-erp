@@ -170,6 +170,7 @@ export function CustomersPage() {
 
       <PageHeader
         title="Customers"
+        tourId="tour-customers-header"
         description={`${customers.length} total customer${customers.length !== 1 ? "s" : ""} in your directory`}
         actions={
           <>
@@ -185,6 +186,7 @@ export function CustomersPage() {
                 size="sm"
                 icon={<Plus size={14} />}
                 onClick={() => { setEditingCustomer(null); setFormOpen(true); }}
+                data-tour-id="tour-customers-add"
               >
                 Add Customer
               </Button>

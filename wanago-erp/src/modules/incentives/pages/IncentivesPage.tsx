@@ -95,9 +95,10 @@ export function IncentivesPage() {
 
       <PageHeader
         title="Sales Incentives"
+        tourId="tour-incentives-header"
         description="Computed per the current Sales Incentive Structure — configure rates, thresholds, and toggles in the Settings tab."
         actions={
-          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()}>
+          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()} data-tour-id="tour-incentives-refresh">
             Refresh
           </Button>
         }

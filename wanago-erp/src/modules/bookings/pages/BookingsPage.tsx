@@ -223,6 +223,7 @@ export function BookingsPage() {
 
       <PageHeader
         title="Bookings"
+        tourId="tour-bookings-header"
         description={`${bookings.length} total booking${bookings.length !== 1 ? "s" : ""}`}
         actions={
           <>
@@ -240,6 +241,7 @@ export function BookingsPage() {
                 size="sm"
                 icon={<Plus size={14} />}
                 onClick={() => { setEditingBooking(null); setFormOpen(true); }}
+                data-tour-id="tour-bookings-add"
               >
                 New Booking
               </Button>

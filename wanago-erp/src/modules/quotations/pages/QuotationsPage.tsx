@@ -95,6 +95,7 @@ export function QuotationsPage() {
 
       <PageHeader
         title="Quotations"
+        tourId="tour-quotations-header"
         description={`${quotations.length} total quotation${quotations.length !== 1 ? "s" : ""}`}
         actions={
           <>
@@ -106,6 +107,7 @@ export function QuotationsPage() {
                 size="sm"
                 icon={<Plus size={14} />}
                 onClick={() => { setEditingQuotation(null); setFormOpen(true); }}
+                data-tour-id="tour-quotations-add"
               >
                 New Quotation
               </Button>

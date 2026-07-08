@@ -186,6 +186,7 @@ export function InvoicesPage() {
 
       <PageHeader
         title="Invoices"
+        tourId="tour-invoices-header"
         description={`${invoices.length} total invoice${invoices.length !== 1 ? "s" : ""}`}
         actions={
           <>
@@ -203,6 +204,7 @@ export function InvoicesPage() {
                 size="sm"
                 icon={<Plus size={14} />}
                 onClick={() => { setEditingInvoice(null); setFormOpen(true); }}
+                data-tour-id="tour-invoices-add"
               >
                 New Invoice
               </Button>

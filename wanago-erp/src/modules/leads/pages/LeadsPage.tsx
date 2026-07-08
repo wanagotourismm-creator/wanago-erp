@@ -235,6 +235,7 @@ export function LeadsPage() {
 
       <PageHeader
         title="Leads"
+        tourId="tour-leads-header"
         description={`${leads.length} total lead${leads.length !== 1 ? "s" : ""} in your pipeline`}
         actions={
           <>
@@ -249,6 +250,7 @@ export function LeadsPage() {
               size="sm"
               icon={<Plus size={14} />}
               onClick={() => { setEditingLead(null); setFormOpen(true); }}
+              data-tour-id="tour-leads-add"
             >
               Add Lead
             </Button>

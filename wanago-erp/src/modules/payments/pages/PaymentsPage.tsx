@@ -171,6 +171,7 @@ export function PaymentsPage() {
 
       <PageHeader
         title="Payments"
+        tourId="tour-payments-header"
         description={`${payments.length} payment${payments.length !== 1 ? "s" : ""} recorded`}
         actions={
           <>
@@ -184,7 +185,7 @@ export function PaymentsPage() {
             )}
             <BulkExportButton filenameBase="payments" rows={exportRows} />
             {canCreate && (
-              <Button size="sm" icon={<Plus size={14} />} onClick={() => setFormOpen(true)}>
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setFormOpen(true)} data-tour-id="tour-payments-add">
                 Record Payment
               </Button>
             )}

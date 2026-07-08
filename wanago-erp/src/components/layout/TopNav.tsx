@@ -53,6 +53,7 @@ export function TopNav() {
         onClick={openPanel}
         aria-label="Open Team Space"
         title="Team Space"
+        data-tour-id="tour-teamspace-open"
         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
       >
         <Mail size={15} />

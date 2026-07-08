@@ -3,13 +3,14 @@
 import { useState } from "react";
 import {
   GraduationCap, Plus, Pencil, Trash2, ChevronLeft, ChevronUp, ChevronDown,
-  MapPin, HelpCircle, Loader2,
+  MapPin, HelpCircle, Loader2, Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useTrainingContentAdmin } from "@/modules/onboarding-training/hooks/useTrainingContentAdmin";
 import { TrainingModuleForm } from "@/modules/onboarding-training/components/TrainingModuleForm";
 import { TrainingStepForm } from "@/modules/onboarding-training/components/TrainingStepForm";
+import { auth } from "@/lib/firebase/client";
 import type { TrainingModuleSchema, TrainingStepSchema } from "@/modules/onboarding-training/schemas";
 import type { TrainingModule, TrainingStep } from "@/modules/onboarding-training/types";
 
@@ -20,12 +21,39 @@ export function OnboardingTrainingAdminPage() {
     steps, loadingSteps,
     addModule, editModule, removeModule,
     addStep, editStep, removeStep, moveStep,
+    reloadModules,
   } = useTrainingContentAdmin();
 
   const [moduleFormOpen, setModuleFormOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<TrainingModule | null>(null);
   const [stepFormOpen, setStepFormOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<TrainingStep | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
+
+  async function handleSeed() {
+    if (!confirm("Generate the default training catalog? This covers every major section of the app — safe to run even if some modules already exist, those are skipped.")) return;
+    setSeeding(true);
+    setSeedResult(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/onboarding-training/seed", {
+        method: "POST",
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSeedResult(data.error ?? "Failed to generate training content");
+      } else {
+        setSeedResult(`Created ${data.modulesCreated} module${data.modulesCreated === 1 ? "" : "s"} with ${data.stepsCreated} step${data.stepsCreated === 1 ? "" : "s"}${data.skipped.length ? ` — skipped ${data.skipped.length} already existing` : ""}.`);
+        await reloadModules();
+      }
+    } catch {
+      setSeedResult("Failed to generate training content");
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   async function handleModuleSubmit(data: TrainingModuleSchema) {
     const result = editingModule ? await editModule(editingModule.id, data) : await addModule(data);
@@ -116,13 +144,21 @@ export function OnboardingTrainingAdminPage() {
         title="Onboarding Training"
         description="Interactive walkthroughs that teach staff how to use the ERP — build each module's steps here."
         actions={
-          <button onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
-            <Plus size={15} /> New Module
-          </button>
+          <>
+            <button onClick={handleSeed} disabled={seeding}
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:opacity-60 transition-colors">
+              {seeding ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+              Generate Default Training Content
+            </button>
+            <button onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
+              <Plus size={15} /> New Module
+            </button>
+          </>
         }
       />
 
+      {seedResult && <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">{seedResult}</div>}
       {error && <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>}
 
       {loadingModules ? (

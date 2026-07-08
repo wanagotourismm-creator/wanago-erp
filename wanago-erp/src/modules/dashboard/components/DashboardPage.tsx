@@ -71,6 +71,7 @@ export function DashboardPage() {
           sub="From completed bookings"
           href="/payments"
           featured
+          tourId="tour-dashboard-revenue"
         />
         <StatCard
           label="Active Leads"

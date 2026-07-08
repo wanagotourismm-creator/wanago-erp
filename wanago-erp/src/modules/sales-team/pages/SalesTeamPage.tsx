@@ -45,9 +45,10 @@ export function SalesTeamPage() {
 
       <PageHeader
         title="Sales Team Performance"
+        tourId="tour-salesteam-header"
         description="Leads, conversion, revenue and incentive estimate per sales agent"
         actions={
-          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()}>
+          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()} data-tour-id="tour-salesteam-refresh">
             Refresh
           </Button>
         }
