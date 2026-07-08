@@ -26,6 +26,7 @@ import { PayoutPanel }          from "@/modules/dashboard/components/PayoutPanel
 import { PayrollSummaryCard }   from "@/modules/dashboard/components/PayrollSummaryCard";
 import { PendingDuesPanel }     from "@/modules/dashboard/components/PendingDuesPanel";
 import { InternationalFollowUps } from "@/modules/dashboard/components/InternationalFollowUps";
+import { ContinueTrainingCard }   from "@/modules/dashboard/components/ContinueTrainingCard";
 import { SkeletonCard }         from "@/components/ui/Skeleton";
 import { formatCurrency }       from "@/lib/utils/helpers";
 
@@ -152,6 +153,9 @@ export function DashboardPage() {
             <SmartRecommendations />
             <TopPerformers />
           </div>
+
+          {/* Onboarding training — only renders when something's actionable */}
+          <ContinueTrainingCard />
 
           {/* Departing + Activity */}
           <div className="grid gap-4 lg:grid-cols-2">

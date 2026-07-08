@@ -80,9 +80,12 @@ export function TrainingStepForm({ open, step, onClose, onSubmit }: Props) {
               <input className={inputClass} placeholder="/leads" {...register("targetPath")} />
             </Field>
             <Field label="Target Element" error={errors.targetSelector?.message} required>
-              <input className={inputClass} placeholder="New Lead button" {...register("targetSelector")} />
+              <input className={inputClass} placeholder='[data-tour-id="leads-add-button"]' {...register("targetSelector")} />
             </Field>
           </div>
+          <p className="-mt-2 text-[11px] text-muted-foreground">
+            The element needs a matching <code className="rounded bg-muted px-1 py-0.5">data-tour-id</code> attribute added in code first — a plain description works as a placeholder until then, but the walkthrough won&apos;t be able to highlight it.
+          </p>
 
           <Field label="Explanation (English)" error={errors.explanationEn?.message} required>
             <textarea rows={2} className={cn(inputClass, "resize-none")} placeholder="What should the employee do here?" {...register("explanationEn")} />

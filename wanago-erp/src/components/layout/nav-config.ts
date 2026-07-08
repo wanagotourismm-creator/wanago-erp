@@ -28,6 +28,11 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/ess",
         icon:  "user-circle",
       },
+      {
+        label: "My Training",
+        href:  "/my-training",
+        icon:  "graduation-cap",
+      },
     ],
   },
   {

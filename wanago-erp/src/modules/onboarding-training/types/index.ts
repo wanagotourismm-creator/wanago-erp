@@ -21,11 +21,23 @@ export type TrainingStep = FirestoreRecord & {
   moduleId:       string;
   order:          number;
   // Which live page this step points at, and how the walkthrough engine
-  // (Stage 2) locates the real element on it — a CSS selector once the
-  // target element has a data-tour-id, or a plain description until then.
+  // locates the real element on it — a CSS selector such as
+  // `[data-tour-id="leads-add-button"]` once the target element has that
+  // attribute added to it, or a plain description until then.
   targetPath:     string;
   targetSelector: string;
   explanationEn:  string;
   explanationMl:  string;
   quiz:           TrainingStepQuiz | null;
+};
+
+// One doc per (user, module) — id is deterministic (`${userId}__${moduleId}`)
+// so re-opening the same module always finds the same progress record
+// instead of creating duplicates.
+export type TrainingProgress = FirestoreRecord & {
+  userId:            string;
+  moduleId:          string;
+  currentStepOrder:  number;
+  completedStepIds:  string[];
+  completedAt:       FirestoreRecord["createdAt"] | null;
 };

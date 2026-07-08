@@ -1,0 +1,81 @@
+"use client";
+
+import { ChevronLeft, ChevronRight, X, Languages, HelpCircle, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils/helpers";
+import type { TrainingStep } from "@/modules/onboarding-training/types";
+
+type Props = {
+  step:         TrainingStep;
+  style:        React.CSSProperties;
+  notFound:     boolean;
+  language:     "en" | "ml";
+  stepNumber:   number;
+  totalSteps:   number;
+  isLastStep:   boolean;
+  quizPassed:   boolean;
+  onLanguageChange: (lang: "en" | "ml") => void;
+  onNext:  () => void;
+  onBack:  () => void;
+  onExit:  () => void;
+};
+
+export function TrainingTooltip({
+  step, style, notFound, language, stepNumber, totalSteps, isLastStep, quizPassed,
+  onLanguageChange, onNext, onBack, onExit,
+}: Props) {
+  const explanation = language === "en" ? step.explanationEn : step.explanationMl;
+  const hasQuiz = !!step.quiz;
+  const needsQuiz = hasQuiz && !quizPassed;
+
+  return (
+    <div
+      style={style}
+      className="fixed z-[202] w-[92vw] max-w-[340px] rounded-2xl border border-primary/30 bg-card shadow-2xl overflow-hidden modal-enter"
+    >
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Step {stepNumber} of {totalSteps}
+        </p>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-lg border border-border overflow-hidden">
+            <button onClick={() => onLanguageChange("en")}
+              className={cn("px-2 py-1 text-[11px] font-semibold transition-colors", language === "en" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground")}>
+              EN
+            </button>
+            <button onClick={() => onLanguageChange("ml")}
+              className={cn("px-2 py-1 text-[11px] font-semibold transition-colors", language === "ml" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground")}>
+              ML
+            </button>
+          </div>
+          <button onClick={onExit} title="Exit training" className="text-muted-foreground hover:text-foreground"><X size={15} /></button>
+        </div>
+      </div>
+
+      <div className="px-4 py-3">
+        {notFound && (
+          <div className="mb-2 flex items-start gap-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-400">
+            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+            <span>Couldn&apos;t find this element on the page — the explanation below still applies.</span>
+          </div>
+        )}
+        <p className="text-sm leading-relaxed text-foreground">{explanation}</p>
+        {needsQuiz && (
+          <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+            <HelpCircle size={12} /> This step has a quiz — answer it to continue.
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-2.5">
+        <button onClick={onBack} disabled={stepNumber === 1}
+          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+          <ChevronLeft size={14} /> Back
+        </button>
+        <button onClick={onNext}
+          className="flex items-center gap-1 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-colors">
+          {needsQuiz ? "Take Quiz" : isLastStep ? "Finish" : "Next"} <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}

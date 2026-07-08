@@ -10,6 +10,7 @@ import { RouteGuard } from "@/components/providers/RouteGuard";
 import { TeamSpacePanel } from "@/modules/teamspace/components/TeamSpacePanel";
 import { AIAssistantPanel } from "@/modules/aiassistant/components/AIAssistantPanel";
 import { PendingNotificationsModal } from "@/modules/notifications/components/PendingNotificationsModal";
+import { TrainingWalkthroughOverlay } from "@/modules/onboarding-training/components/TrainingWalkthroughOverlay";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
 import { startPresenceHeartbeat } from "@/lib/presence";
@@ -78,6 +79,7 @@ export function AppShell({ children, requiredPage, fullBleed }: Props) {
         <TeamSpacePanel />
         <AIAssistantPanel />
         <PendingNotificationsModal />
+        <TrainingWalkthroughOverlay />
 
       </div>
     </RouteGuard>
