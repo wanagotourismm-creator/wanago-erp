@@ -15,6 +15,13 @@ export type TrainingStepQuiz = {
 export type TrainingModule = FirestoreRecord & {
   title:       string;
   description: string | null;
+  // Controls listing order on My Training / the admin catalog — lower
+  // shows first. Reorderable via up/down arrows in the admin UI.
+  order:       number;
+  // Admin setting only, tracked but NOT currently enforced anywhere — no
+  // ERP section is gated behind this yet (that needs an explicit decision
+  // on which modules qualify before any access restriction goes live).
+  mandatory:   boolean;
 };
 
 export type TrainingStep = FirestoreRecord & {
@@ -45,4 +52,18 @@ export type TrainingProgress = FirestoreRecord & {
   currentStepOrder:  number;
   completedStepIds:  string[];
   completedAt:       FirestoreRecord["createdAt"] | null;
+};
+
+// One per module completion — auto-created the moment an employee finishes
+// every step (and passes every quiz) in a module. certificateId is a short
+// human-shareable verification code printed on the PDF itself.
+export type TrainingCertificate = FirestoreRecord & {
+  employeeUserId: string;
+  employeeName:   string;
+  employeeEmail:  string;
+  moduleId:       string;
+  moduleTitle:    string;
+  certificateId:  string;
+  pdfUrl:         string;
+  completedAt:    FirestoreRecord["createdAt"];
 };

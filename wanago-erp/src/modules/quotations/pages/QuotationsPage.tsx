@@ -117,7 +117,7 @@ export function QuotationsPage() {
       />
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-tour-id="tour-quotations-stats" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: "Total Quotations", value: stats.total,     icon: FileText,     color: "text-primary"   },
           { label: "Sent",             value: stats.sent,      icon: Send,         color: "text-blue-600"  },
@@ -139,7 +139,7 @@ export function QuotationsPage() {
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div data-tour-id="tour-quotations-filters" className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
         {STATUS_FILTERS.map((f) => (
           <button
             key={f.value}

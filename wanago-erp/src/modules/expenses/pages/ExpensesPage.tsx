@@ -166,7 +166,7 @@ export function ExpensesPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
-            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-expenses-import">
               Import
             </Button>
             <BulkExportButton filenameBase="expenses" rows={exportRows} />
@@ -183,7 +183,7 @@ export function ExpensesPage() {
       />
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-tour-id="tour-expenses-stats" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: "Total Expenses", value: stats.count,                 icon: Receipt,      color: "text-primary"   },
           { label: "Pending",        value: stats.pending,                icon: Clock,        color: "text-amber-600" },

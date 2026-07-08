@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, CheckCircle2, X } from "lucide-react";
+import { Loader2, CheckCircle2, X, Award, Download } from "lucide-react";
 import { useTrainingWalkthrough } from "@/modules/onboarding-training/hooks/useTrainingWalkthrough";
 import { useTrainingAudio } from "@/modules/onboarding-training/hooks/useTrainingAudio";
 import { TrainingTooltip } from "@/modules/onboarding-training/components/TrainingTooltip";
@@ -14,7 +14,7 @@ const NO_AUDIO_DWELL_MS = 6000; // presentation-style pacing when there's no nar
 export function TrainingWalkthroughOverlay() {
   const {
     active, currentStep, stepIndex, steps, language, isLastStep, quizPassed,
-    quizModalOpen, quizSelected, quizResult, justCompleted, moduleTitle, autoAdvance,
+    quizModalOpen, quizSelected, quizResult, justCompleted, justIssuedCertificate, moduleTitle, autoAdvance,
     setLanguage, setAutoAdvance, selectAnswer, submitQuiz, reviewStep, goNext, goBack, exit, dismissCompletion,
   } = useTrainingWalkthrough();
 
@@ -94,6 +94,21 @@ export function TrainingWalkthroughOverlay() {
           </div>
           <h2 className="text-base font-semibold text-foreground">Module Complete!</h2>
           <p className="mt-1 text-sm text-muted-foreground">You&apos;ve finished &ldquo;{justCompleted}&rdquo;.</p>
+
+          {justIssuedCertificate && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-left">
+              <Award size={18} className="flex-shrink-0 text-primary" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-foreground">Certificate earned!</p>
+                <p className="text-[11px] text-muted-foreground">{justIssuedCertificate.certificateId}{justIssuedCertificate.employeeEmail && " · emailed to you"}</p>
+              </div>
+              <a href={justIssuedCertificate.pdfUrl} target="_blank" rel="noreferrer" title="Download PDF"
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-primary hover:bg-primary/10 transition-colors">
+                <Download size={15} />
+              </a>
+            </div>
+          )}
+
           <button onClick={dismissCompletion}
             className="mt-4 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
             Done

@@ -1,17 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { GraduationCap, CheckCircle2, PlayCircle, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { GraduationCap, CheckCircle2, PlayCircle, Loader2, Award, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useMyTraining } from "@/modules/onboarding-training/hooks/useMyTraining";
 import { useTrainingWalkthrough } from "@/modules/onboarding-training/hooks/useTrainingWalkthrough";
+import { fetchMyCertificates } from "@/modules/onboarding-training/services/certificate.service";
+import { useAuthStore } from "@/store/auth.store";
+import { formatDate } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
+import type { TrainingCertificate } from "@/modules/onboarding-training/types";
 
 export function MyTrainingPage() {
   const { items, loading, error } = useMyTraining();
   const { startModule, starting } = useTrainingWalkthrough();
+  const { user } = useAuthStore();
   const [startingId, setStartingId] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<TrainingCertificate[]>([]);
+  const [certsLoading, setCertsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchMyCertificates(user.uid).then(setCertificates).catch(() => {}).finally(() => setCertsLoading(false));
+  }, [user]);
 
   async function handleStart(moduleId: string) {
     const item = items.find((i) => i.module.id === moduleId);
@@ -74,6 +86,29 @@ export function MyTrainingPage() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {!certsLoading && certificates.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">My Certificates</h2>
+          <div className="space-y-2">
+            {certificates.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                  <Award size={16} className="text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">{c.moduleTitle}</p>
+                  <p className="text-[11px] text-muted-foreground">{c.certificateId} · Completed {formatDate(c.completedAt)}</p>
+                </div>
+                <a href={c.pdfUrl} target="_blank" rel="noreferrer" title="Download PDF"
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                  <Download size={15} />
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

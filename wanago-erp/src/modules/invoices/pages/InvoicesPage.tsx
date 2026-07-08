@@ -195,7 +195,7 @@ export function InvoicesPage() {
             </Button>
             <BulkExportButton filenameBase="invoices" rows={exportRows} />
             {canCreate && (
-              <Button variant="outline" size="sm" icon={<UploadCloud size={14} />} onClick={() => setImportOpen(true)}>
+              <Button variant="outline" size="sm" icon={<UploadCloud size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-invoices-import">
                 Import
               </Button>
             )}
@@ -214,7 +214,7 @@ export function InvoicesPage() {
       />
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-tour-id="tour-invoices-stats" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: "Total Invoices", value: stats.total,                   icon: FileText,      color: "text-primary"   },
           { label: "Paid",           value: stats.paid,                    icon: CheckCircle2,  color: "text-green-600" },

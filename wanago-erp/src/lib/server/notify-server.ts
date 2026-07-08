@@ -235,7 +235,15 @@ function renderLeaveDecisionEmailHtml(params: {
 let gmailTransport: ReturnType<typeof nodemailer.createTransport> | null = null;
 let gmailTransportUser: string | null = null;
 
-async function sendViaGmail(params: { to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string } | null> {
+type EmailAttachment = { filename: string; url: string };
+
+async function urlToBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  const buf = Buffer.from(await res.arrayBuffer());
+  return buf.toString("base64");
+}
+
+async function sendViaGmail(params: { to: string; subject: string; html: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string } | null> {
   const user = await getIntegrationSecret("gmailUser", "GMAIL_USER");
   const pass = await getIntegrationSecret("gmailAppPassword", "GMAIL_APP_PASSWORD");
   if (!user || !pass) return null; // not configured — caller falls back to Resend
@@ -251,6 +259,9 @@ async function sendViaGmail(params: { to: string; subject: string; html: string 
       to: params.to,
       subject: params.subject,
       html: params.html,
+      // nodemailer fetches straight from the Storage URL — no need to
+      // download/re-encode the file ourselves.
+      attachments: params.attachments?.map((a) => ({ filename: a.filename, path: a.url })),
     });
     return { ok: true };
   } catch (e) {
@@ -258,13 +269,19 @@ async function sendViaGmail(params: { to: string; subject: string; html: string 
   }
 }
 
-async function sendViaResend(params: { to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string }> {
+async function sendViaResend(params: { to: string; subject: string; html: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = await getIntegrationSecret("resendApiKey", "RESEND_API_KEY");
   if (!apiKey) {
     return { ok: false, error: "Email isn't set up yet — configure Gmail SMTP or a Resend API key in Admin → Integrations." };
   }
 
   const fromEmail = await getIntegrationSecret("resendFromEmail", "RESEND_FROM_EMAIL");
+  // Resend's API wants attachment content inline as base64, unlike Gmail
+  // which can just stream from the URL — fetch and encode here instead.
+  const attachments = params.attachments
+    ? await Promise.all(params.attachments.map(async (a) => ({ filename: a.filename, content: await urlToBase64(a.url) })))
+    : undefined;
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -273,6 +290,7 @@ async function sendViaResend(params: { to: string; subject: string; html: string
       to: params.to,
       subject: params.subject,
       html: params.html,
+      attachments,
     }),
   });
 
@@ -286,7 +304,7 @@ async function sendViaResend(params: { to: string; subject: string; html: string
 // Shared low-level sender — every email (generic notification or a named
 // template like the welcome email) funnels through here. Tries Gmail SMTP
 // first (if configured), falls back to Resend.
-async function sendRawEmail(params: { to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string }> {
+async function sendRawEmail(params: { to: string; subject: string; html: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string }> {
   const viaGmail = await sendViaGmail(params);
   if (viaGmail) return viaGmail;
   return sendViaResend(params);
@@ -312,6 +330,50 @@ export async function sendWelcomeEmail(params: {
     to: params.to,
     subject: `Welcome to Team Wanago, ${params.fullName}! ✈️`,
     html: renderWelcomeEmailHtml(params.fullName, params.designation),
+  });
+}
+
+function renderCertificateEmailHtml(employeeName: string, moduleTitle: string, certificateId: string) {
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <p style="font-size:40px;margin:0 0 8px;">🎓</p>
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">Certificate of Completion</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Congratulations, ${employeeName}! 🎉</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
+            You've completed the <strong>${moduleTitle}</strong> training module on Wanago ERP. Your certificate is attached to this email as a PDF — keep it for your records.
+          </p>
+          <p style="font-size:12px;color:#999;margin:0 0 24px;">Certificate ID: <strong>${certificateId}</strong></p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team Wanago</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent automatically when an employee finishes every step (and passes every
+// quiz) in a training module — see useTrainingWalkthrough's completion
+// handler. Best-effort: a failed email never blocks the completion itself,
+// the certificate record and PDF already exist in Firestore/Storage either way.
+export async function sendCertificateEmail(params: {
+  to: string; employeeName: string; moduleTitle: string; certificateId: string; pdfUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendRawEmail({
+    to: params.to,
+    subject: `Your Certificate: ${params.moduleTitle} ✈️`,
+    html: renderCertificateEmailHtml(params.employeeName, params.moduleTitle, params.certificateId),
+    attachments: [{ filename: `${params.certificateId}.pdf`, url: params.pdfUrl }],
   });
 }
 

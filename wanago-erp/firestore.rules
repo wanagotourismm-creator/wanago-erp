@@ -209,11 +209,19 @@ service cloud.firestore {
     }
 
     // Progress is private to the employee it belongs to, plus Admin/HR for
-    // compliance tracking (mirrors the eventual "certificates" visibility).
+    // compliance tracking (mirrors the certificates visibility below).
     match /onboardingTrainingProgress/{id} {
       allow read:   if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Certificates are immutable once issued — an employee can create their
+    // own (on module completion) and read their own; Admin/HR can read
+    // everyone's for compliance tracking, but nobody edits/deletes one.
+    match /trainingCertificates/{id} {
+      allow read:   if isAuthenticated() && (resource.data.employeeUserId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.employeeUserId == request.auth.uid;
     }
 
     // ── Notifications ────────────────────────────────────────

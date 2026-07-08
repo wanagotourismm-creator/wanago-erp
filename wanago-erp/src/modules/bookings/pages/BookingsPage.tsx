@@ -232,7 +232,7 @@ export function BookingsPage() {
             </Button>
             <BulkExportButton filenameBase="bookings" rows={exportRows} />
             {canCreate && (
-              <Button variant="outline" size="sm" icon={<UploadCloud size={14} />} onClick={() => setImportOpen(true)}>
+              <Button variant="outline" size="sm" icon={<UploadCloud size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-bookings-import">
                 Import
               </Button>
             )}
@@ -251,7 +251,7 @@ export function BookingsPage() {
       />
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-tour-id="tour-bookings-stats" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: "Total Bookings", value: stats.total,                    icon: Briefcase,    color: "text-primary"    },
           { label: "Pending",        value: stats.pending,                  icon: Clock,        color: "text-amber-600"  },

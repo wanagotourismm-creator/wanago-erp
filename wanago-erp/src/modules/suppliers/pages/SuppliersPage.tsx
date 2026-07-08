@@ -185,7 +185,7 @@ export function SuppliersPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
-            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-suppliers-import">
               Import
             </Button>
             <BulkExportButton filenameBase="suppliers" rows={exportRows} />
@@ -204,7 +204,7 @@ export function SuppliersPage() {
       />
 
       {/* Category filter tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div data-tour-id="tour-suppliers-filters" className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
         {CATEGORY_FILTERS.map((f) => (
           <button
             key={f.value}

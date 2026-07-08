@@ -275,7 +275,7 @@ export function EmployeesPage() {
               Refresh
             </Button>
             {canManage && (
-              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-employees-import">
                 Import
               </Button>
             )}
@@ -299,7 +299,7 @@ export function EmployeesPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-tour-id="tour-employees-stats" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: "Total Employees", value: stats.total,     icon: Users,    color: "text-primary"   },
           { label: "Active",          value: stats.active,     icon: UserCheck, color: "text-green-600" },
@@ -320,7 +320,7 @@ export function EmployeesPage() {
         ))}
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div data-tour-id="tour-employees-filters" className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
         {["", ...DEPARTMENTS].map(d => (
           <button key={d || "all"} onClick={() => setDeptFilter(d)}
             className={cn(

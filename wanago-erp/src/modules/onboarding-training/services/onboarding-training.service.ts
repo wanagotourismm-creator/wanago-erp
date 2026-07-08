@@ -15,22 +15,32 @@ const moduleRepo = new TrainingModuleRepository();
 const stepRepo = new TrainingStepRepository();
 
 // ── Modules ──────────────────────────────────────────────────
+// Sorted by `order` (lower first) — legacy modules created before this
+// field existed fall back to alphabetical, after any ordered ones.
 export async function fetchTrainingModules(): Promise<TrainingModule[]> {
   const modules = await moduleRepo.findMany();
-  return modules.sort((a, b) => a.title.localeCompare(b.title));
+  return modules.sort((a, b) => {
+    const ao = a.order ?? Infinity, bo = b.order ?? Infinity;
+    if (ao !== bo) return ao - bo;
+    return a.title.localeCompare(b.title);
+  });
 }
 
 export async function createTrainingModule(data: TrainingModuleSchema, createdBy: string): Promise<TrainingModule> {
+  const existing = await moduleRepo.findMany();
+  const nextOrder = existing.reduce((max, m) => Math.max(max, m.order ?? -1), -1) + 1;
   return moduleRepo.create({
     title:       data.title,
     description: data.description || null,
+    mandatory:   data.mandatory ?? false,
+    order:       nextOrder,
     status:      "active",
     createdBy,
   });
 }
 
 export async function updateTrainingModule(id: string, data: TrainingModuleSchema): Promise<void> {
-  return moduleRepo.update(id, { title: data.title, description: data.description || null });
+  return moduleRepo.update(id, { title: data.title, description: data.description || null, mandatory: data.mandatory ?? false });
 }
 
 // Cascades to the module's steps too — an orphaned step with no parent
@@ -39,6 +49,12 @@ export async function deleteTrainingModule(id: string): Promise<void> {
   const steps = await fetchTrainingSteps(id);
   await Promise.all(steps.map((s) => stepRepo.delete(s.id)));
   await moduleRepo.delete(id);
+}
+
+// Persists a full reordering (after a move-up/move-down action) by
+// re-stamping every module's `order` to match its new position.
+export async function reorderTrainingModules(modules: TrainingModule[]): Promise<void> {
+  await Promise.all(modules.map((m, i) => moduleRepo.update(m.id, { order: i })));
 }
 
 // ── Steps ────────────────────────────────────────────────────

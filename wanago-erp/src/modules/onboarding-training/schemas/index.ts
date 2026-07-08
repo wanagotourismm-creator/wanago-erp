@@ -3,6 +3,7 @@ import { z } from "zod";
 export const trainingModuleSchema = z.object({
   title:       z.string().min(2, "Title is required").max(100),
   description: z.string().max(300).optional().or(z.literal("")),
+  mandatory:   z.boolean().default(false),
 });
 
 export type TrainingModuleSchema = z.infer<typeof trainingModuleSchema>;

@@ -177,7 +177,7 @@ export function CustomersPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
-            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-customers-import">
               Import
             </Button>
             <BulkExportButton filenameBase="customers" rows={exportRows} />
@@ -196,7 +196,7 @@ export function CustomersPage() {
       />
 
       {/* Type filter tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div data-tour-id="tour-customers-filters" className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
         {TYPE_FILTERS.map((f) => (
           <button
             key={f.value}

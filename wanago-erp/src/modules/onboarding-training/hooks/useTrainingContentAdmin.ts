@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import {
-  fetchTrainingModules, createTrainingModule, updateTrainingModule, deleteTrainingModule,
+  fetchTrainingModules, createTrainingModule, updateTrainingModule, deleteTrainingModule, reorderTrainingModules,
   fetchTrainingSteps, createTrainingStep, updateTrainingStep, deleteTrainingStep, reorderTrainingSteps,
 } from "@/modules/onboarding-training/services/onboarding-training.service";
 import type { TrainingModule, TrainingStep } from "@/modules/onboarding-training/types";
@@ -54,7 +54,7 @@ export function useTrainingContentAdmin() {
     if (!user) return { error: "Not signed in" };
     try {
       const m = await createTrainingModule(data, user.uid);
-      setModules((p) => [...p, m].sort((a, b) => a.title.localeCompare(b.title)));
+      setModules((p) => [...p, m]); // new modules always land at the end (next order)
       return { error: null };
     } catch { return { error: "Failed to create training module" }; }
   }
@@ -62,7 +62,7 @@ export function useTrainingContentAdmin() {
   async function editModule(id: string, data: TrainingModuleSchema) {
     try {
       await updateTrainingModule(id, data);
-      setModules((p) => p.map((m) => (m.id === id ? { ...m, title: data.title, description: data.description || null } : m)));
+      setModules((p) => p.map((m) => (m.id === id ? { ...m, title: data.title, description: data.description || null, mandatory: data.mandatory ?? false } : m)));
       return { error: null };
     } catch { return { error: "Failed to update training module" }; }
   }
@@ -74,6 +74,23 @@ export function useTrainingContentAdmin() {
       if (selectedModuleId === id) setSelectedModuleId(null);
       return { error: null };
     } catch { return { error: "Failed to delete training module" }; }
+  }
+
+  async function moveModule(id: string, direction: "up" | "down") {
+    const index = modules.findIndex((m) => m.id === id);
+    if (index === -1) return;
+    const swapWith = direction === "up" ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= modules.length) return;
+
+    const reordered = [...modules];
+    [reordered[index], reordered[swapWith]] = [reordered[swapWith], reordered[index]];
+    setModules(reordered);
+    try {
+      await reorderTrainingModules(reordered);
+    } catch {
+      setError("Failed to save module order");
+      setModules(modules); // revert on failure
+    }
   }
 
   async function addStep(data: TrainingStepSchema) {
@@ -130,7 +147,7 @@ export function useTrainingContentAdmin() {
     modules, loadingModules, error,
     selectedModule, selectedModuleId, setSelectedModuleId,
     steps, loadingSteps,
-    addModule, editModule, removeModule,
+    addModule, editModule, removeModule, moveModule,
     addStep, editStep, removeStep, moveStep,
     reloadModules: loadModules,
   };

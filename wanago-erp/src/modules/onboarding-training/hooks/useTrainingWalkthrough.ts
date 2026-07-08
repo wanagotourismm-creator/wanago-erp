@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import { useTrainingWalkthroughStore } from "@/store/training-walkthrough.store";
 import { fetchTrainingSteps } from "@/modules/onboarding-training/services/onboarding-training.service";
 import { ensureProgress, updateProgress } from "@/modules/onboarding-training/services/training-progress.service";
-import type { TrainingModule } from "@/modules/onboarding-training/types";
+import { issueCertificate } from "@/modules/onboarding-training/services/certificate.service";
+import type { TrainingModule, TrainingCertificate } from "@/modules/onboarding-training/types";
 
 export function useTrainingWalkthrough() {
   const store = useTrainingWalkthroughStore();
@@ -16,6 +17,10 @@ export function useTrainingWalkthrough() {
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
   const [starting, setStarting] = useState(false);
   const [justCompleted, setJustCompleted] = useState<string | null>(null); // module title, for a completion toast
+  const [justIssuedCertificate, setJustIssuedCertificate] = useState<TrainingCertificate | null>(null);
+  // Whether this module was already completed before this session started
+  // (a re-watch) — a certificate is only ever issued the first time.
+  const alreadyCompletedRef = useRef(false);
 
   const currentStep = store.steps[store.stepIndex] ?? null;
   const isLastStep = store.stepIndex >= store.steps.length - 1;
@@ -30,6 +35,7 @@ export function useTrainingWalkthrough() {
       ]);
       if (steps.length === 0) return;
       setCompletedStepIds(progress.completedStepIds ?? []);
+      alreadyCompletedRef.current = !!progress.completedAt;
       // A previously-completed module reopens from the start (a re-watch),
       // not stuck at the last step with nowhere to go.
       const resumeIndex = progress.completedAt ? 0 : Math.min(progress.currentStepOrder ?? 0, steps.length - 1);
@@ -63,6 +69,33 @@ export function useTrainingWalkthrough() {
       await updateProgress(user.uid, store.moduleId, {
         currentStepOrder: store.stepIndex, completedStepIds: nextCompleted, completed: true,
       });
+
+      if (!alreadyCompletedRef.current) {
+        try {
+          const cert = await issueCertificate({
+            employeeUserId: user.uid,
+            employeeName:   user.displayName ?? user.email ?? "Team Wanago",
+            employeeEmail:  user.email ?? "",
+            moduleId:       store.moduleId,
+            moduleTitle:    store.moduleTitle,
+          });
+          setJustIssuedCertificate(cert);
+          if (user.email) {
+            fetch("/api/onboarding-training/certificate-email", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                to: user.email, employeeName: cert.employeeName, moduleTitle: cert.moduleTitle,
+                certificateId: cert.certificateId, pdfUrl: cert.pdfUrl,
+              }),
+            }).catch(() => {});
+          }
+        } catch {
+          // Certificate issuance is best-effort — completion itself already
+          // succeeded (progress is saved), so this never blocks the user.
+        }
+      }
+
       setJustCompleted(store.moduleTitle);
       store.exit();
       return;
@@ -77,7 +110,7 @@ export function useTrainingWalkthrough() {
     if (store.stepIndex > 0) store.goToStep(store.stepIndex - 1);
   }
 
-  function dismissCompletion() { setJustCompleted(null); }
+  function dismissCompletion() { setJustCompleted(null); setJustIssuedCertificate(null); }
 
   // A step's quiz counts as passed either this session (quizResult) or
   // already-persisted from a previous session (completedStepIds) — so
@@ -85,7 +118,7 @@ export function useTrainingWalkthrough() {
   const quizPassed = !!currentStep && (store.quizResult === "correct" || completedStepIds.includes(currentStep.id));
 
   return {
-    ...store, currentStep, isLastStep, starting, justCompleted, completedStepIds, quizPassed,
+    ...store, currentStep, isLastStep, starting, justCompleted, justIssuedCertificate, completedStepIds, quizPassed,
     startModule, goNext, goBack, dismissCompletion,
   };
 }

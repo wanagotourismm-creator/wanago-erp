@@ -179,7 +179,7 @@ export function PaymentsPage() {
               Refresh
             </Button>
             {canCreate && (
-              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>
+              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-payments-import">
                 Import
               </Button>
             )}
@@ -194,7 +194,7 @@ export function PaymentsPage() {
       />
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div data-tour-id="tour-payments-stats" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { label: "Total Payments",  value: stats.total,                          icon: Wallet,     color: "text-primary"    },
           { label: "Total Collected", value: formatAmount(stats.totalCollected),   icon: TrendingUp, color: "text-green-600"  },

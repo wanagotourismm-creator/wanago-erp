@@ -17,11 +17,11 @@ const inp = "w-full rounded-xl border border-input bg-background px-3 py-2.5 tex
 export function TrainingModuleForm({ open, module, onClose, onSubmit }: Props) {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<TrainingModuleSchema>({
     resolver: zodResolver(trainingModuleSchema),
-    defaultValues: { title: "", description: "" },
+    defaultValues: { title: "", description: "", mandatory: false },
   });
 
   useEffect(() => {
-    if (open) reset({ title: module?.title ?? "", description: module?.description ?? "" });
+    if (open) reset({ title: module?.title ?? "", description: module?.description ?? "", mandatory: module?.mandatory ?? false });
   }, [open, module, reset]);
 
   if (!open) return null;
@@ -48,6 +48,13 @@ export function TrainingModuleForm({ open, module, onClose, onSubmit }: Props) {
             <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Description</label>
             <input className={inp} placeholder="What does this module cover?" {...register("description")} />
           </div>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input type="checkbox" className="h-4 w-4 rounded border-input" {...register("mandatory")} />
+            Mandatory
+          </label>
+          <p className="text-[11px] text-muted-foreground">
+            Tracked for reporting only right now — this doesn&apos;t restrict access to any ERP section yet.
+          </p>
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-border bg-muted/30 px-5 py-3">

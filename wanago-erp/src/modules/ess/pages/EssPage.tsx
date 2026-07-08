@@ -157,7 +157,7 @@ export function EssPage() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div data-tour-id="tour-ess-stats" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <HrStatCard
                 label="Attendance This Month"
                 value={personalStats.attendancePct === null ? "—" : `${personalStats.attendancePct}%`}

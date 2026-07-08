@@ -1,25 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   GraduationCap, Plus, Pencil, Trash2, ChevronLeft, ChevronUp, ChevronDown,
-  MapPin, HelpCircle, Loader2, Sparkles,
+  MapPin, HelpCircle, Loader2, Sparkles, Award, Download,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useTrainingContentAdmin } from "@/modules/onboarding-training/hooks/useTrainingContentAdmin";
 import { TrainingModuleForm } from "@/modules/onboarding-training/components/TrainingModuleForm";
 import { TrainingStepForm } from "@/modules/onboarding-training/components/TrainingStepForm";
+import { fetchAllCertificates } from "@/modules/onboarding-training/services/certificate.service";
 import { auth } from "@/lib/firebase/client";
+import { formatDate } from "@/lib/utils/helpers";
 import type { TrainingModuleSchema, TrainingStepSchema } from "@/modules/onboarding-training/schemas";
-import type { TrainingModule, TrainingStep } from "@/modules/onboarding-training/types";
+import type { TrainingModule, TrainingStep, TrainingCertificate } from "@/modules/onboarding-training/types";
 
 export function OnboardingTrainingAdminPage() {
   const {
     modules, loadingModules, error,
     selectedModule, selectedModuleId, setSelectedModuleId,
     steps, loadingSteps,
-    addModule, editModule, removeModule,
+    addModule, editModule, removeModule, moveModule,
     addStep, editStep, removeStep, moveStep,
     reloadModules,
   } = useTrainingContentAdmin();
@@ -30,9 +32,18 @@ export function OnboardingTrainingAdminPage() {
   const [editingStep, setEditingStep] = useState<TrainingStep | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [showCertificates, setShowCertificates] = useState(false);
+  const [certificates, setCertificates] = useState<TrainingCertificate[]>([]);
+  const [certsLoading, setCertsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!showCertificates) return;
+    setCertsLoading(true);
+    fetchAllCertificates().then(setCertificates).catch(() => {}).finally(() => setCertsLoading(false));
+  }, [showCertificates]);
 
   async function handleSeed() {
-    if (!confirm("Generate the default training catalog? This covers every major section of the app — safe to run even if some modules already exist, those are skipped.")) return;
+    if (!confirm("Generate/refresh the default training catalog? New modules are created; modules that already exist have their steps refreshed to match the latest content (any in-progress employee progress on a refreshed module resets). Manually-created modules aren't touched.")) return;
     setSeeding(true);
     setSeedResult(null);
     try {
@@ -45,7 +56,7 @@ export function OnboardingTrainingAdminPage() {
       if (!res.ok) {
         setSeedResult(data.error ?? "Failed to generate training content");
       } else {
-        setSeedResult(`Created ${data.modulesCreated} module${data.modulesCreated === 1 ? "" : "s"} with ${data.stepsCreated} step${data.stepsCreated === 1 ? "" : "s"}${data.skipped.length ? ` — skipped ${data.skipped.length} already existing` : ""}.`);
+        setSeedResult(`Created ${data.modulesCreated} module${data.modulesCreated === 1 ? "" : "s"}, refreshed ${data.modulesRefreshed} — ${data.stepsCreated} total steps now.`);
         await reloadModules();
       }
     } catch {
@@ -137,6 +148,42 @@ export function OnboardingTrainingAdminPage() {
     );
   }
 
+  // ── All-certificates view (compliance tracking) ───────────────
+  if (showCertificates) {
+    return (
+      <div>
+        <button onClick={() => setShowCertificates(false)} className="mb-3 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft size={15} /> All Modules
+        </button>
+        <PageHeader title="Certificates" description="Every training completion certificate issued, across all employees." />
+
+        {certsLoading ? (
+          <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+        ) : certificates.length === 0 ? (
+          <EmptyState title="No certificates issued yet" description="Certificates appear here as employees complete training modules" icon={<Award size={20} />} />
+        ) : (
+          <div className="space-y-2">
+            {certificates.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                  <Award size={16} className="text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">{c.employeeName} — {c.moduleTitle}</p>
+                  <p className="text-[11px] text-muted-foreground">{c.certificateId} · Completed {formatDate(c.completedAt)}</p>
+                </div>
+                <a href={c.pdfUrl} target="_blank" rel="noreferrer" title="Download PDF"
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                  <Download size={15} />
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Modules list view ─────────────────────────────────────────
   return (
     <div>
@@ -145,10 +192,14 @@ export function OnboardingTrainingAdminPage() {
         description="Interactive walkthroughs that teach staff how to use the ERP — build each module's steps here."
         actions={
           <>
+            <button onClick={() => setShowCertificates(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+              <Award size={15} /> Certificates
+            </button>
             <button onClick={handleSeed} disabled={seeding}
               className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:opacity-60 transition-colors">
               {seeding ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-              Generate Default Training Content
+              Generate / Refresh Default Content
             </button>
             <button onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
@@ -167,18 +218,31 @@ export function OnboardingTrainingAdminPage() {
         <EmptyState title="No training modules yet" description="Create your first module, then add its steps" icon={<GraduationCap size={20} />} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((m) => (
+          {modules.map((m, i) => (
             <div key={m.id} className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                  <GraduationCap size={16} className="text-primary" />
+                <div className="flex items-center gap-2">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <GraduationCap size={16} className="text-primary" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <button onClick={() => moveModule(m.id, "up")} disabled={i === 0} title="Move up"
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp size={13} /></button>
+                    <button onClick={() => moveModule(m.id, "down")} disabled={i === modules.length - 1} title="Move down"
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown size={13} /></button>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => { setEditingModule(m); setModuleFormOpen(true); }} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil size={13} /></button>
                   <button onClick={() => handleDeleteModule(m)} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 size={13} /></button>
                 </div>
               </div>
-              <p className="mt-3 text-sm font-semibold text-foreground">{m.title}</p>
+              <div className="mt-3 flex items-center gap-2">
+                <p className="text-sm font-semibold text-foreground">{m.title}</p>
+                {m.mandatory && (
+                  <span className="rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">Mandatory</span>
+                )}
+              </div>
               {m.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</p>}
               <button onClick={() => setSelectedModuleId(m.id)}
                 className="mt-4 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors">
