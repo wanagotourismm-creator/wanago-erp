@@ -77,12 +77,20 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
 
     setStatus("loading");
     setUrl(null);
+    // fetch() has no default timeout — if Cloud TTS generation stalls
+    // server-side (or the network hangs), this must still give up and
+    // fall back to browser speech rather than leaving the play button
+    // stuck on a spinner forever.
+    const abortController = new AbortController();
+    const abortTimer = setTimeout(() => abortController.abort(), 15000);
     fetch("/api/onboarding-training/tts", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ stepId: step.id, language }),
+      signal: abortController.signal,
     })
       .then(async (res) => {
+        clearTimeout(abortTimer);
         if (cancelled) return;
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.url) {
@@ -101,6 +109,7 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
         }
       })
       .catch(() => {
+        clearTimeout(abortTimer);
         if (cancelled) return;
         if (canUseBrowserSpeech && text.trim()) {
           setBackend("browser");
@@ -111,7 +120,7 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
         }
       });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(abortTimer); abortController.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step?.id, language]);
 

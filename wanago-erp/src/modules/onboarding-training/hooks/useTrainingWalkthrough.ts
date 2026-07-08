@@ -25,6 +25,18 @@ export function useTrainingWalkthrough() {
   const currentStep = store.steps[store.stepIndex] ?? null;
   const isLastStep = store.stepIndex >= store.steps.length - 1;
 
+  // issueCertificate() is a client-side PDF generation + Storage upload +
+  // Firestore write — network calls that can hang instead of rejecting
+  // (e.g. a misconfigured Storage rule that stalls rather than errors
+  // fast). Since it's explicitly best-effort, a hang here must never be
+  // able to freeze the whole walkthrough on the last step's "Finish".
+  function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("timed out")), ms);
+      promise.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+    });
+  }
+
   async function startModule(module: TrainingModule) {
     if (!user) return;
     setStarting(true);
@@ -72,13 +84,13 @@ export function useTrainingWalkthrough() {
 
       if (!alreadyCompletedRef.current) {
         try {
-          const cert = await issueCertificate({
+          const cert = await withTimeout(issueCertificate({
             employeeUserId: user.uid,
             employeeName:   user.displayName ?? user.email ?? "Team Wanago",
             employeeEmail:  user.email ?? "",
             moduleId:       store.moduleId,
             moduleTitle:    store.moduleTitle,
-          });
+          }), 12000);
           setJustIssuedCertificate(cert);
           if (user.email) {
             fetch("/api/onboarding-training/certificate-email", {
@@ -91,8 +103,9 @@ export function useTrainingWalkthrough() {
             }).catch(() => {});
           }
         } catch {
-          // Certificate issuance is best-effort — completion itself already
-          // succeeded (progress is saved), so this never blocks the user.
+          // Certificate issuance is best-effort (and now hard-capped at
+          // 12s) — completion itself already succeeded (progress is
+          // saved), so neither a failure nor a hang ever blocks the user.
         }
       }
 
