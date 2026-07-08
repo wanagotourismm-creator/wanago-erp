@@ -1,5 +1,5 @@
 import {
-  where, arrayUnion, getDocs, query, collection,
+  where, arrayUnion, arrayRemove, getDocs, query, collection, doc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase/client";
@@ -62,6 +62,13 @@ export async function createChannel(data: ChannelSchema, createdBy: string): Pro
   });
 }
 
+// Soft-deletes (BaseRepository moves it to the trash collection) — the
+// default seeded channels (general/operations/announcements) can be
+// removed too if unwanted, they're not special-cased.
+export async function deleteChannel(id: string): Promise<void> {
+  return channelRepo.delete(id);
+}
+
 // ── Conversations (DMs) ─────────────────────────────────────
 export async function findOrCreateConversation(myId: string, otherId: string, officeId: string): Promise<Conversation> {
   const q = query(
@@ -107,18 +114,45 @@ export async function sendMessage(
   senderId: string, senderName: string, officeId: string,
   opts?: { attachment?: MessageAttachment | null; parentMessageId?: string | null },
 ): Promise<Message> {
-  return messageRepo.create({
+  const message = await messageRepo.create({
     convId, convType, text, senderId, senderName, officeId,
     attachment:      opts?.attachment ?? null,
     parentMessageId: opts?.parentMessageId ?? null,
+    reactions:       {},
     readBy:    [senderId],
     status:    "active",
     createdBy: senderId,
   });
+
+  // Stamped on the parent channel/conversation so the sidebar can show
+  // unread indicators without subscribing to every conversation's full
+  // message list — best-effort, a failed stamp shouldn't fail the send.
+  // serverTimestamp() returns a FieldValue sentinel, not the Timestamp the
+  // field's read-type declares — same tension BaseRepository.create() has
+  // with createdAt/updatedAt, hence the cast.
+  const stamp = { lastMessageAt: serverTimestamp(), lastMessageSenderId: senderId };
+  if (convType === "channel") {
+    channelRepo.update(convId, stamp as unknown as Partial<Channel>).catch(() => {});
+  } else {
+    conversationRepo.update(convId, stamp as unknown as Partial<Conversation>).catch(() => {});
+  }
+
+  return message;
 }
 
 export async function markMessageRead(messageId: string, userId: string): Promise<void> {
   return messageRepo.update(messageId, { readBy: arrayUnion(userId) as unknown as string[] });
+}
+
+// Reactions live as a map field (emoji -> uids) rather than a flat array, so
+// a plain BaseRepository.update() would clobber other emojis' arrays on
+// every toggle — dot-notation + arrayUnion/Remove updates just the one
+// emoji's list atomically instead.
+export async function toggleReaction(messageId: string, emoji: string, userId: string, isAdding: boolean): Promise<void> {
+  const messageRef = doc(db, FIRESTORE_COLLECTIONS.TEAMSPACE_MESSAGES, messageId);
+  await updateDoc(messageRef, {
+    [`reactions.${emoji}`]: isAdding ? arrayUnion(userId) : arrayRemove(userId),
+  });
 }
 
 // Free-tier-friendly cap — Firebase Storage isn't unlimited, and a stray

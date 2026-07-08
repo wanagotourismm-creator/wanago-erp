@@ -3,18 +3,32 @@
 import { useEffect, useRef, useState } from "react";
 import {
   MessageSquare, X, Hash, Megaphone, Plus, Send, Loader2, AlertTriangle, RefreshCw,
-  ChevronLeft, Paperclip, Mic, Square, CornerUpLeft, FileText, Download,
+  ChevronLeft, Paperclip, Mic, Square, CornerUpLeft, FileText, Download, Trash2, SmilePlus,
 } from "lucide-react";
 import { useTeamSpace } from "@/modules/teamspace/hooks/useTeamSpace";
 import { ChannelForm } from "@/modules/teamspace/components/ChannelForm";
 import { useAuthStore } from "@/store/auth.store";
-import { cn, initials, timeAgo } from "@/lib/utils/helpers";
-import type { Channel, TeamMember } from "@/modules/teamspace/types";
+import { cn, initials, timeAgo, toDate } from "@/lib/utils/helpers";
+import type { Channel, Message, TeamMember } from "@/modules/teamspace/types";
+
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "🎉", "👏", "🙌"];
 
 function formatSeconds(total: number) {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// Slack-style grouping: consecutive messages from the same sender within a
+// few minutes only show the avatar/name once, not on every line.
+function shouldShowHeader(messages: Message[], index: number): boolean {
+  if (index === 0) return true;
+  const prev = messages[index - 1];
+  const cur = messages[index];
+  if (prev.senderId !== cur.senderId) return true;
+  const prevT = toDate(prev.createdAt)?.getTime();
+  const curT = toDate(cur.createdAt)?.getTime();
+  return prevT == null || curT == null || curT - prevT > 5 * 60 * 1000;
 }
 
 export function TeamSpacePanel() {
@@ -23,14 +37,15 @@ export function TeamSpacePanel() {
     open, openPanel, closePanel,
     channels, members,
     active, openChannel, openDM,
-    messages, loading, send, sendAttachment, addChannel,
-    replyTo, startReply, cancelReply,
+    messages, loading, send, sendAttachment, addChannel, removeChannel,
+    replyTo, startReply, cancelReply, toggleMessageReaction,
     sidebarError, retry,
   } = useTeamSpace();
 
   const [draft, setDraft] = useState("");
   const [channelFormOpen, setChannelFormOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
@@ -62,9 +77,16 @@ export function TeamSpacePanel() {
   const isAnnouncementChannel = activeChannel?.type === "announcement";
   const canPostAnnouncement = user.systemRole === "super_admin" || user.systemRole === "admin" || user.systemRole === "hr";
   const canPost = !isAnnouncementChannel || canPostAnnouncement;
+  const canDeleteChannel = user.systemRole === "super_admin" || user.systemRole === "admin";
 
   function selectChannel(c: Channel) { openChannel(c); setMobileView("chat"); }
   function selectDM(m: TeamMember) { openDM(m); setMobileView("chat"); }
+
+  async function handleDeleteChannel(e: React.MouseEvent, c: Channel) {
+    e.stopPropagation();
+    if (!confirm(`Delete #${c.name}? This can't be undone.`)) return;
+    await removeChannel(c.id);
+  }
 
   async function handleSend() {
     if (!draft.trim() || !canPost) return;
@@ -170,15 +192,26 @@ export function TeamSpacePanel() {
                   </button>
                 </div>
                 {channels.map((c) => (
-                  <button key={c.id} onClick={() => selectChannel(c)}
-                    className={cn(
-                      "flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors",
-                      active?.id === c.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}>
-                    {c.type === "announcement" ? <Megaphone size={12} className="flex-shrink-0" /> : <Hash size={12} className="flex-shrink-0" />}
-                    <span className="truncate">{c.name}</span>
-                    {c.department && <span className="ml-auto flex-shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase text-muted-foreground">{c.department}</span>}
-                  </button>
+                  <div key={c.id} className="relative flex items-center">
+                    <button onClick={() => selectChannel(c)}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors",
+                        active?.id === c.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}>
+                      {c.type === "announcement" ? <Megaphone size={12} className="flex-shrink-0" /> : <Hash size={12} className="flex-shrink-0" />}
+                      <span className={cn("truncate", c.unread && "font-bold text-foreground")}>{c.name}</span>
+                      {c.unread && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />}
+                      {c.department && <span className="ml-auto flex-shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase text-muted-foreground">{c.department}</span>}
+                    </button>
+                    {canDeleteChannel && (
+                      // Always visible (not hover-only) so it's reachable on
+                      // touch devices too, just subtle until tapped/hovered.
+                      <button onClick={(e) => handleDeleteChannel(e, c)} title="Delete channel"
+                        className="absolute right-2 flex-shrink-0 text-muted-foreground/40 hover:text-destructive transition-colors">
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
                 ))}
 
                 <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Direct Messages</p>
@@ -201,7 +234,8 @@ export function TeamSpacePanel() {
                         title={m.online ? "Online" : "Offline"}
                       />
                     </span>
-                    <span className="truncate">{m.name}</span>
+                    <span className={cn("truncate", m.unread && "font-bold text-foreground")}>{m.name}</span>
+                    {m.unread && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />}
                   </button>
                 ))}
               </div>
@@ -221,33 +255,41 @@ export function TeamSpacePanel() {
                 </button>
               </div>
 
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2 scrollbar-thin">
                 {loading && (
                   <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 size={16} className="animate-spin" /></div>
                 )}
                 {!loading && messages.length === 0 && (
                   <p className="text-center text-xs text-muted-foreground py-8">No messages yet — say hello 👋</p>
                 )}
-                {!loading && messages.map((m) => {
-                  const mine = m.senderId === user.uid;
+                {!loading && messages.map((m, i) => {
                   const parent = m.parentMessageId ? messages.find((x) => x.id === m.parentMessageId) : undefined;
+                  const showHeader = shouldShowHeader(messages, i);
+                  const reactionEntries = Object.entries(m.reactions ?? {}).filter(([, uids]) => uids.length > 0);
                   return (
-                    <div key={m.id} className={cn("flex items-end gap-1.5", mine ? "justify-end" : "justify-start")}>
-                      {!mine && (
-                        <button onClick={() => startReply(m)} title="Reply" className="mb-1 flex-shrink-0 text-muted-foreground/50 hover:text-primary">
-                          <CornerUpLeft size={12} />
-                        </button>
-                      )}
-                      <div className={cn("max-w-[75%] rounded-2xl px-3 py-2", mine ? "bg-primary text-white" : "bg-muted text-foreground")}>
-                        {!mine && <p className="text-[10px] font-semibold opacity-70 mb-0.5">{m.senderName}</p>}
+                    <div key={m.id} className={cn("group flex gap-2 rounded-lg px-1 py-0.5 hover:bg-muted/40", showHeader ? "mt-3" : "mt-0.5")}>
+                      <div className="w-8 flex-shrink-0">
+                        {showHeader && (
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+                            {initials(m.senderName)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        {showHeader && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-semibold text-foreground">{m.senderName}</span>
+                            <span className="text-[10px] text-muted-foreground">{timeAgo(m.createdAt)}</span>
+                          </div>
+                        )}
                         {parent && (
-                          <div className={cn("mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[11px] opacity-80", mine ? "border-white/50 bg-white/10" : "border-primary/50 bg-background/60")}>
+                          <div className="mt-0.5 mb-1 rounded-lg border-l-2 border-primary/50 bg-muted px-2 py-1 text-[11px] opacity-80">
                             <p className="font-semibold">{parent.senderName}</p>
                             <p className="truncate">{parent.text || "Attachment"}</p>
                           </div>
                         )}
                         {m.attachment && (
-                          <div className="mb-1.5">
+                          <div className="mt-0.5 mb-1">
                             {m.attachment.type === "image" && (
                               <a href={m.attachment.url} target="_blank" rel="noopener noreferrer">
                                 <img src={m.attachment.url} alt={m.attachment.name} className="max-h-56 rounded-lg object-cover" />
@@ -261,7 +303,7 @@ export function TeamSpacePanel() {
                             )}
                             {m.attachment.type === "file" && (
                               <a href={m.attachment.url} target="_blank" rel="noopener noreferrer"
-                                className={cn("flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs", mine ? "bg-white/10" : "bg-background/60")}>
+                                className="flex items-center gap-2 rounded-lg bg-muted px-2 py-1.5 text-xs">
                                 <FileText size={14} className="flex-shrink-0" />
                                 <span className="truncate flex-1">{m.attachment.name}</span>
                                 <Download size={12} className="flex-shrink-0" />
@@ -269,14 +311,42 @@ export function TeamSpacePanel() {
                             )}
                           </div>
                         )}
-                        {m.text && <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>}
-                        <p className={cn("text-[9px] mt-1", mine ? "text-white/70" : "text-muted-foreground")}>{timeAgo(m.createdAt)}</p>
+                        {m.text && <p className="text-sm whitespace-pre-wrap break-words text-foreground">{m.text}</p>}
+
+                        {reactionEntries.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {reactionEntries.map(([emoji, uids]) => (
+                              <button key={emoji} onClick={() => toggleMessageReaction(m.id, emoji)}
+                                className={cn(
+                                  "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] transition-colors",
+                                  uids.includes(user.uid) ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground hover:border-primary/30"
+                                )}>
+                                <span>{emoji}</span><span className="font-medium">{uids.length}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {reactingTo === m.id && (
+                          <div className="mt-1 flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 shadow-sm w-fit">
+                            {QUICK_REACTIONS.map((emoji) => (
+                              <button key={emoji} onClick={() => { toggleMessageReaction(m.id, emoji); setReactingTo(null); }}
+                                className="text-base hover:scale-125 transition-transform">
+                                {emoji}
+                              </button>
+                            ))}
+                            <button onClick={() => setReactingTo(null)} className="ml-1 text-muted-foreground hover:text-foreground"><X size={12} /></button>
+                          </div>
+                        )}
                       </div>
-                      {mine && (
-                        <button onClick={() => startReply(m)} title="Reply" className="mb-1 flex-shrink-0 text-muted-foreground/50 hover:text-primary">
-                          <CornerUpLeft size={12} />
+                      <div className="flex flex-shrink-0 items-start gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setReactingTo(reactingTo === m.id ? null : m.id)} title="React" className="text-muted-foreground hover:text-primary">
+                          <SmilePlus size={13} />
                         </button>
-                      )}
+                        <button onClick={() => startReply(m)} title="Reply" className="text-muted-foreground hover:text-primary">
+                          <CornerUpLeft size={13} />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}

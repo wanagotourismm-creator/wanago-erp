@@ -10,11 +10,17 @@ export type Channel = FirestoreRecord & {
   // null = visible to everyone in the office; a value = only members of
   // that department (enforced both client-side and in Firestore rules).
   department:  string | null;
+  // Stamped on every sendMessage() — lets the sidebar show unread
+  // indicators without subscribing to every channel's full message list.
+  lastMessageAt?:       FirestoreRecord["createdAt"] | null;
+  lastMessageSenderId?: string | null;
 };
 
 export type Conversation = FirestoreRecord & {
   memberIds: string[]; // exactly 2 uids for a DM
   officeId:  string;
+  lastMessageAt?:       FirestoreRecord["createdAt"] | null;
+  lastMessageSenderId?: string | null;
 };
 
 export type MessageTargetType = "channel" | "dm";
@@ -27,6 +33,9 @@ export type MessageAttachment = {
   name: string;
 };
 
+// emoji -> uids who reacted with it
+export type MessageReactions = Record<string, string[]>;
+
 export type Message = FirestoreRecord & {
   convId:          string;
   convType:        MessageTargetType;
@@ -37,6 +46,7 @@ export type Message = FirestoreRecord & {
   officeId:        string;
   attachment:      MessageAttachment | null;
   parentMessageId: string | null;
+  reactions:       MessageReactions;
 };
 
 export type TeamMember = {
@@ -45,4 +55,5 @@ export type TeamMember = {
   dept:    string;
   role:    string;
   online?: boolean;
+  unread?: boolean;
 };

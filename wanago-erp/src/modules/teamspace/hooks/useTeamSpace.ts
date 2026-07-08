@@ -2,15 +2,24 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
-  fetchChannels, createChannel, findOrCreateConversation, fetchMyConversations,
-  fetchRecentMessages, subscribeToMessages, sendMessage, uploadChatAttachment,
+  fetchChannels, createChannel, deleteChannel, findOrCreateConversation, fetchMyConversations,
+  fetchRecentMessages, subscribeToMessages, sendMessage, uploadChatAttachment, toggleReaction,
 } from "@/modules/teamspace/services/teamspace.service";
 import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useTeamSpaceUIStore } from "@/store/teamspace-ui.store";
 import { subscribeToPresence, type PresenceMap } from "@/lib/presence";
+import { playMessageSound } from "@/lib/notification-sound";
+import { toDate } from "@/lib/utils/helpers";
 import type { Channel, Conversation, Message, TeamMember } from "@/modules/teamspace/types";
 import type { ChannelSchema } from "@/modules/teamspace/schemas";
+
+const LAST_READ_KEY = "wanago-teamspace-last-read";
+
+function loadLastRead(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem(LAST_READ_KEY) ?? "{}"); } catch { return {}; }
+}
 
 export type ActiveConv = { type: "channel" | "dm"; id: string; label: string } | null;
 
@@ -26,7 +35,26 @@ export function useTeamSpace() {
   const [sidebarError, setSidebarError] = useState<string | null>(null);
   const [presence, setPresence] = useState<PresenceMap>({});
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [lastReadAt, setLastReadAt] = useState<Record<string, number>>(() => loadLastRead());
   const unsubRef = useRef<(() => void) | null>(null);
+  const seenMessageIdsRef = useRef<Set<string> | null>(null);
+
+  // Device-local (not synced across your other devices) — good enough for
+  // "have I looked at this conversation" without adding a Firestore write
+  // on every single conversation open.
+  function markConvRead(convId: string) {
+    setLastReadAt((prev) => {
+      const next = { ...prev, [convId]: Date.now() };
+      try { localStorage.setItem(LAST_READ_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
+  function isConvUnread(lastMessageAt: unknown, lastMessageSenderId: string | null | undefined, convId: string): boolean {
+    if (!lastMessageAt || !lastMessageSenderId || lastMessageSenderId === user?.uid) return false;
+    const t = toDate(lastMessageAt as never)?.getTime() ?? 0;
+    return t > (lastReadAt[convId] ?? 0);
+  }
 
   const officeId = user?.officeId ?? "main";
 
@@ -74,29 +102,64 @@ export function useTeamSpace() {
 
   useEffect(() => { if (open) loadSidebar(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const convByMemberId = useMemo(() => {
+    const map = new Map<string, Conversation>();
+    if (!user) return map;
+    for (const c of conversations) {
+      const other = c.memberIds.find((id) => id !== user.uid);
+      if (other) map.set(other, c);
+    }
+    return map;
+  }, [conversations, user]);
+
   const membersWithPresence = useMemo(
-    () => members.map((m) => ({ ...m, online: presence[m.id]?.online ?? false })),
-    [members, presence]
+    () => members.map((m) => {
+      const conv = convByMemberId.get(m.id);
+      const unread = conv ? isConvUnread(conv.lastMessageAt, conv.lastMessageSenderId, conv.id) : false;
+      return { ...m, online: presence[m.id]?.online ?? false, unread };
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [members, presence, convByMemberId, lastReadAt, user?.uid]
+  );
+
+  const channelsWithUnread = useMemo(
+    () => channels.map((c) => ({ ...c, unread: isConvUnread(c.lastMessageAt, c.lastMessageSenderId, c.id) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [channels, lastReadAt, user?.uid]
   );
 
   // Subscribe to messages of the active conversation
   useEffect(() => {
     unsubRef.current?.();
     unsubRef.current = null;
+    seenMessageIdsRef.current = null;
     if (!active) { setMessages([]); return; }
 
     setLoading(true);
     fetchRecentMessages(active.id).then((msgs) => {
       setMessages(msgs);
+      seenMessageIdsRef.current = new Set(msgs.map((m) => m.id));
       setLoading(false);
     }).catch(() => setLoading(false));
 
-    unsubRef.current = subscribeToMessages(active.id, setMessages);
+    unsubRef.current = subscribeToMessages(active.id, (msgs) => {
+      // A Slack-style "pop" for messages that land while you're already
+      // looking at this conversation — not for the initial load, and not
+      // for your own messages echoing back.
+      if (seenMessageIdsRef.current) {
+        const isNewFromOther = msgs.some((m) => !seenMessageIdsRef.current!.has(m.id) && m.senderId !== user?.uid);
+        if (isNewFromOther) playMessageSound();
+      }
+      seenMessageIdsRef.current = new Set(msgs.map((m) => m.id));
+      setMessages(msgs);
+      markConvRead(active.id); // actively viewing it — don't let it show as unread in the sidebar
+    });
     return () => { unsubRef.current?.(); };
   }, [active?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openChannel(channel: Channel) {
     setActive({ type: "channel", id: channel.id, label: `#${channel.name}` });
+    markConvRead(channel.id);
   }
 
   async function openDM(member: TeamMember) {
@@ -104,6 +167,7 @@ export function useTeamSpace() {
     const conv = await findOrCreateConversation(user.uid, member.id, officeId);
     setConversations((p) => (p.some((c) => c.id === conv.id) ? p : [...p, conv]));
     setActive({ type: "dm", id: conv.id, label: member.name });
+    markConvRead(conv.id);
   }
 
   async function send(text: string) {
@@ -131,6 +195,15 @@ export function useTeamSpace() {
   function startReply(message: Message) { setReplyTo(message); }
   function cancelReply() { setReplyTo(null); }
 
+  async function toggleMessageReaction(messageId: string, emoji: string) {
+    if (!user) return;
+    const msg = messages.find((m) => m.id === messageId);
+    const alreadyReacted = !!msg?.reactions?.[emoji]?.includes(user.uid);
+    try {
+      await toggleReaction(messageId, emoji, user.uid, !alreadyReacted);
+    } catch { /* best-effort */ }
+  }
+
   async function addChannel(data: ChannelSchema) {
     if (!user) return { error: "Not signed in" };
     try {
@@ -140,16 +213,25 @@ export function useTeamSpace() {
     } catch { return { error: "Failed to create channel" }; }
   }
 
+  async function removeChannel(channelId: string) {
+    try {
+      await deleteChannel(channelId);
+      setChannels((p) => p.filter((c) => c.id !== channelId));
+      setActive((p) => (p?.type === "channel" && p.id === channelId ? null : p));
+      return { error: null };
+    } catch { return { error: "Failed to delete channel" }; }
+  }
+
   function memberName(uid: string) {
     return members.find((m) => m.id === uid)?.name ?? "Unknown";
   }
 
   return {
     open, openPanel, closePanel, togglePanel,
-    channels, conversations, members: membersWithPresence,
+    channels: channelsWithUnread, conversations, members: membersWithPresence,
     active, openChannel, openDM,
-    messages, loading, send, sendAttachment, addChannel, memberName,
-    replyTo, startReply, cancelReply,
+    messages, loading, send, sendAttachment, addChannel, removeChannel, memberName,
+    replyTo, startReply, cancelReply, toggleMessageReaction,
     sidebarError, retry: loadSidebar,
   };
 }
