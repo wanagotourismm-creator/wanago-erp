@@ -13,6 +13,7 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
   const [status, setStatus] = useState<AudioStatus>("loading");
   const [url, setUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [ended, setEnded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -21,6 +22,7 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
     const cached = language === "en" ? step.audioUrlEn : step.audioUrlMl;
     let cancelled = false;
     setPlaying(false);
+    setEnded(false);
 
     if (cached) {
       setUrl(cached);
@@ -66,7 +68,7 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => { setPlaying(false); setEnded(true); };
     el.addEventListener("ended", onEnded);
     return () => el.removeEventListener("ended", onEnded);
   }, []);
@@ -78,6 +80,7 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
       el.pause();
       setPlaying(false);
     } else {
+      setEnded(false);
       el.play().then(() => setPlaying(true)).catch(() => {});
     }
   }
@@ -86,8 +89,9 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
     const el = audioRef.current;
     if (!el) return;
     el.currentTime = 0;
+    setEnded(false);
     el.play().then(() => setPlaying(true)).catch(() => {});
   }
 
-  return { audioRef, status, playing, message, toggle, replay };
+  return { audioRef, status, playing, ended, message, toggle, replay };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, X, HelpCircle, AlertTriangle, Play, Pause, RotateCcw, Loader2, VolumeX } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, HelpCircle, AlertTriangle, Play, Pause, RotateCcw, Loader2, VolumeX, Clapperboard } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import type { TrainingStep } from "@/modules/onboarding-training/types";
 import type { AudioStatus } from "@/modules/onboarding-training/hooks/useTrainingAudio";
@@ -23,12 +23,15 @@ type Props = {
   audioMessage: string | null;
   onToggleAudio: () => void;
   onReplayAudio: () => void;
+  autoAdvance:  boolean;
+  onToggleAutoAdvance: () => void;
 };
 
 export function TrainingTooltip({
   step, style, notFound, language, stepNumber, totalSteps, isLastStep, quizPassed,
   onLanguageChange, onNext, onBack, onExit,
   audioStatus, audioPlaying, audioMessage, onToggleAudio, onReplayAudio,
+  autoAdvance, onToggleAutoAdvance,
 }: Props) {
   const explanation = language === "en" ? step.explanationEn : step.explanationMl;
   const hasQuiz = !!step.quiz;
@@ -44,6 +47,13 @@ export function TrainingTooltip({
           Step {stepNumber} of {totalSteps}
         </p>
         <div className="flex items-center gap-2">
+          <button onClick={onToggleAutoAdvance} title={autoAdvance ? "Presentation mode: on — steps advance on their own" : "Presentation mode: off — advance manually"}
+            className={cn(
+              "flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors",
+              autoAdvance ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"
+            )}>
+            <Clapperboard size={11} /> Auto
+          </button>
           <div className="flex items-center rounded-lg border border-border overflow-hidden">
             <button onClick={() => onLanguageChange("en")}
               className={cn("px-2 py-1 text-[11px] font-semibold transition-colors", language === "en" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground")}>

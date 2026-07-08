@@ -10,15 +10,42 @@ import { TrainingQuizModal } from "@/modules/onboarding-training/components/Trai
 const SEARCH_TIMEOUT_MS = 8000;
 const TOOLTIP_WIDTH = 340;
 const TOOLTIP_HEIGHT_ESTIMATE = 220;
+const NO_AUDIO_DWELL_MS = 6000; // presentation-style pacing when there's no narration to time off of
 
 export function TrainingWalkthroughOverlay() {
   const {
     active, currentStep, stepIndex, steps, language, isLastStep, quizPassed,
-    quizModalOpen, quizSelected, quizResult, justCompleted, moduleTitle,
-    setLanguage, selectAnswer, submitQuiz, reviewStep, goNext, goBack, exit, dismissCompletion,
+    quizModalOpen, quizSelected, quizResult, justCompleted, moduleTitle, autoAdvance,
+    setLanguage, setAutoAdvance, selectAnswer, submitQuiz, reviewStep, goNext, goBack, exit, dismissCompletion,
   } = useTrainingWalkthrough();
 
   const audio = useTrainingAudio(currentStep, language);
+
+  // Presentation mode: once narration finishes (or, with no narration, a
+  // fixed dwell time passes), advance automatically — the same goNext()
+  // a manual click would trigger, so a step with an unpassed quiz still
+  // just opens the quiz and then waits for a real answer, never skips it.
+  useEffect(() => {
+    if (!active || !currentStep || quizModalOpen || !autoAdvance) return;
+    if (audio.status === "ready") {
+      if (audio.ended) goNext();
+      return;
+    }
+    if (audio.status === "unavailable" || audio.status === "error") {
+      const timer = setTimeout(() => goNext(), NO_AUDIO_DWELL_MS);
+      return () => clearTimeout(timer);
+    }
+    // status === "loading": wait, don't race ahead of narration generation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, currentStep?.id, quizModalOpen, autoAdvance, audio.status, audio.ended]);
+
+  // "Review this step again" replays the narration from the top too — a
+  // natural match for "re-watch/re-read before retrying," and it resets
+  // audio.ended so auto-advance doesn't instantly reopen the quiz.
+  function handleReviewStep() {
+    reviewStep();
+    audio.replay();
+  }
 
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [searching, setSearching] = useState(true);
@@ -151,6 +178,8 @@ export function TrainingWalkthroughOverlay() {
           audioMessage={audio.message}
           onToggleAudio={audio.toggle}
           onReplayAudio={audio.replay}
+          autoAdvance={autoAdvance}
+          onToggleAutoAdvance={() => setAutoAdvance(!autoAdvance)}
         />
       )}
 
@@ -163,7 +192,7 @@ export function TrainingWalkthroughOverlay() {
           onSelect={selectAnswer}
           onSubmit={submitQuiz}
           onContinue={goNext}
-          onReview={reviewStep}
+          onReview={handleReviewStep}
         />
       )}
     </>

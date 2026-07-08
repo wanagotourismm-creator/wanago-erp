@@ -15,11 +15,17 @@ type WalkthroughState = {
   quizModalOpen:  boolean;
   quizSelected:   number | null;
   quizResult:     "correct" | "wrong" | null;
+  // Presentation-style playback — once a step's narration finishes (or a
+  // short dwell time elapses when there's no audio yet), the walkthrough
+  // advances itself instead of waiting for a click. Quiz steps still pause
+  // for a real answer regardless of this setting.
+  autoAdvance:    boolean;
 
   start:        (moduleId: string, title: string, steps: TrainingStep[], resumeIndex: number) => void;
   exit:         () => void;
   goToStep:     (index: number) => void;
   setLanguage:  (lang: "en" | "ml") => void;
+  setAutoAdvance: (on: boolean) => void;
   openQuiz:     () => void;
   selectAnswer: (index: number) => void;
   submitQuiz:   () => void;
@@ -36,6 +42,7 @@ export const useTrainingWalkthroughStore = create<WalkthroughState>((set, get) =
   quizModalOpen: false,
   quizSelected:  null,
   quizResult:    null,
+  autoAdvance:   true,
 
   start: (moduleId, title, steps, resumeIndex) => set({
     active: true, moduleId, moduleTitle: title, steps,
@@ -48,6 +55,8 @@ export const useTrainingWalkthroughStore = create<WalkthroughState>((set, get) =
   goToStep: (index) => set({ stepIndex: index, quizModalOpen: false, quizSelected: null, quizResult: null }),
 
   setLanguage: (language) => set({ language }),
+
+  setAutoAdvance: (autoAdvance) => set({ autoAdvance }),
 
   openQuiz: () => set({ quizModalOpen: true, quizSelected: null, quizResult: null }),
 
