@@ -1,11 +1,12 @@
 import {
   where, arrayUnion, getDocs, query, collection,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
-import type { Channel, Conversation, Message, MessageTargetType } from "@/modules/teamspace/types";
+import type { Channel, Conversation, Message, MessageTargetType, MessageAttachment, AttachmentType } from "@/modules/teamspace/types";
 import type { ChannelSchema } from "@/modules/teamspace/schemas";
 
 function byCreatedAtAsc(a: Message, b: Message): number {
@@ -43,7 +44,7 @@ export async function fetchChannels(officeId: string): Promise<Channel[]> {
   // First-time setup for this office: seed the default channel set once.
   const created = await Promise.all(
     DEFAULT_CHANNELS.map((c) => channelRepo.create({
-      ...c, officeId, status: "active", createdBy: "system",
+      ...c, officeId, department: null, status: "active", createdBy: "system",
     }))
   );
   return created.sort((a, b) => a.name.localeCompare(b.name));
@@ -55,6 +56,7 @@ export async function createChannel(data: ChannelSchema, createdBy: string): Pro
     description: data.description || null,
     type:        data.type,
     officeId:    data.officeId,
+    department:  data.department || null,
     status:      "active",
     createdBy,
   });
@@ -103,9 +105,12 @@ export function subscribeToMessages(convId: string, callback: (msgs: Message[]) 
 export async function sendMessage(
   convId: string, convType: MessageTargetType, text: string,
   senderId: string, senderName: string, officeId: string,
+  opts?: { attachment?: MessageAttachment | null; parentMessageId?: string | null },
 ): Promise<Message> {
   return messageRepo.create({
     convId, convType, text, senderId, senderName, officeId,
+    attachment:      opts?.attachment ?? null,
+    parentMessageId: opts?.parentMessageId ?? null,
     readBy:    [senderId],
     status:    "active",
     createdBy: senderId,
@@ -114,4 +119,26 @@ export async function sendMessage(
 
 export async function markMessageRead(messageId: string, userId: string): Promise<void> {
   return messageRepo.update(messageId, { readBy: arrayUnion(userId) as unknown as string[] });
+}
+
+// Free-tier-friendly cap — Firebase Storage isn't unlimited, and a stray
+// multi-hundred-MB video pasted into chat shouldn't eat into it unchecked.
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20MB
+
+function attachmentTypeFor(mime: string): AttachmentType {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
+  return "file";
+}
+
+export async function uploadChatAttachment(convId: string, file: File): Promise<MessageAttachment> {
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    throw new Error("That file is larger than 20MB — try a smaller one.");
+  }
+  const path = `teamspace/${convId}/${Date.now()}-${file.name}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  return { url, type: attachmentTypeFor(file.type), name: file.name };
 }

@@ -9,7 +9,10 @@ import { OfflineBanner } from "@/components/layout/OfflineBanner";
 import { RouteGuard } from "@/components/providers/RouteGuard";
 import { TeamSpacePanel } from "@/modules/teamspace/components/TeamSpacePanel";
 import { AIAssistantPanel } from "@/modules/aiassistant/components/AIAssistantPanel";
+import { PendingNotificationsModal } from "@/modules/notifications/components/PendingNotificationsModal";
 import { useUIStore } from "@/store/ui.store";
+import { useAuthStore } from "@/store/auth.store";
+import { startPresenceHeartbeat } from "@/lib/presence";
 import { cn } from "@/lib/utils/helpers";
 
 type Props = {
@@ -24,6 +27,16 @@ type Props = {
 export function AppShell({ children, requiredPage, fullBleed }: Props) {
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
   const prevCollapsedRef = useRef(useUIStore.getState().sidebarCollapsed);
+  const { user } = useAuthStore();
+
+  // Heartbeat while any authenticated page is open (not just Team Space) so
+  // "online" reflects actual app usage. Restarts on every route change
+  // (this component remounts per top-level segment) — harmless, it's just
+  // re-establishing the same interval.
+  useEffect(() => {
+    if (!user) return;
+    return startPresenceHeartbeat(user.uid);
+  }, [user]);
 
   // Pages with their own secondary nav rail (fullBleed) auto-collapse the
   // main sidebar to avoid two side-by-side nav columns — restoring
@@ -64,6 +77,7 @@ export function AppShell({ children, requiredPage, fullBleed }: Props) {
 
         <TeamSpacePanel />
         <AIAssistantPanel />
+        <PendingNotificationsModal />
 
       </div>
     </RouteGuard>

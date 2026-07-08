@@ -6,11 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, Hash } from "lucide-react";
 import { channelSchema, type ChannelSchema } from "@/modules/teamspace/schemas";
 
-type Props = { open: boolean; officeId: string; onClose: () => void; onSubmit: (d: ChannelSchema) => Promise<void>; };
+type Props = {
+  open: boolean; officeId: string; departments: string[];
+  onClose: () => void; onSubmit: (d: ChannelSchema) => Promise<void>;
+};
 
 const inp = "w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-all placeholder:text-muted-foreground/60 hover:border-primary/40 focus:border-primary [&:focus]:shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]";
 
-export function ChannelForm({ open, officeId, onClose, onSubmit }: Props) {
+export function ChannelForm({ open, officeId, departments, onClose, onSubmit }: Props) {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ChannelSchema>({
     resolver: zodResolver(channelSchema),
     defaultValues: { type: "public", officeId },
@@ -47,6 +50,13 @@ export function ChannelForm({ open, officeId, onClose, onSubmit }: Props) {
             <select className={inp} {...register("type")}>
               <option value="public">Public</option>
               <option value="announcement">Announcement (read-only for staff)</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Visible to</label>
+            <select className={inp} {...register("department")}>
+              <option value="">Everyone in the office</option>
+              {departments.map((d) => <option key={d} value={d}>{d} department only</option>)}
             </select>
           </div>
         </div>

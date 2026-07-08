@@ -28,6 +28,18 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.officeId == officeId;
     }
 
+    function getUserDepartment() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department;
+    }
+
+    // A department-scoped Team Space channel (department != null) is only
+    // readable/postable by members of that department, or an admin.
+    // `department == null` means "everyone in the office."
+    function canAccessChannel(channelId) {
+      let ch = get(/databases/$(database)/documents/teamspaceChannels/$(channelId)).data;
+      return ch.department == null || ch.department == getUserDepartment() || isAdmin();
+    }
+
     function hasRequiredFields() {
       return request.resource.data.keys().hasAll(['createdAt', 'updatedAt', 'createdBy', 'status']);
     }
@@ -156,6 +168,9 @@ service cloud.firestore {
     }
 
     // ── Team Space ───────────────────────────────────────────
+    // Channel docs themselves are always listable (so the sidebar can show
+    // channel names) — the department gate lives on who can read/post
+    // *messages* in a department-scoped channel, enforced below.
     match /teamspaceChannels/{id} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
@@ -167,8 +182,17 @@ service cloud.firestore {
     }
 
     match /teamspaceMessages/{id} {
+      allow read: if isAuthenticated() &&
+                     (resource.data.convType != 'channel' || canAccessChannel(resource.data.convId));
+      allow create: if isAuthenticated() &&
+                       (request.resource.data.convType != 'channel' || canAccessChannel(request.resource.data.convId));
+      allow update, delete: if isAuthenticated();
+    }
+
+    // ── Team Space presence (heartbeat) ───────────────────────
+    match /teamspacePresence/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId);
     }
 
     // ── Notifications ────────────────────────────────────────

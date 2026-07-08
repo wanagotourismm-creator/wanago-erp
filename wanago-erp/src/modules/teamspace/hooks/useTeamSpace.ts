@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   fetchChannels, createChannel, findOrCreateConversation, fetchMyConversations,
-  fetchRecentMessages, subscribeToMessages, sendMessage,
+  fetchRecentMessages, subscribeToMessages, sendMessage, uploadChatAttachment,
 } from "@/modules/teamspace/services/teamspace.service";
 import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useTeamSpaceUIStore } from "@/store/teamspace-ui.store";
+import { subscribeToPresence, type PresenceMap } from "@/lib/presence";
 import type { Channel, Conversation, Message, TeamMember } from "@/modules/teamspace/types";
 import type { ChannelSchema } from "@/modules/teamspace/schemas";
 
@@ -23,9 +24,16 @@ export function useTeamSpace() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [sidebarError, setSidebarError] = useState<string | null>(null);
+  const [presence, setPresence] = useState<PresenceMap>({});
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
 
   const officeId = user?.officeId ?? "main";
+
+  useEffect(() => {
+    if (!open) return;
+    return subscribeToPresence(setPresence);
+  }, [open]);
 
   const loadSidebar = useCallback(async () => {
     if (!user) return;
@@ -40,9 +48,13 @@ export function useTeamSpace() {
     ]);
 
     if (chResult.status === "fulfilled") {
-      setChannels(chResult.value);
-      if (!active && chResult.value.length > 0) {
-        setActive({ type: "channel", id: chResult.value[0].id, label: chResult.value[0].name });
+      // Department-scoped channels (department != null) are only visible to
+      // members of that department — Firestore rules enforce this for real,
+      // this filter just keeps them out of the sidebar for everyone else.
+      const visible = chResult.value.filter((c) => !c.department || c.department === user.department);
+      setChannels(visible);
+      if (!active && visible.length > 0) {
+        setActive({ type: "channel", id: visible[0].id, label: visible[0].name });
       }
     }
     if (convsResult.status === "fulfilled") setConversations(convsResult.value);
@@ -61,6 +73,11 @@ export function useTeamSpace() {
   }, [user, officeId, active]);
 
   useEffect(() => { if (open) loadSidebar(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const membersWithPresence = useMemo(
+    () => members.map((m) => ({ ...m, online: presence[m.id]?.online ?? false })),
+    [members, presence]
+  );
 
   // Subscribe to messages of the active conversation
   useEffect(() => {
@@ -91,8 +108,28 @@ export function useTeamSpace() {
 
   async function send(text: string) {
     if (!user || !active || !text.trim()) return;
-    await sendMessage(active.id, active.type, text.trim(), user.uid, user.displayName ?? "User", officeId);
+    await sendMessage(active.id, active.type, text.trim(), user.uid, user.displayName ?? "User", officeId, {
+      parentMessageId: replyTo?.id ?? null,
+    });
+    setReplyTo(null);
   }
+
+  async function sendAttachment(file: File) {
+    if (!user || !active) return { error: "Select a conversation first" };
+    try {
+      const attachment = await uploadChatAttachment(active.id, file);
+      await sendMessage(active.id, active.type, "", user.uid, user.displayName ?? "User", officeId, {
+        attachment, parentMessageId: replyTo?.id ?? null,
+      });
+      setReplyTo(null);
+      return { error: null };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Failed to send attachment" };
+    }
+  }
+
+  function startReply(message: Message) { setReplyTo(message); }
+  function cancelReply() { setReplyTo(null); }
 
   async function addChannel(data: ChannelSchema) {
     if (!user) return { error: "Not signed in" };
@@ -109,9 +146,10 @@ export function useTeamSpace() {
 
   return {
     open, openPanel, closePanel, togglePanel,
-    channels, conversations, members,
+    channels, conversations, members: membersWithPresence,
     active, openChannel, openDM,
-    messages, loading, send, addChannel, memberName,
+    messages, loading, send, sendAttachment, addChannel, memberName,
+    replyTo, startReply, cancelReply,
     sidebarError, retry: loadSidebar,
   };
 }

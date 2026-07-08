@@ -1,10 +1,17 @@
 let audioCtx: AudioContext | null = null;
+let lastPlayedAt = 0;
 
 // Synthesized two-tone chime — no audio file/asset needed. Best-effort:
 // browsers may keep AudioContext suspended until the user has interacted
 // with the page at all, which is normal well before a notification lands.
+// Debounced module-wide: both NotificationBell and PendingNotificationsModal
+// run their own useNotifications() subscription, so a single new item can
+// trigger this from two places at once — without this guard it'd double-beep.
 export function playNotificationSound() {
   if (typeof window === "undefined") return;
+  const now = Date.now();
+  if (now - lastPlayedAt < 1000) return;
+  lastPlayedAt = now;
   try {
     if (!audioCtx) {
       const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

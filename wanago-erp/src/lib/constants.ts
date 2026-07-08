@@ -122,6 +122,7 @@ export const FIRESTORE_COLLECTIONS = {
   TEAMSPACE_CHANNELS:      "teamspaceChannels",
   TEAMSPACE_CONVERSATIONS: "teamspaceConversations",
   TEAMSPACE_MESSAGES:      "teamspaceMessages",
+  TEAMSPACE_PRESENCE:      "teamspacePresence",
   HOLIDAYS:          "holidays",
   TRASH:             "trash",
   JOB_OPENINGS:      "jobOpenings",

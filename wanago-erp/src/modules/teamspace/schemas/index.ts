@@ -5,6 +5,9 @@ export const channelSchema = z.object({
   description: z.string().max(140).optional().or(z.literal("")),
   type:        z.enum(["public", "announcement"]).default("public"),
   officeId:    z.string().min(1),
+  // Empty string from the <select> means "everyone" — normalized to null
+  // before it's saved.
+  department:  z.string().optional().or(z.literal("")),
 });
 
 export type ChannelSchema = z.infer<typeof channelSchema>;

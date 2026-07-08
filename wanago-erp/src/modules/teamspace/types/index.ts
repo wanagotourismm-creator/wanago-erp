@@ -7,6 +7,9 @@ export type Channel = FirestoreRecord & {
   description: string | null;
   type:        ChannelType;
   officeId:    string;
+  // null = visible to everyone in the office; a value = only members of
+  // that department (enforced both client-side and in Firestore rules).
+  department:  string | null;
 };
 
 export type Conversation = FirestoreRecord & {
@@ -16,19 +19,30 @@ export type Conversation = FirestoreRecord & {
 
 export type MessageTargetType = "channel" | "dm";
 
+export type AttachmentType = "image" | "video" | "audio" | "file";
+
+export type MessageAttachment = {
+  url:  string;
+  type: AttachmentType;
+  name: string;
+};
+
 export type Message = FirestoreRecord & {
-  convId:      string;
-  convType:    MessageTargetType;
-  senderId:    string;
-  senderName:  string;
-  text:        string;
-  readBy:      string[];
-  officeId:    string;
+  convId:          string;
+  convType:        MessageTargetType;
+  senderId:        string;
+  senderName:      string;
+  text:            string;
+  readBy:          string[];
+  officeId:        string;
+  attachment:      MessageAttachment | null;
+  parentMessageId: string | null;
 };
 
 export type TeamMember = {
-  id:   string;
-  name: string;
-  dept: string;
-  role: string;
+  id:      string;
+  name:    string;
+  dept:    string;
+  role:    string;
+  online?: boolean;
 };
