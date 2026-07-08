@@ -12,6 +12,26 @@ export type TrainingStepQuiz = {
   correctIndex: number;
 };
 
+export type TrainingPracticeField = {
+  key:         string; // form data key, e.g. "customerName"
+  labelEn:     string;
+  labelMl:     string;
+  placeholder: string;
+  type:        "text" | "textarea";
+};
+
+// A lookalike form rendered entirely inside the walkthrough itself — not
+// the real page's actual form. Lets an employee practice "using the tool"
+// hands-on without ever touching real leads/customers/bookings/etc. data;
+// submissions land in their own trainingPracticeSubmissions collection.
+export type TrainingPracticeForm = {
+  titleEn:      string;
+  titleMl:      string;
+  submitLabelEn: string;
+  submitLabelMl: string;
+  fields:       TrainingPracticeField[];
+};
+
 export type TrainingModule = FirestoreRecord & {
   title:       string;
   description: string | null;
@@ -36,6 +56,9 @@ export type TrainingStep = FirestoreRecord & {
   explanationEn:  string;
   explanationMl:  string;
   quiz:           TrainingStepQuiz | null;
+  // Optional hands-on "try it" form shown inside the walkthrough — see
+  // TrainingPracticeForm for why this never touches real app data.
+  practiceForm:   TrainingPracticeForm | null;
   // Cached TTS voiceover — generated once per step+language on first
   // request (see /api/onboarding-training/tts) and reused forever after,
   // so the same narration is never re-generated (and re-billed).
@@ -52,6 +75,15 @@ export type TrainingProgress = FirestoreRecord & {
   currentStepOrder:  number;
   completedStepIds:  string[];
   completedAt:       FirestoreRecord["createdAt"] | null;
+};
+
+// A logged "try it" practice submission — demo data only, entirely
+// separate from any real collection (leads, customers, bookings, etc.).
+export type TrainingPracticeSubmission = FirestoreRecord & {
+  userId:    string;
+  moduleId:  string;
+  stepId:    string;
+  formData:  Record<string, string>;
 };
 
 // One per module completion — auto-created the moment an employee finishes

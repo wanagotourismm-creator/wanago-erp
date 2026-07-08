@@ -135,6 +135,7 @@ export const FIRESTORE_COLLECTIONS = {
   ONBOARDING_TRAINING_STEPS:        "onboardingTrainingSteps",
   ONBOARDING_TRAINING_PROGRESS:     "onboardingTrainingProgress",
   ONBOARDING_TRAINING_CERTIFICATES: "trainingCertificates",
+  TRAINING_PRACTICE_SUBMISSIONS:    "trainingPracticeSubmissions",
   HRMS_REGULARIZATIONS: "hrmsRegularizations",
   ASSETS:          "assets",
   ASSET_REQUESTS:  "assetRequests",

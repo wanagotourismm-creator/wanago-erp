@@ -14,12 +14,19 @@ export type SeedQuiz = {
   options: SeedQuizOption[];
   correctIndex: number;
 };
+export type SeedPracticeField = { key: string; labelEn: string; labelMl: string; placeholder: string; type: "text" | "textarea" };
+export type SeedPracticeForm = {
+  titleEn: string; titleMl: string;
+  submitLabelEn: string; submitLabelMl: string;
+  fields: SeedPracticeField[];
+};
 export type SeedStep = {
   targetPath: string;
   targetSelector: string;
   explanationEn: string;
   explanationMl: string;
   quiz?: SeedQuiz;
+  practiceForm?: SeedPracticeForm;
 };
 export type SeedModule = {
   title: string;
@@ -127,6 +134,16 @@ export const DEFAULT_TRAINING_MODULES: SeedModule[] = [
           ],
           correctIndex: 0,
         },
+        practiceForm: {
+          titleEn: "Add Lead (Practice)", titleMl: "ലീഡ് ചേർക്കുക (പരിശീലനം)",
+          submitLabelEn: "Save Lead", submitLabelMl: "ലീഡ് സേവ് ചെയ്യുക",
+          fields: [
+            { key: "name", labelEn: "Full Name", labelMl: "പൂർണ്ണ നാമം", placeholder: "e.g. Anjali Menon", type: "text" },
+            { key: "phone", labelEn: "Phone", labelMl: "ഫോൺ", placeholder: "e.g. 9876543210", type: "text" },
+            { key: "destination", labelEn: "Destination Interest", labelMl: "താൽപ്പര്യമുള്ള ലക്ഷ്യസ്ഥാനം", placeholder: "e.g. Munnar, 4 nights", type: "text" },
+            { key: "source", labelEn: "Source", labelMl: "സോഴ്‌സ്", placeholder: "e.g. Instagram ad", type: "text" },
+          ],
+        },
       },
       {
         targetPath: "/leads",
@@ -163,6 +180,15 @@ export const DEFAULT_TRAINING_MODULES: SeedModule[] = [
         targetSelector: '[data-tour-id="tour-customers-add"]',
         explanationEn: "Use Add Customer to create a record directly, or convert one from an existing Lead. Each customer's page shows their full booking history.",
         explanationMl: "നേരിട്ട് ഒരു റെക്കോർഡ് ഉണ്ടാക്കാൻ Add Customer ഉപയോഗിക്കുക, അല്ലെങ്കിൽ നിലവിലുള്ള ഒരു Lead-ൽ നിന്ന് കൺവേർട്ട് ചെയ്യുക. ഓരോ ഉപഭോക്താവിന്റെയും പേജിൽ അവരുടെ മുഴുവൻ ബുക്കിംഗ് ചരിത്രം കാണാം.",
+        practiceForm: {
+          titleEn: "Add Customer (Practice)", titleMl: "ഉപഭോക്താവിനെ ചേർക്കുക (പരിശീലനം)",
+          submitLabelEn: "Save Customer", submitLabelMl: "സേവ് ചെയ്യുക",
+          fields: [
+            { key: "name", labelEn: "Full Name", labelMl: "പൂർണ്ണ നാമം", placeholder: "e.g. Rahul Nair", type: "text" },
+            { key: "phone", labelEn: "Phone", labelMl: "ഫോൺ", placeholder: "e.g. 9876543210", type: "text" },
+            { key: "email", labelEn: "Email", labelMl: "ഇമെയിൽ", placeholder: "e.g. rahul@example.com", type: "text" },
+          ],
+        },
       },
       {
         targetPath: "/customers",
@@ -202,6 +228,15 @@ export const DEFAULT_TRAINING_MODULES: SeedModule[] = [
             { en: "HR and Admin", ml: "HR-ഉം അഡ്മിനും" },
           ],
           correctIndex: 1,
+        },
+        practiceForm: {
+          titleEn: "New Booking (Practice)", titleMl: "പുതിയ ബുക്കിംഗ് (പരിശീലനം)",
+          submitLabelEn: "Save Booking", submitLabelMl: "ബുക്കിംഗ് സേവ് ചെയ്യുക",
+          fields: [
+            { key: "customer", labelEn: "Customer Name", labelMl: "ഉപഭോക്താവിന്റെ പേര്", placeholder: "e.g. Priya Sharma", type: "text" },
+            { key: "destination", labelEn: "Destination", labelMl: "ലക്ഷ്യസ്ഥാനം", placeholder: "e.g. Goa, 3 nights", type: "text" },
+            { key: "amount", labelEn: "Amount", labelMl: "തുക", placeholder: "e.g. 25000", type: "text" },
+          ],
         },
       },
       {
@@ -546,6 +581,15 @@ export const DEFAULT_TRAINING_MODULES: SeedModule[] = [
             { en: "Their salary is set to zero", ml: "അവരുടെ ശമ്പളം പൂജ്യമായി സെറ്റ് ചെയ്യപ്പെടുന്നു" },
           ],
           correctIndex: 1,
+        },
+        practiceForm: {
+          titleEn: "Add Employee (Practice)", titleMl: "ജീവനക്കാരനെ ചേർക്കുക (പരിശീലനം)",
+          submitLabelEn: "Save Employee", submitLabelMl: "സേവ് ചെയ്യുക",
+          fields: [
+            { key: "name", labelEn: "Full Name", labelMl: "പൂർണ്ണ നാമം", placeholder: "e.g. Fathima K.", type: "text" },
+            { key: "designation", labelEn: "Designation", labelMl: "പദവി", placeholder: "e.g. Sales Executive", type: "text" },
+            { key: "email", labelEn: "Email", labelMl: "ഇമെയിൽ", placeholder: "e.g. fathima@wanago.in", type: "text" },
+          ],
         },
       },
       {

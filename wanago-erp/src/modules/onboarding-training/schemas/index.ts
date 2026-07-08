@@ -13,6 +13,14 @@ const quizOptionSchema = z.object({
   ml: z.string().min(1, "Required"),
 });
 
+const practiceFieldSchema = z.object({
+  key:         z.string().min(1, "Required"),
+  labelEn:     z.string().min(1, "Required"),
+  labelMl:     z.string().min(1, "Required"),
+  placeholder: z.string().optional().or(z.literal("")),
+  type:        z.enum(["text", "textarea"]).default("text"),
+});
+
 export const trainingStepSchema = z
   .object({
     targetPath:     z.string().min(1, "Target page path is required").regex(/^\//, "Must start with / (e.g. /leads)"),
@@ -24,20 +32,35 @@ export const trainingStepSchema = z
     quizQuestionMl: z.string().optional().or(z.literal("")),
     quizOptions:    z.array(quizOptionSchema).optional(),
     quizCorrectIndex: z.number().optional(),
+    hasPracticeForm:      z.boolean().default(false),
+    practiceTitleEn:      z.string().optional().or(z.literal("")),
+    practiceTitleMl:      z.string().optional().or(z.literal("")),
+    practiceSubmitLabelEn: z.string().optional().or(z.literal("")),
+    practiceSubmitLabelMl: z.string().optional().or(z.literal("")),
+    practiceFields:       z.array(practiceFieldSchema).optional(),
   })
   .superRefine((data, ctx) => {
-    if (!data.hasQuiz) return;
-    if (!data.quizQuestionEn?.trim()) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizQuestionEn"], message: "Quiz question (English) is required" });
+    if (data.hasQuiz) {
+      if (!data.quizQuestionEn?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizQuestionEn"], message: "Quiz question (English) is required" });
+      }
+      if (!data.quizQuestionMl?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizQuestionMl"], message: "Quiz question (Malayalam) is required" });
+      }
+      if (!data.quizOptions || data.quizOptions.length < 2) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizOptions"], message: "At least 2 answer options are required" });
+      }
+      if (data.quizCorrectIndex == null || data.quizCorrectIndex < 0 || data.quizCorrectIndex >= (data.quizOptions?.length ?? 0)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizCorrectIndex"], message: "Select which option is correct" });
+      }
     }
-    if (!data.quizQuestionMl?.trim()) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizQuestionMl"], message: "Quiz question (Malayalam) is required" });
-    }
-    if (!data.quizOptions || data.quizOptions.length < 2) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizOptions"], message: "At least 2 answer options are required" });
-    }
-    if (data.quizCorrectIndex == null || data.quizCorrectIndex < 0 || data.quizCorrectIndex >= (data.quizOptions?.length ?? 0)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quizCorrectIndex"], message: "Select which option is correct" });
+    if (data.hasPracticeForm) {
+      if (!data.practiceTitleEn?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["practiceTitleEn"], message: "Practice form title (English) is required" });
+      }
+      if (!data.practiceFields || data.practiceFields.length < 1) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["practiceFields"], message: "At least 1 field is required" });
+      }
     }
   });
 

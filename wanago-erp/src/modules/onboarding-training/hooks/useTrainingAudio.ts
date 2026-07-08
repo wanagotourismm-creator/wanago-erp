@@ -10,9 +10,33 @@ export type AudioStatus = "loading" | "ready" | "unavailable" | "error";
 // narration works with zero setup and zero cost.
 export type AudioBackend = "cloud" | "browser" | null;
 
-function pickVoice(langPrefix: string): SpeechSynthesisVoice | undefined {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return undefined;
-  return window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(langPrefix));
+// speechSynthesis.getVoices() very often returns an empty array on the
+// first call — voices load asynchronously in the background and the
+// 'voiceschanged' event fires once they're actually ready. Calling
+// getVoices() synchronously (the original bug here) meant the Malayalam
+// voice lookup almost always ran before the list had populated, so it
+// silently found nothing every time even on devices that do have one.
+let voicesReadyPromise: Promise<SpeechSynthesisVoice[]> | null = null;
+function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return Promise.resolve([]);
+  const existing = window.speechSynthesis.getVoices();
+  if (existing.length > 0) return Promise.resolve(existing);
+  if (voicesReadyPromise) return voicesReadyPromise;
+  voicesReadyPromise = new Promise((resolve) => {
+    const handleChange = () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", handleChange);
+      resolve(window.speechSynthesis.getVoices());
+    };
+    window.speechSynthesis.addEventListener("voiceschanged", handleChange);
+    // Some browsers never fire voiceschanged if there's truly nothing to
+    // load — don't hang forever waiting for it.
+    setTimeout(() => resolve(window.speechSynthesis.getVoices()), 1000);
+  });
+  return voicesReadyPromise;
+}
+
+function pickVoice(voices: SpeechSynthesisVoice[], langPrefix: string): SpeechSynthesisVoice | undefined {
+  return voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix));
 }
 
 // Fetches (or triggers generation of) a step's cached voiceover clip and
@@ -27,6 +51,10 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
   const [playing, setPlaying] = useState(false);
   const [ended, setEnded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Only meaningful when backend === "browser" — true once we've actually
+  // confirmed the device has no matching voice for the selected language,
+  // so the UI can say so instead of silently mispronouncing the text.
+  const [deviceVoiceMissing, setDeviceVoiceMissing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -105,20 +133,31 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
     return () => el.removeEventListener("ended", onEnded);
   }, []);
 
-  // Browser speech playback — starts automatically the same way the cloud
-  // clip does, and stops if the step changes mid-sentence.
+  // Browser speech playback — waits for the voice list to actually be
+  // populated before picking one (see loadVoices() above), then starts
+  // automatically the same way the cloud clip does.
   useEffect(() => {
     if (backend !== "browser" || status !== "ready" || !text.trim() || !canUseBrowserSpeech) return;
+    let cancelled = false;
     window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = language === "ml" ? "ml-IN" : "en-IN";
-    utter.voice = pickVoice(language === "ml" ? "ml" : "en") ?? null;
-    utter.onend = () => { setPlaying(false); setEnded(true); };
-    utter.onerror = () => setPlaying(false);
-    utteranceRef.current = utter;
-    window.speechSynthesis.speak(utter);
-    setPlaying(true);
-    return () => { window.speechSynthesis.cancel(); };
+
+    loadVoices().then((voices) => {
+      if (cancelled) return;
+      const langPrefix = language === "ml" ? "ml" : "en";
+      const match = pickVoice(voices, langPrefix);
+      setDeviceVoiceMissing(language === "ml" && !match);
+
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = language === "ml" ? "ml-IN" : "en-IN";
+      if (match) utter.voice = match;
+      utter.onend = () => { setPlaying(false); setEnded(true); };
+      utter.onerror = () => setPlaying(false);
+      utteranceRef.current = utter;
+      window.speechSynthesis.speak(utter);
+      setPlaying(true);
+    });
+
+    return () => { cancelled = true; window.speechSynthesis.cancel(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend, status, step?.id, language]);
 
@@ -156,16 +195,20 @@ export function useTrainingAudio(step: TrainingStep | null, language: "en" | "ml
     }
     if (backend === "browser" && canUseBrowserSpeech && text.trim()) {
       window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = language === "ml" ? "ml-IN" : "en-IN";
-      utter.voice = pickVoice(language === "ml" ? "ml" : "en") ?? null;
-      utter.onend = () => setPlaying(false);
-      utteranceRef.current = utter;
-      setEnded(false);
-      window.speechSynthesis.speak(utter);
-      setPlaying(true);
+      loadVoices().then((voices) => {
+        const match = pickVoice(voices, language === "ml" ? "ml" : "en");
+        setDeviceVoiceMissing(language === "ml" && !match);
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = language === "ml" ? "ml-IN" : "en-IN";
+        if (match) utter.voice = match;
+        utter.onend = () => setPlaying(false);
+        utteranceRef.current = utter;
+        setEnded(false);
+        window.speechSynthesis.speak(utter);
+        setPlaying(true);
+      });
     }
   }
 
-  return { audioRef, status, backend, playing, ended, message, toggle, replay };
+  return { audioRef, status, backend, playing, ended, message, deviceVoiceMissing, toggle, replay };
 }

@@ -37,6 +37,9 @@ const DEFAULTS: TrainingStepSchema = {
   targetPath: "", targetSelector: "", explanationEn: "", explanationMl: "",
   hasQuiz: false, quizQuestionEn: "", quizQuestionMl: "",
   quizOptions: [{ en: "", ml: "" }, { en: "", ml: "" }], quizCorrectIndex: 0,
+  hasPracticeForm: false, practiceTitleEn: "", practiceTitleMl: "",
+  practiceSubmitLabelEn: "", practiceSubmitLabelMl: "",
+  practiceFields: [{ key: "", labelEn: "", labelMl: "", placeholder: "", type: "text" }],
 };
 
 export function TrainingStepForm({ open, step, onClose, onSubmit }: Props) {
@@ -45,8 +48,10 @@ export function TrainingStepForm({ open, step, onClose, onSubmit }: Props) {
     defaultValues: DEFAULTS,
   });
   const { fields, append, remove } = useFieldArray({ control, name: "quizOptions" });
+  const { fields: practiceFields, append: appendPracticeField, remove: removePracticeField } = useFieldArray({ control, name: "practiceFields" });
   const hasQuiz = watch("hasQuiz");
   const correctIndex = watch("quizCorrectIndex");
+  const hasPracticeForm = watch("hasPracticeForm");
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +62,10 @@ export function TrainingStepForm({ open, step, onClose, onSubmit }: Props) {
       quizQuestionEn: step.quiz?.questionEn ?? "", quizQuestionMl: step.quiz?.questionMl ?? "",
       quizOptions: step.quiz?.options?.length ? step.quiz.options : DEFAULTS.quizOptions,
       quizCorrectIndex: step.quiz?.correctIndex ?? 0,
+      hasPracticeForm: !!step.practiceForm,
+      practiceTitleEn: step.practiceForm?.titleEn ?? "", practiceTitleMl: step.practiceForm?.titleMl ?? "",
+      practiceSubmitLabelEn: step.practiceForm?.submitLabelEn ?? "", practiceSubmitLabelMl: step.practiceForm?.submitLabelMl ?? "",
+      practiceFields: step.practiceForm?.fields?.length ? step.practiceForm.fields : DEFAULTS.practiceFields,
     } : DEFAULTS);
   }, [open, step, reset]);
 
@@ -133,6 +142,63 @@ export function TrainingStepForm({ open, step, onClose, onSubmit }: Props) {
                   <Plus size={12} /> Add option
                 </button>
                 <p className="text-[11px] text-muted-foreground">Select the radio button next to the correct answer.</p>
+              </div>
+            </div>
+          )}
+
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input type="checkbox" className="h-4 w-4 rounded border-input" {...register("hasPracticeForm")} />
+            Add a hands-on &ldquo;Try It&rdquo; practice form to this step
+          </label>
+          <p className="-mt-2 text-[11px] text-muted-foreground">
+            Shows a lookalike form inside the walkthrough itself — employees fill it in and submit, but nothing is ever written to real data (leads, customers, etc.). Submissions are logged separately as practice/demo records.
+          </p>
+
+          {hasPracticeForm && (
+            <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Form Title (English)" error={errors.practiceTitleEn?.message} required>
+                  <input className={inputClass} placeholder="Add a Lead" {...register("practiceTitleEn")} />
+                </Field>
+                <Field label="Form Title (Malayalam)">
+                  <input className={inputClass} {...register("practiceTitleMl")} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Submit Button (English)">
+                  <input className={inputClass} placeholder="Submit" {...register("practiceSubmitLabelEn")} />
+                </Field>
+                <Field label="Submit Button (Malayalam)">
+                  <input className={inputClass} placeholder="സമർപ്പിക്കുക" {...register("practiceSubmitLabelMl")} />
+                </Field>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Form Fields <span className="text-destructive">*</span>
+                </label>
+                {errors.practiceFields && !Array.isArray(errors.practiceFields) && (
+                  <p className="text-xs font-medium text-destructive">{errors.practiceFields.message}</p>
+                )}
+                {practiceFields.map((f, i) => (
+                  <div key={f.id} className="grid grid-cols-12 gap-2 rounded-lg border border-border p-2">
+                    <input className={cn(inputClass, "col-span-3")} placeholder="Field key (e.g. name)" {...register(`practiceFields.${i}.key`)} />
+                    <input className={cn(inputClass, "col-span-3")} placeholder="Label (English)" {...register(`practiceFields.${i}.labelEn`)} />
+                    <input className={cn(inputClass, "col-span-3")} placeholder="Label (Malayalam)" {...register(`practiceFields.${i}.labelMl`)} />
+                    <select className={cn(inputClass, "col-span-2")} {...register(`practiceFields.${i}.type`)}>
+                      <option value="text">Text</option>
+                      <option value="textarea">Textarea</option>
+                    </select>
+                    <button type="button" onClick={() => removePracticeField(i)} disabled={practiceFields.length <= 1}
+                      className="col-span-1 flex items-center justify-center text-muted-foreground hover:text-destructive disabled:opacity-30">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => appendPracticeField({ key: "", labelEn: "", labelMl: "", placeholder: "", type: "text" })}
+                  className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80">
+                  <Plus size={12} /> Add field
+                </button>
               </div>
             </div>
           )}

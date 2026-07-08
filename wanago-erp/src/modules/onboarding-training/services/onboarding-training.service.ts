@@ -76,6 +76,17 @@ function toQuiz(data: TrainingStepSchema): TrainingStep["quiz"] {
   };
 }
 
+function toPracticeForm(data: TrainingStepSchema): TrainingStep["practiceForm"] {
+  if (!data.hasPracticeForm) return null;
+  return {
+    titleEn:       data.practiceTitleEn ?? "",
+    titleMl:       data.practiceTitleMl ?? "",
+    submitLabelEn: data.practiceSubmitLabelEn?.trim() || "Submit",
+    submitLabelMl: data.practiceSubmitLabelMl?.trim() || "സമർപ്പിക്കുക",
+    fields:        (data.practiceFields ?? []).map((f) => ({ ...f, placeholder: f.placeholder ?? "" })),
+  };
+}
+
 export async function createTrainingStep(
   moduleId: string, data: TrainingStepSchema, order: number, createdBy: string
 ): Promise<TrainingStep> {
@@ -86,6 +97,7 @@ export async function createTrainingStep(
     explanationEn:  data.explanationEn,
     explanationMl:  data.explanationMl,
     quiz:           toQuiz(data),
+    practiceForm:   toPracticeForm(data),
     audioUrlEn:     null,
     audioUrlMl:     null,
     status:         "active",
@@ -104,6 +116,7 @@ export async function updateTrainingStep(id: string, data: TrainingStepSchema): 
     explanationEn:  data.explanationEn,
     explanationMl:  data.explanationMl,
     quiz:           toQuiz(data),
+    practiceForm:   toPracticeForm(data),
     audioUrlEn:     null,
     audioUrlMl:     null,
   });

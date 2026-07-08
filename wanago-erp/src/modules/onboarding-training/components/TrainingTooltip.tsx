@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, X, HelpCircle, AlertTriangle, Play, Pause, RotateCcw, Loader2, VolumeX, Clapperboard } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, HelpCircle, AlertTriangle, Play, Pause, RotateCcw, Loader2, VolumeX, Clapperboard, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import type { TrainingStep } from "@/modules/onboarding-training/types";
 import type { AudioStatus, AudioBackend } from "@/modules/onboarding-training/hooks/useTrainingAudio";
@@ -21,10 +21,12 @@ type Props = {
   audioBackend: AudioBackend;
   audioPlaying: boolean;
   audioMessage: string | null;
+  deviceVoiceMissing: boolean;
   onToggleAudio: () => void;
   onReplayAudio: () => void;
   autoAdvance:  boolean;
   onToggleAutoAdvance: () => void;
+  onOpenPractice: () => void;
 };
 
 // A YouTube-style bottom caption/control bar, fixed to the bottom of the
@@ -35,13 +37,14 @@ type Props = {
 export function TrainingTooltip({
   step, notFound, language, stepNumber, totalSteps, isLastStep, quizPassed,
   onLanguageChange, onNext, onBack, onExit,
-  audioStatus, audioBackend, audioPlaying, audioMessage, onToggleAudio, onReplayAudio,
-  autoAdvance, onToggleAutoAdvance,
+  audioStatus, audioBackend, audioPlaying, audioMessage, deviceVoiceMissing, onToggleAudio, onReplayAudio,
+  autoAdvance, onToggleAutoAdvance, onOpenPractice,
 }: Props) {
   const explanation = language === "en" ? step.explanationEn : step.explanationMl;
   const hasQuiz = !!step.quiz;
   const needsQuiz = hasQuiz && !quizPassed;
   const hasAudio = audioStatus === "ready";
+  const hasPractice = !!step.practiceForm;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[202] modal-enter">
@@ -94,6 +97,12 @@ export function TrainingTooltip({
                   <HelpCircle size={12} /> This step has a quiz — answer it to continue.
                 </p>
               )}
+              {hasPractice && (
+                <button onClick={onOpenPractice}
+                  className="mt-1.5 flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/15 transition-colors">
+                  <FlaskConical size={11} /> Try It — hands-on practice
+                </button>
+              )}
             </div>
 
             {hasAudio && (
@@ -108,8 +117,13 @@ export function TrainingTooltip({
             )}
           </div>
 
-          {hasAudio && audioBackend === "browser" && (
+          {hasAudio && audioBackend === "browser" && !deviceVoiceMissing && (
             <p className="px-4 pb-1 text-[10px] text-muted-foreground/70">Voiceover: device voice (free)</p>
+          )}
+          {hasAudio && audioBackend === "browser" && deviceVoiceMissing && (
+            <p className="px-4 pb-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+              <AlertTriangle size={10} /> This device has no Malayalam voice installed — playing with a fallback voice, pronunciation may be off.
+            </p>
           )}
 
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-2.5">

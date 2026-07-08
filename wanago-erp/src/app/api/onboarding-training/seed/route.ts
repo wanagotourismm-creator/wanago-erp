@@ -87,6 +87,13 @@ export async function POST(req: NextRequest) {
         quiz: step.quiz
           ? { questionEn: step.quiz.questionEn, questionMl: step.quiz.questionMl, options: step.quiz.options, correctIndex: step.quiz.correctIndex }
           : null,
+        practiceForm: step.practiceForm
+          ? {
+              titleEn: step.practiceForm.titleEn, titleMl: step.practiceForm.titleMl,
+              submitLabelEn: step.practiceForm.submitLabelEn, submitLabelMl: step.practiceForm.submitLabelMl,
+              fields: step.practiceForm.fields,
+            }
+          : null,
         audioUrlEn: null,
         audioUrlMl: null,
         status: "active",

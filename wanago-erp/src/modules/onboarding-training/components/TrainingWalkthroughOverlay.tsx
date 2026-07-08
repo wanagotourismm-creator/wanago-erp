@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, CheckCircle2, X, Award, Download } from "lucide-react";
 import { useTrainingWalkthrough } from "@/modules/onboarding-training/hooks/useTrainingWalkthrough";
 import { useTrainingAudio } from "@/modules/onboarding-training/hooks/useTrainingAudio";
+import { useAuthStore } from "@/store/auth.store";
+import { submitPractice } from "@/modules/onboarding-training/services/practice-submission.service";
 import { TrainingTooltip } from "@/modules/onboarding-training/components/TrainingTooltip";
 import { TrainingQuizModal } from "@/modules/onboarding-training/components/TrainingQuizModal";
+import { TrainingPracticeFormModal } from "@/modules/onboarding-training/components/TrainingPracticeFormModal";
 import { TrainingProgressBar } from "@/modules/onboarding-training/components/TrainingProgressBar";
 
 const SEARCH_TIMEOUT_MS = 8000;
@@ -13,12 +16,19 @@ const NO_AUDIO_DWELL_MS = 6000; // presentation-style pacing when there's no nar
 
 export function TrainingWalkthroughOverlay() {
   const {
-    active, currentStep, stepIndex, steps, language, isLastStep, quizPassed,
+    active, currentStep, stepIndex, steps, language, isLastStep, quizPassed, moduleId,
     quizModalOpen, quizSelected, quizResult, justCompleted, justIssuedCertificate, moduleTitle, autoAdvance,
     setLanguage, setAutoAdvance, selectAnswer, submitQuiz, reviewStep, goNext, goBack, exit, dismissCompletion,
   } = useTrainingWalkthrough();
 
   const audio = useTrainingAudio(currentStep, language);
+  const { user } = useAuthStore();
+  const [practiceOpen, setPracticeOpen] = useState(false);
+
+  async function handlePracticeSubmit(formData: Record<string, string>) {
+    if (!user || !moduleId || !currentStep) return;
+    await submitPractice({ userId: user.uid, moduleId, stepId: currentStep.id, formData }).catch(() => {});
+  }
 
   // Presentation mode: once narration finishes (or, with no narration, a
   // fixed dwell time passes), advance automatically — the same goNext()
@@ -187,10 +197,12 @@ export function TrainingWalkthroughOverlay() {
           audioBackend={audio.backend}
           audioPlaying={audio.playing}
           audioMessage={audio.message}
+          deviceVoiceMissing={audio.deviceVoiceMissing}
           onToggleAudio={audio.toggle}
           onReplayAudio={audio.replay}
           autoAdvance={autoAdvance}
           onToggleAutoAdvance={() => setAutoAdvance(!autoAdvance)}
+          onOpenPractice={() => setPracticeOpen(true)}
         />
       )}
 
@@ -204,6 +216,15 @@ export function TrainingWalkthroughOverlay() {
           onSubmit={submitQuiz}
           onContinue={goNext}
           onReview={handleReviewStep}
+        />
+      )}
+
+      {practiceOpen && currentStep.practiceForm && (
+        <TrainingPracticeFormModal
+          practiceForm={currentStep.practiceForm}
+          language={language}
+          onClose={() => setPracticeOpen(false)}
+          onSubmit={handlePracticeSubmit}
         />
       )}
     </>
