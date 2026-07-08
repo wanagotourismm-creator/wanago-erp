@@ -20,6 +20,16 @@ export type CompanySettings = {
   // up anywhere (invoice/quotation forms + PDFs) so it can be switched on
   // later without any code change.
   gstEnabled:        boolean;
+  // Bank + terms shown on the branded quotation/invoice PDF's "Payable To"
+  // and "Terms and conditions" boxes. paymentQrUrl is optional — a payment
+  // QR code can't be safely auto-generated (wrong data could misdirect a
+  // real payment), so the PDF only shows one if this is uploaded.
+  bankAccountName:   string;
+  bankAccountNumber: string;
+  bankIfscCode:      string;
+  bankName:          string;
+  paymentQrUrl:      string;
+  quotationTerms:    string; // one bullet per line
 };
 
 const DOC_ID = "company";
@@ -38,6 +48,12 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   maintenanceMode:   false,
   maintenanceMessage: "We're performing scheduled maintenance. Please check back shortly.",
   gstEnabled:        false,
+  bankAccountName:   "",
+  bankAccountNumber: "",
+  bankIfscCode:      "",
+  bankName:          "",
+  paymentQrUrl:      "",
+  quotationTerms:    "All rates quoted are valid for 15 days.\n50% payment should be done in advance.\nThe remaining amount should be paid before 7 days of package.",
 };
 
 export async function fetchCompanySettings(): Promise<CompanySettings> {
@@ -59,6 +75,12 @@ export async function updateCompanySettings(
 
 export async function uploadCompanyLogo(file: File): Promise<string> {
   const storageRef = ref(storage, `company/logo-${Date.now()}-${file.name}`);
+  await uploadBytes(storageRef, file);
+  return getDownloadURL(storageRef);
+}
+
+export async function uploadPaymentQr(file: File): Promise<string> {
+  const storageRef = ref(storage, `company/payment-qr-${Date.now()}-${file.name}`);
   await uploadBytes(storageRef, file);
   return getDownloadURL(storageRef);
 }

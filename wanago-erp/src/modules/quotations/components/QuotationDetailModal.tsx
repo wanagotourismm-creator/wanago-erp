@@ -5,7 +5,8 @@ import { X, Edit2, Trash2, Download, Receipt, MapPin, ArrowRightLeft, Loader2 } 
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
 import { cn, formatDate, initials } from "@/lib/utils/helpers";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
-import { generateDocumentPdf } from "@/lib/pdf/document-pdf";
+import { fetchCustomerById } from "@/modules/customers/services/customer.service";
+import { downloadQuotationPdf, loadWanagoLogoDataUrl } from "@/lib/pdf/quotation-pdf";
 import type { Quotation } from "@/modules/quotations/types";
 
 type Props = {
@@ -62,31 +63,39 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
   async function handleDownloadPdf() {
     setDownloading(true);
     try {
-      const company = await fetchCompanySettings();
-      await generateDocumentPdf({
-        type:      "quotation",
+      const [company, customer, logoDataUrl] = await Promise.all([
+        fetchCompanySettings(),
+        fetchCustomerById(q.customerId),
+        loadWanagoLogoDataUrl(),
+      ]);
+      await downloadQuotationPdf({
         refNumber: q.refNumber,
-        date:      formatDate(q.createdAt, "yyyy-MM-dd"),
-        dueDateOrValidUntil: q.validUntil,
+        date:      formatDate(q.createdAt, "dd/MM/yyyy"),
         company: {
           businessName: company.businessName,
-          address:      company.address,
-          city:         company.city,
-          phone:        company.phone,
-          email:        company.email,
-          gstNumber:    company.gstNumber,
-          gstEnabled:   company.gstEnabled,
+          addressLine:  [company.address, company.city].filter(Boolean).join(", "),
+          phone:        company.phone || undefined,
+          gstNumber:    company.gstEnabled ? (company.gstNumber || undefined) : undefined,
         },
         customer: {
-          name:  q.customerName,
-          phone: q.customerPhone,
+          name:        q.customerName,
+          addressLine: customer?.address ?? undefined,
+          phone:       q.customerPhone,
         },
-        lineItems:   q.lineItems,
+        lineItems: q.lineItems.map((li) => ({ description: li.description, pax: q.pax || null, price: li.amount, total: li.amount })),
         subtotal:    q.subtotal,
-        taxRate:     q.taxRate,
-        taxAmount:   q.taxAmount,
-        totalAmount: q.totalAmount,
-        notes:       q.notes,
+        grandTotal:  q.totalAmount,
+        bank: {
+          accountName:   company.bankAccountName,
+          accountNumber: company.bankAccountNumber,
+          ifsc:          company.bankIfscCode,
+          bankName:      company.bankName,
+          qrDataUrl:     company.paymentQrUrl || null,
+        },
+        terms: company.quotationTerms.split("\n").map((t) => t.trim()).filter(Boolean),
+        logoDataUrl: logoDataUrl ?? "",
+        websiteUrl: "www.wanago.in",
+        socialHandle: "@wana.go",
       });
     } finally {
       setDownloading(false);

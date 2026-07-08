@@ -377,6 +377,48 @@ export async function sendCertificateEmail(params: {
   });
 }
 
+function renderQuotationEmailHtml(customerName: string, refNumber: string, grandTotal: number) {
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">Your Travel Quotation</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${customerName}! ✈️</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
+            Thanks for your interest in traveling with us. Your quotation <strong>${refNumber}</strong> for <strong>₹${grandTotal.toLocaleString("en-IN")}</strong> is attached to this email as a PDF — it includes the full breakdown, payment details, and terms.
+          </p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team Wanago</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent automatically the moment a quotation is created, if the customer
+// has an email on file — see createQuotation's best-effort completion
+// handler. A failed send never blocks quotation creation; the quotation
+// record already exists in Firestore either way.
+export async function sendQuotationEmail(params: {
+  to: string; customerName: string; refNumber: string; grandTotal: number; pdfUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendRawEmail({
+    to: params.to,
+    subject: `Your Quotation ${params.refNumber} — Wanago Travel & Co ✈️`,
+    html: renderQuotationEmailHtml(params.customerName, params.refNumber, params.grandTotal),
+    attachments: [{ filename: `Quotation-${params.refNumber}.pdf`, url: params.pdfUrl }],
+  });
+}
+
 // Server-side equivalent of src/lib/notify.ts's notifyUser() — that one is
 // client-oriented (relative fetch to /api/notify/email, client Firestore
 // SDK for the in-app write) and doesn't work from a cron route with no

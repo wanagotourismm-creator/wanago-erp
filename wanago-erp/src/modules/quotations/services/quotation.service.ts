@@ -1,13 +1,17 @@
 import { where, type QueryConstraint } from "firebase/firestore";
 import { collection, getDocs, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/lib/firebase/client";
 import { quotationRepository } from "@/modules/quotations/services/quotation.repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { generateRefNumber, toDate, formatDate } from "@/lib/utils/helpers";
 import { createBooking } from "@/modules/bookings/services/booking.service";
 import type { Quotation, QuotationFormData, QuotationLineItem } from "@/modules/quotations/types";
 import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
+import { fetchCustomerById } from "@/modules/customers/services/customer.service";
+import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { generateQuotationPdfBlob, loadWanagoLogoDataUrl } from "@/lib/pdf/quotation-pdf";
 
 // Notification helpers below are best-effort — a failure here must never
 // break the actual quotation creation/approval/rejection flow.
@@ -46,6 +50,64 @@ async function notifyCreator(createdBy: string, title: string, body: string): Pr
     });
   } catch {
     // Notification failures must not block the quotation flow.
+  }
+}
+
+// Auto-emails the branded quotation PDF to the customer the moment a
+// quotation is created — mirrors how leave decisions auto-email the
+// employee. Best-effort and entirely non-blocking: no customer email on
+// file, or any failure generating/uploading/sending, just means no email
+// goes out — the quotation itself is already saved either way.
+async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<void> {
+  try {
+    const customer = await fetchCustomerById(quotation.customerId);
+    if (!customer?.email) return;
+
+    const [company, logoDataUrl] = await Promise.all([fetchCompanySettings(), loadWanagoLogoDataUrl()]);
+
+    const blob = await generateQuotationPdfBlob({
+      refNumber: quotation.refNumber,
+      date: formatDate(quotation.createdAt, "dd/MM/yyyy"),
+      company: {
+        businessName: company.businessName,
+        addressLine: [company.address, company.city].filter(Boolean).join(", "),
+        phone: company.phone || undefined,
+        gstNumber: company.gstEnabled ? company.gstNumber || undefined : undefined,
+      },
+      customer: {
+        name: quotation.customerName,
+        addressLine: customer.address ?? undefined,
+        phone: quotation.customerPhone,
+      },
+      lineItems: quotation.lineItems.map((li) => ({
+        description: li.description, pax: quotation.pax || null, price: li.amount, total: li.amount,
+      })),
+      subtotal: quotation.subtotal,
+      grandTotal: quotation.totalAmount,
+      bank: {
+        accountName: company.bankAccountName, accountNumber: company.bankAccountNumber,
+        ifsc: company.bankIfscCode, bankName: company.bankName, qrDataUrl: company.paymentQrUrl || null,
+      },
+      terms: company.quotationTerms.split("\n").map((t) => t.trim()).filter(Boolean),
+      logoDataUrl: logoDataUrl ?? "",
+      websiteUrl: "www.wanago.in",
+      socialHandle: "@wana.go",
+    });
+
+    const storageRef = ref(storage, `quotations/${quotation.refNumber}.pdf`);
+    await uploadBytes(storageRef, blob);
+    const pdfUrl = await getDownloadURL(storageRef);
+
+    await fetch("/api/quotations/send-email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        to: customer.email, customerName: quotation.customerName, refNumber: quotation.refNumber,
+        grandTotal: quotation.totalAmount, pdfUrl,
+      }),
+    });
+  } catch {
+    // Best-effort — quotation creation already succeeded regardless.
   }
 }
 
@@ -106,6 +168,7 @@ export async function createQuotation(
   });
 
   await notifyFinanceApprovers(quotation);
+  await sendQuotationPdfToCustomer(quotation);
 
   return quotation;
 }

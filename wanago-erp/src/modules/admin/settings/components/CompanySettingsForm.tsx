@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Loader2, Save, Check, Upload, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
-import { uploadCompanyLogo, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { uploadCompanyLogo, uploadPaymentQr, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 
 type Props = {
   settings:     CompanySettings;
@@ -35,6 +35,7 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
 
   useEffect(() => { setForm(settings); }, [settings]);
 
@@ -53,6 +54,19 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
       setError("Failed to upload logo.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleQrUpload(file: File) {
+    setUploadingQr(true);
+    setError(null);
+    try {
+      const url = await uploadPaymentQr(file);
+      set("paymentQrUrl", url);
+    } catch {
+      setError("Failed to upload payment QR code.");
+    } finally {
+      setUploadingQr(false);
     }
   }
 
@@ -144,6 +158,55 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
               <input type="checkbox" className="h-4 w-4 rounded border-input" checked={form.gstEnabled}
                 onChange={e => set("gstEnabled", e.target.checked)} />
               GST Enabled (shows tax fields on invoices/quotations and their PDFs)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Quotation / Invoice PDF — Payment &amp; Terms</p>
+        <p className="text-xs text-muted-foreground">Shown on the &ldquo;Payable To&rdquo; and &ldquo;Terms and conditions&rdquo; boxes of every quotation/invoice PDF.</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Bank Account Name">
+            <input className={inputClass} value={form.bankAccountName} onChange={e => set("bankAccountName", e.target.value)} placeholder="WANAGO PRIVATE LIMITED" />
+          </Field>
+          <Field label="Bank Name">
+            <input className={inputClass} value={form.bankName} onChange={e => set("bankName", e.target.value)} placeholder="South Indian Bank Kalpetta" />
+          </Field>
+          <Field label="Account Number">
+            <input className={inputClass} value={form.bankAccountNumber} onChange={e => set("bankAccountNumber", e.target.value)} />
+          </Field>
+          <Field label="IFSC Code">
+            <input className={inputClass} value={form.bankIfscCode} onChange={e => set("bankIfscCode", e.target.value)} />
+          </Field>
+          <div className="col-span-2">
+            <Field label="Terms and Conditions (one per line)">
+              <textarea rows={4} className={cn(inputClass, "resize-none")} value={form.quotationTerms}
+                onChange={e => set("quotationTerms", e.target.value)} />
+            </Field>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted">
+            {form.paymentQrUrl ? (
+              <Image src={form.paymentQrUrl} alt="Payment QR" width={64} height={64} className="h-full w-full object-cover" unoptimized />
+            ) : (
+              <span className="text-2xl">📱</span>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Payment QR Code (optional)</label>
+            <p className="text-[11px] text-muted-foreground">Only shown on the PDF if uploaded — never auto-generated.</p>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors">
+              {uploadingQr ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+              {uploadingQr ? "Uploading..." : "Upload QR Code"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingQr}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleQrUpload(f); }}
+              />
             </label>
           </div>
         </div>
