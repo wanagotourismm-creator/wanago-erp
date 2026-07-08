@@ -1,0 +1,161 @@
+"use client";
+
+import { useState } from "react";
+import {
+  GraduationCap, Plus, Pencil, Trash2, ChevronLeft, ChevronUp, ChevronDown,
+  MapPin, HelpCircle, Loader2,
+} from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useTrainingContentAdmin } from "@/modules/onboarding-training/hooks/useTrainingContentAdmin";
+import { TrainingModuleForm } from "@/modules/onboarding-training/components/TrainingModuleForm";
+import { TrainingStepForm } from "@/modules/onboarding-training/components/TrainingStepForm";
+import type { TrainingModuleSchema, TrainingStepSchema } from "@/modules/onboarding-training/schemas";
+import type { TrainingModule, TrainingStep } from "@/modules/onboarding-training/types";
+
+export function OnboardingTrainingAdminPage() {
+  const {
+    modules, loadingModules, error,
+    selectedModule, selectedModuleId, setSelectedModuleId,
+    steps, loadingSteps,
+    addModule, editModule, removeModule,
+    addStep, editStep, removeStep, moveStep,
+  } = useTrainingContentAdmin();
+
+  const [moduleFormOpen, setModuleFormOpen] = useState(false);
+  const [editingModule, setEditingModule] = useState<TrainingModule | null>(null);
+  const [stepFormOpen, setStepFormOpen] = useState(false);
+  const [editingStep, setEditingStep] = useState<TrainingStep | null>(null);
+
+  async function handleModuleSubmit(data: TrainingModuleSchema) {
+    const result = editingModule ? await editModule(editingModule.id, data) : await addModule(data);
+    if (!result.error) { setModuleFormOpen(false); setEditingModule(null); }
+  }
+
+  async function handleDeleteModule(m: TrainingModule) {
+    if (!confirm(`Delete "${m.title}" and all its steps? This can't be undone.`)) return;
+    await removeModule(m.id);
+  }
+
+  async function handleStepSubmit(data: TrainingStepSchema) {
+    const result = editingStep ? await editStep(editingStep.id, data) : await addStep(data);
+    if (!result.error) { setStepFormOpen(false); setEditingStep(null); }
+  }
+
+  async function handleDeleteStep(s: TrainingStep) {
+    if (!confirm("Delete this step? This can't be undone.")) return;
+    await removeStep(s.id);
+  }
+
+  // ── Steps view for a selected module ─────────────────────────
+  if (selectedModule) {
+    return (
+      <div>
+        <button onClick={() => setSelectedModuleId(null)} className="mb-3 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft size={15} /> All Modules
+        </button>
+        <PageHeader
+          title={selectedModule.title}
+          description={selectedModule.description ?? undefined}
+          actions={
+            <button onClick={() => { setEditingStep(null); setStepFormOpen(true); }}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
+              <Plus size={15} /> Add Step
+            </button>
+          }
+        />
+
+        {loadingSteps ? (
+          <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+        ) : steps.length === 0 ? (
+          <EmptyState title="No steps yet" description="Add the first step to start building this walkthrough" icon={<MapPin size={20} />} />
+        ) : (
+          <div className="space-y-2">
+            {steps.map((s, i) => (
+              <div key={s.id} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex flex-col gap-0.5 pt-0.5">
+                  <button onClick={() => moveStep(s.id, "up")} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp size={14} /></button>
+                  <button onClick={() => moveStep(s.id, "down")} disabled={i === steps.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown size={14} /></button>
+                </div>
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{i + 1}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <MapPin size={11} />
+                    <span className="font-mono">{s.targetPath}</span>
+                    <span>→</span>
+                    <span>{s.targetSelector}</span>
+                    {s.quiz && (
+                      <span className="ml-auto flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                        <HelpCircle size={10} /> Quiz
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-foreground">{s.explanationEn}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{s.explanationMl}</p>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button onClick={() => { setEditingStep(s); setStepFormOpen(true); }} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil size={13} /></button>
+                  <button onClick={() => handleDeleteStep(s)} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 size={13} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <TrainingStepForm open={stepFormOpen} step={editingStep}
+          onClose={() => { setStepFormOpen(false); setEditingStep(null); }}
+          onSubmit={handleStepSubmit} />
+      </div>
+    );
+  }
+
+  // ── Modules list view ─────────────────────────────────────────
+  return (
+    <div>
+      <PageHeader
+        title="Onboarding Training"
+        description="Interactive walkthroughs that teach staff how to use the ERP — build each module's steps here."
+        actions={
+          <button onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
+            <Plus size={15} /> New Module
+          </button>
+        }
+      />
+
+      {error && <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>}
+
+      {loadingModules ? (
+        <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+      ) : modules.length === 0 ? (
+        <EmptyState title="No training modules yet" description="Create your first module, then add its steps" icon={<GraduationCap size={20} />} />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {modules.map((m) => (
+            <div key={m.id} className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <GraduationCap size={16} className="text-primary" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => { setEditingModule(m); setModuleFormOpen(true); }} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil size={13} /></button>
+                  <button onClick={() => handleDeleteModule(m)} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 size={13} /></button>
+                </div>
+              </div>
+              <p className="mt-3 text-sm font-semibold text-foreground">{m.title}</p>
+              {m.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</p>}
+              <button onClick={() => setSelectedModuleId(m.id)}
+                className="mt-4 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors">
+                Manage Steps
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <TrainingModuleForm open={moduleFormOpen} module={editingModule}
+        onClose={() => { setModuleFormOpen(false); setEditingModule(null); }}
+        onSubmit={handleModuleSubmit} />
+    </div>
+  );
+}

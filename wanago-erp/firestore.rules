@@ -195,6 +195,19 @@ service cloud.firestore {
       allow write: if isAuthenticated() && isOwner(userId);
     }
 
+    // ── Onboarding Training (Stage 1: content authoring) ──────
+    // Readable by everyone (employees will take these walkthroughs once
+    // Stage 2 ships) but only Admin/Super Admin can author/edit content.
+    match /onboardingTrainingModules/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /onboardingTrainingSteps/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // ── Notifications ────────────────────────────────────────
     match /notifications/{id} {
       allow read: if isAuthenticated() &&

@@ -172,6 +172,12 @@ export const NAV_CONFIG: NavGroup[] = [
         roles: ["super_admin","admin"],
       },
       {
+        label: "Onboarding Training",
+        href:  "/onboarding-training",
+        icon:  "graduation-cap",
+        roles: ["super_admin","admin"],
+      },
+      {
         label: "My Account",
         href:  "/settings",
         icon:  "settings",

@@ -131,6 +131,8 @@ export const FIRESTORE_COLLECTIONS = {
   PERFORMANCE_REVIEWS: "performanceReviews",
   TRAINING_PROGRAMS:    "trainingPrograms",
   TRAINING_ENROLLMENTS: "trainingEnrollments",
+  ONBOARDING_TRAINING_MODULES: "onboardingTrainingModules",
+  ONBOARDING_TRAINING_STEPS:   "onboardingTrainingSteps",
   HRMS_REGULARIZATIONS: "hrmsRegularizations",
   ASSETS:          "assets",
   ASSET_REQUESTS:  "assetRequests",
