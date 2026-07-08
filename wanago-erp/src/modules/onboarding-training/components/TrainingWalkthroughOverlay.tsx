@@ -6,10 +6,9 @@ import { useTrainingWalkthrough } from "@/modules/onboarding-training/hooks/useT
 import { useTrainingAudio } from "@/modules/onboarding-training/hooks/useTrainingAudio";
 import { TrainingTooltip } from "@/modules/onboarding-training/components/TrainingTooltip";
 import { TrainingQuizModal } from "@/modules/onboarding-training/components/TrainingQuizModal";
+import { TrainingProgressBar } from "@/modules/onboarding-training/components/TrainingProgressBar";
 
 const SEARCH_TIMEOUT_MS = 8000;
-const TOOLTIP_WIDTH = 340;
-const TOOLTIP_HEIGHT_ESTIMATE = 220;
 const NO_AUDIO_DWELL_MS = 6000; // presentation-style pacing when there's no narration to time off of
 
 export function TrainingWalkthroughOverlay() {
@@ -113,19 +112,16 @@ export function TrainingWalkthroughOverlay() {
   const width = hasRect ? rect!.width + pad * 2 : 0;
   const height = hasRect ? rect!.height + pad * 2 : 0;
 
-  // Prefer placing the tooltip below the target; flip above if there's not
-  // enough room; clamp horizontally so it never runs off-screen.
-  const spaceBelow = hasRect ? window.innerHeight - (top + height) : 0;
-  const placeAbove = hasRect && spaceBelow < TOOLTIP_HEIGHT_ESTIMATE && top > TOOLTIP_HEIGHT_ESTIMATE;
-  const tooltipTop = hasRect
-    ? (placeAbove ? Math.max(top - TOOLTIP_HEIGHT_ESTIMATE - 12, 12) : Math.min(top + height + 12, window.innerHeight - TOOLTIP_HEIGHT_ESTIMATE - 12))
-    : window.innerHeight / 2 - TOOLTIP_HEIGHT_ESTIMATE / 2;
-  const tooltipLeft = hasRect
-    ? Math.min(Math.max(left, 12), window.innerWidth - TOOLTIP_WIDTH - 12)
-    : window.innerWidth / 2 - TOOLTIP_WIDTH / 2;
+  const explanationText = language === "en" ? currentStep.explanationEn : currentStep.explanationMl;
+  const estimatedMs = Math.max(3000, Math.min(15000, explanationText.split(/\s+/).length * 400));
+  const barPlaying = autoAdvance && !quizModalOpen && (
+    audio.status === "ready" ? audio.playing : (audio.status === "unavailable" || audio.status === "error")
+  );
 
   return (
     <>
+      <TrainingProgressBar total={steps.length} current={stepIndex} playing={barPlaying} durationMs={audio.status === "ready" ? estimatedMs : NO_AUDIO_DWELL_MS} />
+
       {hasRect ? (
         <>
           <div className="fixed inset-x-0 top-0 z-[200] bg-black/60 transition-all" style={{ height: top }} />
@@ -150,10 +146,10 @@ export function TrainingWalkthroughOverlay() {
       )}
 
       <button onClick={exit} title="Exit training"
-        className="fixed right-4 top-4 z-[202] flex h-9 w-9 items-center justify-center rounded-xl bg-card text-muted-foreground shadow-lg hover:text-destructive transition-colors">
+        className="fixed right-4 top-8 z-[202] flex h-9 w-9 items-center justify-center rounded-xl bg-card text-muted-foreground shadow-lg hover:text-destructive transition-colors sm:top-10">
         <X size={16} />
       </button>
-      <div className="fixed left-4 top-4 z-[202] rounded-xl bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-lg">
+      <div className="fixed left-4 top-8 z-[202] rounded-xl bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-lg sm:top-10">
         {moduleTitle}
       </div>
 
@@ -162,7 +158,6 @@ export function TrainingWalkthroughOverlay() {
       {(!searching || hasRect) && (
         <TrainingTooltip
           step={currentStep}
-          style={{ top: tooltipTop, left: tooltipLeft }}
           notFound={!hasRect && !searching}
           language={language}
           stepNumber={stepIndex + 1}
