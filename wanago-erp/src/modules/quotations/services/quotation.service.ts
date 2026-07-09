@@ -4,7 +4,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase/client";
 import { quotationRepository } from "@/modules/quotations/services/quotation.repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate, formatDate } from "@/lib/utils/helpers";
+import { generateRefNumber, toDate, formatDate, joinAddressCity } from "@/lib/utils/helpers";
 import { createBooking } from "@/modules/bookings/services/booking.service";
 import type { Quotation, QuotationFormData, QuotationLineItem } from "@/modules/quotations/types";
 import { notifyUser } from "@/lib/notify";
@@ -70,7 +70,7 @@ async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<void> {
       date: formatDate(quotation.createdAt, "dd/MM/yyyy"),
       company: {
         businessName: company.businessName,
-        addressLine: [company.address, company.city].filter(Boolean).join(", "),
+        addressLine: joinAddressCity(company.address, company.city),
         phone: company.phone || undefined,
         gstNumber: company.gstEnabled ? company.gstNumber || undefined : undefined,
       },
@@ -80,12 +80,12 @@ async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<void> {
         phone: quotation.customerPhone,
       },
       lineItems: quotation.lineItems.map((li) => ({
-        description: li.description, pax: quotation.pax || null, price: li.amount, total: li.amount,
+        description: li.description, pax: quotation.pax || null, price: li.amount, total: li.amount * (quotation.pax || 1),
       })),
       subtotal: quotation.subtotal,
       grandTotal: quotation.totalAmount,
       bank: {
-        accountName: company.bankAccountName, accountNumber: company.bankAccountNumber,
+        accountName: company.bankAccountName || company.businessName, accountNumber: company.bankAccountNumber,
         ifsc: company.bankIfscCode, bankName: company.bankName, qrDataUrl: company.paymentQrUrl || null,
       },
       terms: company.quotationTerms.split("\n").map((t) => t.trim()).filter(Boolean),
@@ -111,8 +111,14 @@ async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<void> {
   }
 }
 
-function computeTotals(lineItems: QuotationLineItem[], taxRate: number | null | undefined) {
-  const subtotal    = lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0);
+// Each line item's amount is a PER-PAX price (matches the branded PDF's
+// PRICE column) — the line's extended total is amount × pax, so the
+// subtotal is the sum of amounts multiplied by the traveller count, not
+// a flat sum of the entered amounts.
+function computeTotals(lineItems: QuotationLineItem[], taxRate: number | null | undefined, pax: number | null | undefined) {
+  const paxCount    = pax && pax > 0 ? pax : 1;
+  const perPaxTotal = lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0);
+  const subtotal    = perPaxTotal * paxCount;
   const taxAmount   = taxRate ? subtotal * (taxRate / 100) : null;
   const totalAmount = subtotal + (taxAmount ?? 0);
   return { subtotal, taxAmount, totalAmount };
@@ -143,7 +149,7 @@ export async function createQuotation(
   const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.QUOTATIONS));
   const ids       = existing.docs.map(d => d.data().refNumber ?? "");
   const refNumber = generateRefNumber("QUOTATION", ids);
-  const { subtotal, taxAmount, totalAmount } = computeTotals(data.lineItems, data.taxRate);
+  const { subtotal, taxAmount, totalAmount } = computeTotals(data.lineItems, data.taxRate, data.pax);
 
   const quotation = await quotationRepository.create({
     ...data,
@@ -180,10 +186,11 @@ export async function updateQuotation(
   const patch: Partial<Quotation> = { ...data };
   const existing = await quotationRepository.findById(id);
   if (existing) {
-    if (data.lineItems !== undefined || data.taxRate !== undefined) {
+    if (data.lineItems !== undefined || data.taxRate !== undefined || data.pax !== undefined) {
       const lineItems = data.lineItems ?? existing.lineItems;
       const taxRate   = data.taxRate !== undefined ? data.taxRate : existing.taxRate;
-      const { subtotal, taxAmount, totalAmount } = computeTotals(lineItems, taxRate);
+      const pax       = data.pax     !== undefined ? data.pax     : existing.pax;
+      const { subtotal, taxAmount, totalAmount } = computeTotals(lineItems, taxRate, pax);
       patch.subtotal    = subtotal;
       patch.taxAmount   = taxAmount;
       patch.totalAmount = totalAmount;

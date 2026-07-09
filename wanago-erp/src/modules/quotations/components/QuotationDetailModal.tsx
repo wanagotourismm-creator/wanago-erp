@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, Edit2, Trash2, Download, Receipt, MapPin, ArrowRightLeft, Loader2 } from "lucide-react";
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
-import { cn, formatDate, initials } from "@/lib/utils/helpers";
+import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { downloadQuotationPdf, loadWanagoLogoDataUrl } from "@/lib/pdf/quotation-pdf";
@@ -73,7 +73,7 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
         date:      formatDate(q.createdAt, "dd/MM/yyyy"),
         company: {
           businessName: company.businessName,
-          addressLine:  [company.address, company.city].filter(Boolean).join(", "),
+          addressLine:  joinAddressCity(company.address, company.city),
           phone:        company.phone || undefined,
           gstNumber:    company.gstEnabled ? (company.gstNumber || undefined) : undefined,
         },
@@ -82,11 +82,11 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
           addressLine: customer?.address ?? undefined,
           phone:       q.customerPhone,
         },
-        lineItems: q.lineItems.map((li) => ({ description: li.description, pax: q.pax || null, price: li.amount, total: li.amount })),
+        lineItems: q.lineItems.map((li) => ({ description: li.description, pax: q.pax || null, price: li.amount, total: li.amount * (q.pax || 1) })),
         subtotal:    q.subtotal,
         grandTotal:  q.totalAmount,
         bank: {
-          accountName:   company.bankAccountName,
+          accountName:   company.bankAccountName || company.businessName,
           accountNumber: company.bankAccountNumber,
           ifsc:          company.bankIfscCode,
           bankName:      company.bankName,
@@ -171,7 +171,11 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
               {q.lineItems.map((li, i) => (
-                <Row key={i} label={li.description} value={formatAmount(li.amount)} />
+                <Row
+                  key={i}
+                  label={`${li.description} (${formatAmount(li.amount)} × ${q.pax} pax)`}
+                  value={formatAmount(li.amount * (q.pax || 1))}
+                />
               ))}
               <Row label="Subtotal" value={formatAmount(q.subtotal)} />
               {q.taxAmount ? <Row label={`Tax (${q.taxRate}%)`} value={formatAmount(q.taxAmount)} /> : null}

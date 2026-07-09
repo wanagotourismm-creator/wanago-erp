@@ -223,7 +223,7 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Pr
             {canMarkWon && (
               <button
                 onClick={() => {
-                  if (confirm(`Mark "${lead.name}" as Won? This will create a customer record.`)) onStage(lead, "won");
+                  if (confirm(`Mark "${lead.name}" as Won? This will create a customer record and a draft quotation, pre-filled and ready to review.`)) onStage(lead, "won");
                 }}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
               >

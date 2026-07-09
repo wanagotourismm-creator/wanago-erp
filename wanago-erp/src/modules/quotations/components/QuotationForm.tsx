@@ -97,6 +97,7 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
   const selectedPackageId  = watch("packageId");
   const watchedLineItems   = watch("lineItems");
   const watchedTaxRate     = watch("taxRate");
+  const watchedPax         = watch("pax");
 
   function handleCustomerChange(id: string) {
     const c = customers.find(c => c.id === id);
@@ -120,11 +121,13 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
   }
 
   const totals = useMemo(() => {
-    const subtotal  = (watchedLineItems ?? []).reduce((sum, li) => sum + (Number(li?.amount) || 0), 0);
-    const rate      = Number(watchedTaxRate) || 0;
-    const taxAmount = rate ? subtotal * (rate / 100) : 0;
+    const paxCount   = Number(watchedPax) || 1;
+    const perPaxSum  = (watchedLineItems ?? []).reduce((sum, li) => sum + (Number(li?.amount) || 0), 0);
+    const subtotal   = perPaxSum * paxCount;
+    const rate       = Number(watchedTaxRate) || 0;
+    const taxAmount  = rate ? subtotal * (rate / 100) : 0;
     return { subtotal, taxAmount, total: subtotal + taxAmount };
-  }, [watchedLineItems, watchedTaxRate]);
+  }, [watchedLineItems, watchedTaxRate, watchedPax]);
 
   if (!open) return null;
 
@@ -262,7 +265,7 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
                       </Field>
                     </div>
                     <div className="w-32">
-                      <Field label="Amount (₹)" error={errors.lineItems?.[index]?.amount?.message}>
+                      <Field label="Price per Pax (₹)" error={errors.lineItems?.[index]?.amount?.message}>
                         <input
                           className={inputClass}
                           type="number"
@@ -288,7 +291,7 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
             {/* Totals preview */}
             <div className="mt-4 space-y-1 rounded-xl border border-border bg-muted/30 px-4 py-3">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Subtotal</span>
+                <span>Subtotal ({Number(watchedPax) || 1} pax × price)</span>
                 <span>{formatCurrency(totals.subtotal)}</span>
               </div>
               {totals.taxAmount > 0 && (

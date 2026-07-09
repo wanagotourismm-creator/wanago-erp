@@ -9,6 +9,18 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+// Joins a free-text address with a city, skipping the city if it's
+// already present in the address (common when admins type the full
+// address including city into the single "address" field) — avoids
+// "...Kozhikode, 673001, Kozhikode" style duplication on the quotation PDF.
+export function joinAddressCity(address: string | null | undefined, city: string | null | undefined): string {
+  const parts = [address, city].filter((p): p is string => !!p && p.trim().length > 0);
+  if (parts.length < 2) return parts.join(", ");
+  const [addr, cityName] = parts;
+  if (addr.toLowerCase().includes(cityName.toLowerCase())) return addr;
+  return `${addr}, ${cityName}`;
+}
+
 // ── Date helpers ──────────────────────────────────────────────
 export function toDate(value: Timestamp | Date | string | null | undefined): Date | null {
   if (!value) return null;

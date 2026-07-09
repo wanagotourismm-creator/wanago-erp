@@ -8,6 +8,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { fetchCustomers, createCustomer } from "@/modules/customers/services/customer.service";
+import { fetchQuotations, createQuotation } from "@/modules/quotations/services/quotation.service";
+import type { Customer } from "@/modules/customers/types";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
 // queries only need single-field indexes, which Firestore creates
@@ -90,14 +92,17 @@ export async function deleteLead(id: string): Promise<void> {
 
 /**
  * Called whenever a lead is marked "won" — creates a matching Customer
- * record if one doesn't already exist for that phone number.
+ * record if one doesn't already exist for that phone number. Returns the
+ * customer either way (existing or newly created) so callers can chain
+ * straight into other auto-actions (e.g. seeding a draft quotation)
+ * without the user having to go find and re-select the customer.
  */
-export async function convertLeadToCustomer(lead: Lead, createdBy: string): Promise<void> {
+export async function convertLeadToCustomer(lead: Lead, createdBy: string): Promise<Customer> {
   const existingCustomers = await fetchCustomers();
-  const alreadyExists = existingCustomers.some(c => c.phone === lead.phone);
-  if (alreadyExists) return;
+  const existing = existingCustomers.find(c => c.phone === lead.phone);
+  if (existing) return existing;
 
-  await createCustomer({
+  return createCustomer({
     fullName:       lead.name,
     email:          lead.email,
     phone:          lead.phone,
@@ -114,4 +119,56 @@ export async function convertLeadToCustomer(lead: Lead, createdBy: string): Prom
     assignedTo:     lead.assignedTo ?? null,
     agentName:      lead.agentName  ?? null,
   }, createdBy);
+}
+
+// Auto-seeds a draft quotation for the customer the moment their lead is
+// marked "won" — so the sales agent lands on a quotation that already has
+// the customer, destination, pax and a starting price line filled in,
+// instead of opening a blank form and manually searching for the customer
+// they just converted. Best-effort/non-blocking: the lead is already won
+// and the customer already exists regardless of whether this succeeds.
+// Guards against duplicates (e.g. a lead re-marked won) by checking for
+// an existing quotation with the same leadId first.
+export async function createDraftQuotationFromWonLead(
+  lead: Lead, customer: Customer, createdBy: string
+): Promise<void> {
+  try {
+    const existingQuotations = await fetchQuotations();
+    if (existingQuotations.some(q => q.leadId === lead.id)) return;
+
+    const tripNotes = [
+      `Auto-created from won lead ${lead.refNumber}.`,
+      lead.tripType   ? `Trip type: ${lead.tripType}.` : null,
+      lead.travelDate ? `Travel date: ${lead.travelDate}.` : null,
+      lead.duration   ? `Duration: ${lead.duration} night(s).` : null,
+      lead.notes      ? `Lead notes: ${lead.notes}` : null,
+    ].filter(Boolean).join(" ");
+
+    // Line item amounts are per-pax prices (the quotation service multiplies
+    // by pax to get the total) — the lead's budget is the customer's whole-
+    // trip figure, so divide it back down to a starting per-pax price.
+    const pax = lead.pax || 1;
+    const perPaxBudget = lead.budget ? lead.budget / pax : 0;
+
+    await createQuotation({
+      customerId:    customer.id,
+      customerName:  lead.name,
+      customerPhone: lead.phone,
+      destination:   lead.destination,
+      packageId:     null,
+      packageName:   null,
+      pax,
+      lineItems:     [{ description: `${lead.destination} package`, amount: perPaxBudget }],
+      taxRate:       null,
+      validUntil:    null,
+      officeId:      lead.officeId,
+      officeName:    lead.officeName,
+      notes:         tripNotes,
+      leadId:        lead.id,
+      createdBy,
+    }, createdBy);
+  } catch {
+    // Best-effort — the lead is already won and the customer already
+    // exists either way, so a failure here should never surface as an error.
+  }
 }

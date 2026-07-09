@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   fetchLeads, createLead, updateLead,
   updateLeadStage, deleteLead, convertLeadToCustomer,
+  createDraftQuotationFromWonLead,
 } from "@/modules/leads/services/lead.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
@@ -83,7 +84,9 @@ export function useLeads() {
     }
 
     if (stage === "won" && lead) {
-      await convertLeadToCustomer({ ...lead, stage }, user?.uid ?? "");
+      const wonLead = { ...lead, stage };
+      const customer = await convertLeadToCustomer(wonLead, user?.uid ?? "");
+      await createDraftQuotationFromWonLead(wonLead, customer, user?.uid ?? "");
     }
   }
 

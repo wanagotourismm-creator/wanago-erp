@@ -140,7 +140,11 @@ async function buildQuotationPdfDoc(input: QuotationPdfInput): Promise<any> {
 
   // ── Item rows + totals (light green panel) ───────────────────
   const rowH = 8;
-  const itemsBlockH = Math.max(input.lineItems.length * rowH, rowH) + 6;
+  // Matches the reference template's generously-sized panel — items sit at
+  // the top, totals stay pinned near the bottom, so a 1-2 item quotation
+  // still gets the same roomy card instead of looking cramped.
+  const MIN_ITEM_ROWS = 4;
+  const itemsBlockH = Math.max(input.lineItems.length, MIN_ITEM_ROWS) * rowH + 6;
   const totalsBlockH = 26;
   const panelH = itemsBlockH + totalsBlockH;
   const panelY = y + tableH - 3;
@@ -202,7 +206,7 @@ async function buildQuotationPdfDoc(input: QuotationPdfInput): Promise<any> {
 
   // ── Payable To + Terms boxes ──────────────────────────────────
   y = panelY + panelH + 8;
-  const lowerBoxH = 48;
+  const lowerBoxH = 52;
   doc.setFillColor(...GREEN_LIGHT);
   doc.roundedRect(MARGIN, y, boxW, lowerBoxH, 3, 3, "F");
   doc.roundedRect(rightBoxX, y, boxW, lowerBoxH, 3, 3, "F");
@@ -218,6 +222,11 @@ async function buildQuotationPdfDoc(input: QuotationPdfInput): Promise<any> {
   doc.setTextColor(...TEXT_DARK);
   doc.text(input.bank.accountName || "-", MARGIN + 6, py);
   py += 6;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...TEXT_DARK);
+  doc.text("Bank Details", MARGIN + 6, py);
+  py += 5.5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...TEXT_MUTED);

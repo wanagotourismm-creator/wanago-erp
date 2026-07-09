@@ -45,6 +45,13 @@ export type Quotation = Omit<FirestoreRecord, "status"> & {
   notes:         string | null;
   refNumber:     string;
 
+  // Set when this quotation was auto-created off a lead that was just
+  // marked "won" (see leads/services/lead.service.ts) — lets the sales
+  // agent trace it back and prevents creating a duplicate draft if the
+  // lead somehow gets marked won twice. Optional/absent on quotations
+  // created the normal manual way.
+  leadId?:       string | null;
+
   // Set once "Convert to Booking" has been used — lets the UI link back
   // to the resulting booking and prevents re-converting.
   convertedBookingId: string | null;
