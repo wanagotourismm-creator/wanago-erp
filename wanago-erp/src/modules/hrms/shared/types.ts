@@ -116,6 +116,8 @@ export type AttendanceRecord = FirestoreRecord & {
   clockOutLat: number | null;
   clockOutLng: number | null;
   withinGeofenceOut: boolean | null;
+  clockInSelfieUrl: string | null;
+  clockOutSelfieUrl: string | null;
 };
 
 // A check-in/check-out blocked for a suspicious-location reason (impossible

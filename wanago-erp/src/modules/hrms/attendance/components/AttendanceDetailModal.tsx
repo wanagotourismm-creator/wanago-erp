@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Edit2, Trash2, Clock, MapPin, User } from "lucide-react";
+import { X, Edit2, Trash2, Clock, MapPin, User, Camera } from "lucide-react";
 import { AttendanceStatusBadge } from "@/modules/hrms/attendance/components/AttendanceBadges";
 import { formatDate, initials } from "@/lib/utils/helpers";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
@@ -91,6 +91,29 @@ export function AttendanceDetailModal({ record, onClose, onEdit, onDelete }: Pro
               <Row label="Date" value={formatDate(record.date)} />
             </div>
           </div>
+
+          {(record.clockInSelfieUrl || record.clockOutSelfieUrl) && (
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <Camera size={13} className="text-primary" />
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Selfies</p>
+              </div>
+              <div className="flex gap-3">
+                {record.clockInSelfieUrl && (
+                  <a href={record.clockInSelfieUrl} target="_blank" rel="noopener noreferrer" className="space-y-1">
+                    <img src={record.clockInSelfieUrl} alt="Check-in selfie" className="h-20 w-20 rounded-xl border border-border object-cover" />
+                    <p className="text-center text-[10px] text-muted-foreground">Check In</p>
+                  </a>
+                )}
+                {record.clockOutSelfieUrl && (
+                  <a href={record.clockOutSelfieUrl} target="_blank" rel="noopener noreferrer" className="space-y-1">
+                    <img src={record.clockOutSelfieUrl} alt="Check-out selfie" className="h-20 w-20 rounded-xl border border-border object-cover" />
+                    <p className="text-center text-[10px] text-muted-foreground">Check Out</p>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
 
           {record.notes && (
             <div>

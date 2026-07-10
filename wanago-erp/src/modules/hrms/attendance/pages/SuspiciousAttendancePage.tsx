@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, ShieldAlert, AlertTriangle } from "lucide-react";
+import { RefreshCw, ShieldAlert, AlertTriangle, Flame } from "lucide-react";
 import { useSuspiciousAttendance } from "@/modules/hrms/attendance/hooks/useSuspiciousAttendance";
 import { SuspiciousAttendanceTable } from "@/modules/hrms/attendance/components/SuspiciousAttendanceTable";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import type { SuspiciousAttendanceAttempt } from "@/modules/hrms/shared/types";
 
 export function SuspiciousAttendancePage() {
-  const { attempts, loading, error, stats, load, markReviewed, removeAttempt } = useSuspiciousAttendance();
+  const { attempts, loading, error, stats, escalatedEmployeeIds, load, markReviewed, removeAttempt } = useSuspiciousAttendance();
 
   function handleDelete(a: SuspiciousAttendanceAttempt) {
     if (!confirm(`Delete this flagged attempt for ${a.employeeName}?`)) return;
@@ -41,7 +41,7 @@ export function SuspiciousAttendancePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -64,6 +64,17 @@ export function SuspiciousAttendancePage() {
             </div>
           </div>
         </div>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+              <Flame size={18} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-red-600">{stats.escalated}</p>
+              <p className="text-xs text-muted-foreground">Repeated pattern (3+ in 30 days)</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -73,6 +84,7 @@ export function SuspiciousAttendancePage() {
       <SuspiciousAttendanceTable
         attempts={attempts}
         loading={loading}
+        escalatedEmployeeIds={escalatedEmployeeIds}
         onMarkReviewed={(a) => markReviewed(a.id)}
         onDelete={handleDelete}
       />

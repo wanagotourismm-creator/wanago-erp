@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchEmployeeByUserId, fetchEmployees, fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
-import { fetchAttendanceByEmployee, createAttendanceRecord, updateAttendanceRecord } from "@/modules/hrms/attendance/services/attendance.service";
+import { fetchAttendanceByEmployee, createAttendanceRecord, updateAttendanceRecord, uploadAttendanceSelfie } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchLeaves, fetchLeavesByEmployee, createLeaveRequest, cancelLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
 import { fetchRegularizations, fetchRegularizationsByEmployee, createRegularizationRequest, approveRegularization, rejectRegularization } from "@/modules/hrms/regularization/services/regularization.service";
 import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service";
@@ -176,9 +176,11 @@ export function useEss() {
     return "We couldn't verify your location for this attempt, so it's been blocked and flagged for HR review. If this is a mistake, contact HR or submit an attendance correction.";
   }
 
-  async function clockIn() {
+  async function clockIn(selfieFile: File) {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
+      const selfieUrl = await uploadAttendanceSelfie(employee.id, today, "check_in", selfieFile);
+
       const pos = await getCurrentPosition();
       let withinGeofence: boolean | null = null;
 
@@ -212,6 +214,7 @@ export function useEss() {
         date: today, status: "present", clockIn: nowTime(), clockOut: "", notes: "",
         officeId: employee.officeId, breakStartTime: null, breakMinutes: 0,
         clockInLat: pos?.lat ?? null, clockInLng: pos?.lng ?? null, withinGeofence,
+        clockInSelfieUrl: selfieUrl,
       }, user.uid);
       setAttendance((p) => [rec, ...p]);
       return { error: null };
@@ -220,9 +223,11 @@ export function useEss() {
     }
   }
 
-  async function clockOut() {
+  async function clockOut(selfieFile: File) {
     if (!todayRecord) return { error: "You haven't clocked in today" };
     try {
+      const selfieUrl = await uploadAttendanceSelfie(employee?.id ?? "unknown", today, "check_out", selfieFile);
+
       const pos = await getCurrentPosition();
       let withinGeofenceOut: boolean | null = null;
 
@@ -250,6 +255,7 @@ export function useEss() {
         clockOutLat: pos?.lat ?? null,
         clockOutLng: pos?.lng ?? null,
         withinGeofenceOut,
+        clockOutSelfieUrl: selfieUrl,
       });
       await load();
       return { error: null };

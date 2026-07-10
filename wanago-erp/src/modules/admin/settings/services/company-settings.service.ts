@@ -30,6 +30,13 @@ export type CompanySettings = {
   bankName:          string;
   paymentQrUrl:      string;
   quotationTerms:    string; // one bullet per line
+  // Business UPI ID (e.g. "wanagotourism@okhdfcbank") used to generate a
+  // dynamic UPI payment link/QR — one with the exact invoice/booking amount
+  // and a reference note baked in — directly to this account, with no
+  // payment gateway or commission in between. Payment confirmation is still
+  // manual (staff records it via the existing Payments flow); this only
+  // replaces "customer has to type in the amount and a note by hand."
+  upiId: string;
 };
 
 const DOC_ID = "company";
@@ -54,6 +61,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   bankName:          "",
   paymentQrUrl:      "",
   quotationTerms:    "All rates quoted are valid for 15 days.\n50% payment should be done in advance.\nThe remaining amount should be paid before 7 days of package.",
+  upiId: "",
 };
 
 export async function fetchCompanySettings(): Promise<CompanySettings> {

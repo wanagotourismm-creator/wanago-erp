@@ -7,6 +7,7 @@ import { X, Loader2, Building2, LocateFixed } from "lucide-react";
 import { officeSchema, type OfficeSchema } from "@/modules/admin/offices/schemas";
 import { getCurrentPosition } from "@/lib/geo";
 import { cn } from "@/lib/utils/helpers";
+import { LocationPickerMap } from "@/modules/admin/offices/components/LocationPickerMap";
 import type { Office } from "@/modules/admin/offices/types";
 
 type Props = {
@@ -42,7 +43,7 @@ const inputClass = cn(
 export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
   const [locating, setLocating] = useState(false);
   const {
-    register, handleSubmit, reset, setValue,
+    register, handleSubmit, reset, setValue, watch,
     formState: { errors, isSubmitting },
   } = useForm<OfficeSchema>({
     resolver: zodResolver(officeSchema),
@@ -75,6 +76,15 @@ export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
     setValue("latitude", pos.lat);
     setValue("longitude", pos.lng);
   }
+
+  function handlePickOnMap(lat: number, lng: number) {
+    setValue("latitude", lat, { shouldDirty: true });
+    setValue("longitude", lng, { shouldDirty: true });
+  }
+
+  const watchedLat    = watch("latitude");
+  const watchedLng    = watch("longitude");
+  const watchedRadius = watch("geofenceRadiusMeters");
 
   if (!open) return null;
 
@@ -147,6 +157,15 @@ export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
               <Field label="Radius (meters)">
                 <input className={inputClass} type="number" step="1" placeholder="e.g. 200" {...register("geofenceRadiusMeters", { valueAsNumber: true })} />
               </Field>
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Or click on the map to set the point</p>
+              <LocationPickerMap
+                lat={typeof watchedLat === "number" && Number.isFinite(watchedLat) ? watchedLat : null}
+                lng={typeof watchedLng === "number" && Number.isFinite(watchedLng) ? watchedLng : null}
+                radiusMeters={typeof watchedRadius === "number" && Number.isFinite(watchedRadius) ? watchedRadius : null}
+                onPick={handlePickOnMap}
+              />
             </div>
           </div>
         </div>

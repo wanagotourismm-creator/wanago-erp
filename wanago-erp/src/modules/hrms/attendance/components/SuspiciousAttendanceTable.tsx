@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Trash2, MapPin } from "lucide-react";
+import { CheckCircle2, Trash2, MapPin, Flame } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
@@ -11,9 +11,18 @@ import type { SuspiciousAttendanceAttempt } from "@/modules/hrms/shared/types";
 type Props = {
   attempts: SuspiciousAttendanceAttempt[];
   loading:  boolean;
+  escalatedEmployeeIds: Set<string>;
   onMarkReviewed: (a: SuspiciousAttendanceAttempt) => void;
   onDelete:       (a: SuspiciousAttendanceAttempt) => void;
 };
+
+function EscalatedBadge() {
+  return (
+    <span title="3rd+ flagged attempt in the last 30 days" className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+      <Flame size={11} /> Repeated pattern
+    </span>
+  );
+}
 
 const ACTION_LABELS: Record<SuspiciousAttendanceAttempt["action"], string> = {
   check_in: "Check-in",
@@ -32,7 +41,7 @@ function ReasonsList({ reasons }: { reasons: string[] }) {
   );
 }
 
-export function SuspiciousAttendanceTable({ attempts, loading, onMarkReviewed, onDelete }: Props) {
+export function SuspiciousAttendanceTable({ attempts, loading, escalatedEmployeeIds, onMarkReviewed, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={5} />;
 
   if (attempts.length === 0) {
@@ -63,6 +72,7 @@ export function SuspiciousAttendanceTable({ attempts, loading, onMarkReviewed, o
                 <td className="px-4 py-3">
                   <p className="font-medium text-foreground">{a.employeeName}</p>
                   <p className="text-[11px] text-muted-foreground">{a.officeName}</p>
+                  {escalatedEmployeeIds.has(a.employeeId) && <div className="mt-1"><EscalatedBadge /></div>}
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{ACTION_LABELS[a.action] ?? a.action}</td>
                 <td className="px-4 py-3"><ReasonsList reasons={a.reasons} /></td>
@@ -119,6 +129,7 @@ export function SuspiciousAttendanceTable({ attempts, loading, onMarkReviewed, o
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{a.employeeName}</p>
                   <p className="text-[11px] text-muted-foreground">{ACTION_LABELS[a.action]} &middot; {a.officeName}</p>
+                  {escalatedEmployeeIds.has(a.employeeId) && <div className="mt-1"><EscalatedBadge /></div>}
                 </div>
                 <span className={cn(
                   "flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",

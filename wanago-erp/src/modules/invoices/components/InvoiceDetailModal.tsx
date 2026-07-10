@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Edit2, Trash2, Send, Receipt, Building2, Download, Loader2 } from "lucide-react";
 import { InvoiceStatusBadge, formatAmount } from "@/modules/invoices/components/InvoiceBadges";
 import { cn, formatDate, initials } from "@/lib/utils/helpers";
-import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { generateDocumentPdf } from "@/lib/pdf/document-pdf";
+import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import type { Invoice } from "@/modules/invoices/types";
 
 type Props = {
@@ -53,6 +54,12 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
+
+  useEffect(() => {
+    if (!invoice) return;
+    fetchCompanySettings().then(setCompanySettings).catch(() => {});
+  }, [invoice?.id]);
 
   if (!invoice) return null;
 
@@ -172,6 +179,16 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
               <Row label="Due Date" value={invoice.dueDate ? formatDate(invoice.dueDate) : null} />
             </div>
           </div>
+
+          {invoice.balanceDue > 0 && (
+            <UpiPaymentPanel
+              upiId={companySettings.upiId}
+              payeeName={companySettings.businessName}
+              amount={invoice.balanceDue}
+              note={`Invoice ${invoice.refNumber}`}
+              refId={invoice.refNumber}
+            />
+          )}
 
           <div>
             <div className="mb-1 flex items-center gap-2">

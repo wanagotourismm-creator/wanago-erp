@@ -1,5 +1,6 @@
 import { orderBy, where, getDocs, query, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
@@ -57,6 +58,20 @@ export async function fetchAttendanceForDate(employeeId: string, date: string): 
   return { id: d.id, ...d.data() } as AttendanceRecord;
 }
 
+// A selfie is captured (front camera, via the browser's native camera
+// capture rather than a live getUserMedia preview — matches how receipts
+// and profile photos are already captured elsewhere in this app) before
+// the attendance record it belongs to exists yet, so it's uploaded
+// straight to a path keyed by employee/date/action rather than the
+// record's own id.
+export async function uploadAttendanceSelfie(
+  employeeId: string, date: string, action: "check_in" | "check_out", file: File
+): Promise<string> {
+  const storageRef = ref(storage, `attendance-selfies/${employeeId}/${date}-${action}-${Date.now()}-${file.name}`);
+  await uploadBytes(storageRef, file);
+  return getDownloadURL(storageRef);
+}
+
 export async function createAttendanceRecord(data: AttendanceRecordSchema, createdBy: string): Promise<AttendanceRecord> {
   const exists = await attendanceExists(data.employeeId, data.date);
   if (exists) throw new Error("Attendance already marked for this employee on this date");
@@ -75,6 +90,8 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
     clockOutLat:       data.clockOutLat ?? null,
     clockOutLng:       data.clockOutLng ?? null,
     withinGeofenceOut: data.withinGeofenceOut ?? null,
+    clockInSelfieUrl:  data.clockInSelfieUrl ?? null,
+    clockOutSelfieUrl: data.clockOutSelfieUrl ?? null,
     createdBy,
   });
 }

@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { X, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
 import { BOOKING_STATUS_LABELS } from "@/lib/constants";
+import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
@@ -30,6 +33,13 @@ export function BookingDetailModal({
   booking, canManage, canApprove,
   onClose, onEdit, onDelete, onStatus,
 }: Props) {
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
+
+  useEffect(() => {
+    if (!booking) return;
+    fetchCompanySettings().then(setCompanySettings).catch(() => {});
+  }, [booking?.id]);
+
   if (!booking) return null;
 
   const hasApprovalTrail = !!booking.financeApprovedBy || !!booking.opsApprovedBy
@@ -110,6 +120,16 @@ export function BookingDetailModal({
               />
             </div>
           </div>
+
+          {booking.balanceAmount > 0 && (
+            <UpiPaymentPanel
+              upiId={companySettings.upiId}
+              payeeName={companySettings.businessName}
+              amount={booking.balanceAmount}
+              note={`Booking ${booking.refNumber}`}
+              refId={booking.refNumber}
+            />
+          )}
 
           <div>
             <div className="mb-1 flex items-center gap-2">

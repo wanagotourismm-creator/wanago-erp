@@ -180,6 +180,16 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
             <input className={inputClass} value={form.bankIfscCode} onChange={e => set("bankIfscCode", e.target.value)} />
           </Field>
           <div className="col-span-2">
+            <Field label="UPI ID">
+              <input className={inputClass} value={form.upiId} onChange={e => set("upiId", e.target.value)} placeholder="wanagotourism@okhdfcbank" />
+            </Field>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Powers the &ldquo;Pay via UPI&rdquo; QR/link shown on invoices and booking advances — the exact
+              amount and a reference note go straight to this UPI ID, with no gateway or commission.
+              Double-check it&apos;s correct: this is the account real customer payments will be sent to.
+            </p>
+          </div>
+          <div className="col-span-2">
             <Field label="Terms and Conditions (one per line)">
               <textarea rows={4} className={cn(inputClass, "resize-none")} value={form.quotationTerms}
                 onChange={e => set("quotationTerms", e.target.value)} />

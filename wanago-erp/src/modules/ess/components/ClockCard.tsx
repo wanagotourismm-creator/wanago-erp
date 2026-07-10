@@ -1,7 +1,7 @@
 "use client";
 
-import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff } from "lucide-react";
-import { useState } from "react";
+import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff, Camera } from "lucide-react";
+import { useState, useRef } from "react";
 import { formatDate } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
 import { BREAK_ALLOWANCE_MINUTES } from "@/modules/ess/hooks/useEss";
@@ -13,18 +13,24 @@ type Props = {
   isClockedOut: boolean;
   isOnBreak: boolean;
   attendance: AttendanceRecord[];
-  onClockIn: () => Promise<{ error: string | null }>;
-  onClockOut: () => Promise<{ error: string | null }>;
+  onClockIn: (selfie: File) => Promise<{ error: string | null }>;
+  onClockOut: (selfie: File) => Promise<{ error: string | null }>;
   onStartBreak: () => Promise<{ error: string | null }>;
   onEndBreak: () => Promise<{ error: string | null }>;
 };
 
+// Check-in/out both require a selfie (front camera) as a second anti-buddy-
+// punching signal alongside location — captured via the browser's native
+// camera capture, same mechanism already used for receipts/profile photos
+// elsewhere in this app, rather than a live getUserMedia preview.
 export function ClockCard({
   todayRecord, isClockedIn, isClockedOut, isOnBreak, attendance,
   onClockIn, onClockOut, onStartBreak, onEndBreak,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<"in" | "out" | null>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
 
   async function handle(action: () => Promise<{ error: string | null }>) {
     setBusy(true);
@@ -32,6 +38,21 @@ export function ClockCard({
     const { error } = await action();
     if (error) setError(error);
     setBusy(false);
+  }
+
+  function requestSelfieFor(kind: "in" | "out") {
+    setError(null);
+    setPendingAction(kind);
+    selfieInputRef.current?.click();
+  }
+
+  function handleSelfieCaptured(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const kind = pendingAction;
+    e.target.value = "";
+    setPendingAction(null);
+    if (!file || !kind) return;
+    handle(() => (kind === "in" ? onClockIn(file) : onClockOut(file)));
   }
 
   const recent = attendance.slice(0, 5);
@@ -102,7 +123,7 @@ export function ClockCard({
                 Start Break
               </button>
             )}
-            <button onClick={() => handle(onClockOut)} disabled={busy || isOnBreak}
+            <button onClick={() => requestSelfieFor("out")} disabled={busy || isOnBreak}
               title={isOnBreak ? "End your break first" : undefined}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-sm font-semibold text-white hover:bg-destructive/90 disabled:opacity-60 transition-colors shadow-sm">
               {busy ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
@@ -110,13 +131,25 @@ export function ClockCard({
             </button>
           </div>
         ) : (
-          <button onClick={() => handle(onClockIn)} disabled={busy} data-tour-id="tour-ess-checkin"
+          <button onClick={() => requestSelfieFor("in")} disabled={busy} data-tour-id="tour-ess-checkin"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm">
             {busy ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />}
             Check In
           </button>
         )}
       </div>
+
+      <input
+        ref={selfieInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={handleSelfieCaptured}
+      />
+      <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Camera size={11} /> A front-camera selfie is required to check in/out
+      </p>
 
       {recent.length > 0 && (
         <div className="mt-4 space-y-1.5">

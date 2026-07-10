@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeColorProvider } from "@/components/providers/ThemeColorProvider";
 import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegister";
 import "@/styles/globals.css";
+import "leaflet/dist/leaflet.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
