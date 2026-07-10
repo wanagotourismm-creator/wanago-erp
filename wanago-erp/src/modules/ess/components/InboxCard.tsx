@@ -12,7 +12,7 @@ type Props = {
   onDecide: (item: InboxItem, decision: "approve" | "reject") => Promise<{ error: string | null }>;
 };
 
-const FILTERS = ["All", "Leave", "Regularization", "Assets"] as const;
+const FILTERS = ["All", "Leave", "Regularization", "Assets", "Location"] as const;
 
 export function InboxCard({ items, onDecide }: Props) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
@@ -23,6 +23,7 @@ export function InboxCard({ items, onDecide }: Props) {
     if (filter === "All") return true;
     if (filter === "Leave") return i.kind === "leave";
     if (filter === "Regularization") return i.kind === "regularization";
+    if (filter === "Location") return i.kind === "location";
     return i.kind === "asset";
   }), [items, filter]);
 
@@ -72,13 +73,23 @@ export function InboxCard({ items, onDecide }: Props) {
           {filtered.map((item) => {
             const name = item.kind === "leave" ? item.leave.employeeName
               : item.kind === "regularization" ? item.regularization.employeeName
+              : item.kind === "location" ? item.attendance.employeeName
               : item.assetRequest.employeeName;
+            const selfieUrl = item.kind === "location"
+              ? (item.attendance.clockOutSelfieUrl ?? item.attendance.clockInSelfieUrl) : null;
+            const address = item.kind === "location"
+              ? (item.attendance.clockOutAddress ?? item.attendance.clockInAddress) : null;
             return (
               <div key={item.id} className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                    {initials(name)}
-                  </div>
+                  {selfieUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Firebase Storage URL, no next/image domain config needed for a tiny inbox thumbnail
+                    <img src={selfieUrl} alt={`${name}'s check-in selfie`} className="h-9 w-9 flex-shrink-0 rounded-full object-cover border border-border" />
+                  ) : (
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {initials(name)}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{name}</p>
                     {item.kind === "leave" ? (
@@ -96,6 +107,18 @@ export function InboxCard({ items, onDecide }: Props) {
                           {item.regularization.requestedClockIn && ` · ${item.regularization.requestedClockIn}`}
                           {item.regularization.requestedClockOut && ` – ${item.regularization.requestedClockOut}`}
                         </span>
+                      </div>
+                    ) : item.kind === "location" ? (
+                      <div className="mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                            {item.attendance.distanceFromOfficeMeters != null
+                              ? `${(item.attendance.distanceFromOfficeMeters / 1000).toFixed(1)} km away`
+                              : "Location unavailable"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{formatDate(item.attendance.date)}</span>
+                        </div>
+                        {address && <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={address}>{address}</p>}
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 mt-0.5">

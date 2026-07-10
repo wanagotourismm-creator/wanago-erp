@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, CheckCheck, X, Palmtree, Clock, Laptop, Ticket, PartyPopper, FileCheck2 } from "lucide-react";
+import { Bell, CheckCheck, X, Palmtree, Clock, Laptop, Ticket, PartyPopper, FileCheck2, MapPin } from "lucide-react";
 import { useNotifications } from "@/modules/notifications/hooks/useNotifications";
 import { cn, timeAgo } from "@/lib/utils/helpers";
 import type { AppNotification, NotificationCategory } from "@/modules/notifications/types";
 
 const CATEGORY_ICON: Record<NotificationCategory, React.ElementType> = {
   leave: Palmtree, regularization: Clock, asset: Laptop, ticket: Ticket,
-  system: PartyPopper, followup: Bell, approval: FileCheck2,
+  system: PartyPopper, followup: Bell, approval: FileCheck2, location: MapPin,
 };
 
 // Shown once per browser session — the small bell badge is easy to miss

@@ -58,6 +58,7 @@ const CATEGORY_META: Record<NotificationCategory, { icon: string; label: string 
   system:         { icon: "🎉", label: "Team Wanago" },
   followup:       { icon: "⏰", label: "Reminder" },
   approval:       { icon: "📄", label: "Approval" },
+  location:       { icon: "📍", label: "Location Approval" },
 };
 
 // Full-bleed, brand-colored card used for every generic notification email

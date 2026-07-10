@@ -1,11 +1,13 @@
 "use client";
 
-import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff, Camera } from "lucide-react";
-import { useState, useRef } from "react";
+import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff } from "lucide-react";
+import { useState } from "react";
 import { formatDate } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
 import { BREAK_ALLOWANCE_MINUTES } from "@/modules/ess/hooks/useEss";
+import { CheckInLocationModal } from "@/modules/ess/components/CheckInLocationModal";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
+import type { CheckInContext } from "@/modules/ess/hooks/useEss";
 
 type Props = {
   todayRecord: AttendanceRecord | null;
@@ -13,24 +15,27 @@ type Props = {
   isClockedOut: boolean;
   isOnBreak: boolean;
   attendance: AttendanceRecord[];
-  onClockIn: (selfie: File) => Promise<{ error: string | null }>;
-  onClockOut: (selfie: File) => Promise<{ error: string | null }>;
+  onClockIn: (ctx: CheckInContext, selfie: File | null) => Promise<{ error: string | null; pendingApproval?: boolean }>;
+  onClockOut: (ctx: CheckInContext, selfie: File | null) => Promise<{ error: string | null; pendingApproval?: boolean }>;
+  onResolveContext: () => Promise<CheckInContext>;
   onStartBreak: () => Promise<{ error: string | null }>;
   onEndBreak: () => Promise<{ error: string | null }>;
 };
 
-// Check-in/out both require a selfie (front camera) as a second anti-buddy-
-// punching signal alongside location — captured via the browser's native
-// camera capture, same mechanism already used for receipts/profile photos
-// elsewhere in this app, rather than a live getUserMedia preview.
+// Every check-in/out shows the resolved address + a map (via
+// CheckInLocationModal) before it's confirmed. A selfie is only required —
+// and manager approval only triggered — when the office has geofencing
+// configured and the employee is confirmed outside it; being in range, or
+// an office that never opted into geofencing, just confirms directly.
 export function ClockCard({
   todayRecord, isClockedIn, isClockedOut, isOnBreak, attendance,
-  onClockIn, onClockOut, onStartBreak, onEndBreak,
+  onClockIn, onClockOut, onResolveContext, onStartBreak, onEndBreak,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<"in" | "out" | null>(null);
-  const selfieInputRef = useRef<HTMLInputElement>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [modal, setModal] = useState<{ action: "in" | "out"; ctx: CheckInContext | null } | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   async function handle(action: () => Promise<{ error: string | null }>) {
     setBusy(true);
@@ -40,19 +45,25 @@ export function ClockCard({
     setBusy(false);
   }
 
-  function requestSelfieFor(kind: "in" | "out") {
+  async function openLocationModal(action: "in" | "out") {
     setError(null);
-    setPendingAction(kind);
-    selfieInputRef.current?.click();
+    setInfo(null);
+    setModal({ action, ctx: null });
+    setModalLoading(true);
+    const ctx = await onResolveContext();
+    setModalLoading(false);
+    setModal({ action, ctx });
   }
 
-  function handleSelfieCaptured(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    const kind = pendingAction;
-    e.target.value = "";
-    setPendingAction(null);
-    if (!file || !kind) return;
-    handle(() => (kind === "in" ? onClockIn(file) : onClockOut(file)));
+  async function handleModalConfirm(selfieFile: File | null) {
+    if (!modal?.ctx) return;
+    setBusy(true);
+    const fn = modal.action === "in" ? onClockIn : onClockOut;
+    const { error, pendingApproval } = await fn(modal.ctx, selfieFile);
+    setBusy(false);
+    setModal(null);
+    if (error) setError(error);
+    else if (pendingApproval) setInfo("Submitted — you're outside the office location, so this needs your manager's approval.");
   }
 
   const recent = attendance.slice(0, 5);
@@ -75,10 +86,20 @@ export function ClockCard({
         <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
       )}
 
-      {todayRecord?.withinGeofence === false && (
+      {info && (
+        <div className="mb-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">{info}</div>
+      )}
+
+      {todayRecord?.locationApprovalStatus === "pending" && (
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           <MapPinOff size={13} className="flex-shrink-0" />
-          Checked in outside the office location
+          Outside the office location — pending your manager&apos;s approval
+        </div>
+      )}
+      {todayRecord?.locationApprovalStatus === "rejected" && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <MapPinOff size={13} className="flex-shrink-0" />
+          Your manager didn&apos;t approve today&apos;s location — contact them if this is wrong
         </div>
       )}
 
@@ -123,7 +144,7 @@ export function ClockCard({
                 Start Break
               </button>
             )}
-            <button onClick={() => requestSelfieFor("out")} disabled={busy || isOnBreak}
+            <button onClick={() => openLocationModal("out")} disabled={busy || isOnBreak}
               title={isOnBreak ? "End your break first" : undefined}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-sm font-semibold text-white hover:bg-destructive/90 disabled:opacity-60 transition-colors shadow-sm">
               {busy ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
@@ -131,25 +152,13 @@ export function ClockCard({
             </button>
           </div>
         ) : (
-          <button onClick={() => requestSelfieFor("in")} disabled={busy} data-tour-id="tour-ess-checkin"
+          <button onClick={() => openLocationModal("in")} disabled={busy} data-tour-id="tour-ess-checkin"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm">
             {busy ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />}
             Check In
           </button>
         )}
       </div>
-
-      <input
-        ref={selfieInputRef}
-        type="file"
-        accept="image/*"
-        capture="user"
-        className="hidden"
-        onChange={handleSelfieCaptured}
-      />
-      <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-        <Camera size={11} /> A front-camera selfie is required to check in/out
-      </p>
 
       {recent.length > 0 && (
         <div className="mt-4 space-y-1.5">
@@ -164,6 +173,17 @@ export function ClockCard({
             </div>
           ))}
         </div>
+      )}
+
+      {modal && (
+        <CheckInLocationModal
+          action={modal.action}
+          ctx={modal.ctx}
+          loading={modalLoading}
+          busy={busy}
+          onConfirm={handleModalConfirm}
+          onClose={() => setModal(null)}
+        />
       )}
     </div>
   );

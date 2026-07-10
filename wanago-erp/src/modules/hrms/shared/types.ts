@@ -118,6 +118,21 @@ export type AttendanceRecord = FirestoreRecord & {
   withinGeofenceOut: boolean | null;
   clockInSelfieUrl: string | null;
   clockOutSelfieUrl: string | null;
+  clockInAddress: string | null;
+  clockOutAddress: string | null;
+  // How far this check-in/out was from the office, at whichever end
+  // (in/out) triggered a location-approval request — null when the
+  // employee was within the geofence (or the office has none configured),
+  // since there's nothing to approve in that case.
+  distanceFromOfficeMeters: number | null;
+  // Set only when the office has geofencing configured and the employee
+  // was outside it — a selfie is captured and this check-in/out sits
+  // pending until their reporting manager approves or rejects it (shown in
+  // the same Team Inbox as leave/regularization/asset requests). Staying
+  // within the geofence never touches this field at all.
+  locationApprovalStatus: "pending" | "approved" | "rejected" | null;
+  locationApprovedBy: string | null;
+  locationApprovedAt: Timestamp | Date | string | FieldValue | null;
 };
 
 // A check-in/check-out blocked for a suspicious-location reason (impossible

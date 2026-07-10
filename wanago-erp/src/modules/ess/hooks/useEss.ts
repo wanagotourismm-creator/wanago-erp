@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchEmployeeByUserId, fetchEmployees, fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
-import { fetchAttendanceByEmployee, createAttendanceRecord, updateAttendanceRecord, uploadAttendanceSelfie } from "@/modules/hrms/attendance/services/attendance.service";
+import { fetchAttendanceByEmployee, fetchAttendanceRecords, createAttendanceRecord, updateAttendanceRecord, uploadAttendanceSelfie, decideLocationApproval } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchLeaves, fetchLeavesByEmployee, createLeaveRequest, cancelLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
 import { fetchRegularizations, fetchRegularizationsByEmployee, createRegularizationRequest, approveRegularization, rejectRegularization } from "@/modules/hrms/regularization/services/regularization.service";
 import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service";
@@ -12,7 +12,7 @@ import { fetchAssetsByEmployee } from "@/modules/assets/services/asset.service";
 import { fetchAssetRequests, fetchAssetRequestsByEmployee, createAssetRequest, approveAssetRequest, rejectAssetRequest } from "@/modules/assets/services/asset-request.service";
 import { fetchTicketsByReporter, createTicket } from "@/modules/tickets/services/ticket.service";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
-import { getCurrentPosition, distanceMeters, type GeoPosition } from "@/lib/geo";
+import { getCurrentPosition, reverseGeocode, distanceMeters, type GeoPosition } from "@/lib/geo";
 import { detectSuspiciousLocation } from "@/lib/geo-fraud";
 import { logSuspiciousAttempt } from "@/modules/hrms/attendance/services/suspicious-attendance.service";
 import { notifyUser } from "@/lib/notify";
@@ -37,7 +37,22 @@ export type LeaveBalance = { type: string; entitlement: number; used: number; re
 export type InboxItem =
   | { kind: "leave"; id: string; leave: LeaveRequest }
   | { kind: "regularization"; id: string; regularization: AttendanceRegularization }
-  | { kind: "asset"; id: string; assetRequest: AssetRequest };
+  | { kind: "asset"; id: string; assetRequest: AssetRequest }
+  | { kind: "location"; id: string; attendance: AttendanceRecord };
+
+// Resolved before clockIn/clockOut is actually called — the UI shows this
+// (address, distance, whether a selfie will be required) as a confirm
+// step, then passes it straight through so the position is only ever
+// fetched once per attempt.
+export type CheckInContext = {
+  pos: GeoPosition | null;
+  address: string | null;
+  officeName: string;
+  geofenceConfigured: boolean;
+  withinGeofence: boolean | null;
+  distanceMeters: number | null;
+  requiresSelfie: boolean;
+};
 
 export function useEss() {
   const { user } = useAuthStore();
@@ -50,6 +65,7 @@ export function useEss() {
   const [regularizations, setRegularizations] = useState<AttendanceRegularization[]>([]);
   const [teamLeaves, setTeamLeaves] = useState<LeaveRequest[]>([]);
   const [teamRegularizations, setTeamRegularizations] = useState<AttendanceRegularization[]>([]);
+  const [teamLocationApprovals, setTeamLocationApprovals] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [activity, setActivity] = useState<ActivityLogEntry[]>([]);
@@ -102,14 +118,18 @@ export function useEss() {
 
         if (reports.length > 0) {
           const reportIds = new Set(reports.map((r) => r.id));
-          const [allLeaves, allRegs, allAssetReqs] = await Promise.all([fetchLeaves(), fetchRegularizations(), fetchAssetRequests()]);
+          const [allLeaves, allRegs, allAssetReqs, allAttendance] = await Promise.all([
+            fetchLeaves(), fetchRegularizations(), fetchAssetRequests(), fetchAttendanceRecords(),
+          ]);
           setTeamLeaves(allLeaves.filter((l) => reportIds.has(l.employeeId) && l.status === "pending"));
           setTeamRegularizations(allRegs.filter((r) => reportIds.has(r.employeeId) && r.regularizationStatus === "pending"));
           setTeamAssetRequests(allAssetReqs.filter((r) => reportIds.has(r.employeeId) && r.requestStatus === "pending"));
+          setTeamLocationApprovals(allAttendance.filter((a) => reportIds.has(a.employeeId) && a.locationApprovalStatus === "pending"));
         } else {
           setTeamLeaves([]);
           setTeamRegularizations([]);
           setTeamAssetRequests([]);
+          setTeamLocationApprovals([]);
         }
       }
     } catch (e) {
@@ -146,6 +166,7 @@ export function useEss() {
     ...teamLeaves.map((l): InboxItem => ({ kind: "leave", id: l.id, leave: l })),
     ...teamRegularizations.map((r): InboxItem => ({ kind: "regularization", id: r.id, regularization: r })),
     ...teamAssetRequests.map((r): InboxItem => ({ kind: "asset", id: r.id, assetRequest: r })),
+    ...teamLocationApprovals.map((a): InboxItem => ({ kind: "location", id: a.id, attendance: a })),
   ];
 
   // Runs the location-spoofing heuristics (impossible travel speed,
@@ -176,89 +197,113 @@ export function useEss() {
     return "We couldn't verify your location for this attempt, so it's been blocked and flagged for HR review. If this is a mistake, contact HR or submit an attendance correction.";
   }
 
-  async function clockIn(selfieFile: File) {
+  // Fetches location + reverse-geocodes it + checks it against the office's
+  // geofence (if configured) in one shot — the UI calls this first to show
+  // an address/map confirm step and decide whether to prompt for a selfie,
+  // then passes the resolved context straight into clockIn/clockOut so the
+  // position is only ever read from the device once per attempt.
+  async function resolveCheckInContext(): Promise<CheckInContext> {
+    const pos = await getCurrentPosition();
+    const address = pos ? await reverseGeocode(pos.lat, pos.lng) : null;
+    const geofenceConfigured =
+      office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null;
+
+    let withinGeofence: boolean | null = null;
+    let distance: number | null = null;
+    if (geofenceConfigured && pos) {
+      distance = distanceMeters(pos.lat, pos.lng, office!.latitude!, office!.longitude!);
+      withinGeofence = distance <= office!.geofenceRadiusMeters!;
+    }
+
+    return {
+      pos, address, officeName: office?.name ?? "the office",
+      geofenceConfigured, withinGeofence, distanceMeters: distance,
+      // A selfie (and the manager-approval it triggers) is only ever
+      // needed for a geofenced office, and only when the employee is
+      // confirmed outside it or couldn't be located at all — being within
+      // range, or an office that never opted into geofencing, needs
+      // neither.
+      requiresSelfie: geofenceConfigured && (!pos || withinGeofence === false),
+    };
+  }
+
+  async function clockIn(ctx: CheckInContext, selfieFile: File | null) {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
-      const selfieUrl = await uploadAttendanceSelfie(employee.id, today, "check_in", selfieFile);
-
-      const pos = await getCurrentPosition();
-      let withinGeofence: boolean | null = null;
-
-      // Geofencing is opt-in per office (lat/lng/radius are all optional on
-      // the Office form) — only offices that actually configured it are
-      // enforced here, so remote/field offices with no coordinates set stay
-      // unrestricted. Previously withinGeofence was computed but never
-      // acted on, so it was purely informational and every check-in
-      // succeeded regardless of location.
-      const geofenceConfigured =
-        office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null;
-
-      if (geofenceConfigured) {
-        if (!pos) {
-          return { error: "This office requires location access to clock in. Please enable location permissions for this site and try again." };
-        }
-        const distance = distanceMeters(pos.lat, pos.lng, office!.latitude!, office!.longitude!);
-        withinGeofence = distance <= office!.geofenceRadiusMeters!;
-        if (!withinGeofence) {
-          return { error: `You're too far from ${office?.name ?? "the office"} to clock in (${Math.round(distance)}m away, must be within ${office!.geofenceRadiusMeters}m). Ask your manager for an attendance correction if this is wrong.` };
-        }
+      if (ctx.geofenceConfigured && !ctx.pos) {
+        return { error: "This office requires location access to clock in. Please enable location permissions for this site and try again." };
       }
 
-      if (pos) {
-        const blockReason = await checkAndLogSuspicion(pos, "check_in");
+      if (ctx.pos) {
+        const blockReason = await checkAndLogSuspicion(ctx.pos, "check_in");
         if (blockReason) return { error: blockReason };
+      }
+
+      const outOfRange = ctx.requiresSelfie;
+      let selfieUrl: string | null = null;
+      if (outOfRange) {
+        if (!selfieFile) return { error: "A selfie is required to check in from outside the office." };
+        selfieUrl = await uploadAttendanceSelfie(employee.id, today, "check_in", selfieFile);
       }
 
       const rec = await createAttendanceRecord({
         employeeId: employee.id, employeeName: employee.fullName,
         date: today, status: "present", clockIn: nowTime(), clockOut: "", notes: "",
         officeId: employee.officeId, breakStartTime: null, breakMinutes: 0,
-        clockInLat: pos?.lat ?? null, clockInLng: pos?.lng ?? null, withinGeofence,
+        clockInLat: ctx.pos?.lat ?? null, clockInLng: ctx.pos?.lng ?? null, withinGeofence: ctx.withinGeofence,
+        clockInAddress: ctx.address,
         clockInSelfieUrl: selfieUrl,
+        distanceFromOfficeMeters: outOfRange ? ctx.distanceMeters : null,
+        locationApprovalStatus: outOfRange ? "pending" : null,
       }, user.uid);
       setAttendance((p) => [rec, ...p]);
-      return { error: null };
+
+      if (outOfRange) {
+        const km = ctx.distanceMeters != null ? (ctx.distanceMeters / 1000).toFixed(1) : "an unknown distance";
+        notifyManagerOfLocationRequest(`${employee.fullName} checked in ${km} km from ${ctx.officeName} and needs approval.`);
+      }
+      return { error: null, pendingApproval: outOfRange };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Failed to clock in" };
     }
   }
 
-  async function clockOut(selfieFile: File) {
+  async function clockOut(ctx: CheckInContext, selfieFile: File | null) {
     if (!todayRecord) return { error: "You haven't clocked in today" };
     try {
-      const selfieUrl = await uploadAttendanceSelfie(employee?.id ?? "unknown", today, "check_out", selfieFile);
-
-      const pos = await getCurrentPosition();
-      let withinGeofenceOut: boolean | null = null;
-
-      const geofenceConfigured =
-        office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null;
-
-      if (geofenceConfigured) {
-        if (!pos) {
-          return { error: "This office requires location access to clock out. Please enable location permissions for this site and try again." };
-        }
-        const distance = distanceMeters(pos.lat, pos.lng, office!.latitude!, office!.longitude!);
-        withinGeofenceOut = distance <= office!.geofenceRadiusMeters!;
-        if (!withinGeofenceOut) {
-          return { error: `You're too far from ${office?.name ?? "the office"} to clock out (${Math.round(distance)}m away, must be within ${office!.geofenceRadiusMeters}m). Ask your manager for an attendance correction if this is wrong.` };
-        }
+      if (ctx.geofenceConfigured && !ctx.pos) {
+        return { error: "This office requires location access to clock out. Please enable location permissions for this site and try again." };
       }
 
-      if (pos) {
-        const blockReason = await checkAndLogSuspicion(pos, "check_out");
+      if (ctx.pos) {
+        const blockReason = await checkAndLogSuspicion(ctx.pos, "check_out");
         if (blockReason) return { error: blockReason };
+      }
+
+      const outOfRange = ctx.requiresSelfie;
+      let selfieUrl: string | null = null;
+      if (outOfRange) {
+        if (!selfieFile) return { error: "A selfie is required to check out from outside the office." };
+        selfieUrl = await uploadAttendanceSelfie(employee?.id ?? "unknown", today, "check_out", selfieFile);
       }
 
       await updateAttendanceRecord(todayRecord.id, {
         clockOut: nowTime(),
-        clockOutLat: pos?.lat ?? null,
-        clockOutLng: pos?.lng ?? null,
-        withinGeofenceOut,
+        clockOutLat: ctx.pos?.lat ?? null,
+        clockOutLng: ctx.pos?.lng ?? null,
+        withinGeofenceOut: ctx.withinGeofence,
+        clockOutAddress: ctx.address,
         clockOutSelfieUrl: selfieUrl,
+        distanceFromOfficeMeters: outOfRange ? ctx.distanceMeters : todayRecord.distanceFromOfficeMeters,
+        locationApprovalStatus: outOfRange ? "pending" : todayRecord.locationApprovalStatus,
       });
       await load();
-      return { error: null };
+
+      if (outOfRange && employee) {
+        const km = ctx.distanceMeters != null ? (ctx.distanceMeters / 1000).toFixed(1) : "an unknown distance";
+        notifyManagerOfLocationRequest(`${employee.fullName} checked out ${km} km from ${ctx.officeName} and needs approval.`);
+      }
+      return { error: null, pendingApproval: outOfRange };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Failed to clock out" };
     }
@@ -295,7 +340,7 @@ export function useEss() {
   // Best-effort: notifies the employee's reporting manager (in-app + email +
   // WhatsApp) that a new request is waiting on them. Silently does nothing
   // if there's no manager on file — this never blocks the request itself.
-  async function notifyManagerOfRequest(title: string, body: string, category: "leave" | "regularization" | "asset") {
+  async function notifyManagerOfRequest(title: string, body: string, category: "leave" | "regularization" | "asset" | "location") {
     if (!employee?.reportingManagerId) return;
     try {
       const manager = await fetchEmployeeById(employee.reportingManagerId);
@@ -305,6 +350,10 @@ export function useEss() {
         title, body, link: "/ess", category,
       });
     } catch { /* best-effort */ }
+  }
+
+  function notifyManagerOfLocationRequest(body: string) {
+    notifyManagerOfRequest("Attendance needs location approval", body, "location");
   }
 
   async function applyLeave(data: EssLeaveApplySchema) {
@@ -398,7 +447,7 @@ export function useEss() {
     }
   }
 
-  async function notifyRequesterOfDecision(employeeId: string, title: string, body: string, category: "leave" | "regularization" | "asset") {
+  async function notifyRequesterOfDecision(employeeId: string, title: string, body: string, category: "leave" | "regularization" | "asset" | "location") {
     try {
       const requester = await fetchEmployeeById(employeeId);
       if (!requester) return;
@@ -448,12 +497,19 @@ export function useEss() {
         setTeamRegularizations((p) => p.filter((r) => r.id !== item.id));
         notifyRequesterOfDecision(item.regularization.employeeId, `Your attendance correction was ${verb}`,
           `Your correction request for ${item.regularization.date} was ${verb}.`, "regularization");
-      } else {
+      } else if (item.kind === "asset") {
         if (decision === "approve") await approveAssetRequest(item.id, user.uid);
         else await rejectAssetRequest(item.id, user.uid);
         setTeamAssetRequests((p) => p.filter((r) => r.id !== item.id));
         notifyRequesterOfDecision(item.assetRequest.employeeId, `Your asset request was ${verb}`,
           `Your request for ${item.assetRequest.assetCategory} was ${verb}.`, "asset");
+      } else {
+        await decideLocationApproval(item.id, decision === "approve" ? "approved" : "rejected", user.uid);
+        setTeamLocationApprovals((p) => p.filter((a) => a.id !== item.id));
+        const km = item.attendance.distanceFromOfficeMeters != null
+          ? (item.attendance.distanceFromOfficeMeters / 1000).toFixed(1) + " km" : "an unknown distance";
+        notifyRequesterOfDecision(item.attendance.employeeId, `Your check-in/out location was ${verb}`,
+          `Your attendance from ${km} away from the office on ${item.attendance.date} was ${verb}.`, "location");
       }
       return { error: null };
     } catch (e) {
@@ -469,7 +525,7 @@ export function useEss() {
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
     leavePolicy, enabledLeaveTypes,
-    clockIn, clockOut, startBreak, endBreak, applyLeave, cancelMyLeave,
+    clockIn, clockOut, resolveCheckInContext, startBreak, endBreak, applyLeave, cancelMyLeave,
     requestCorrection, requestAsset, reportIssue, decideInboxItem, reload: load,
   };
 }

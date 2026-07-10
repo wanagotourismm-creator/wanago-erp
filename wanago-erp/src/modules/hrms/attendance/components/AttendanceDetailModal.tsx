@@ -76,9 +76,20 @@ export function AttendanceDetailModal({ record, onClose, onEdit, onDelete }: Pro
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Location</p>
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
-              <Row label="Within Geofence" value={record.withinGeofence === null ? null : record.withinGeofence ? "Yes" : "No"} />
-              <Row label="Check In Lat" value={record.clockInLat} />
-              <Row label="Check In Lng" value={record.clockInLng} />
+              <Row label="Check In Address" value={record.clockInAddress} />
+              <Row label="Check Out Address" value={record.clockOutAddress} />
+              <Row label="Within Geofence (In)" value={record.withinGeofence === null ? null : record.withinGeofence ? "Yes" : "No"} />
+              <Row label="Within Geofence (Out)" value={record.withinGeofenceOut === null ? null : record.withinGeofenceOut ? "Yes" : "No"} />
+              <Row label="Distance From Office" value={record.distanceFromOfficeMeters != null ? `${(record.distanceFromOfficeMeters / 1000).toFixed(1)} km` : null} />
+              <Row
+                label="Location Approval"
+                value={
+                  record.locationApprovalStatus === "pending" ? <span className="text-amber-600">Pending</span>
+                  : record.locationApprovalStatus === "approved" ? <span className="text-green-600">Approved</span>
+                  : record.locationApprovalStatus === "rejected" ? <span className="text-destructive">Rejected</span>
+                  : null
+                }
+              />
             </div>
           </div>
 

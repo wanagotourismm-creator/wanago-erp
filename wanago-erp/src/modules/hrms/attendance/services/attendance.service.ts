@@ -1,4 +1,4 @@
-import { orderBy, where, getDocs, query, collection } from "firebase/firestore";
+import { orderBy, where, getDocs, query, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
@@ -92,8 +92,30 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
     withinGeofenceOut: data.withinGeofenceOut ?? null,
     clockInSelfieUrl:  data.clockInSelfieUrl ?? null,
     clockOutSelfieUrl: data.clockOutSelfieUrl ?? null,
+    clockInAddress:    data.clockInAddress ?? null,
+    clockOutAddress:   data.clockOutAddress ?? null,
+    distanceFromOfficeMeters: data.distanceFromOfficeMeters ?? null,
+    locationApprovalStatus:   data.locationApprovalStatus ?? null,
+    locationApprovedBy:       data.locationApprovedBy ?? null,
+    locationApprovedAt:       null,
     createdBy,
   });
+}
+
+// Manager approves/rejects a check-in/out that was outside the office
+// geofence — the pending item shows up in their Team Inbox alongside
+// leave/regularization/asset requests. Approving/rejecting only updates the
+// approval trail; it deliberately doesn't touch status/hoursWorked, so HR
+// still sees exactly what was recorded either way and can follow up
+// (e.g. via a regularization) if a rejected check-in needs correcting.
+export async function decideLocationApproval(
+  id: string, decision: "approved" | "rejected", decidedBy: string
+): Promise<void> {
+  return repo.update(id, {
+    locationApprovalStatus: decision,
+    locationApprovedBy: decidedBy,
+    locationApprovedAt: serverTimestamp(),
+  } as Partial<AttendanceRecord>);
 }
 
 export async function updateAttendanceRecord(id: string, data: Partial<AttendanceRecordSchema>): Promise<void> {

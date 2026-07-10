@@ -13,6 +13,19 @@ export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: n
 
 export type GeoPosition = { lat: number; lng: number; accuracy: number | null };
 
+// Best-effort — a failed/slow reverse-geocode should never block check-in;
+// callers show the raw coordinates as a fallback when this resolves null.
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.address ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Resolves null instead of rejecting on denial/timeout/unavailability. Whether
 // a null result blocks clock-in is decided by the caller (useEss.ts's
 // clockIn()) based on whether the employee's office has geofencing
