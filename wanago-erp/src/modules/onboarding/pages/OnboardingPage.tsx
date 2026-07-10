@@ -43,7 +43,7 @@ function resolveEmployeeRef(value: string | undefined, employees: Employee[]): {
 }
 
 export function OnboardingPage() {
-  const { tasks, loading, load, addTask, moveStage } = useOnboardingTasks();
+  const { tasks, loading, error, load, addTask, moveStage } = useOnboardingTasks();
   const { user } = useAuthStore();
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -51,8 +51,8 @@ export function OnboardingPage() {
   const [offices, setOffices] = useState<Office[]>([]);
 
   useEffect(() => {
-    fetchEmployees().then(setEmployees);
-    fetchOffices().then(setOffices);
+    fetchEmployees().then(setEmployees).catch(() => {});
+    fetchOffices().then(setOffices).catch(() => {});
   }, []);
 
   async function handleSubmit(data: OnboardingTaskSchema) {
@@ -138,6 +138,10 @@ export function OnboardingPage() {
           </>
         }
       />
+
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+      )}
 
       {loading ? (
         <div className="flex h-64 items-center justify-center">

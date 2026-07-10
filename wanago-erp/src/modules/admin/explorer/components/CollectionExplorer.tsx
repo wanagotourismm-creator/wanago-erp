@@ -15,14 +15,18 @@ export function CollectionExplorer() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleLoad() {
     if (!selected) return;
     setLoading(true);
     setLoaded(true);
+    setError(null);
     try {
       const data = await fetchCollectionDocs(selected);
       setDocs(data);
+    } catch {
+      setError(`Failed to load "${selected}"`);
     } finally {
       setLoading(false);
     }
@@ -31,9 +35,12 @@ export function CollectionExplorer() {
   async function handleDelete(id: string) {
     if (!confirm(`Delete this document from "${selected}"? It'll be moved to Trash.`)) return;
     setBusy(id);
+    setError(null);
     try {
       await deleteExplorerDoc(selected, id);
       setDocs(prev => prev.filter(d => d.id !== id));
+    } catch {
+      setError("Failed to delete document");
     } finally {
       setBusy(null);
     }
@@ -44,6 +51,10 @@ export function CollectionExplorer() {
       <div className="rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
         Raw database viewer — shows documents exactly as stored in Firestore. Deleting here moves the document to Trash, same as anywhere else.
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+      )}
 
       <div className="flex items-center gap-3">
         <select

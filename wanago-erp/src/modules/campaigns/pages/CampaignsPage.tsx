@@ -31,6 +31,12 @@ const STATUS_FILTERS: { value: Campaign["campaignStatus"] | ""; label: string }[
 export function CampaignsPage() {
   const { campaigns, loading, addCampaign, editCampaign, removeCampaign, load } = useCampaigns();
   const { user } = useAuthStore();
+  // Matches firestore.rules' campaigns write gate — Marketing/Admin/Super
+  // Admin only. Previously Edit/Delete/Add were shown to every role, and
+  // clicking them as e.g. a sales/HR user just silently failed the rule.
+  const canManage = !!user && (
+    user.systemRole === "super_admin" || user.systemRole === "admin" || user.systemRole === "marketing"
+  );
 
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingCampaign,  setEditingCampaign]  = useState<Campaign | null>(null);
@@ -171,18 +177,22 @@ export function CampaignsPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
-            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-campaigns-import">
-              Import
-            </Button>
+            {canManage && (
+              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-campaigns-import">
+                Import
+              </Button>
+            )}
             <BulkExportButton filenameBase="campaigns" rows={exportRows} />
-            <Button
-              size="sm"
-              icon={<Plus size={14} />}
-              onClick={() => { setEditingCampaign(null); setFormOpen(true); }}
-              data-tour-id="tour-campaigns-add"
-            >
-              Add Campaign
-            </Button>
+            {canManage && (
+              <Button
+                size="sm"
+                icon={<Plus size={14} />}
+                onClick={() => { setEditingCampaign(null); setFormOpen(true); }}
+                data-tour-id="tour-campaigns-add"
+              >
+                Add Campaign
+              </Button>
+            )}
           </>
         }
       />
@@ -237,6 +247,7 @@ export function CampaignsPage() {
       <CampaignsTable
         campaigns={filtered}
         loading={loading}
+        canManage={canManage}
         onView={setViewingCampaign}
         onEdit={handleEdit}
         onDelete={handleDelete}
@@ -245,6 +256,7 @@ export function CampaignsPage() {
       {/* Detail popup */}
       <CampaignDetailModal
         campaign={viewingCampaign ? filtered.find(c => c.id === viewingCampaign.id) ?? viewingCampaign : null}
+        canManage={canManage}
         onClose={() => setViewingCampaign(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}

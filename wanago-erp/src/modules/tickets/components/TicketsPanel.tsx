@@ -49,6 +49,7 @@ function resolveEmployeeRef(value: string | undefined, employees: Employee[]): {
 export function TicketsPanel() {
   const { tickets, loading, stats, load, setStatus, assignToMe, removeTicket } = useTickets();
   const { user } = useAuthStore();
+  const canDelete = user?.systemRole === "admin" || user?.systemRole === "super_admin";
   const [statusFilter, setStatusFilter] = useState("All");
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -188,6 +189,7 @@ export function TicketsPanel() {
       <TicketsTable
         tickets={filtered}
         loading={loading}
+        canDelete={canDelete}
         onView={setViewingTicket}
         onSetStatus={(t, status) => setStatus(t.id, status)}
         onAssignToMe={(t) => assignToMe(t.id)}
@@ -196,6 +198,7 @@ export function TicketsPanel() {
 
       <TicketDetailModal
         ticket={viewingTicket ? filtered.find(t => t.id === viewingTicket.id) ?? viewingTicket : null}
+        canDelete={canDelete}
         onClose={() => setViewingTicket(null)}
         onSetStatus={(t, status) => setStatus(t.id, status)}
         onAssignToMe={(t) => assignToMe(t.id)}

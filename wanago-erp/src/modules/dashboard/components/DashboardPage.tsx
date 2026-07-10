@@ -31,7 +31,7 @@ import { SkeletonCard }         from "@/components/ui/Skeleton";
 import { formatCurrency }       from "@/lib/utils/helpers";
 
 export function DashboardPage() {
-  const { stats, pipeline, revenue, loading } = useDashboard();
+  const { stats, pipeline, revenue, loading, error } = useDashboard();
   const { user } = useAuthStore();
   const currentEmployee   = useCurrentEmployee();
   const attendanceSummary = useAttendanceSummary();
@@ -56,6 +56,12 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+
+      {error && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400">
+          {error}
+        </div>
+      )}
 
       {/* Greeting row */}
       <GreetingBanner

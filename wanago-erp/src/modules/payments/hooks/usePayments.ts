@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { fetchPayments, createPayment, deletePayment } from "@/modules/payments/services/payment.service";
 import { useAuthStore } from "@/store/auth.store";
 import { logActivity } from "@/lib/activity-log";
+import { formatCurrency } from "@/lib/utils/helpers";
 import type { Payment, PaymentFormData } from "@/modules/payments/types";
 
 export function usePayments() {
@@ -33,7 +34,7 @@ export function usePayments() {
       setPayments(prev => [payment, ...prev]);
       logActivity({
         entityType: "Payment", entityName: payment.customerName, action: "created",
-        detail: `Recorded payment ${payment.refNumber} (₹${payment.amount.toLocaleString()})`,
+        detail: `Recorded payment ${payment.refNumber} (${formatCurrency(payment.amount)})`,
         actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
       });
       return { error: null };

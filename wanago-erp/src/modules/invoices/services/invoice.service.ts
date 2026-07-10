@@ -1,9 +1,10 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs, serverTimestamp } from "firebase/firestore";
+import { serverTimestamp, doc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { invoiceRepository } from "@/modules/invoices/services/invoice.repository";
 import { FIRESTORE_COLLECTIONS, INVOICE_STATUS, type InvoiceStatus } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Invoice, InvoiceFormData } from "@/modules/invoices/types";
 import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
@@ -40,6 +41,10 @@ function computeStatus(
   if (totalAmount > 0 && amountPaid >= totalAmount) return INVOICE_STATUS.PAID;
   if (dueDate && new Date(dueDate) < new Date() && amountPaid < totalAmount) return INVOICE_STATUS.OVERDUE;
   if (amountPaid > 0) return INVOICE_STATUS.PARTIAL;
+  // markInvoiceSent() passes SENT as prevStatus specifically so it sticks
+  // here when nothing's been paid yet — without this branch it always fell
+  // through to UNPAID and "mark sent" could never actually take effect.
+  if (prevStatus === INVOICE_STATUS.SENT) return INVOICE_STATUS.SENT;
   return INVOICE_STATUS.UNPAID;
 }
 
@@ -65,9 +70,7 @@ export async function createInvoice(
   data: InvoiceFormData,
   createdBy: string
 ): Promise<Invoice> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.INVOICES));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("INVOICE", ids);
+  const refNumber = await nextRefNumber("INVOICE");
   const dueDate   = data.dueDate || null;
 
   const invoice = await invoiceRepository.create({
@@ -198,4 +201,24 @@ export async function markInvoiceSent(id: string): Promise<void> {
 
 export async function deleteInvoice(id: string): Promise<void> {
   return invoiceRepository.delete(id);
+}
+
+// Recording a payment against an invoice used to be a plain read-then-write
+// (fetch the invoice, add the payment amount, write the new total) — two
+// payments recorded near-simultaneously against the same invoice could both
+// read the same stale amountPaid and the second write would silently
+// overwrite the first's contribution. A transaction re-reads inside the
+// commit and retries on conflict, so concurrent payments always accumulate
+// correctly.
+export async function applyPaymentToInvoice(invoiceId: string, amount: number): Promise<void> {
+  const ref = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const invoice = snap.data() as Invoice;
+    const amountPaid = (invoice.amountPaid ?? 0) + amount;
+    const balanceDue = invoice.totalAmount - amountPaid;
+    const status = computeStatus(invoice.status, invoice.totalAmount, amountPaid, invoice.dueDate);
+    tx.update(ref, { amountPaid, balanceDue, status, updatedAt: serverTimestamp() });
+  });
 }

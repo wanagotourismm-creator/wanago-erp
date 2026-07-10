@@ -170,7 +170,7 @@ export function ApprovalsPage() {
         onClose={() => setViewingItem(null)}
         onEdit={() => {}}
         onDelete={() => {}}
-        onSend={() => {}}
+        onSend={async () => ({ error: null })}
       />
 
     </div>

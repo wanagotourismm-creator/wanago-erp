@@ -1,9 +1,7 @@
 import { itineraryRepository } from "@/modules/itineraries/services/itinerary.repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Itinerary, ItineraryFormData } from "@/modules/itineraries/types";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
 // queries only need single-field indexes, which Firestore creates
@@ -21,10 +19,7 @@ export async function createItinerary(
   data: ItineraryFormData,
   createdBy: string
 ): Promise<Itinerary> {
-  // Generate ref number
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ITINERARIES));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("ITINERARY", ids);
+  const refNumber = await nextRefNumber("ITINERARY");
 
   return itineraryRepository.create({
     ...data,

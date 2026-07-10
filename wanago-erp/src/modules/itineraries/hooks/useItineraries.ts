@@ -20,7 +20,7 @@ export function useItineraries() {
     try {
       const data = await fetchItineraries();
       setItineraries(data);
-    } catch (e) {
+    } catch {
       setError("Failed to load itineraries");
     } finally {
       setLoading(false);

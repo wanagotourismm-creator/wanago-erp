@@ -36,9 +36,18 @@ export function OpsApprovalModal({ booking, packages, onClose, onConfirm }: Prop
   if (!booking) return null;
 
   async function handleConfirm() {
+    if (!booking) return;
     const amount = Number(profitAmount);
     if (profitAmount.trim() === "" || Number.isNaN(amount)) {
       setError("Enter a valid profit amount");
+      return;
+    }
+    if (amount < 0) {
+      setError("Profit can't be negative");
+      return;
+    }
+    if (amount > booking.totalAmount) {
+      setError("Profit can't exceed the booking's total amount");
       return;
     }
     setSubmitting(true);

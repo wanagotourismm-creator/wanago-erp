@@ -1,10 +1,9 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { storage } from "@/lib/firebase/client";
 import { callLogRepository } from "@/modules/call-logs/services/call-log.repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { CallLog, CallLogFormData } from "@/modules/call-logs/types";
 
 // Sorted client-side (not via Firestore orderBy) so filtered queries only
@@ -28,9 +27,7 @@ export async function createCallLog(
   loggedBy: string,
   loggedByName: string
 ): Promise<CallLog> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CALL_LOGS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("CALL", ids);
+  const refNumber = await nextRefNumber("CALL");
 
   return callLogRepository.create({
     ...data,

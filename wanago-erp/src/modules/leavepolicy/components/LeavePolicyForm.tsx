@@ -12,6 +12,7 @@ export function LeavePolicyForm() {
   const { policy, loading, saving, save } = useLeavePolicy();
   const [draft, setDraft] = useState<LeavePolicy>(policy);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { setDraft(policy); }, [policy]);
 
@@ -32,8 +33,20 @@ export function LeavePolicyForm() {
 
   async function handleSave() {
     setSaved(false);
-    const { error } = await save(draft);
-    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+    setError(null);
+    // The annualDays inputs only had HTML min={0} (visual only — doesn't
+    // stop a typed "-5" or a cleared/NaN value from reaching Firestore).
+    // Validate before saving instead.
+    for (const key of LEAVE_TYPE_ORDER) {
+      const t = draft.leaveTypes[key];
+      if (t.enabled && (!Number.isFinite(t.annualDays) || t.annualDays < 0)) {
+        setError(`${LEAVE_TYPE_LABELS[key]}'s annual days must be a number of 0 or more.`);
+        return;
+      }
+    }
+    const { error: saveError } = await save(draft);
+    if (saveError) setError(saveError);
+    else { setSaved(true); setTimeout(() => setSaved(false), 3000); }
   }
 
   if (loading) {
@@ -89,6 +102,10 @@ export function LeavePolicyForm() {
           ))}
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+      )}
 
       <div className="flex items-center justify-end gap-3">
         {saved && <span className="text-xs font-medium text-green-600">Saved</span>}

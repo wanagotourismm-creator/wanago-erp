@@ -79,8 +79,10 @@ export function useCustomers() {
         });
       }
       return { error: null };
-    } catch {
-      return { error: "Failed to delete customer" };
+    } catch (e) {
+      // Surface the specific reason (e.g. the linked-records guard in
+      // deleteCustomer) instead of a generic message.
+      return { error: e instanceof Error ? e.message : "Failed to delete customer" };
     }
   }
 

@@ -44,7 +44,7 @@ export function AvgHoursWeekCard({ days, weeklyAvgHours }: Props) {
                     );
                   })}
                   <span className="mt-1 text-[10px] text-muted-foreground">
-                    {new Date(d.date).toLocaleDateString("en-US", { weekday: "narrow" })}
+                    {new Date(d.date).toLocaleDateString("en-IN", { weekday: "narrow" })}
                   </span>
                 </div>
               );

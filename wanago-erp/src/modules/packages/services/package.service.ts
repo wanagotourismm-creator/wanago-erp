@@ -1,9 +1,7 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { packageRepository } from "@/modules/packages/services/package.repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Package, PackageFormData } from "@/modules/packages/types";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
@@ -28,9 +26,7 @@ export async function createPackage(
   data: PackageFormData,
   createdBy: string
 ): Promise<Package> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PACKAGES));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("PACKAGE", ids);
+  const refNumber = await nextRefNumber("PACKAGE");
 
   return packageRepository.create({
     ...data,

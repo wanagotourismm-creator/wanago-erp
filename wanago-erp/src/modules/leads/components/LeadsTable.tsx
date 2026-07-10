@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
-import { formatDate, initials } from "@/lib/utils/helpers";
+import { formatDate, formatCurrency, initials } from "@/lib/utils/helpers";
 import { LEAD_STAGE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils/helpers";
 import type { Lead } from "@/modules/leads/types";
@@ -89,7 +89,7 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage }
                     <div>
                       <p className="font-medium text-foreground">{lead.destination}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        {lead.pax ? `${lead.pax} pax` : "Pax TBD"} {lead.budget ? `· ₹${lead.budget.toLocaleString()}` : ""}
+                        {lead.pax ? `${lead.pax} pax` : "Pax TBD"} {lead.budget ? `· ${formatCurrency(lead.budget)}` : ""}
                       </p>
                     </div>
                   </td>
@@ -204,7 +204,7 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage }
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">{lead.destination}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {lead.pax ? `${lead.pax} pax` : "Pax TBD"} {lead.budget ? `· ₹${lead.budget.toLocaleString()}` : ""}
+                      {lead.pax ? `${lead.pax} pax` : "Pax TBD"} {lead.budget ? `· ${formatCurrency(lead.budget)}` : ""}
                     </p>
                   </div>
                   <StageBadge stage={lead.stage} />

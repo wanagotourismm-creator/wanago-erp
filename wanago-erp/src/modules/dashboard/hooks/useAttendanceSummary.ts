@@ -38,7 +38,7 @@ export function useAttendanceSummary() {
         setOfficePct(office);
         setWfhPct(100 - office);
       })
-      .catch(() => {})
+      .catch((err) => console.error("[useAttendanceSummary] failed to load attendance data — showing as empty:", err))
       .finally(() => setLoading(false));
   }, []);
 

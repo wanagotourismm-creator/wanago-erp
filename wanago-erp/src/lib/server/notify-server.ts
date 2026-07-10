@@ -390,7 +390,7 @@ function renderQuotationEmailHtml(customerName: string, refNumber: string, grand
         <td style="padding:36px 32px;background:#ffffff;">
           <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${customerName}! ✈️</h1>
           <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
-            Thanks for your interest in traveling with us. Your quotation <strong>${refNumber}</strong> for <strong>₹${grandTotal.toLocaleString("en-IN")}</strong> is attached to this email as a PDF — it includes the full breakdown, payment details, and terms.
+            Thanks for your interest in traveling with us. Your quotation <strong>${refNumber}</strong> for <strong>₹${Math.round(grandTotal).toLocaleString("en-IN")}</strong> is attached to this email as a PDF — it includes the full breakdown, payment details, and terms.
           </p>
           <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team Wanago</strong></p>
         </td>

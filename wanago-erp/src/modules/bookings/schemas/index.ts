@@ -23,6 +23,9 @@ export const bookingSchema = z.object({
   officeId:      z.string().min(1),
   officeName:    z.string().min(1),
   notes:         z.string().optional().or(z.literal("")),
+}).refine((data) => data.advanceAmount <= data.totalAmount, {
+  message: "Advance can't exceed the total amount",
+  path: ["advanceAmount"],
 });
 
 export type BookingSchema = z.infer<typeof bookingSchema>;

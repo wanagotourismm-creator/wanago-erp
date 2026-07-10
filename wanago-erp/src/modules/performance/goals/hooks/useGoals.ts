@@ -14,11 +14,16 @@ export function useGoals() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
 
+  const [error, setError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await fetchGoals();
       setGoals(data);
+    } catch {
+      setError("Failed to load goals");
     } finally {
       setLoading(false);
     }
@@ -58,14 +63,22 @@ export function useGoals() {
       progress >= 100 ? GOAL_STATUS.COMPLETED :
       progress > 0    ? GOAL_STATUS.IN_PROGRESS :
       GOAL_STATUS.NOT_STARTED;
-    await updateGoalProgress(id, progress, status);
-    setGoals(prev => prev.map(g => g.id === id ? { ...g, progress, status } : g));
+    try {
+      await updateGoalProgress(id, progress, status);
+      setGoals(prev => prev.map(g => g.id === id ? { ...g, progress, status } : g));
+    } catch (e) {
+      console.error("[useGoals] failed to save progress:", e);
+    }
   }
 
   async function markAtRisk(id: string): Promise<void> {
     const goal = goals.find(g => g.id === id);
-    await updateGoalProgress(id, goal?.progress ?? 0, GOAL_STATUS.AT_RISK);
-    setGoals(prev => prev.map(g => g.id === id ? { ...g, status: GOAL_STATUS.AT_RISK } : g));
+    try {
+      await updateGoalProgress(id, goal?.progress ?? 0, GOAL_STATUS.AT_RISK);
+      setGoals(prev => prev.map(g => g.id === id ? { ...g, status: GOAL_STATUS.AT_RISK } : g));
+    } catch (e) {
+      console.error("[useGoals] failed to mark goal at risk:", e);
+    }
   }
 
   async function removeGoal(id: string): Promise<{ error: string | null }> {
@@ -86,5 +99,5 @@ export function useGoals() {
     }
   }
 
-  return { goals, loading, load, addGoal, editGoal, setProgress, markAtRisk, removeGoal };
+  return { goals, loading, error, load, addGoal, editGoal, setProgress, markAtRisk, removeGoal };
 }

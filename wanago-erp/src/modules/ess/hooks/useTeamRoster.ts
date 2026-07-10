@@ -37,7 +37,6 @@ export function useTeamRoster(directReports: Employee[]) {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [directReports.length]);
 
   useEffect(() => { load(); }, [load]);

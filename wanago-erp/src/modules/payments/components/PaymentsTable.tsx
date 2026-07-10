@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import { PaymentMethodBadge, formatAmount } from "@/modules/payments/components/PaymentBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials } from "@/lib/utils/helpers";
 import type { Payment } from "@/modules/payments/types";
 
@@ -29,7 +30,8 @@ export function PaymentsTable({ payments, loading, canManage, onView, onDelete }
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -107,5 +109,36 @@ export function PaymentsTable({ payments, loading, canManage, onView, onDelete }
         </table>
       </div>
     </div>
+
+    <div className="sm:hidden space-y-2.5">
+      {payments.map((p) => {
+        const actions: SwipeAction[] = canManage ? [
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(p), className: "bg-red-600" },
+        ] : [];
+        return (
+          <SwipeableRow key={p.id} actions={actions} onTap={() => onView(p)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {initials(p.customerName)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{p.customerName}</p>
+                    <p className="text-[11px] text-muted-foreground">{p.refNumber}</p>
+                  </div>
+                </div>
+                <span className="text-sm font-semibold text-green-600 whitespace-nowrap">{formatAmount(p.amount)}</span>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <PaymentMethodBadge method={p.paymentMethod} />
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(p.paymentDate)}</span>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

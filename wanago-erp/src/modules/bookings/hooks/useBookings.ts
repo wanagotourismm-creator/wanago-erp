@@ -12,6 +12,7 @@ import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee
 import { scopeByAssignee } from "@/lib/rbac-scope";
 import { logActivity } from "@/lib/activity-log";
 import { BOOKING_STATUS } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils/helpers";
 import type { Booking, BookingFormData } from "@/modules/bookings/types";
 
 export function useBookings() {
@@ -132,7 +133,7 @@ export function useBookings() {
       if (booking) {
         logActivity({
           entityType: "Booking", entityName: booking.customerName, action: "status_changed",
-          detail: `${booking.refNumber} approved by Operations (profit ₹${profitAmount})`,
+          detail: `${booking.refNumber} approved by Operations (profit ${formatCurrency(profitAmount)})`,
           actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
         });
       }

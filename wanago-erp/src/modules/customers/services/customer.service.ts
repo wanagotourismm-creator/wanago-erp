@@ -1,9 +1,7 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { customerRepository } from "@/modules/customers/services/customer.repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
@@ -28,9 +26,7 @@ export async function createCustomer(
   data: CustomerFormData,
   createdBy: string
 ): Promise<Customer> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("CUSTOMER", ids);
+  const refNumber = await nextRefNumber("CUSTOMER");
 
   return customerRepository.create({
     ...data,

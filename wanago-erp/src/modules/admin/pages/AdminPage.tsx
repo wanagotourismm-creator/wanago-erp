@@ -83,7 +83,8 @@ export function AdminPage() {
     const action = u.isActive ? "deactivate" : "activate";
     if (!confirm(`Are you sure you want to ${action} "${u.displayName}"?`)) return;
     setViewingUser(null);
-    await toggleActive(u.uid, !u.isActive);
+    const { error } = await toggleActive(u.uid, !u.isActive);
+    if (error) alert(error);
   }
 
   async function handleDeleteUser(u: UserProfile) {

@@ -1,10 +1,9 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { storage } from "@/lib/firebase/client";
 import { expenseRepository } from "@/modules/expenses/services/expense.repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Expense, ExpenseFormData } from "@/modules/expenses/types";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
@@ -27,9 +26,7 @@ export async function createExpense(
   data: ExpenseFormData,
   createdBy: string
 ): Promise<Expense> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.EXPENSES));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("EXPENSE", ids);
+  const refNumber = await nextRefNumber("EXPENSE");
 
   return expenseRepository.create({
     ...data,

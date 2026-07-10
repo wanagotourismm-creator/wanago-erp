@@ -31,13 +31,21 @@ export function useNotifications() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   async function markRead(id: string) {
-    await markNotificationRead(id);
-    setNotifications((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try {
+      await markNotificationRead(id);
+      setNotifications((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    } catch (e) {
+      console.error("[useNotifications] failed to mark notification read:", e);
+    }
   }
 
   async function markAllRead() {
-    await markAllNotificationsRead(notifications);
-    setNotifications((p) => p.map((n) => ({ ...n, read: true })));
+    try {
+      await markAllNotificationsRead(notifications);
+      setNotifications((p) => p.map((n) => ({ ...n, read: true })));
+    } catch (e) {
+      console.error("[useNotifications] failed to mark all notifications read:", e);
+    }
   }
 
   return { notifications, unreadCount, markRead, markAllRead };

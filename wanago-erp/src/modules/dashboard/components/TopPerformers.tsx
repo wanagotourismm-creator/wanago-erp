@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardTitle } from "@/components/ui/Card";
 import { formatCurrency } from "@/lib/utils/helpers";
 
 type Performer = {
@@ -20,9 +20,6 @@ export function TopPerformers() {
   useEffect(() => {
     async function load() {
       try {
-        const now   = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-
         const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS));
         const bookings = snap.docs.map(d => d.data());
 

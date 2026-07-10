@@ -18,7 +18,7 @@ type Props = {
   candidate?: Candidate | null;
   onClose:   () => void;
   onSubmit:  (data: CandidateSchema) => Promise<void>;
-  onUploadResume: (file: File) => Promise<void>;
+  onUploadResume: (file: File) => Promise<{ error: string | null }>;
 };
 
 function Field({ label, error, required, children }: {
@@ -48,6 +48,7 @@ export function CandidateForm({ open, candidate, onClose, onSubmit, onUploadResu
   const { user } = useAuthStore();
   const [jobs, setJobs] = useState<JobOpening[]>([]);
   const [uploadingResume, setUploadingResume] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
 
   const {
     register, handleSubmit, reset, watch, setValue,
@@ -97,8 +98,10 @@ export function CandidateForm({ open, candidate, onClose, onSubmit, onUploadResu
   async function handleResumeUpload(file: File) {
     if (!candidate) return;
     setUploadingResume(true);
+    setResumeError(null);
     try {
-      await onUploadResume(file);
+      const { error } = await onUploadResume(file);
+      if (error) setResumeError(error);
     } finally {
       setUploadingResume(false);
     }
@@ -179,6 +182,7 @@ export function CandidateForm({ open, candidate, onClose, onSubmit, onUploadResu
                         onChange={e => { const f = e.target.files?.[0]; if (f) handleResumeUpload(f); }} />
                     </label>
                   </div>
+                  {resumeError && <p className="mt-1 text-xs text-destructive font-medium">{resumeError}</p>}
                 </Field>
               </div>
             )}

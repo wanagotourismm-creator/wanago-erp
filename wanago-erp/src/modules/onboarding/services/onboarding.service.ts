@@ -1,9 +1,7 @@
 import { orderBy } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { OnboardingTask, OnboardingTaskFormData } from "@/modules/onboarding/types";
 
 class OnboardingTaskRepository extends BaseRepository<OnboardingTask> {
@@ -19,9 +17,7 @@ export async function createOnboardingTask(
   data: OnboardingTaskFormData,
   createdBy: string
 ): Promise<OnboardingTask> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ONBOARDING_TASKS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("ONBOARDING", ids);
+  const refNumber = await nextRefNumber("ONBOARDING");
 
   return repo.create({
     ...data,

@@ -4,6 +4,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials } from "@/lib/utils/helpers";
 import type { Quotation } from "@/modules/quotations/types";
 
@@ -31,7 +32,9 @@ export function QuotationsTable({ quotations, loading, canEdit, canDelete, onVie
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    {/* Desktop table */}
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -118,5 +121,41 @@ export function QuotationsTable({ quotations, loading, canEdit, canDelete, onVie
         </table>
       </div>
     </div>
+
+    {/* Mobile card list */}
+    <div className="sm:hidden space-y-2.5">
+      {quotations.map((q) => {
+        const actions: SwipeAction[] = [
+          ...(canEdit ? [{ key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(q), className: "bg-blue-600" }] : []),
+          ...(canDelete ? [{ key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(q), className: "bg-red-600" }] : []),
+        ];
+        return (
+          <SwipeableRow key={q.id} actions={actions} onTap={() => onView(q)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {initials(q.customerName)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{q.customerName}</p>
+                    <p className="text-[11px] text-muted-foreground">{q.refNumber}</p>
+                  </div>
+                </div>
+                <QuotationStatusBadge status={q.status} />
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <p className="truncate text-xs text-muted-foreground">{q.destination}</p>
+                <span className="text-xs font-medium text-foreground whitespace-nowrap">{formatAmount(q.totalAmount)}</span>
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Valid until {q.validUntil ? formatDate(q.validUntil) : "—"}
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

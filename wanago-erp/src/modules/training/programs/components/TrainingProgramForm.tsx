@@ -166,7 +166,10 @@ export function TrainingProgramForm({ open, program, onClose, onSubmit, onUpload
                         <a href={m.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition-colors">
                           <FileText size={13} className="text-muted-foreground" /> {m.label}
                         </a>
-                        <button onClick={() => onDeleteMaterial(m.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                        <button
+                          onClick={() => { if (confirm(`Delete material "${m.label}"? This can't be undone.`)) onDeleteMaterial(m.id); }}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                        >
                           <Trash2 size={13} />
                         </button>
                       </div>

@@ -15,9 +15,11 @@ export type DocumentHubRow = {
 export function useDocumentsHub() {
   const [rows, setRows] = useState<DocumentHubRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const employees = await fetchEmployees();
       const flattened: DocumentHubRow[] = employees.flatMap((emp) =>
@@ -32,6 +34,11 @@ export function useDocumentsHub() {
         }))
       );
       setRows(flattened);
+    } catch {
+      // Previously swallowed — a failed fetchEmployees() call left `rows`
+      // empty and the page rendered "No documents uploaded yet.",
+      // indistinguishable from a genuinely empty hub.
+      setError("Failed to load documents");
     } finally {
       setLoading(false);
     }
@@ -41,5 +48,5 @@ export function useDocumentsHub() {
     load();
   }, [load]);
 
-  return { rows, loading, reload: load };
+  return { rows, loading, error, reload: load };
 }

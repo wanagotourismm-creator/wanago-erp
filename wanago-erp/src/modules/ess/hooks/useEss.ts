@@ -239,8 +239,10 @@ export function useEss() {
         "leave"
       );
       return { error: null };
-    } catch {
-      return { error: "Failed to submit leave request" };
+    } catch (e) {
+      // Surface the specific reason (e.g. the new overlap-detection error
+      // from createLeaveRequest) instead of a generic message.
+      return { error: e instanceof Error ? e.message : "Failed to submit leave request" };
     }
   }
 
@@ -370,8 +372,11 @@ export function useEss() {
           `Your request for ${item.assetRequest.assetCategory} was ${verb}.`, "asset");
       }
       return { error: null };
-    } catch {
-      return { error: "Failed to record decision" };
+    } catch (e) {
+      // Surface the specific reason (e.g. leave-balance/overlap rejection
+      // from approveLeaveRequest) instead of a generic message, so the
+      // manager knows why the decision didn't go through.
+      return { error: e instanceof Error ? e.message : "Failed to record decision" };
     }
   }
 

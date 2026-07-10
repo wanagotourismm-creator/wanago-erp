@@ -36,7 +36,7 @@ export function usePayoutSummary() {
         setMonth(latestRecords[0]?.month);
         setYear(latestRecords[0]?.year);
       })
-      .catch(() => {})
+      .catch((err) => console.error("[usePayoutSummary] failed to load payroll data — showing as empty:", err))
       .finally(() => setLoading(false));
   }, []);
 

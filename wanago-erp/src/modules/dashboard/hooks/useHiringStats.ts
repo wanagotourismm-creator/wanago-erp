@@ -22,7 +22,7 @@ export function useHiringStats() {
         setNotMatched(allCandidates.filter((c) => c.status === "rejected").length);
         setOpenOpenings(openings.filter((o) => o.jobStatus === "open").reduce((sum, o) => sum + o.openings, 0));
       })
-      .catch(() => {})
+      .catch((err) => console.error("[useHiringStats] failed to load recruitment data — showing as empty:", err))
       .finally(() => setLoading(false));
   }, []);
 

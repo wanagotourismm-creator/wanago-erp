@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Inbox, Check, X as XIcon, Loader2 } from "lucide-react";
+import { Inbox, Check, X as XIcon, Loader2, AlertTriangle } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate, initials, cn } from "@/lib/utils/helpers";
 import { LeaveTypeBadge } from "@/modules/hrms/leaves/components/LeaveBadges";
@@ -17,6 +17,7 @@ const FILTERS = ["All", "Leave", "Regularization", "Assets"] as const;
 export function InboxCard({ items, onDecide }: Props) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
 
   const filtered = useMemo(() => items.filter((i) => {
     if (filter === "All") return true;
@@ -27,7 +28,9 @@ export function InboxCard({ items, onDecide }: Props) {
 
   async function handle(item: InboxItem, decision: "approve" | "reject") {
     setBusyId(item.id);
-    await onDecide(item, decision);
+    setDecisionError(null);
+    const { error } = await onDecide(item, decision);
+    if (error) setDecisionError(error);
     setBusyId(null);
   }
 
@@ -53,6 +56,14 @@ export function InboxCard({ items, onDecide }: Props) {
           ))}
         </div>
       </div>
+
+      {decisionError && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
+          <AlertTriangle size={12} className="flex-shrink-0" />
+          <span className="flex-1">{decisionError}</span>
+          <button onClick={() => setDecisionError(null)}><XIcon size={12} /></button>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState title="All caught up" description="No pending requests from your team" icon={<span className="text-2xl">✅</span>} />

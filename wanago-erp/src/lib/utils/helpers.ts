@@ -2,11 +2,19 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, formatDistanceToNow } from "date-fns";
 import type { Timestamp } from "@/types/global";
-import { REF_FORMATS } from "@/lib/constants";
 
 // ── Tailwind class merge ──────────────────────────────────────
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
+}
+
+// Normalizes a phone number for duplicate-detection matching (not for
+// display or sending) — strips all non-digit characters and keeps just the
+// last 10, so "+91 98765 43210", "919876543210", and "9876543210" all match
+// as the same number regardless of country-code/spacing differences.
+export function phoneMatchKey(phone: string | null | undefined): string {
+  if (!phone) return "";
+  return phone.replace(/\D/g, "").slice(-10);
 }
 
 // Joins a free-text address with a city, skipping the city if it's
@@ -62,22 +70,6 @@ export function formatCurrency(
     currency,
     maximumFractionDigits: 0,
   }).format(amount);
-}
-
-// ── Reference number generator ───────────────────────────────
-export function generateRefNumber(
-  prefix: keyof typeof REF_FORMATS,
-  existingIds: string[] = []
-): string {
-  const pfx = REF_FORMATS[prefix];
-  const nums = existingIds
-    .map((id) => {
-      const m = id.match(new RegExp(`^${pfx}-(\\d+)$`));
-      return m ? parseInt(m[1], 10) : 0;
-    })
-    .filter(Boolean);
-  const next = nums.length ? Math.max(...nums) + 1 : 1001;
-  return `${pfx}-${next}`;
 }
 
 // ── String helpers ────────────────────────────────────────────

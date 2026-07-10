@@ -3,6 +3,7 @@
 import { Edit2, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { cn } from "@/lib/utils/helpers";
 import type { Asset } from "@/modules/assets/types";
 
@@ -25,7 +26,8 @@ export function AssetsTable({ assets, loading, onView, onEdit, onDelete }: Props
   if (assets.length === 0) return <EmptyState title="No assets registered yet" description="Add company equipment, ID cards, and more" icon={<span className="text-2xl">💻</span>} />;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -59,5 +61,33 @@ export function AssetsTable({ assets, loading, onView, onEdit, onDelete }: Props
         </table>
       </div>
     </div>
+
+    <div className="sm:hidden space-y-2.5">
+      {assets.map((a) => {
+        const actions: SwipeAction[] = [
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(a), className: "bg-primary" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(a), className: "bg-red-600" },
+        ];
+        return (
+          <SwipeableRow key={a.id} actions={actions} onTap={() => onView(a)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{a.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{a.category} · {a.serialNumber || "No serial no."}</p>
+                </div>
+                <span className={cn("inline-flex flex-shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium", CONDITION_STYLES[a.condition])}>
+                  {a.condition}
+                </span>
+              </div>
+              <div className="mt-2.5 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                {a.assignedToName || "Unassigned"}
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

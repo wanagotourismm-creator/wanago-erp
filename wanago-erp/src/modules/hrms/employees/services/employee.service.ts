@@ -1,10 +1,9 @@
 import { orderBy, where } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Employee, EmployeeDocument } from "@/modules/hrms/shared/types";
 import type { EmployeeFormData } from "@/modules/hrms/employees/types";
 
@@ -66,9 +65,7 @@ export async function createEmployee(
   data: EmployeeFormData,
   createdBy: string
 ): Promise<Employee> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES));
-  const ids           = existing.docs.map(d => d.data().employeeCode ?? "");
-  const employeeCode  = generateRefNumber("EMPLOYEE", ids);
+  const employeeCode = await nextRefNumber("EMPLOYEE");
 
   const employee = await repo.create({
     ...data,

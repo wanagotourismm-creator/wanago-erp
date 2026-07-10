@@ -1,12 +1,40 @@
 import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { bookingRepository } from "@/modules/bookings/services/booking.repository";
 import { FIRESTORE_COLLECTIONS, BOOKING_STATUS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Booking, BookingFormData } from "@/modules/bookings/types";
 import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
+
+// Approve/reject used to be a plain read-then-write with no check that the
+// booking was still in the expected status — two approvers acting on the
+// same booking near-simultaneously (or a stale approvals-queue tab) could
+// both write, e.g. a Finance approve racing a Finance reject and leaving a
+// rejected booking still stamped with financeApprovedBy. A transaction
+// re-reads the current status inside the commit and throws instead of
+// applying the transition if it's already moved on.
+async function transitionBookingStatus(
+  id: string,
+  expectedStatus: string,
+  patch: Partial<Booking>
+): Promise<Booking> {
+  const ref = doc(db, FIRESTORE_COLLECTIONS.BOOKINGS, id);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("Booking not found.");
+    const booking = { id: snap.id, ...snap.data() } as Booking;
+    if (booking.status !== expectedStatus) {
+      throw new Error(
+        `This booking is no longer ${expectedStatus} (it's now ${booking.status}) — someone else may have already actioned it. Refresh and try again.`
+      );
+    }
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp() });
+    return booking;
+  });
+}
 
 // Notification helpers below are best-effort — a failure here must never
 // break the actual booking creation/approval/rejection flow, so every
@@ -74,9 +102,7 @@ export async function createBooking(
   data: BookingFormData,
   createdBy: string
 ): Promise<Booking> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("BOOKING", ids);
+  const refNumber = await nextRefNumber("BOOKING");
 
   const booking = await bookingRepository.create({
     ...data,
@@ -165,23 +191,19 @@ export async function approveBookingAsFinance(
   approvedBy: string,
   paymentVerification: "full" | "partial"
 ): Promise<void> {
-  const existing = await bookingRepository.findById(id);
-
-  await bookingRepository.update(id, {
+  const existing = await transitionBookingStatus(id, BOOKING_STATUS.PENDING_FINANCE, {
     status:              BOOKING_STATUS.OPS_PENDING,
     financeApprovedBy:   approvedBy,
     financeApprovedAt:   serverTimestamp(),
     paymentVerification,
   } as Partial<Booking>);
 
-  if (existing) {
-    await notifyApprovers("bookings:ops_approve", { ...existing, status: BOOKING_STATUS.OPS_PENDING } as Booking, "Operations");
-    await notifyCreator(
-      existing.createdBy,
-      `Booking ${existing.refNumber} approved by Finance`,
-      `${existing.customerName}'s booking has been approved by Finance and is now with Operations for final approval.`
-    );
-  }
+  await notifyApprovers("bookings:ops_approve", { ...existing, status: BOOKING_STATUS.OPS_PENDING } as Booking, "Operations");
+  await notifyCreator(
+    existing.createdBy,
+    `Booking ${existing.refNumber} approved by Finance`,
+    `${existing.customerName}'s booking has been approved by Finance and is now with Operations for final approval.`
+  );
 }
 
 // Operations cross-verifies and records the deal's real profit — this is
@@ -191,22 +213,18 @@ export async function approveBookingAsOperations(
   approvedBy: string,
   profitAmount: number
 ): Promise<void> {
-  const existing = await bookingRepository.findById(id);
-
-  await bookingRepository.update(id, {
+  const existing = await transitionBookingStatus(id, BOOKING_STATUS.OPS_PENDING, {
     status:        BOOKING_STATUS.CONFIRMED,
     opsApprovedBy: approvedBy,
     opsApprovedAt: serverTimestamp(),
     profitAmount,
   } as Partial<Booking>);
 
-  if (existing) {
-    await notifyCreator(
-      existing.createdBy,
-      `Booking ${existing.refNumber} confirmed`,
-      `${existing.customerName}'s booking has been approved by Operations and is now fully confirmed.`
-    );
-  }
+  await notifyCreator(
+    existing.createdBy,
+    `Booking ${existing.refNumber} confirmed`,
+    `${existing.customerName}'s booking has been approved by Operations and is now fully confirmed.`
+  );
 }
 
 // Finance rejects the booking with a reason instead of approving — editing
@@ -216,22 +234,18 @@ export async function rejectBookingAsFinance(
   rejectedBy: string,
   reason: string
 ): Promise<void> {
-  const existing = await bookingRepository.findById(id);
-
-  await bookingRepository.update(id, {
+  const existing = await transitionBookingStatus(id, BOOKING_STATUS.PENDING_FINANCE, {
     status:                 BOOKING_STATUS.FINANCE_REJECTED,
     financeRejectedBy:      rejectedBy,
     financeRejectedAt:      serverTimestamp(),
     financeRejectionReason: reason,
   } as Partial<Booking>);
 
-  if (existing) {
-    await notifyCreator(
-      existing.createdBy,
-      `Booking ${existing.refNumber} rejected by Finance`,
-      `${existing.customerName}'s booking was rejected by Finance. Reason: ${reason}`
-    );
-  }
+  await notifyCreator(
+    existing.createdBy,
+    `Booking ${existing.refNumber} rejected by Finance`,
+    `${existing.customerName}'s booking was rejected by Finance. Reason: ${reason}`
+  );
 }
 
 // Operations rejects the booking with a reason instead of approving —
@@ -241,22 +255,18 @@ export async function rejectBookingAsOperations(
   rejectedBy: string,
   reason: string
 ): Promise<void> {
-  const existing = await bookingRepository.findById(id);
-
-  await bookingRepository.update(id, {
+  const existing = await transitionBookingStatus(id, BOOKING_STATUS.OPS_PENDING, {
     status:              BOOKING_STATUS.OPS_REJECTED,
     opsRejectedBy:       rejectedBy,
     opsRejectedAt:       serverTimestamp(),
     opsRejectionReason:  reason,
   } as Partial<Booking>);
 
-  if (existing) {
-    await notifyCreator(
-      existing.createdBy,
-      `Booking ${existing.refNumber} rejected by Operations`,
-      `${existing.customerName}'s booking was rejected by Operations. Reason: ${reason}`
-    );
-  }
+  await notifyCreator(
+    existing.createdBy,
+    `Booking ${existing.refNumber} rejected by Operations`,
+    `${existing.customerName}'s booking was rejected by Operations. Reason: ${reason}`
+  );
 }
 
 export async function deleteBooking(id: string): Promise<void> {

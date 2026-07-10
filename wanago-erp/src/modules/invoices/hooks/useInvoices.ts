@@ -62,10 +62,15 @@ export function useInvoices() {
     }
   }
 
-  async function sendInvoice(id: string): Promise<void> {
-    await markInvoiceSent(id);
-    const updated = await fetchInvoices();
-    setInvoices(updated);
+  async function sendInvoice(id: string): Promise<{ error: string | null }> {
+    try {
+      await markInvoiceSent(id);
+      const updated = await fetchInvoices();
+      setInvoices(updated);
+      return { error: null };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Failed to mark invoice sent" };
+    }
   }
 
   async function removeInvoice(id: string): Promise<{ error: string | null }> {

@@ -17,6 +17,9 @@ import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImpo
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";
 import { resolveOffice } from "@/lib/bulk/resolveOffice";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import { fetchBookings } from "@/modules/bookings/services/booking.service";
+import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
+import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
 import type { Office } from "@/modules/admin/offices/types";
 import { customerSchema } from "@/modules/customers/schemas";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
@@ -160,7 +163,26 @@ export function CustomersPage() {
   }
 
   async function handleDelete(customer: Customer) {
-    if (!confirm(`Delete customer "${customer.fullName}"? This cannot be undone.`)) return;
+    // Previously this deleted with no idea whether the customer had any
+    // history — bookings/invoices/quotations don't get cleaned up or
+    // relinked, so any of those left behind would just silently point at
+    // a customer that no longer exists. Warn with real counts instead.
+    const [bookings, invoices, quotations] = await Promise.all([
+      fetchBookings({ customerId: customer.id }),
+      fetchInvoices().then(all => all.filter(i => i.customerId === customer.id)).catch(() => []),
+      fetchQuotations().then(all => all.filter(q => q.customerId === customer.id)).catch(() => []),
+    ]);
+    const linked = [
+      bookings.length   && `${bookings.length} booking${bookings.length === 1 ? "" : "s"}`,
+      invoices.length   && `${invoices.length} invoice${invoices.length === 1 ? "" : "s"}`,
+      quotations.length && `${quotations.length} quotation${quotations.length === 1 ? "" : "s"}`,
+    ].filter(Boolean).join(", ");
+
+    const message = linked
+      ? `"${customer.fullName}" has ${linked} on record. Deleting the customer won't remove or relink those — they'll be left pointing at a customer that no longer exists. Delete anyway?`
+      : `Delete customer "${customer.fullName}"? This cannot be undone.`;
+
+    if (!confirm(message)) return;
     setViewingCustomer(null);
     await removeCustomer(customer.id);
   }

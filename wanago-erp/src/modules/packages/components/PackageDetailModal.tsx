@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Edit2, Trash2, MapPin, IndianRupee, Package as PackageIcon } from "lucide-react";
-import { formatDate } from "@/lib/utils/helpers";
+import { formatDate, formatCurrency } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
 import type { Package } from "@/modules/packages/types";
 
@@ -85,7 +85,7 @@ export function PackageDetailModal({ pkg, onClose, onEdit, onDelete }: Props) {
               <p className="text-xs font-bold uppercase tracking-widest text-primary">Pricing</p>
             </div>
             <div className="divide-y divide-border rounded-xl border border-border px-3">
-              <Row label="Base Price" value={`₹${pkg.basePrice.toLocaleString()}`} />
+              <Row label="Base Price" value={formatCurrency(pkg.basePrice)} />
               <Row label="Office" value={pkg.officeName} />
             </div>
           </div>

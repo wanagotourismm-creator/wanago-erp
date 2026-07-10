@@ -13,13 +13,17 @@ import type { Candidate, CandidateFormData } from "@/modules/recruitment/candida
 export function useCandidates() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
   const { user } = useAuthStore();
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await fetchCandidates();
       setCandidates(data);
+    } catch {
+      setError("Failed to load candidates");
     } finally {
       setLoading(false);
     }
@@ -54,16 +58,21 @@ export function useCandidates() {
     }
   }
 
-  async function changeStage(id: string, stage: string): Promise<void> {
-    await updateCandidateStage(id, stage);
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, status: stage } as Candidate : c));
-    const candidate = candidates.find(c => c.id === id);
-    if (candidate) {
-      logActivity({
-        entityType: "Candidate", entityName: candidate.fullName, action: "status_changed",
-        detail: `${candidate.refNumber} moved to ${RECRUITMENT_STAGE_LABELS[stage as keyof typeof RECRUITMENT_STAGE_LABELS] ?? stage}`,
-        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
-      });
+  async function changeStage(id: string, stage: string): Promise<{ error: string | null }> {
+    try {
+      await updateCandidateStage(id, stage);
+      setCandidates(prev => prev.map(c => c.id === id ? { ...c, status: stage } as Candidate : c));
+      const candidate = candidates.find(c => c.id === id);
+      if (candidate) {
+        logActivity({
+          entityType: "Candidate", entityName: candidate.fullName, action: "status_changed",
+          detail: `${candidate.refNumber} moved to ${RECRUITMENT_STAGE_LABELS[stage as keyof typeof RECRUITMENT_STAGE_LABELS] ?? stage}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
+      return { error: null };
+    } catch {
+      return { error: "Failed to update candidate stage" };
     }
   }
 
@@ -85,14 +94,18 @@ export function useCandidates() {
     }
   }
 
-  async function uploadCandidateResume(id: string, file: File): Promise<string> {
-    const url = await uploadResume(id, file);
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, resumeUrl: url } : c));
-    return url;
+  async function uploadCandidateResume(id: string, file: File): Promise<{ error: string | null; url?: string }> {
+    try {
+      const url = await uploadResume(id, file);
+      setCandidates(prev => prev.map(c => c.id === id ? { ...c, resumeUrl: url } : c));
+      return { error: null, url };
+    } catch {
+      return { error: "Failed to upload resume" };
+    }
   }
 
   return {
-    candidates, loading, load, addCandidate, editCandidate,
+    candidates, loading, error, load, addCandidate, editCandidate,
     changeStage, removeCandidate, uploadCandidateResume,
   };
 }

@@ -7,6 +7,7 @@ import type { Ticket, TicketStatus } from "@/modules/tickets/types";
 
 type Props = {
   ticket:       Ticket | null;
+  canDelete:    boolean;
   onClose:      () => void;
   onSetStatus:  (t: Ticket, status: TicketStatus) => void;
   onAssignToMe: (t: Ticket) => void;
@@ -22,7 +23,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function TicketDetailModal({ ticket, onClose, onSetStatus, onAssignToMe, onDelete }: Props) {
+export function TicketDetailModal({ ticket, canDelete, onClose, onSetStatus, onAssignToMe, onDelete }: Props) {
   if (!ticket) return null;
 
   return (
@@ -94,12 +95,14 @@ export function TicketDetailModal({ ticket, onClose, onSetStatus, onAssignToMe, 
             >
               <UserCheck size={13} /> Assign to me
             </button>
-            <button
-              onClick={() => onDelete(ticket)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 size={13} /> Delete
-            </button>
+            {canDelete && (
+              <button
+                onClick={() => onDelete(ticket)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            )}
           </div>
           <select
             value={ticket.ticketStatus}

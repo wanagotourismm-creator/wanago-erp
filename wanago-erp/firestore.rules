@@ -40,22 +40,130 @@ service cloud.firestore {
       return ch.department == null || ch.department == getUserDepartment() || isAdmin();
     }
 
+    // Everyone who can read a channel can read its announcements, but only
+    // Admin/Super Admin/HR may post into a `type == 'announcement'` channel
+    // (matches TeamSpacePanel's canPostAnnouncement) — previously this was
+    // only enforced by hiding the composer in the UI.
+    function canPostToChannel(channelId) {
+      let ch = get(/databases/$(database)/documents/teamspaceChannels/$(channelId)).data;
+      return canAccessChannel(channelId) && (ch.type != 'announcement' || getUserRole() in ['super_admin', 'admin', 'hr']);
+    }
+
     function hasRequiredFields() {
       return request.resource.data.keys().hasAll(['createdAt', 'updatedAt', 'createdBy', 'status']);
     }
 
+    // Shared by hrmsLeaves and assetRequests: a request may be updated by
+    // HR/Admin, by the employee it belongs to (e.g. cancelling their own
+    // request), or by that employee's direct reporting manager (the ESS
+    // "approve/reject" inbox flow).
+    function employeeById(employeeId) {
+      return get(/databases/$(database)/documents/hrmsEmployees/$(employeeId)).data;
+    }
+    function isOwnerOrManagerOfEmployee(employeeId) {
+      let emp = employeeById(employeeId);
+      return request.auth.uid == emp.userId ||
+             (emp.reportingManagerId != null &&
+              employeeById(emp.reportingManagerId).userId == request.auth.uid);
+    }
+
+    // Bookings: only Finance/Ops/Admin may touch the approval trail fields.
+    // Rejection-trail fields are the exception — `updateBooking`'s resubmit
+    // flow (booking.service.ts) clears them to null as a side effect of any
+    // authenticated user editing their own rejected booking, so clearing is
+    // allowed for everyone; only *setting* them (the actual reject action)
+    // requires the approval role.
+    function bookingTouchesApprovalFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'financeApprovedBy', 'financeApprovedAt', 'paymentVerification',
+        'opsApprovedBy', 'opsApprovedAt', 'profitAmount'
+      ]);
+    }
+    function bookingSetsRejectionFields() {
+      let d = request.resource.data;
+      return (('financeRejectedBy' in d) && d.financeRejectedBy != null) ||
+             (('opsRejectedBy' in d) && d.opsRejectedBy != null);
+    }
+    // `status` itself must also be approval-gated — otherwise anyone could
+    // write e.g. {status:'confirmed'} directly and skip Finance/Ops review
+    // entirely. The one status change allowed without the approval role is
+    // updateBooking's resubmit flow moving a rejected booking back to its
+    // matching pending queue (paired with clearing rejection fields above).
+    function bookingStatusChangeIsSafe() {
+      return request.resource.data.status == resource.data.status ||
+             (resource.data.status == 'finance_rejected' && request.resource.data.status == 'pending_finance') ||
+             (resource.data.status == 'ops_rejected' && request.resource.data.status == 'ops_pending');
+    }
+    // Reassigning the sales agent on a booking/customer is restricted in the
+    // UI (canReassignSalesAgent) to admin/super_admin/sales_head — enforce
+    // the same thing here so it can't be bypassed with a direct write.
+    function touchesAssignmentFields(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+    function canReassign() {
+      return getUserRole() in ['super_admin', 'admin', 'sales_head'];
+    }
+
+    // Quotations: only Finance/Admin may touch the approval trail, except
+    // the one resubmit transition (rejected -> pending, no other approval
+    // field touched) which `updateQuotation` performs for any authenticated
+    // user editing their own rejected quotation.
+    function quotationTouchesApprovalFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'financeApprovalStatus', 'financeApprovedBy', 'financeApprovedAt',
+        'financeRejectedBy', 'financeRejectedAt', 'financeRejectionReason'
+      ]);
+    }
+    function isQuotationResubmit() {
+      return resource.data.financeApprovalStatus == 'rejected' &&
+             request.resource.data.financeApprovalStatus == 'pending' &&
+             !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+               'financeApprovedBy', 'financeApprovedAt',
+               'financeRejectedBy', 'financeRejectedAt', 'financeRejectionReason'
+             ]);
+    }
+
+    // Tickets: reported-by/assigned-to are hrmsEmployee ids, same shape as
+    // hrmsLeaves' employeeId — a ticket may be updated by whoever reported
+    // it, whoever it's currently assigned to, someone claiming an
+    // unassigned ticket for themselves (assignToMe), or HR/Admin.
+    function isTicketReporter(t) {
+      return employeeById(t.reportedById).userId == request.auth.uid;
+    }
+    function isTicketAssignee(t) {
+      return t.assignedToId != null && employeeById(t.assignedToId).userId == request.auth.uid;
+    }
+    function isClaimingTicket(t) {
+      return t.assignedToId == null &&
+             request.resource.data.assignedToId != null &&
+             employeeById(request.resource.data.assignedToId).userId == request.auth.uid;
+    }
+
     // ── Users ────────────────────────────────────────────────
+    // A user may update their own profile fields (displayName, phone,
+    // theme, etc.), but not the privilege/access fields — those require
+    // Admin, otherwise any signed-in user could self-escalate by writing
+    // {systemRole:'super_admin'} straight to their own document.
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+          ['systemRole', 'teamRole', 'officeId', 'isActive']
+        )
+      );
       allow delete: if isSuperAdmin();
     }
 
     // ── Offices ──────────────────────────────────────────────
+    // The Roles & Permissions editor treats `admin:offices` as grantable to
+    // the Admin role (matching admin:users/admin:settings) — the rule was
+    // hardcoded to Super Admin only, so a plain Admin saw a fully-functional
+    // Offices tab where every write silently failed.
     match /offices/{officeId} {
       allow read: if isAuthenticated();
-      allow write: if isSuperAdmin();
+      allow write: if isAdmin();
     }
 
     // ── Leads ────────────────────────────────────────────────
@@ -70,15 +178,30 @@ service cloud.firestore {
     match /customers/{customerId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && hasRequiredFields();
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        !touchesAssignmentFields(['assignedTo']) || canReassign()
+      );
       allow delete: if isAdmin();
     }
 
     // ── Bookings ─────────────────────────────────────────────
+    // Normal field edits (destination, dates, notes, etc.) stay open to any
+    // authenticated user, matching the existing edit flow — but the
+    // Finance/Operations approval trail fields may only be touched by a
+    // request that also has an approval-capable role, so the approve/
+    // reject actions can't be replayed by an arbitrary authenticated user
+    // (they were previously gated only by hiding the button in the UI).
     match /bookings/{bookingId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && hasRequiredFields();
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        (
+          !bookingTouchesApprovalFields() && !bookingSetsRejectionFields() &&
+          bookingStatusChangeIsSafe() &&
+          (!touchesAssignmentFields(['assignedTo', 'agentName']) || canReassign())
+        ) ||
+        getUserRole() in ['super_admin', 'admin', 'finance', 'operations']
+      );
       allow delete: if isAdmin();
     }
 
@@ -88,7 +211,11 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
                        getUserRole() in ['super_admin','admin','sales'];
       allow update: if isAuthenticated() &&
-                       getUserRole() in ['super_admin','admin','sales','finance'];
+                       getUserRole() in ['super_admin','admin','sales','finance'] && (
+                         !quotationTouchesApprovalFields() ||
+                         isQuotationResubmit() ||
+                         getUserRole() in ['super_admin','admin','finance']
+                       );
       allow delete: if isAdmin();
     }
 
@@ -144,9 +271,60 @@ service cloud.firestore {
                       getUserRole() in ['super_admin','admin','hr'];
     }
 
+    // Previously any authenticated user could approve or delete anyone
+    // else's leave request since this only checked login — now it must be
+    // the employee themself, their direct manager, or HR/Admin. Delete
+    // includes HR (matches LeaveTable's delete button, which HR can see).
     match /hrmsLeaves/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read:   if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated() && (
+        isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
+        getUserRole() in ['super_admin', 'admin', 'hr']
+      );
+      allow delete: if getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
+    // Same owner/manager/HR model as hrmsLeaves — previously had no
+    // dedicated rule at all (fell through to the permissive catch-all),
+    // so any authenticated user could approve/reject/delete any other
+    // employee's attendance correction request.
+    match /hrmsRegularizations/{id} {
+      allow read:   if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated() && (
+        isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
+        getUserRole() in ['super_admin', 'admin', 'hr']
+      );
+      allow delete: if getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
+    // IT support tickets — previously had no dedicated rule (fell through
+    // to the permissive catch-all), so any authenticated user could delete,
+    // reassign, or resolve any other employee's ticket. Reporter can edit
+    // their own; the current assignee can update it (resolve); anyone can
+    // claim an unassigned ticket for themselves; Admin/Super Admin manage all.
+    match /tickets/{id} {
+      allow read:   if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated() && (
+        isTicketReporter(resource.data) || isTicketAssignee(resource.data) ||
+        isClaimingTicket(resource.data) || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Training catalog (separate from onboarding-training walkthroughs) —
+    // previously had no dedicated rule, so program/enrollment CRUD was only
+    // gated by hiding the buttons behind hrms:manage in the UI.
+    match /trainingPrograms/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
+    match /trainingEnrollments/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
     }
 
     match /hrmsPayroll/{id} {
@@ -173,7 +351,8 @@ service cloud.firestore {
     // *messages* in a department-scoped channel, enforced below.
     match /teamspaceChannels/{id} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
     match /teamspaceConversations/{id} {
@@ -185,8 +364,16 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
                      (resource.data.convType != 'channel' || canAccessChannel(resource.data.convId));
       allow create: if isAuthenticated() &&
-                       (request.resource.data.convType != 'channel' || canAccessChannel(request.resource.data.convId));
-      allow update, delete: if isAuthenticated();
+                       (request.resource.data.convType != 'channel' || canPostToChannel(request.resource.data.convId));
+      // Anyone may react (toggleReaction only ever touches the `reactions`
+      // map) — editing the message itself or deleting it is sender/admin
+      // only. Previously anyone could edit/delete any other user's message.
+      allow update: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
     }
 
     // ── Team Space presence (heartbeat) ───────────────────────
@@ -245,9 +432,25 @@ service cloud.firestore {
     }
 
     // ── Settings ─────────────────────────────────────────────
+    // Shared by company-settings, incentive-settings, leave-policy, and
+    // permissions docs. Admin can write any of them, EXCEPT flipping
+    // Maintenance Mode on the company doc — that toggle is hidden from
+    // plain Admin in the UI (super_admin-only) and must actually be
+    // enforced here too. The `incentives` doc is the one exception in the
+    // other direction — IncentivesPage explicitly lets Sales Head set the
+    // incentive structure too ("Only Admin/Sales Head set the incentive
+    // structure"), so it needs its own allowance alongside Admin's.
     match /settings/{id} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create: if isAdmin() || (id == 'incentives' && getUserRole() == 'sales_head');
+      allow update: if (
+        isAdmin() && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+            ['maintenanceMode', 'maintenanceMessage']
+          ) || isSuperAdmin()
+        )
+      ) || (id == 'incentives' && getUserRole() == 'sales_head');
+      allow delete: if isAdmin();
     }
 
     // ── Help Center (AI assistant knowledge base) ────────────
@@ -256,16 +459,109 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Reference number counters (internal) ─────────────────
+    // One doc per prefix (e.g. "WGO", "INV"), storing the next sequence
+    // number — written transactionally by nextRefNumber() whenever any
+    // module creates a new record. Not user-facing data, so it doesn't go
+    // through hasRequiredFields() like normal business records do.
+    match /refCounters/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // ── Trash (soft-delete recovery) ─────────────────────────
+    // `create` stays open to any authenticated user because every delete()
+    // across every collection writes a trash copy first, regardless of
+    // which role was allowed to delete that original record — restricting
+    // create here would break normal deletes for non-admin roles. Restoring
+    // or permanently purging a trashed record is Admin/Super Admin only.
+    match /trash/{id} {
+      allow read:   if isAdmin();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Holidays (company holiday calendar) ──────────────────
+    match /holidays/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Assets (inventory + employee requests) ───────────────
+    match /assets/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Any employee can create/read their own request; approving/rejecting
+    // (ESS inbox) is done by the employee's reporting manager or HR/Admin —
+    // matches asset-request.service.ts's create/approve/reject call sites.
+    match /assetRequests/{id} {
+      allow read:   if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated() && (
+        isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
+        getUserRole() in ['super_admin', 'admin', 'hr']
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Performance (reviews/goals — sensitive HR data) ──────
+    match /performanceReviews/{id} {
+      allow read:  if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+      allow write: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
+    match /performanceGoals/{id} {
+      allow read:  if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+      allow write: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
+    // ── Recruitment (candidate PII + job openings) ───────────
+    match /candidates/{id} {
+      allow read:  if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+      allow write: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
+    match /jobOpenings/{id} {
+      allow read:  if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+      allow write: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
+    // ── Company Goals ─────────────────────────────────────────
+    // Visible company-wide for transparency; only Admin/Super Admin
+    // (matches the Admin-panel-only surface that manages these) may write.
+    match /companyGoals/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /objectives/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /goalCheckIns/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // ── All other collections ─────────────────────────────────
     // create/update validate the standard fields; delete has no
     // incoming request.resource to validate, so hasRequiredFields()
     // must never gate it (it errors on a null request.resource,
     // which silently denies every delete under this rule).
+    // Delete requires Admin — this previously allowed ANY authenticated
+    // user to delete documents in any collection with no dedicated rule
+    // (e.g. the audit-log `activities` collection), which is exactly the
+    // gap the Admin-only Collection Explorer screen relied on the UI (not
+    // the rules) to prevent.
     match /{collection}/{id} {
       allow read:   if isAuthenticated();
       allow create: if isAuthenticated() && hasRequiredFields();
       allow update: if isAuthenticated() && hasRequiredFields();
-      allow delete: if isAuthenticated();
+      allow delete: if isAdmin();
     }
   }
 }

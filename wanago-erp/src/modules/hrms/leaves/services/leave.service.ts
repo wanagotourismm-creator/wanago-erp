@@ -1,6 +1,7 @@
 import { orderBy, where, serverTimestamp } from "firebase/firestore";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { fetchLeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import type { LeaveRequest } from "@/modules/hrms/shared/types";
 import type { LeaveRequestSchema, LeaveDecisionSchema } from "@/modules/hrms/leaves/schemas";
 
@@ -16,6 +17,10 @@ function calcDays(fromDate: string, toDate: string): number {
   return Math.max(1, diff + 1);
 }
 
+function rangesOverlap(aFrom: string, aTo: string, bFrom: string, bTo: string): boolean {
+  return aFrom <= bTo && bFrom <= aTo;
+}
+
 export async function fetchLeaves(): Promise<LeaveRequest[]> {
   return repo.findMany({ constraints: [orderBy("createdAt", "desc")] });
 }
@@ -29,6 +34,21 @@ export async function fetchLeaveById(id: string): Promise<LeaveRequest | null> {
 }
 
 export async function createLeaveRequest(data: LeaveRequestSchema, createdBy: string): Promise<LeaveRequest> {
+  // Block the same employee from holding two pending/approved leave
+  // requests over the same days — previously nothing checked this, so an
+  // employee could get two overlapping ranges approved and have both
+  // counted separately against their balance.
+  const existingForEmployee = await fetchLeavesByEmployee(data.employeeId);
+  const overlapping = existingForEmployee.find((l) =>
+    (l.status === "pending" || l.status === "approved") &&
+    rangesOverlap(l.fromDate, l.toDate, data.fromDate, data.toDate)
+  );
+  if (overlapping) {
+    throw new Error(
+      `This overlaps an existing ${overlapping.status} leave request (${overlapping.fromDate} to ${overlapping.toDate}).`
+    );
+  }
+
   return repo.create({
     ...data,
     days:       calcDays(data.fromDate, data.toDate),
@@ -50,6 +70,33 @@ export async function updateLeaveRequest(id: string, data: Partial<LeaveRequestS
 }
 
 export async function approveLeaveRequest(id: string, approvedBy: string, decision?: LeaveDecisionSchema): Promise<void> {
+  const request = await repo.findById(id);
+  if (!request) throw new Error("Leave request not found.");
+
+  // Loss of Pay is explicitly uncapped (see DEFAULT_LEAVE_POLICY) — every
+  // other type must not be approved past the employee's annual entitlement.
+  // Previously nothing checked this at all, so a manager could approve a
+  // request that pushed used days past what's left.
+  if (request.leaveType !== "loss_of_pay") {
+    const [policy, employeeLeaves] = await Promise.all([
+      fetchLeavePolicy(),
+      fetchLeavesByEmployee(request.employeeId),
+    ]);
+    const entitlement = policy.leaveTypes[request.leaveType as keyof typeof policy.leaveTypes]?.annualDays ?? 0;
+    const requestYear = new Date(request.fromDate).getFullYear();
+    const usedExcludingThis = employeeLeaves
+      .filter((l) =>
+        l.id !== id && l.leaveType === request.leaveType && l.status === "approved" &&
+        new Date(l.fromDate).getFullYear() === requestYear
+      )
+      .reduce((sum, l) => sum + l.days, 0);
+    if (usedExcludingThis + request.days > entitlement) {
+      throw new Error(
+        `Approving this would use ${usedExcludingThis + request.days} days against a ${entitlement}-day annual entitlement (${usedExcludingThis} already approved this year).`
+      );
+    }
+  }
+
   return repo.update(id, {
     status:     "approved",
     approvedBy,

@@ -1,10 +1,9 @@
 import { orderBy } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { TrainingProgram, TrainingProgramFormData, TrainingMaterial } from "@/modules/training/programs/types";
 
 class TrainingProgramRepository extends BaseRepository<TrainingProgram> {
@@ -20,9 +19,7 @@ export async function createTrainingProgram(
   data: TrainingProgramFormData,
   createdBy: string
 ): Promise<TrainingProgram> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.TRAINING_PROGRAMS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("TRAINING", ids);
+  const refNumber = await nextRefNumber("TRAINING");
 
   return repo.create({
     ...data,

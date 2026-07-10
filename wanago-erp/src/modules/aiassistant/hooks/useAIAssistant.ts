@@ -40,6 +40,14 @@ export function useAIAssistant() {
         id: nextId(), role: "assistant",
         content: result.answer, source: result.source, articles: result.articles,
       }]);
+    } catch {
+      // Previously unguarded — a permission-denied or network failure left
+      // the user's message posted with the spinner clearing and no reply
+      // and no error, ever. Post a visible assistant-side failure instead.
+      setMessages((prev) => [...prev, {
+        id: nextId(), role: "assistant",
+        content: "Sorry, something went wrong answering that. Please try again.",
+      }]);
     } finally {
       setLoading(false);
     }

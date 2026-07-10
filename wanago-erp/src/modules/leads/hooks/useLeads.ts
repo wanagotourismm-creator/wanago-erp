@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   fetchLeads, createLead, updateLead,
   updateLeadStage, deleteLead, convertLeadToCustomer,
@@ -18,6 +18,7 @@ export function useLeads() {
   const [error,   setError]   = useState<string | null>(null);
   const { user } = useAuthStore();
   const { employee } = useCurrentEmployee();
+  const wonInFlight = useRef<Set<string>>(new Set());
 
   // A `sales` user only sees leads assigned to them; every other role
   // (including sales_head) sees the full unfiltered list.
@@ -32,7 +33,7 @@ export function useLeads() {
     try {
       const data = await fetchLeads(filters);
       setLeads(data);
-    } catch (e) {
+    } catch {
       setError("Failed to load leads");
     } finally {
       setLoading(false);
@@ -70,23 +71,39 @@ export function useLeads() {
 
   async function changeStage(
     id: string, stage: string
-  ): Promise<void> {
-    await updateLeadStage(id, stage);
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, stage } : l));
+  ): Promise<{ error: string | null }> {
+    try {
+      await updateLeadStage(id, stage);
+      setLeads(prev => prev.map(l => l.id === id ? { ...l, stage } : l));
 
-    const lead = leads.find(l => l.id === id);
-    if (lead) {
-      logActivity({
-        entityType: "Lead", entityName: lead.name, action: "status_changed",
-        detail: `${lead.refNumber} moved to ${stage}`,
-        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
-      });
-    }
+      const lead = leads.find(l => l.id === id);
+      if (lead) {
+        logActivity({
+          entityType: "Lead", entityName: lead.name, action: "status_changed",
+          detail: `${lead.refNumber} moved to ${stage}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
 
-    if (stage === "won" && lead) {
-      const wonLead = { ...lead, stage };
-      const customer = await convertLeadToCustomer(wonLead, user?.uid ?? "");
-      await createDraftQuotationFromWonLead(wonLead, customer, user?.uid ?? "");
+      if (stage === "won" && lead) {
+        // Guards against a duplicate draft quotation from a rapid double-click
+        // or double-submit — createDraftQuotationFromWonLead's own dedup check
+        // is read-then-write and not atomic, so this in-memory guard is the
+        // real protection against a race within the same session.
+        if (!wonInFlight.current.has(id)) {
+          wonInFlight.current.add(id);
+          try {
+            const wonLead = { ...lead, stage };
+            const customer = await convertLeadToCustomer(wonLead, user?.uid ?? "");
+            await createDraftQuotationFromWonLead(wonLead, customer, user?.uid ?? "");
+          } finally {
+            wonInFlight.current.delete(id);
+          }
+        }
+      }
+      return { error: null };
+    } catch {
+      return { error: "Failed to update lead stage" };
     }
   }
 

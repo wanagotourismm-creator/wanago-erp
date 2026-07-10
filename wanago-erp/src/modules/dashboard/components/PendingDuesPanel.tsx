@@ -52,7 +52,8 @@ export function PendingDuesPanel() {
         ]);
         setFinanceQueue(finance);
         setOpsQueue(ops);
-      } catch {
+      } catch (err) {
+        console.error("[PendingDuesPanel] failed to load approval queues — showing as empty:", err);
         setFinanceQueue([]);
         setOpsQueue([]);
       } finally {

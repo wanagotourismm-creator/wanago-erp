@@ -19,6 +19,9 @@ export const invoiceSchema = z.object({
   officeId:      z.string().min(1),
   officeName:    z.string().min(1),
   notes:         z.string().optional().or(z.literal("")),
+}).refine((data) => data.amountPaid <= data.totalAmount, {
+  message: "Amount paid can't exceed the total amount",
+  path: ["amountPaid"],
 });
 
 export type InvoiceSchema = z.infer<typeof invoiceSchema>;

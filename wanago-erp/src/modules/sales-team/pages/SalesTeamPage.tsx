@@ -31,7 +31,7 @@ function buildMonthOptions() {
 }
 
 export function SalesTeamPage() {
-  const { performance, loading, reload } = useSalesTeamPerformance();
+  const { performance, loading, error, reload } = useSalesTeamPerformance();
   const monthOptions = useMemo(buildMonthOptions, []);
   const [selected, setSelected] = useState(monthOptions[0].value);
 
@@ -53,6 +53,10 @@ export function SalesTeamPage() {
           </Button>
         }
       />
+
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+      )}
 
       <div className="flex items-center gap-3">
         <select

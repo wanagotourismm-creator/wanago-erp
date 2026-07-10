@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Search, Filter, RefreshCw, Upload } from "lucide-react";
+import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useLeads } from "@/modules/leads/hooks/useLeads";
 import { LeadsTable } from "@/modules/leads/components/LeadsTable";
 import { LeadForm } from "@/modules/leads/components/LeadForm";
@@ -11,7 +11,6 @@ import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
-import { LEAD_STAGE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils/helpers";
 import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";

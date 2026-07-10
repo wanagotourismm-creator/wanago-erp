@@ -14,7 +14,15 @@ function calcHours(clockIn?: string, clockOut?: string, breakMinutes = 0): numbe
   if (!clockIn || !clockOut) return null;
   const [inH, inM] = clockIn.split(":").map(Number);
   const [outH, outM] = clockOut.split(":").map(Number);
-  const minutes = (outH * 60 + outM) - (inH * 60 + inM) - breakMinutes;
+  let minutes = (outH * 60 + outM) - (inH * 60 + inM);
+  // Overnight shift (e.g. clockIn 22:00, clockOut 06:00) — clockOut's
+  // time-of-day is numerically earlier than clockIn's, so the raw
+  // subtraction goes negative even though the employee worked a real,
+  // positive duration overnight. Previously this fell straight through to
+  // the minutes<=0 check below and the shift was recorded as
+  // hoursWorked: null. Assume a single midnight crossing.
+  if (minutes < 0) minutes += 24 * 60;
+  minutes -= breakMinutes;
   if (minutes <= 0) return null;
   return Math.round((minutes / 60) * 100) / 100;
 }

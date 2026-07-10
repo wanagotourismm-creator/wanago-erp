@@ -1,11 +1,4 @@
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit,
-} from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS, LEAD_STAGES, BOOKING_STATUS } from "@/lib/constants";
 import type { DashboardStats, LeadPipelineItem, RevenueDataPoint } from "@/modules/dashboard/types";
@@ -66,7 +59,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       followUpPending,
       totalLeads: leads.length,
     };
-  } catch {
+  } catch (err) {
+    console.error("[dashboard.service] fetchDashboardStats failed — showing zeroed stats:", err);
     return {
       totalRevenue:      0,
       activeLeads:       0,
@@ -90,7 +84,8 @@ export async function fetchLeadPipeline(): Promise<LeadPipelineItem[]> {
       count: leads.filter(l => l.stage === stage).length,
       color: PIPELINE_COLORS[stage] ?? "#888",
     }));
-  } catch {
+  } catch (err) {
+    console.error("[dashboard.service] fetchLeadPipeline failed — showing an empty funnel:", err);
     return Object.values(LEAD_STAGES).map(stage => ({
       stage,
       count: 0,
@@ -114,7 +109,8 @@ export async function fetchRevenueData(): Promise<RevenueDataPoint[]> {
         })
         .reduce((sum, p) => sum + (p.amount ?? 0), 0),
     }));
-  } catch {
+  } catch (err) {
+    console.error("[dashboard.service] fetchRevenueData failed — showing a flat ₹0 chart:", err);
     return months.map(month => ({ month, amount: 0 }));
   }
 }

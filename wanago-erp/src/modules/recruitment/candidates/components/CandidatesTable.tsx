@@ -3,6 +3,7 @@
 import { Edit2, Trash2, FileText } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials, cn } from "@/lib/utils/helpers";
 import { RECRUITMENT_STAGE_LABELS } from "@/lib/constants";
 import type { Candidate } from "@/modules/recruitment/candidates/types";
@@ -38,7 +39,8 @@ export function CandidatesTable({ candidates, loading, canManage, onView, onEdit
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -132,5 +134,39 @@ export function CandidatesTable({ candidates, loading, canManage, onView, onEdit
         </table>
       </div>
     </div>
+
+    <div className="sm:hidden space-y-2.5">
+      {candidates.map((c) => {
+        const actions: SwipeAction[] = canManage ? [
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(c), className: "bg-blue-600" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(c), className: "bg-red-600" },
+        ] : [];
+        return (
+          <SwipeableRow key={c.id} actions={actions} onTap={() => onView(c)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {initials(c.fullName)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{c.fullName}</p>
+                    <p className="text-[11px] text-muted-foreground">{c.refNumber}</p>
+                  </div>
+                </div>
+                <span className={cn("flex-shrink-0 text-xs font-medium", STAGE_STYLES[c.status])}>
+                  {RECRUITMENT_STAGE_LABELS[c.status as keyof typeof RECRUITMENT_STAGE_LABELS] ?? c.status}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <span className="truncate text-xs text-muted-foreground">{c.jobOpeningTitle ?? "General"}</span>
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(c.createdAt)}</span>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

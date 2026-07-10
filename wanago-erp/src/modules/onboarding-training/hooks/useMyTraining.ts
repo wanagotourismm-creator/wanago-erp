@@ -13,6 +13,9 @@ export type ModuleWithProgress = {
   percent:       number;
   isComplete:    boolean;
   started:       boolean;
+  // True when an earlier (by `order`) mandatory module isn't complete yet —
+  // mandatory modules must be taken in order, optional ones never lock.
+  locked:        boolean;
 };
 
 export function useMyTraining() {
@@ -32,6 +35,20 @@ export function useMyTraining() {
       ]);
       const progressByModule = new Map<string, TrainingProgress>(progress.map((p) => [p.moduleId, p]));
       const stepLists = await Promise.all(modules.map((m) => fetchTrainingSteps(m.id)));
+      // fetchTrainingModules() already sorts by `order` — walk in that same
+      // order so "an earlier mandatory module isn't done" only ever looks
+      // backwards, never at a module later in the list.
+      const sortedModules = [...modules].sort((a, b) => a.order - b.order);
+
+      const completeById = new Map<string, boolean>(
+        sortedModules.map((m) => [m.id, !!progressByModule.get(m.id)?.completedAt])
+      );
+      let earlierMandatoryIncomplete = false;
+      const lockedById = new Map<string, boolean>();
+      for (const m of sortedModules) {
+        lockedById.set(m.id, earlierMandatoryIncomplete);
+        if (m.mandatory && !completeById.get(m.id)) earlierMandatoryIncomplete = true;
+      }
 
       setItems(modules.map((module, i) => {
         const totalSteps = stepLists[i].length;
@@ -42,6 +59,7 @@ export function useMyTraining() {
           percent: totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0,
           isComplete: !!p?.completedAt,
           started: !!p,
+          locked: lockedById.get(module.id) ?? false,
         };
       }));
     } catch {

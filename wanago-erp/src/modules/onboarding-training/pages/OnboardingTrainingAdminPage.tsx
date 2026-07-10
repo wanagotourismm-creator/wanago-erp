@@ -19,7 +19,7 @@ import type { TrainingModule, TrainingStep, TrainingCertificate } from "@/module
 export function OnboardingTrainingAdminPage() {
   const {
     modules, loadingModules, error,
-    selectedModule, selectedModuleId, setSelectedModuleId,
+    selectedModule, setSelectedModuleId,
     steps, loadingSteps,
     addModule, editModule, removeModule, moveModule,
     addStep, editStep, removeStep, moveStep,

@@ -65,16 +65,21 @@ export function useAdminUsers() {
     }
   }
 
-  async function toggleActive(uid: string, isActive: boolean): Promise<void> {
-    await updateUserProfile(uid, { isActive });
-    setUsers(prev => prev.map(u => u.uid === uid ? { ...u, isActive } : u));
-    const target = users.find(u => u.uid === uid);
-    if (target) {
-      logActivity({
-        entityType: "User", entityName: target.displayName, action: "status_changed",
-        detail: `${isActive ? "Activated" : "Deactivated"} ${target.email}`,
-        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
-      });
+  async function toggleActive(uid: string, isActive: boolean): Promise<{ error: string | null }> {
+    try {
+      await updateUserProfile(uid, { isActive });
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, isActive } : u));
+      const target = users.find(u => u.uid === uid);
+      if (target) {
+        logActivity({
+          entityType: "User", entityName: target.displayName, action: "status_changed",
+          detail: `${isActive ? "Activated" : "Deactivated"} ${target.email}`,
+          actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+        });
+      }
+      return { error: null };
+    } catch {
+      return { error: "Failed to update user status" };
     }
   }
 

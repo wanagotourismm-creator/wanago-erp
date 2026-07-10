@@ -13,6 +13,11 @@ import { TrainingProgressBar } from "@/modules/onboarding-training/components/Tr
 
 const SEARCH_TIMEOUT_MS = 8000;
 const NO_AUDIO_DWELL_MS = 6000; // presentation-style pacing when there's no narration to time off of
+// Safety net for the "ready" narration path: browsers (notably Chrome/Edge)
+// can silently pause or drop speechSynthesis when the tab loses focus or
+// after long silence, so utter.onend/audio "ended" may just never fire —
+// without this ceiling, presentation mode would wait forever on that step.
+const MAX_AUDIO_WAIT_MS = 45000;
 
 export function TrainingWalkthroughOverlay() {
   const {
@@ -37,8 +42,9 @@ export function TrainingWalkthroughOverlay() {
   useEffect(() => {
     if (!active || !currentStep || quizModalOpen || !autoAdvance) return;
     if (audio.status === "ready") {
-      if (audio.ended) goNext();
-      return;
+      if (audio.ended) { goNext(); return; }
+      const timer = setTimeout(() => goNext(), MAX_AUDIO_WAIT_MS);
+      return () => clearTimeout(timer);
     }
     if (audio.status === "unavailable" || audio.status === "error") {
       const timer = setTimeout(() => goNext(), NO_AUDIO_DWELL_MS);

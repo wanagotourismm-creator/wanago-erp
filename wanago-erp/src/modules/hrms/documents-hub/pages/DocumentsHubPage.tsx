@@ -3,12 +3,11 @@
 import { useMemo, useState } from "react";
 import { Search, FileText } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
 import { formatDate } from "@/lib/utils/helpers";
 import { useDocumentsHub } from "@/modules/hrms/documents-hub/hooks/useDocumentsHub";
 
 export function DocumentsHubPage() {
-  const { rows, loading } = useDocumentsHub();
+  const { rows, loading, error } = useDocumentsHub();
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -33,6 +32,10 @@ export function DocumentsHubPage() {
           className="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 hover:border-primary/40 focus:border-primary"
         />
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+      )}
 
       {loading ? (
         <div className="flex h-64 items-center justify-center">

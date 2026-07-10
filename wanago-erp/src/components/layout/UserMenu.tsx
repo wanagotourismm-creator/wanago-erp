@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { Sun, Moon, Monitor, Settings, LogOut, Palette } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/DropdownMenu";
 import { ThemePicker } from "@/components/ui/ThemePicker";
 import { useAuthStore } from "@/store/auth.store";

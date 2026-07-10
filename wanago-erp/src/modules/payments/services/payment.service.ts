@@ -1,10 +1,8 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { paymentRepository } from "@/modules/payments/services/payment.repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
-import { fetchInvoiceById, updateInvoice } from "@/modules/invoices/services/invoice.service";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { applyPaymentToInvoice } from "@/modules/invoices/services/invoice.service";
 import type { Payment, PaymentFormData } from "@/modules/payments/types";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
@@ -27,9 +25,7 @@ export async function createPayment(
   data: PaymentFormData,
   createdBy: string
 ): Promise<Payment> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PAYMENTS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("PAYMENT", ids);
+  const refNumber = await nextRefNumber("PAYMENT");
 
   const payment = await paymentRepository.create({
     ...data,
@@ -43,10 +39,7 @@ export async function createPayment(
   });
 
   if (payment.invoiceId) {
-    const invoice = await fetchInvoiceById(payment.invoiceId);
-    if (invoice) {
-      await updateInvoice(invoice.id, { amountPaid: invoice.amountPaid + payment.amount });
-    }
+    await applyPaymentToInvoice(payment.invoiceId, payment.amount);
   }
 
   return payment;

@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { FIRESTORE_COLLECTIONS, BOOKING_STATUS } from "@/lib/constants";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { formatDate, toDate } from "@/lib/utils/helpers";
-import { Badge } from "@/components/ui/Badge";
 import { Plane } from "lucide-react";
 
 type Departure = {
@@ -36,6 +35,7 @@ export function DepartingSoon() {
         const upcoming = snap.docs
           .map(d => ({ id: d.id, ...d.data() }) as Departure)
           .filter(b => {
+            if (b.status === BOOKING_STATUS.CANCELLED || b.status === BOOKING_STATUS.COMPLETED) return false;
             const d = toDate(b.travelDate as never);
             return d && d >= now && d <= end;
           })

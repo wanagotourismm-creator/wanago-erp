@@ -92,7 +92,13 @@ export function TeamSpacePanel() {
     if (!draft.trim() || !canPost) return;
     const text = draft;
     setDraft("");
-    await send(text);
+    const { error } = await send(text);
+    if (error) {
+      // Restore the draft so a failed send (network blip, permission
+      // denied) doesn't silently lose what the user typed.
+      setDraft(text);
+      setAttachError(error);
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

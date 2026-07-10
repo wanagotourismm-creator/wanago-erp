@@ -1,12 +1,8 @@
-import { where, type QueryConstraint } from "firebase/firestore";
+import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
 import { leadRepository } from "@/modules/leads/services/lead.repository";
-import { FIRESTORE_COLLECTIONS, REF_FORMATS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate, phoneMatchKey } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
-import {
-  collection, getDocs, serverTimestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { fetchCustomers, createCustomer } from "@/modules/customers/services/customer.service";
 import { fetchQuotations, createQuotation } from "@/modules/quotations/services/quotation.service";
 import type { Customer } from "@/modules/customers/types";
@@ -35,10 +31,7 @@ export async function createLead(
   data: LeadFormData,
   createdBy: string
 ): Promise<Lead> {
-  // Generate ref number
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.LEADS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("LEAD", ids);
+  const refNumber = await nextRefNumber("LEAD");
 
   return leadRepository.create({
     ...data,
@@ -99,7 +92,11 @@ export async function deleteLead(id: string): Promise<void> {
  */
 export async function convertLeadToCustomer(lead: Lead, createdBy: string): Promise<Customer> {
   const existingCustomers = await fetchCustomers();
-  const existing = existingCustomers.find(c => c.phone === lead.phone);
+  // Matches on the last 10 digits so "+91 98765 43210" vs "9876543210"
+  // formatting differences don't create a duplicate customer for the same
+  // person — an exact string match previously missed these routinely.
+  const leadKey = phoneMatchKey(lead.phone);
+  const existing = leadKey ? existingCustomers.find(c => phoneMatchKey(c.phone) === leadKey) : undefined;
   if (existing) return existing;
 
   return createCustomer({

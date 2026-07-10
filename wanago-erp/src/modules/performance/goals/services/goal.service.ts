@@ -1,9 +1,7 @@
 import { orderBy } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS, GOAL_STATUS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Goal, GoalFormData } from "@/modules/performance/goals/types";
 
 class GoalRepository extends BaseRepository<Goal> {
@@ -19,9 +17,7 @@ export async function createGoal(
   data: GoalFormData,
   createdBy: string
 ): Promise<Goal> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PERFORMANCE_GOALS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("GOAL", ids);
+  const refNumber = await nextRefNumber("GOAL");
 
   return repo.create({
     ...data,

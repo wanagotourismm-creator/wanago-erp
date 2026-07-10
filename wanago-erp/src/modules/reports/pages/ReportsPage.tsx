@@ -16,18 +16,26 @@ import { formatDate, cn } from "@/lib/utils/helpers";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { useAuthStore } from "@/store/auth.store";
+import type { SystemRole } from "@/types/rbac";
 
 type ReportKey = "employees" | "attendance" | "leaves" | "payroll" | "recruitment" | "performance";
 
 type ReportRow = Record<string, string | number>;
 
-const REPORT_TYPES: { key: ReportKey; label: string; hasDepartment: boolean }[] = [
+// `allowedRoles` mirrors firestore.rules exactly — employees/attendance/
+// leaves are open reads for any authenticated user, but payroll/
+// candidates/performanceReviews are role-restricted there. Previously
+// every tab was shown to every role that could reach /reports at all, so
+// e.g. a marketing user saw a Recruitment/Performance tab that always
+// silently returned nothing.
+const REPORT_TYPES: { key: ReportKey; label: string; hasDepartment: boolean; allowedRoles?: SystemRole[] }[] = [
   { key: "employees",   label: "Employee Report",    hasDepartment: true  },
   { key: "attendance",  label: "Attendance Report",   hasDepartment: false },
   { key: "leaves",      label: "Leave Report",        hasDepartment: false },
-  { key: "payroll",     label: "Payroll Report",      hasDepartment: false },
-  { key: "recruitment", label: "Recruitment Report",  hasDepartment: false },
-  { key: "performance", label: "Performance Report",  hasDepartment: false },
+  { key: "payroll",     label: "Payroll Report",      hasDepartment: false, allowedRoles: ["super_admin", "admin", "hr", "finance"] },
+  { key: "recruitment", label: "Recruitment Report",  hasDepartment: false, allowedRoles: ["super_admin", "admin", "hr"] },
+  { key: "performance", label: "Performance Report",  hasDepartment: false, allowedRoles: ["super_admin", "admin", "hr"] },
 ];
 
 async function loadReportData(key: ReportKey): Promise<{ columns: string[]; rows: ReportRow[]; dateField?: string; deptField?: string }> {
@@ -102,6 +110,12 @@ async function loadReportData(key: ReportKey): Promise<{ columns: string[]; rows
 }
 
 export function ReportsPage() {
+  const { user } = useAuthStore();
+  const visibleReportTypes = useMemo(
+    () => REPORT_TYPES.filter(r => !r.allowedRoles || (user && r.allowedRoles.includes(user.systemRole))),
+    [user]
+  );
+
   const [reportType, setReportType] = useState<ReportKey>("employees");
   const [loading,    setLoading]    = useState(true);
   const [columns,    setColumns]    = useState<string[]>([]);
@@ -109,15 +123,34 @@ export function ReportsPage() {
   const [deptField,  setDeptField]  = useState<string | undefined>(undefined);
   const [department, setDepartment] = useState("");
   const [search,     setSearch]     = useState("");
+  const [error,      setError]      = useState<string | null>(null);
+
+  // If the current selection isn't in the visible set (e.g. the signed-in
+  // role can't see Payroll/Recruitment/Performance), fall back to the
+  // first tab that role actually has access to.
+  useEffect(() => {
+    if (!visibleReportTypes.some(r => r.key === reportType) && visibleReportTypes[0]) {
+      setReportType(visibleReportTypes[0].key);
+    }
+  }, [visibleReportTypes, reportType]);
 
   useEffect(() => {
     setLoading(true);
     setDepartment("");
     setSearch("");
+    setError(null);
     loadReportData(reportType).then(({ columns, rows, deptField }) => {
       setColumns(columns);
       setAllRows(rows);
       setDeptField(deptField);
+    }).catch(() => {
+      // Previously unguarded — a permission-denied read (e.g. a role that
+      // can reach /reports but isn't allowed to read candidates/payroll/
+      // performance data) rendered as the ordinary "no data" empty state,
+      // indistinguishable from a genuinely empty report.
+      setColumns([]);
+      setAllRows([]);
+      setError("Failed to load this report — you may not have access to some of this data.");
     }).finally(() => setLoading(false));
   }, [reportType]);
 
@@ -154,8 +187,12 @@ export function ReportsPage() {
         description="Generate and export reports across HR, attendance, payroll, and recruitment"
       />
 
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
-        {REPORT_TYPES.map(r => (
+        {visibleReportTypes.map(r => (
           <button key={r.key} onClick={() => setReportType(r.key)}
             className={cn(
               "rounded-xl px-3 py-1.5 text-xs font-medium transition-all",

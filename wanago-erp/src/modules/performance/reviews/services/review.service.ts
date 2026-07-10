@@ -1,9 +1,7 @@
 import { orderBy } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { PerformanceReview, PerformanceReviewFormData } from "@/modules/performance/reviews/types";
 
 class ReviewRepository extends BaseRepository<PerformanceReview> {
@@ -19,9 +17,7 @@ export async function createReview(
   data: PerformanceReviewFormData,
   createdBy: string
 ): Promise<PerformanceReview> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PERFORMANCE_REVIEWS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("REVIEW", ids);
+  const refNumber = await nextRefNumber("REVIEW");
 
   return repo.create({
     ...data,

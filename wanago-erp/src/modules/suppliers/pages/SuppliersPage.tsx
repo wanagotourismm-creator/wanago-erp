@@ -40,8 +40,14 @@ const SUPPLIER_TEMPLATE_COLUMNS: TemplateColumn[] = [
 export function SuppliersPage() {
   const { suppliers, loading, addSupplier, editSupplier, removeSupplier, load } = useSuppliers();
   const { user } = useAuthStore();
-  const canManage = true;
-  const canCreate = true;
+  // Matches firestore.rules' suppliers write gate — Operations/Admin/Super
+  // Admin only. These were hardcoded true for every role, so a sales/HR/
+  // finance user saw fully-functional-looking Add/Edit/Delete buttons that
+  // silently failed the rule.
+  const canManage = !!user && (
+    user.systemRole === "super_admin" || user.systemRole === "admin" || user.systemRole === "operations"
+  );
+  const canCreate = canManage;
 
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);

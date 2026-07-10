@@ -32,6 +32,13 @@ const STATUS_FILTERS = [
 export function ExpensesPage() {
   const { expenses, loading, addExpense, editExpense, changeStatus, removeExpense, load } = useExpenses();
   const { user } = useAuthStore();
+  // Matches firestore.rules' expenses write gate — Finance/Admin/Super
+  // Admin only. Previously Edit/Delete/Approve/Reject/Mark-Paid were shown
+  // to every role, and clicking them as e.g. a sales/HR user just silently
+  // failed the rule with no feedback.
+  const canManage = !!user && (
+    user.systemRole === "super_admin" || user.systemRole === "admin" || user.systemRole === "finance"
+  );
 
   const [formOpen,       setFormOpen]       = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -166,18 +173,22 @@ export function ExpensesPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>
               Refresh
             </Button>
-            <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-expenses-import">
-              Import
-            </Button>
+            {canManage && (
+              <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)} data-tour-id="tour-expenses-import">
+                Import
+              </Button>
+            )}
             <BulkExportButton filenameBase="expenses" rows={exportRows} />
-            <Button
-              size="sm"
-              icon={<Plus size={14} />}
-              onClick={() => { setEditingExpense(null); setFormOpen(true); }}
-              data-tour-id="tour-expenses-add"
-            >
-              New Expense
-            </Button>
+            {canManage && (
+              <Button
+                size="sm"
+                icon={<Plus size={14} />}
+                onClick={() => { setEditingExpense(null); setFormOpen(true); }}
+                data-tour-id="tour-expenses-add"
+              >
+                New Expense
+              </Button>
+            )}
           </>
         }
       />
@@ -238,6 +249,7 @@ export function ExpensesPage() {
       <ExpensesTable
         expenses={filtered}
         loading={loading}
+        canManage={canManage}
         onView={setViewingExpense}
         onEdit={handleEdit}
         onDelete={handleDelete}
@@ -246,6 +258,7 @@ export function ExpensesPage() {
       {/* Detail popup */}
       <ExpenseDetailModal
         expense={viewingExpense ? filtered.find(e => e.id === viewingExpense.id) ?? viewingExpense : null}
+        canManage={canManage}
         onClose={() => setViewingExpense(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}

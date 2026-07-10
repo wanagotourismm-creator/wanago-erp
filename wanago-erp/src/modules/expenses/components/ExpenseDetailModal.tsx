@@ -6,10 +6,11 @@ import { formatDate } from "@/lib/utils/helpers";
 import type { Expense } from "@/modules/expenses/types";
 
 type Props = {
-  expense:  Expense | null;
-  onClose:  () => void;
-  onEdit:   (expense: Expense) => void;
-  onDelete: (expense: Expense) => void;
+  expense:   Expense | null;
+  canManage: boolean;
+  onClose:   () => void;
+  onEdit:    (expense: Expense) => void;
+  onDelete:  (expense: Expense) => void;
   onStatusChange: (expense: Expense, status: Expense["expenseStatus"]) => void;
 };
 
@@ -22,11 +23,11 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function ExpenseDetailModal({ expense, onClose, onEdit, onDelete, onStatusChange }: Props) {
+export function ExpenseDetailModal({ expense, canManage, onClose, onEdit, onDelete, onStatusChange }: Props) {
   if (!expense) return null;
 
-  const canApproveOrReject = expense.expenseStatus === "pending";
-  const canMarkPaid        = expense.expenseStatus === "approved";
+  const canApproveOrReject = canManage && expense.expenseStatus === "pending";
+  const canMarkPaid        = canManage && expense.expenseStatus === "approved";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -116,6 +117,7 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onDelete, onStatu
         </div>
 
         {/* Footer */}
+        {canManage && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-primary/15 bg-muted/30 px-6 py-4">
           <div className="flex items-center gap-2">
             <button
@@ -158,6 +160,7 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onDelete, onStatu
             )}
           </div>
         </div>
+        )}
 
       </div>
     </div>

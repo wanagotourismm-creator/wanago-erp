@@ -20,6 +20,7 @@ type Exporter = {
 
 export function DataExportPanel() {
   const [running, setRunning] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const exporters: Exporter[] = [
     {
@@ -89,14 +90,21 @@ export function DataExportPanel() {
 
   async function handleExport(exp: Exporter) {
     setRunning(exp.key);
+    setError(null);
     try {
       await exp.run();
+    } catch {
+      setError(`Failed to export ${exp.label}`);
     } finally {
       setRunning(null);
     }
   }
 
   return (
+    <div className="space-y-4">
+    {error && (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
+    )}
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {exporters.map(exp => (
         <div key={exp.key} className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-3">
@@ -119,6 +127,7 @@ export function DataExportPanel() {
           </button>
         </div>
       ))}
+    </div>
     </div>
   );
 }

@@ -11,13 +11,20 @@ import type { OnboardingTask, OnboardingTaskFormData, OnboardingStage } from "@/
 export function useOnboardingTasks() {
   const [tasks,   setTasks]   = useState<OnboardingTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
   const { user } = useAuthStore();
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await fetchOnboardingTasks();
       setTasks(data);
+    } catch {
+      // Previously swallowed — a load failure left `tasks` unset and the
+      // board rendered "No tasks", indistinguishable from a genuinely
+      // empty board.
+      setError("Failed to load onboarding tasks");
     } finally {
       setLoading(false);
     }
@@ -74,5 +81,5 @@ export function useOnboardingTasks() {
     }
   }
 
-  return { tasks, loading, load, addTask, editTask, moveStage, removeTask };
+  return { tasks, loading, error, load, addTask, editTask, moveStage, removeTask };
 }

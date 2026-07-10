@@ -14,7 +14,7 @@ type Props = {
   onClose:   () => void;
   onEdit:    (invoice: Invoice) => void;
   onDelete:  (invoice: Invoice) => void;
-  onSend:    (invoice: Invoice) => void;
+  onSend:    (invoice: Invoice) => Promise<{ error: string | null }>;
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -51,10 +51,21 @@ function FinanceApprovalBadge({ status }: { status: Invoice["financeApprovalStat
 
 export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDelete, onSend }: Props) {
   const [downloading, setDownloading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   if (!invoice) return null;
 
   const canMarkSent = invoice.status === "draft" && invoice.financeApprovalStatus === "approved";
+
+  async function handleSend() {
+    if (!invoice) return;
+    setSending(true);
+    setSendError(null);
+    const { error } = await onSend(invoice);
+    setSending(false);
+    if (error) setSendError(error);
+  }
 
   async function handleDownloadPdf() {
     if (!invoice) return;
@@ -125,6 +136,10 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
+
+          {sendError && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{sendError}</div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <InvoiceStatusBadge status={invoice.status} />
@@ -208,10 +223,11 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
           </div>
           {canManage && canMarkSent && (
             <button
-              onClick={() => onSend(invoice)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
+              onClick={handleSend}
+              disabled={sending}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm"
             >
-              <Send size={13} /> Mark Sent
+              {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Mark Sent
             </button>
           )}
         </div>

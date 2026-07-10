@@ -4,6 +4,7 @@ import { Edit2, Trash2, Phone, Mail } from "lucide-react";
 import { SupplierCategoryBadge, SupplierStatusBadge } from "@/modules/suppliers/components/SupplierBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { initials } from "@/lib/utils/helpers";
 import type { Supplier } from "@/modules/suppliers/types";
 
@@ -30,7 +31,8 @@ export function SuppliersTable({ suppliers, loading, canManage, onView, onEdit, 
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -127,5 +129,39 @@ export function SuppliersTable({ suppliers, loading, canManage, onView, onEdit, 
         </table>
       </div>
     </div>
+
+    <div className="sm:hidden space-y-2.5">
+      {suppliers.map((supplier) => {
+        const actions: SwipeAction[] = canManage ? [
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(supplier), className: "bg-blue-600" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(supplier), className: "bg-red-600" },
+        ] : [];
+        return (
+          <SwipeableRow key={supplier.id} actions={actions} onTap={() => onView(supplier)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {initials(supplier.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{supplier.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{supplier.refNumber}</p>
+                  </div>
+                </div>
+                <SupplierStatusBadge status={supplier.supplierStatus} />
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <SupplierCategoryBadge category={supplier.category} />
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Phone size={11} /> {supplier.phone}
+                </span>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

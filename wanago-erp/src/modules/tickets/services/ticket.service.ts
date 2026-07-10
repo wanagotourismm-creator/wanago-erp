@@ -1,8 +1,7 @@
-import { orderBy, where, serverTimestamp, getDocs, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { orderBy, where, serverTimestamp } from "firebase/firestore";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Ticket, TicketStatus } from "@/modules/tickets/types";
 import type { TicketSchema } from "@/modules/tickets/schemas";
 
@@ -20,9 +19,7 @@ export async function fetchTicketsByReporter(employeeId: string): Promise<Ticket
 }
 
 export async function createTicket(data: TicketSchema, createdBy: string): Promise<Ticket> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.TICKETS));
-  const ids = existing.docs.map((d) => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("TICKET", ids);
+  const refNumber = await nextRefNumber("TICKET");
 
   return repo.create({
     ...data,

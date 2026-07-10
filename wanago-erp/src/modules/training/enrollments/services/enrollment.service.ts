@@ -1,10 +1,9 @@
 import { orderBy } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { TrainingEnrollment, TrainingEnrollmentFormData } from "@/modules/training/enrollments/types";
 
 class EnrollmentRepository extends BaseRepository<TrainingEnrollment> {
@@ -20,9 +19,7 @@ export async function createEnrollment(
   data: TrainingEnrollmentFormData,
   createdBy: string
 ): Promise<TrainingEnrollment> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.TRAINING_ENROLLMENTS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("TRAINING", ids);
+  const refNumber = await nextRefNumber("TRAINING");
 
   return repo.create({
     ...data,

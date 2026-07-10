@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { X, Edit2, Trash2, Megaphone, Calendar, Users, StickyNote } from "lucide-react";
 import { CampaignStatusBadge } from "@/modules/campaigns/components/CampaignsTable";
 import { countLeadsForCampaign } from "@/modules/campaigns/services/campaign.service";
-import { formatDate } from "@/lib/utils/helpers";
+import { formatDate, formatCurrency } from "@/lib/utils/helpers";
 import type { Campaign } from "@/modules/campaigns/types";
 
 type Props = {
-  campaign: Campaign | null;
-  onClose:  () => void;
-  onEdit:   (campaign: Campaign) => void;
-  onDelete: (campaign: Campaign) => void;
+  campaign:  Campaign | null;
+  canManage: boolean;
+  onClose:   () => void;
+  onEdit:    (campaign: Campaign) => void;
+  onDelete:  (campaign: Campaign) => void;
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -23,7 +24,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function CampaignDetailModal({ campaign, onClose, onEdit, onDelete }: Props) {
+export function CampaignDetailModal({ campaign, canManage, onClose, onEdit, onDelete }: Props) {
   const [leadsGenerated, setLeadsGenerated] = useState<number | null>(null);
   const [statsLoading,   setStatsLoading]   = useState(false);
 
@@ -102,7 +103,7 @@ export function CampaignDetailModal({ campaign, onClose, onEdit, onDelete }: Pro
             <div className="divide-y divide-border rounded-xl border border-border px-3">
               <Row label="Start Date" value={formatDate(campaign.startDate)} />
               <Row label="End Date" value={campaign.endDate ? formatDate(campaign.endDate) : "Ongoing"} />
-              <Row label="Budget" value={campaign.budget ? `₹${campaign.budget.toLocaleString()}` : null} />
+              <Row label="Budget" value={campaign.budget ? formatCurrency(campaign.budget) : null} />
             </div>
           </div>
 
@@ -131,22 +132,24 @@ export function CampaignDetailModal({ campaign, onClose, onEdit, onDelete }: Pro
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-primary/15 bg-muted/30 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(campaign)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
-            >
-              <Edit2 size={13} /> Edit
-            </button>
-            <button
-              onClick={() => onDelete(campaign)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 size={13} /> Delete
-            </button>
+        {canManage && (
+          <div className="flex items-center justify-between border-t border-primary/15 bg-muted/30 px-6 py-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onEdit(campaign)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+              >
+                <Edit2 size={13} /> Edit
+              </button>
+              <button
+                onClick={() => onDelete(campaign)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>

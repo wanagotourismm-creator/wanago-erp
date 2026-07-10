@@ -12,13 +12,17 @@ import type { PerformanceReview, PerformanceReviewFormData } from "@/modules/per
 export function useReviews() {
   const [reviews, setReviews] = useState<PerformanceReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
   const { user } = useAuthStore();
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await fetchReviews();
       setReviews(data);
+    } catch {
+      setError("Failed to load performance reviews");
     } finally {
       setLoading(false);
     }
@@ -53,9 +57,14 @@ export function useReviews() {
     }
   }
 
-  async function acknowledge(id: string): Promise<void> {
-    await acknowledgeReview(id);
-    setReviews(prev => prev.map(r => r.id === id ? { ...r, status: "acknowledged" } : r));
+  async function acknowledge(id: string): Promise<{ error: string | null }> {
+    try {
+      await acknowledgeReview(id);
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, status: "acknowledged" } : r));
+      return { error: null };
+    } catch {
+      return { error: "Failed to acknowledge review" };
+    }
   }
 
   async function removeReview(id: string): Promise<{ error: string | null }> {
@@ -76,5 +85,5 @@ export function useReviews() {
     }
   }
 
-  return { reviews, loading, load, addReview, editReview, acknowledge, removeReview };
+  return { reviews, loading, error, load, addReview, editReview, acknowledge, removeReview };
 }

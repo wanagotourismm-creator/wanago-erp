@@ -1,10 +1,10 @@
 import { orderBy } from "firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS, RECRUITMENT_STAGES } from "@/lib/constants";
-import { generateRefNumber } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { decrementJobOpening } from "@/modules/recruitment/jobs/services/job.service";
 import type { Candidate, CandidateFormData } from "@/modules/recruitment/candidates/types";
 
 class CandidateRepository extends BaseRepository<Candidate> {
@@ -24,9 +24,7 @@ export async function createCandidate(
   data: CandidateFormData,
   createdBy: string
 ): Promise<Candidate> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CANDIDATES));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("CANDIDATE", ids);
+  const refNumber = await nextRefNumber("CANDIDATE");
 
   return repo.create({
     ...data,
@@ -51,6 +49,16 @@ export async function updateCandidate(
 }
 
 export async function updateCandidateStage(id: string, stage: string): Promise<void> {
+  // Closing out the linked job opening only happens on the *transition*
+  // into "joined" — checking the candidate's current status first stops a
+  // re-save (or another stage change bouncing back to "joined") from
+  // decrementing the same opening's count twice.
+  if (stage === RECRUITMENT_STAGES.JOINED) {
+    const candidate = await repo.findById(id);
+    if (candidate && candidate.status !== RECRUITMENT_STAGES.JOINED && candidate.jobOpeningId) {
+      await decrementJobOpening(candidate.jobOpeningId);
+    }
+  }
   return repo.update(id, { status: stage } as Partial<Candidate>);
 }
 

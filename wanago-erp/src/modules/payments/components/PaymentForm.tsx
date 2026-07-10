@@ -9,7 +9,7 @@ import { PAYMENT_METHODS } from "@/modules/payments/components/PaymentBadges";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
 import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
 import { useAuthStore } from "@/store/auth.store";
-import { cn } from "@/lib/utils/helpers";
+import { cn, formatCurrency } from "@/lib/utils/helpers";
 import type { Customer } from "@/modules/customers/types";
 import type { Invoice } from "@/modules/invoices/types";
 
@@ -133,7 +133,7 @@ export function PaymentForm({ open, onClose, onSubmit }: Props) {
               <option value="">No invoice (standalone)</option>
               {invoices.map(inv => (
                 <option key={inv.id} value={inv.id}>
-                  {inv.refNumber} — {inv.customerName} (Due: ₹{inv.balanceDue.toLocaleString()})
+                  {inv.refNumber} — {inv.customerName} (Due: {formatCurrency(inv.balanceDue)})
                 </option>
               ))}
             </select>

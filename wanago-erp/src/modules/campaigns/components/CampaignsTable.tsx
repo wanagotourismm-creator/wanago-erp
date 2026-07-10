@@ -3,12 +3,14 @@
 import { Edit2, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
-import { formatDate, cn } from "@/lib/utils/helpers";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
+import { formatDate, formatCurrency, cn } from "@/lib/utils/helpers";
 import type { Campaign } from "@/modules/campaigns/types";
 
 type Props = {
   campaigns: Campaign[];
   loading:   boolean;
+  canManage: boolean;
   onView:    (campaign: Campaign) => void;
   onEdit:    (campaign: Campaign) => void;
   onDelete:  (campaign: Campaign) => void;
@@ -39,7 +41,7 @@ export function CampaignStatusBadge({ status }: { status: Campaign["campaignStat
   );
 }
 
-export function CampaignsTable({ campaigns, loading, onView, onEdit, onDelete }: Props) {
+export function CampaignsTable({ campaigns, loading, canManage, onView, onEdit, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (campaigns.length === 0) {
@@ -53,7 +55,8 @@ export function CampaignsTable({ campaigns, loading, onView, onEdit, onDelete }:
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -101,7 +104,7 @@ export function CampaignsTable({ campaigns, loading, onView, onEdit, onDelete }:
                 {/* Budget */}
                 <td className="px-4 py-3">
                   <span className="text-xs text-foreground whitespace-nowrap">
-                    {campaign.budget ? `₹${campaign.budget.toLocaleString()}` : "—"}
+                    {campaign.budget ? formatCurrency(campaign.budget) : "—"}
                   </span>
                 </td>
 
@@ -112,22 +115,24 @@ export function CampaignsTable({ campaigns, loading, onView, onEdit, onDelete }:
 
                 {/* Actions — inline, same line, revealed on row hover */}
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onEdit(campaign); }}
-                      title="Edit"
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDelete(campaign); }}
-                      title="Delete"
-                      className={cn("flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors")}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  {canManage && (
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onEdit(campaign); }}
+                        title="Edit"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(campaign); }}
+                        title="Delete"
+                        className={cn("flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors")}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </td>
 
               </tr>
@@ -136,5 +141,36 @@ export function CampaignsTable({ campaigns, loading, onView, onEdit, onDelete }:
         </table>
       </div>
     </div>
+
+    <div className="sm:hidden space-y-2.5">
+      {campaigns.map((campaign) => {
+        const actions: SwipeAction[] = canManage ? [
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(campaign), className: "bg-primary" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(campaign), className: "bg-red-600" },
+        ] : [];
+        return (
+          <SwipeableRow key={campaign.id} actions={actions} onTap={() => onView(campaign)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{campaign.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{campaign.refNumber} · {campaign.channel}</p>
+                </div>
+                <CampaignStatusBadge status={campaign.campaignStatus} />
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                  {formatDate(campaign.startDate)} – {campaign.endDate ? formatDate(campaign.endDate) : "Ongoing"}
+                </span>
+                <span className="text-xs font-medium text-foreground whitespace-nowrap">
+                  {campaign.budget ? formatCurrency(campaign.budget) : "—"}
+                </span>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

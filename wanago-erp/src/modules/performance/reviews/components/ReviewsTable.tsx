@@ -4,6 +4,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { RatingBadge } from "@/modules/performance/reviews/components/ReviewBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials, cn } from "@/lib/utils/helpers";
 import type { PerformanceReview } from "@/modules/performance/reviews/types";
 
@@ -24,7 +25,8 @@ export function ReviewsTable({ reviews, loading, canManage, onView, onEdit, onDe
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -91,5 +93,40 @@ export function ReviewsTable({ reviews, loading, canManage, onView, onEdit, onDe
         </table>
       </div>
     </div>
+
+    <div className="sm:hidden space-y-2.5">
+      {reviews.map((r) => {
+        const actions: SwipeAction[] = canManage ? [
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(r), className: "bg-primary" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(r), className: "bg-red-600" },
+        ] : [];
+        return (
+          <SwipeableRow key={r.id} actions={actions} onTap={() => onView(r)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {initials(r.employeeName)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-foreground">{r.employeeName}</p>
+                  <p className="text-[11px] text-muted-foreground">{r.refNumber} · {r.period}</p>
+                </div>
+                <RatingBadge rating={r.rating} />
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <span className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  r.status === "acknowledged" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                )}>
+                  {r.status === "acknowledged" ? "Acknowledged" : "Submitted"}
+                </span>
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(r.reviewDate)}</span>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

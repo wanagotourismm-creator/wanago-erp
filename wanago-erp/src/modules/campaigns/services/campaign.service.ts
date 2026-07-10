@@ -1,7 +1,8 @@
 import { where, type QueryConstraint } from "firebase/firestore";
 import { campaignRepository } from "@/modules/campaigns/services/campaign.repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate } from "@/lib/utils/helpers";
+import { toDate } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Campaign, CampaignFormData } from "@/modules/campaigns/types";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -28,10 +29,7 @@ export async function createCampaign(
   data: CampaignFormData,
   createdBy: string
 ): Promise<Campaign> {
-  // Generate ref number
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CAMPAIGNS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("CAMPAIGN", ids);
+  const refNumber = await nextRefNumber("CAMPAIGN");
 
   return campaignRepository.create({
     ...data,

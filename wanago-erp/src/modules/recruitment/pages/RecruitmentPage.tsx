@@ -406,9 +406,10 @@ export function RecruitmentPage() {
         onClose={() => { setCandFormOpen(false); setEditingCand(null); }}
         onSubmit={handleCandidateSubmit}
         onUploadResume={async (file) => {
-          if (!editingCand) return;
-          const url = await uploadCandidateResume(editingCand.id, file);
-          setEditingCand(prev => prev ? { ...prev, resumeUrl: url } : prev);
+          if (!editingCand) return { error: null };
+          const { error, url } = await uploadCandidateResume(editingCand.id, file);
+          if (url) setEditingCand(prev => prev ? { ...prev, resumeUrl: url } : prev);
+          return { error };
         }}
       />
 

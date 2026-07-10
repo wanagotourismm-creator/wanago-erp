@@ -1,10 +1,9 @@
-import { where, type QueryConstraint } from "firebase/firestore";
-import { collection, getDocs, serverTimestamp } from "firebase/firestore";
+import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { storage } from "@/lib/firebase/client";
 import { quotationRepository } from "@/modules/quotations/services/quotation.repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { generateRefNumber, toDate, formatDate, joinAddressCity } from "@/lib/utils/helpers";
+import { toDate, formatDate, joinAddressCity } from "@/lib/utils/helpers";
+import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import { createBooking } from "@/modules/bookings/services/booking.service";
 import type { Quotation, QuotationFormData, QuotationLineItem } from "@/modules/quotations/types";
 import { notifyUser } from "@/lib/notify";
@@ -146,9 +145,7 @@ export async function createQuotation(
   data: QuotationFormData,
   createdBy: string
 ): Promise<Quotation> {
-  const existing = await getDocs(collection(db, FIRESTORE_COLLECTIONS.QUOTATIONS));
-  const ids       = existing.docs.map(d => d.data().refNumber ?? "");
-  const refNumber = generateRefNumber("QUOTATION", ids);
+  const refNumber = await nextRefNumber("QUOTATION");
   const { subtotal, taxAmount, totalAmount } = computeTotals(data.lineItems, data.taxRate, data.pax);
 
   const quotation = await quotationRepository.create({

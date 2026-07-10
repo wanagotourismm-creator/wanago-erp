@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall, MessageCircle } from "lucide-react";
 import { StageBadge, PriorityBadge } from "@/modules/leads/components/LeadBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
-import { formatDate, formatDateTime, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
+import { formatDate, formatDateTime, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
@@ -166,7 +166,7 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Pr
               <Row label="Travel Date" value={lead.travelDate ? formatDate(lead.travelDate) : null} />
               <Row label="Return Date" value={lead.returnDate ? formatDate(lead.returnDate) : null} />
               <Row label="Duration" value={lead.duration ? `${lead.duration} nights` : null} />
-              <Row label="Budget" value={lead.budget ? `₹${lead.budget.toLocaleString()}` : null} />
+              <Row label="Budget" value={lead.budget ? formatCurrency(lead.budget) : null} />
             </div>
           </div>
 

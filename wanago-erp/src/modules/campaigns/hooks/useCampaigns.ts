@@ -20,7 +20,7 @@ export function useCampaigns() {
     try {
       const data = await fetchCampaigns(filters);
       setCampaigns(data);
-    } catch (e) {
+    } catch {
       setError("Failed to load campaigns");
     } finally {
       setLoading(false);

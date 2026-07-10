@@ -74,8 +74,36 @@ export function IncentiveSettingsForm({ settings, saving, onSave }: Props) {
     setSaved(false);
   }
 
+  // No zod schema/resolver backs this form — every field is a raw
+  // useState + Number(e.target.value), so a cleared or non-numeric input
+  // silently produces NaN and the HTML min/max attributes don't stop a
+  // typed out-of-range value either. Validate before saving instead.
+  const PERCENT_FIELDS: (keyof IncentiveSettings)[] = [
+    "minEligibilityPct", "tier1MaxPct", "tier1RatePercent", "tier2MaxPct", "tier2RatePercent",
+    "tier3MaxPct", "tier3RatePercent", "tier4RatePercent", "selfGeneratedBonusPercent", "teamBonusPercent",
+  ];
+  const AMOUNT_FIELDS: (keyof IncentiveSettings)[] = [
+    "defaultMonthlyProfitTarget", "fastClosure24hBonus", "fastClosure48hBonus",
+    "highValueThreshold", "highValueBonusAmount", "teamMonthlyTarget",
+    "monthlyReward1Amount", "monthlyReward2Amount", "monthlyReward3Amount", "quarterlyRewardCashAmount",
+  ];
+
+  function validate(): string | null {
+    for (const key of PERCENT_FIELDS) {
+      const v = form[key] as number;
+      if (!Number.isFinite(v) || v < 0 || v > 100) return `${key} must be a percentage between 0 and 100.`;
+    }
+    for (const key of AMOUNT_FIELDS) {
+      const v = form[key] as number;
+      if (!Number.isFinite(v) || v < 0) return `${key} must be a number of 0 or more.`;
+    }
+    return null;
+  }
+
   async function handleSave() {
     setError(null);
+    const validationError = validate();
+    if (validationError) { setError(validationError); return; }
     const result = await onSave(form);
     if (result.error) { setError(result.error); return; }
     setSaved(true);

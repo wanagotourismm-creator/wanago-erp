@@ -170,12 +170,17 @@ export function useTeamSpace() {
     markConvRead(conv.id);
   }
 
-  async function send(text: string) {
-    if (!user || !active || !text.trim()) return;
-    await sendMessage(active.id, active.type, text.trim(), user.uid, user.displayName ?? "User", officeId, {
-      parentMessageId: replyTo?.id ?? null,
-    });
-    setReplyTo(null);
+  async function send(text: string): Promise<{ error: string | null }> {
+    if (!user || !active || !text.trim()) return { error: null };
+    try {
+      await sendMessage(active.id, active.type, text.trim(), user.uid, user.displayName ?? "User", officeId, {
+        parentMessageId: replyTo?.id ?? null,
+      });
+      setReplyTo(null);
+      return { error: null };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Failed to send message" };
+    }
   }
 
   async function sendAttachment(file: File) {

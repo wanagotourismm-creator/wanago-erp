@@ -3,7 +3,8 @@
 import { Edit2, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
-import { cn } from "@/lib/utils/helpers";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
+import { cn, formatCurrency } from "@/lib/utils/helpers";
 import type { Package } from "@/modules/packages/types";
 
 type Props = {
@@ -28,7 +29,8 @@ export function PackagesTable({ packages, loading, onView, onEdit, onDelete }: P
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -77,7 +79,7 @@ export function PackagesTable({ packages, loading, onView, onEdit, onDelete }: P
 
                 {/* Base Price */}
                 <td className="px-4 py-3">
-                  <span className="font-medium text-foreground">₹{pkg.basePrice.toLocaleString()}</span>
+                  <span className="font-medium text-foreground">{formatCurrency(pkg.basePrice)}</span>
                 </td>
 
                 {/* Status */}
@@ -118,5 +120,39 @@ export function PackagesTable({ packages, loading, onView, onEdit, onDelete }: P
         </table>
       </div>
     </div>
+
+    <div className="sm:hidden space-y-2.5">
+      {packages.map((pkg) => {
+        const actions: SwipeAction[] = [
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(pkg), className: "bg-blue-600" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(pkg), className: "bg-red-600" },
+        ];
+        return (
+          <SwipeableRow key={pkg.id} actions={actions} onTap={() => onView(pkg)} className="rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{pkg.title}</p>
+                  <p className="text-[11px] text-muted-foreground">{pkg.refNumber}</p>
+                </div>
+                <span className={cn(
+                  "flex-shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  pkg.packageStatus === "active"
+                    ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                    : "bg-muted text-muted-foreground"
+                )}>
+                  {pkg.packageStatus === "active" ? "Active" : "Inactive"}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <p className="truncate text-xs text-muted-foreground">{pkg.destination} · {pkg.durationDays}D/{pkg.durationNights}N</p>
+                <span className="text-xs font-medium text-foreground whitespace-nowrap">{formatCurrency(pkg.basePrice)}</span>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }
