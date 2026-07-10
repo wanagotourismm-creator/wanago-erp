@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { FIRESTORE_COLLECTIONS, BOOKING_STATUS } from "@/lib/constants";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { formatCurrency } from "@/lib/utils/helpers";
+import { formatCurrency, toDate } from "@/lib/utils/helpers";
 
 type Performer = {
   name:    string;
@@ -23,9 +23,20 @@ export function TopPerformers() {
         const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS));
         const bookings = snap.docs.map(d => d.data());
 
-        // Group by assigned agent
+        // Label says "this month" — previously counted every booking ever
+        // (no date or status filter at all), so a booking pending Finance
+        // review or rejected months ago counted the same as a real,
+        // confirmed sale this month. Restrict to confirmed/completed
+        // bookings created since the start of the current month.
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
         const map: Record<string, Performer> = {};
         for (const b of bookings) {
+          if (b.status !== BOOKING_STATUS.CONFIRMED && b.status !== BOOKING_STATUS.COMPLETED) continue;
+          const created = toDate(b.createdAt);
+          if (!created || created < monthStart) continue;
+
           const key  = b.assignedTo ?? b.createdBy ?? "Unassigned";
           const name = b.agentName  ?? key;
           if (!map[key]) map[key] = { name, won: 0, revenue: 0 };

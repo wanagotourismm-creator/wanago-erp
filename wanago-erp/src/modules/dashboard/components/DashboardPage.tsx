@@ -18,7 +18,6 @@ import { RevenueForecast }      from "@/modules/dashboard/components/RevenueFore
 import { TeamStatusDonut }      from "@/modules/dashboard/components/TeamStatusDonut";
 import { HiringStatsCard }      from "@/modules/dashboard/components/HiringStatsCard";
 import { SmartRecommendations } from "@/modules/dashboard/components/SmartRecommendations";
-import { MySalesProgress }      from "@/modules/dashboard/components/MySalesProgress";
 import { TopPerformers }        from "@/modules/dashboard/components/TopPerformers";
 import { DepartingSoon }        from "@/modules/dashboard/components/DepartingSoon";
 import { RecentActivity }       from "@/modules/dashboard/components/RecentActivity";
@@ -27,10 +26,27 @@ import { PayrollSummaryCard }   from "@/modules/dashboard/components/PayrollSumm
 import { PendingDuesPanel }     from "@/modules/dashboard/components/PendingDuesPanel";
 import { InternationalFollowUps } from "@/modules/dashboard/components/InternationalFollowUps";
 import { ContinueTrainingCard }   from "@/modules/dashboard/components/ContinueTrainingCard";
+import { SalesPersonalDashboard } from "@/modules/dashboard/components/SalesPersonalDashboard";
 import { SkeletonCard }         from "@/components/ui/Skeleton";
 import { formatCurrency }       from "@/lib/utils/helpers";
 
 export function DashboardPage() {
+  const { user } = useAuthStore();
+
+  // Sales reps get a dashboard scoped to their own leads/bookings/goals
+  // instead of the company-wide view below (which includes things like
+  // full company payroll and every other department's data that a sales
+  // rep has no reason to see). Other non-admin roles (marketing, hr,
+  // finance, operations) are still on the company-wide view below for now
+  // — their own scoped dashboards are a follow-up, not yet built.
+  if (user?.systemRole === "sales") {
+    return <SalesPersonalDashboard />;
+  }
+
+  return <CompanyWideDashboard />;
+}
+
+function CompanyWideDashboard() {
   const { stats, pipeline, revenue, loading, error } = useDashboard();
   const { user } = useAuthStore();
   const currentEmployee   = useCurrentEmployee();
@@ -151,9 +167,6 @@ export function DashboardPage() {
               />
             </div>
           )}
-
-          {/* Sales-only motivational widget */}
-          <MySalesProgress />
 
           {/* Recommendations + Top Performers */}
           <div className="grid gap-4 lg:grid-cols-2">
