@@ -6,6 +6,7 @@ import {
   LayoutGrid, BadgeCheck, Clock, CalendarOff, Wallet,
   UserPlus, Target, GraduationCap, UserCircle, Users2, Settings2,
   Bell, CalendarDays, Network, ClipboardCheck, Megaphone, FileText, HelpCircle,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { canAccessPage } from "@/lib/rbac";
@@ -13,6 +14,7 @@ import { HrShell, type HrNavGroup } from "@/modules/ess/components/HrShell";
 import { HrOverviewDashboard } from "@/modules/hrms/overview/components/HrOverviewDashboard";
 import { EmployeesPage } from "@/modules/hrms/employees/pages/EmployeesPage";
 import { AttendancePage } from "@/modules/hrms/attendance/pages/AttendancePage";
+import { SuspiciousAttendancePage } from "@/modules/hrms/attendance/pages/SuspiciousAttendancePage";
 import { LeavesPage } from "@/modules/hrms/leaves/pages/LeavesPage";
 import { PayrollPage } from "@/modules/hrms/payroll/pages/PayrollPage";
 import { OrgChartPage } from "@/modules/hrms/orgchart/pages/OrgChartPage";
@@ -52,6 +54,7 @@ export function HrAdminPage() {
       items: [
         can("hrms-employees")  && { key: "employees",  label: "Employees",  icon: BadgeCheck },
         can("hrms-attendance") && { key: "attendance", label: "Attendance", icon: Clock },
+        can("hrms-attendance") && { key: "suspicious-attendance", label: "Suspicious Attendance", icon: ShieldAlert },
         can("hrms-leaves")     && { key: "leaves",     label: "Leaves",     icon: CalendarOff },
         can("hrms-payroll")    && { key: "payroll",    label: "Payroll",    icon: Wallet },
         { key: "orgchart", label: "Org Chart", icon: Network },
@@ -108,6 +111,7 @@ export function HrAdminPage() {
 
       {section === "employees"   && can("hrms-employees")  && <EmployeesPage />}
       {section === "attendance"  && can("hrms-attendance") && <AttendancePage />}
+      {section === "suspicious-attendance" && can("hrms-attendance") && <SuspiciousAttendancePage />}
       {section === "leaves"      && can("hrms-leaves")     && <LeavesPage />}
       {section === "payroll"     && can("hrms-payroll")    && <PayrollPage />}
       {section === "orgchart"    && <OrgChartPage />}

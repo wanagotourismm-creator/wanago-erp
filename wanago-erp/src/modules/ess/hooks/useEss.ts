@@ -12,7 +12,9 @@ import { fetchAssetsByEmployee } from "@/modules/assets/services/asset.service";
 import { fetchAssetRequests, fetchAssetRequestsByEmployee, createAssetRequest, approveAssetRequest, rejectAssetRequest } from "@/modules/assets/services/asset-request.service";
 import { fetchTicketsByReporter, createTicket } from "@/modules/tickets/services/ticket.service";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
-import { getCurrentPosition, distanceMeters } from "@/lib/geo";
+import { getCurrentPosition, distanceMeters, type GeoPosition } from "@/lib/geo";
+import { detectSuspiciousLocation } from "@/lib/geo-fraud";
+import { logSuspiciousAttempt } from "@/modules/hrms/attendance/services/suspicious-attendance.service";
 import { notifyUser } from "@/lib/notify";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
@@ -146,14 +148,63 @@ export function useEss() {
     ...teamAssetRequests.map((r): InboxItem => ({ kind: "asset", id: r.id, assetRequest: r })),
   ];
 
+  // Runs the location-spoofing heuristics (impossible travel speed,
+  // suspiciously perfect GPS accuracy, identical coordinates repeated across
+  // days) against this employee's own attendance history and, if anything
+  // trips, logs a review entry for HR before returning a block reason. A
+  // browser can't ask "is this GPS mocked" the way a native app can, so this
+  // is pattern-matching, not proof — that's why it's logged for a human to
+  // review rather than treated as an automatic disciplinary action.
+  async function checkAndLogSuspicion(pos: GeoPosition, action: "check_in" | "check_out"): Promise<string | null> {
+    if (!employee || !user) return null;
+    const recentRecords = attendance.filter((r) => r.date !== today);
+    const reasons = detectSuspiciousLocation({ pos, action, recentRecords });
+    if (reasons.length === 0) return null;
+
+    logSuspiciousAttempt({
+      employeeId: employee.id,
+      employeeName: employee.fullName,
+      officeId: employee.officeId,
+      officeName: office?.name ?? "",
+      action,
+      lat: pos.lat,
+      lng: pos.lng,
+      accuracy: pos.accuracy,
+      reasons,
+    }, user.uid).catch(() => { /* logging the flag must never crash the block itself */ });
+
+    return "We couldn't verify your location for this attempt, so it's been blocked and flagged for HR review. If this is a mistake, contact HR or submit an attendance correction.";
+  }
+
   async function clockIn() {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
       const pos = await getCurrentPosition();
       let withinGeofence: boolean | null = null;
-      if (pos && office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null) {
-        const distance = distanceMeters(pos.lat, pos.lng, office.latitude, office.longitude);
-        withinGeofence = distance <= office.geofenceRadiusMeters;
+
+      // Geofencing is opt-in per office (lat/lng/radius are all optional on
+      // the Office form) — only offices that actually configured it are
+      // enforced here, so remote/field offices with no coordinates set stay
+      // unrestricted. Previously withinGeofence was computed but never
+      // acted on, so it was purely informational and every check-in
+      // succeeded regardless of location.
+      const geofenceConfigured =
+        office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null;
+
+      if (geofenceConfigured) {
+        if (!pos) {
+          return { error: "This office requires location access to clock in. Please enable location permissions for this site and try again." };
+        }
+        const distance = distanceMeters(pos.lat, pos.lng, office!.latitude!, office!.longitude!);
+        withinGeofence = distance <= office!.geofenceRadiusMeters!;
+        if (!withinGeofence) {
+          return { error: `You're too far from ${office?.name ?? "the office"} to clock in (${Math.round(distance)}m away, must be within ${office!.geofenceRadiusMeters}m). Ask your manager for an attendance correction if this is wrong.` };
+        }
+      }
+
+      if (pos) {
+        const blockReason = await checkAndLogSuspicion(pos, "check_in");
+        if (blockReason) return { error: blockReason };
       }
 
       const rec = await createAttendanceRecord({
@@ -172,11 +223,38 @@ export function useEss() {
   async function clockOut() {
     if (!todayRecord) return { error: "You haven't clocked in today" };
     try {
-      await updateAttendanceRecord(todayRecord.id, { clockOut: nowTime() });
+      const pos = await getCurrentPosition();
+      let withinGeofenceOut: boolean | null = null;
+
+      const geofenceConfigured =
+        office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null;
+
+      if (geofenceConfigured) {
+        if (!pos) {
+          return { error: "This office requires location access to clock out. Please enable location permissions for this site and try again." };
+        }
+        const distance = distanceMeters(pos.lat, pos.lng, office!.latitude!, office!.longitude!);
+        withinGeofenceOut = distance <= office!.geofenceRadiusMeters!;
+        if (!withinGeofenceOut) {
+          return { error: `You're too far from ${office?.name ?? "the office"} to clock out (${Math.round(distance)}m away, must be within ${office!.geofenceRadiusMeters}m). Ask your manager for an attendance correction if this is wrong.` };
+        }
+      }
+
+      if (pos) {
+        const blockReason = await checkAndLogSuspicion(pos, "check_out");
+        if (blockReason) return { error: blockReason };
+      }
+
+      await updateAttendanceRecord(todayRecord.id, {
+        clockOut: nowTime(),
+        clockOutLat: pos?.lat ?? null,
+        clockOutLng: pos?.lng ?? null,
+        withinGeofenceOut,
+      });
       await load();
       return { error: null };
-    } catch {
-      return { error: "Failed to clock out" };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Failed to clock out" };
     }
   }
 

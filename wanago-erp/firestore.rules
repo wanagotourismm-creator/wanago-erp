@@ -339,6 +339,18 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    // Suspicious-location check-in/out attempts (heuristic fraud flags).
+    // Create is open to any authenticated user because the flagged
+    // employee's own client is what writes the log entry as a side effect
+    // of their own blocked attempt — but only HR/Admin can ever read,
+    // update (mark reviewed), or delete these, so an employee can't see
+    // what tripped the heuristic or erase their own flagged history.
+    match /hrmsSuspiciousAttendance/{id} {
+      allow read: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update, delete: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+    }
+
     match /onboardingTasks/{id} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() &&

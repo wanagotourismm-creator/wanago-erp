@@ -14,6 +14,9 @@ export const attendanceRecordSchema = z.object({
   clockInLat:     z.number().nullable().optional(),
   clockInLng:     z.number().nullable().optional(),
   withinGeofence: z.boolean().nullable().optional(),
+  clockOutLat:       z.number().nullable().optional(),
+  clockOutLng:       z.number().nullable().optional(),
+  withinGeofenceOut: z.boolean().nullable().optional(),
 });
 
 export type AttendanceRecordSchema = z.infer<typeof attendanceRecordSchema>;

@@ -72,6 +72,9 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
     clockInLat:     data.clockInLat ?? null,
     clockInLng:     data.clockInLng ?? null,
     withinGeofence: data.withinGeofence ?? null,
+    clockOutLat:       data.clockOutLat ?? null,
+    clockOutLng:       data.clockOutLng ?? null,
+    withinGeofenceOut: data.withinGeofenceOut ?? null,
     createdBy,
   });
 }

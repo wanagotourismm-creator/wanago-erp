@@ -113,6 +113,31 @@ export type AttendanceRecord = FirestoreRecord & {
   clockInLat: number | null;
   clockInLng: number | null;
   withinGeofence: boolean | null;
+  clockOutLat: number | null;
+  clockOutLng: number | null;
+  withinGeofenceOut: boolean | null;
+};
+
+// A check-in/check-out blocked for a suspicious-location reason (impossible
+// travel speed since the employee's last known position, GPS accuracy too
+// precise to be a real consumer device reading, or the exact same
+// coordinates repeated across several prior days). This is heuristic, not a
+// guarantee — browsers have no API to ask "is this GPS reading mocked,"
+// unlike a native mobile app — so these are flagged for HR review rather
+// than treated as proven fraud.
+export type SuspiciousAttendanceAttempt = FirestoreRecord & {
+  employeeId: string;
+  employeeName: string;
+  officeId: string;
+  officeName: string;
+  action: "check_in" | "check_out";
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+  reasons: string[];
+  reviewed: boolean;
+  reviewedBy: string | null;
+  reviewedAt: Timestamp | Date | string | FieldValue | null;
 };
 
 export type AttendanceRegularization = FirestoreRecord & {

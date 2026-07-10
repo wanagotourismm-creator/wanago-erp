@@ -142,6 +142,7 @@ export const FIRESTORE_COLLECTIONS = {
   HELP_ARTICLES:   "helpArticles",
   ONBOARDING_TASKS: "onboardingTasks",
   CALL_LOGS:       "callLogs",
+  HRMS_SUSPICIOUS_ATTENDANCE: "hrmsSuspiciousAttendance",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

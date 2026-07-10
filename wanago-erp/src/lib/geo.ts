@@ -11,10 +11,12 @@ export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: n
   return R * c;
 }
 
-export type GeoPosition = { lat: number; lng: number };
+export type GeoPosition = { lat: number; lng: number; accuracy: number | null };
 
-// Resolves null instead of rejecting on denial/timeout/unavailability — geolocation
-// is a nice-to-have for attendance verification, never a blocker for clocking in.
+// Resolves null instead of rejecting on denial/timeout/unavailability. Whether
+// a null result blocks clock-in is decided by the caller (useEss.ts's
+// clockIn()) based on whether the employee's office has geofencing
+// configured at all — this helper itself stays a plain best-effort lookup.
 export function getCurrentPosition(timeoutMs = 8000): Promise<GeoPosition | null> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -22,7 +24,11 @@ export function getCurrentPosition(timeoutMs = 8000): Promise<GeoPosition | null
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => resolve({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy ?? null,
+      }),
       () => resolve(null),
       { timeout: timeoutMs, maximumAge: 60000 }
     );

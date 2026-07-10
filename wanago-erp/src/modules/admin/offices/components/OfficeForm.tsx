@@ -136,7 +136,7 @@ export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
                 Use My Location
               </button>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">Set coordinates to flag clock-ins made outside this radius. Leave blank to skip location checks for this office.</p>
+            <p className="text-xs text-muted-foreground mb-3">Set coordinates to require employees to be within this radius to clock in — check-in is blocked (with an option to request a correction) if they&apos;re outside it or haven&apos;t shared their location. Leave blank to skip location checks for this office.</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label="Latitude">
                 <input className={inputClass} type="number" step="any" {...register("latitude", { valueAsNumber: true })} />
