@@ -4,6 +4,7 @@ import { useDashboard }         from "@/modules/dashboard/hooks/useDashboard";
 import { useCurrentEmployee }   from "@/modules/dashboard/hooks/useCurrentEmployee";
 import { useAttendanceSummary } from "@/modules/dashboard/hooks/useAttendanceSummary";
 import { useEmployeeBreakdown } from "@/modules/dashboard/hooks/useEmployeeBreakdown";
+import { useDashboardEmployees } from "@/modules/dashboard/hooks/useDashboardEmployees";
 import { useHiringStats }       from "@/modules/dashboard/hooks/useHiringStats";
 import { usePayoutSummary }     from "@/modules/dashboard/hooks/usePayoutSummary";
 import { useAuthStore }         from "@/store/auth.store";
@@ -59,13 +60,14 @@ export function DashboardPage() {
 }
 
 function CompanyWideDashboard() {
-  const { stats, pipeline, revenue, loading, error } = useDashboard();
+  const { stats, pipeline, revenue, bookings, loading, error } = useDashboard();
   const { user } = useAuthStore();
   const currentEmployee   = useCurrentEmployee();
   const attendanceSummary = useAttendanceSummary();
-  const employeeBreakdown = useEmployeeBreakdown();
+  const dashboardEmployees = useDashboardEmployees();
+  const employeeBreakdown = useEmployeeBreakdown(dashboardEmployees.employees, dashboardEmployees.loading);
   const hiringStats       = useHiringStats();
-  const payoutSummary     = usePayoutSummary();
+  const payoutSummary     = usePayoutSummary(dashboardEmployees.employees, dashboardEmployees.loading);
 
   if (loading) {
     return (
@@ -183,7 +185,7 @@ function CompanyWideDashboard() {
           {/* Recommendations + Top Performers */}
           <div className="grid gap-4 lg:grid-cols-2">
             <SmartRecommendations />
-            <TopPerformers />
+            <TopPerformers bookings={bookings} loading={loading} />
           </div>
 
           {/* Onboarding training — only renders when something's actionable */}

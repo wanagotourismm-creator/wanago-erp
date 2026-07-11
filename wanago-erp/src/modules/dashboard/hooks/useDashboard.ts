@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { DocumentData } from "firebase/firestore";
 import {
-  fetchDashboardStats,
-  fetchLeadPipeline,
+  fetchDashboardRawData,
+  computeDashboardStats,
+  computeLeadPipeline,
   fetchRevenueData,
 } from "@/modules/dashboard/services/dashboard.service";
 import type {
@@ -16,6 +18,9 @@ export function useDashboard() {
   const [stats,    setStats]    = useState<DashboardStats | null>(null);
   const [pipeline, setPipeline] = useState<LeadPipelineItem[]>([]);
   const [revenue,  setRevenue]  = useState<RevenueDataPoint[]>([]);
+  // Raw Bookings, fetched once here and shared with TopPerformers (via
+  // DashboardPage) instead of it doing its own second full-collection read.
+  const [bookings, setBookings] = useState<DocumentData[] | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
 
@@ -24,13 +29,13 @@ export function useDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const [s, p, r] = await Promise.all([
-          fetchDashboardStats(),
-          fetchLeadPipeline(),
+        const [raw, r] = await Promise.all([
+          fetchDashboardRawData(),
           fetchRevenueData(),
         ]);
-        setStats(s);
-        setPipeline(p);
+        setStats(computeDashboardStats(raw.leads, raw.bookings, raw.invoices));
+        setPipeline(computeLeadPipeline(raw.leads));
+        setBookings(raw.bookings);
         setRevenue(r);
       } catch (err) {
         // The service functions already catch their own Firestore errors and
@@ -47,7 +52,7 @@ export function useDashboard() {
     load();
   }, []);
 
-  return { stats, pipeline, revenue, loading, error };
+  return { stats, pipeline, revenue, bookings, loading, error };
 }
 
 // ── Live clock hook ───────────────────────────────────────────

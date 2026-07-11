@@ -18,6 +18,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { cn, timeAgo } from "@/lib/utils/helpers";
 import { useHrOverview } from "@/modules/hrms/overview/hooks/useHrOverview";
 import { useEmployeeBreakdown } from "@/modules/dashboard/hooks/useEmployeeBreakdown";
+import { useDashboardEmployees } from "@/modules/dashboard/hooks/useDashboardEmployees";
 import { TeamStatusDonut } from "@/modules/dashboard/components/TeamStatusDonut";
 import { HrStatCard } from "@/modules/hrms/overview/components/HrStatCard";
 import { HrTodayAttendanceList } from "@/modules/hrms/overview/components/HrOverviewContent";
@@ -39,7 +40,8 @@ export function HrOverviewDashboard({ onAddEmployee, onPostJob, onApproveLeave }
     upcomingReviewsCount, reviewsTrend,
     headcountTrend, upcomingEvents, recentActivity, reload,
   } = useHrOverview();
-  const { total: deptTotal, departments } = useEmployeeBreakdown();
+  const dashboardEmployees = useDashboardEmployees();
+  const { total: deptTotal, departments } = useEmployeeBreakdown(dashboardEmployees.employees, dashboardEmployees.loading);
 
   if (loading) {
     return (

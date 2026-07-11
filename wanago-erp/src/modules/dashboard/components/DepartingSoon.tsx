@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS, BOOKING_STATUS } from "@/lib/constants";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
-import { formatDate, toDate } from "@/lib/utils/helpers";
+import { formatDate } from "@/lib/utils/helpers";
 import { Plane } from "lucide-react";
+
+// travelDate is stored as a plain "YYYY-MM-DD" string (from a <input
+// type="date">), so lexicographic string comparison sorts/ranges it
+// correctly — no need to parse into a Firestore Timestamp.
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 type Departure = {
   id:           string;
@@ -24,21 +31,31 @@ export function DepartingSoon() {
   useEffect(() => {
     async function load() {
       try {
-        const now  = new Date();
-        const end  = new Date();
+        const now = new Date();
+        const end = new Date();
         end.setDate(end.getDate() + 14);
 
+        // Previously fetched the ENTIRE bookings collection (no where,
+        // no limit) just to slice out the next 5 departures — narrowed to
+        // exactly the date range this card needs. Over-fetches a little
+        // (limit 10, not 5) purely to leave room for the cancelled/
+        // completed filter below without a composite index — Firestore
+        // requires one to combine an equality filter (status) with a
+        // range filter (travelDate) on different fields; cheaper to
+        // filter out the rare cancelled-in-range booking client-side.
         const snap = await getDocs(
-          query(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS), orderBy("travelDate", "asc"))
+          query(
+            collection(db, FIRESTORE_COLLECTIONS.BOOKINGS),
+            where("travelDate", ">=", isoDate(now)),
+            where("travelDate", "<=", isoDate(end)),
+            orderBy("travelDate", "asc"),
+            limit(10)
+          )
         );
 
         const upcoming = snap.docs
           .map(d => ({ id: d.id, ...d.data() }) as Departure)
-          .filter(b => {
-            if (b.status === BOOKING_STATUS.CANCELLED || b.status === BOOKING_STATUS.COMPLETED) return false;
-            const d = toDate(b.travelDate as never);
-            return d && d >= now && d <= end;
-          })
+          .filter(b => b.status !== BOOKING_STATUS.CANCELLED && b.status !== BOOKING_STATUS.COMPLETED)
           .slice(0, 5);
 
         setDepartures(upcoming);

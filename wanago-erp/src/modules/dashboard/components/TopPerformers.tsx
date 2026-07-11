@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import { FIRESTORE_COLLECTIONS, BOOKING_STATUS } from "@/lib/constants";
+import { useMemo } from "react";
+import type { DocumentData } from "firebase/firestore";
+import { BOOKING_STATUS } from "@/lib/constants";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { formatCurrency, toDate } from "@/lib/utils/helpers";
 
@@ -13,50 +12,46 @@ type Performer = {
   revenue: number;
 };
 
-export function TopPerformers() {
-  const [performers, setPerformers] = useState<Performer[]>([]);
-  const [loading,    setLoading]    = useState(true);
+type Props = {
+  // Bookings are fetched once by useDashboard() and passed down here —
+  // this component previously did its own separate full-collection fetch
+  // of the same data (Bookings was being downloaded in full 3 times on
+  // one dashboard render: here, dashboard.service.ts, and DepartingSoon).
+  bookings: DocumentData[] | null;
+  loading:  boolean;
+};
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS));
-        const bookings = snap.docs.map(d => d.data());
+export function TopPerformers({ bookings, loading }: Props) {
+  const performers = useMemo<Performer[]>(() => {
+    if (!bookings) return [];
 
-        // Label says "this month" — previously counted every booking ever
-        // (no date or status filter at all), so a booking pending Finance
-        // review or rejected months ago counted the same as a real,
-        // confirmed sale this month. Restrict to confirmed/completed
-        // bookings created since the start of the current month.
-        const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Label says "this month" — previously counted every booking ever
+    // (no date or status filter at all), so a booking pending Finance
+    // review or rejected months ago counted the same as a real,
+    // confirmed sale this month. Restrict to confirmed/completed
+    // bookings created since the start of the current month.
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        const map: Record<string, Performer> = {};
-        for (const b of bookings) {
-          if (b.status !== BOOKING_STATUS.CONFIRMED && b.status !== BOOKING_STATUS.COMPLETED) continue;
-          const created = toDate(b.createdAt);
-          if (!created || created < monthStart) continue;
+    const map: Record<string, Performer> = {};
+    for (const b of bookings) {
+      if (b.status !== BOOKING_STATUS.CONFIRMED && b.status !== BOOKING_STATUS.COMPLETED) continue;
+      const created = toDate(b.createdAt);
+      if (!created || created < monthStart) continue;
 
-          const key  = b.assignedTo ?? b.createdBy ?? "Unassigned";
-          const name = b.agentName  ?? key;
-          if (!map[key]) map[key] = { name, won: 0, revenue: 0 };
-          map[key].won++;
-          map[key].revenue += b.totalAmount ?? 0;
-        }
-
-        const sorted = Object.values(map)
-          .sort((a, b) => b.revenue - a.revenue)
-          .slice(0, 5);
-
-        setPerformers(sorted.length ? sorted : [{ name: "Unassigned", won: 0, revenue: 0 }]);
-      } catch {
-        setPerformers([{ name: "Unassigned", won: 0, revenue: 0 }]);
-      } finally {
-        setLoading(false);
-      }
+      const key  = b.assignedTo ?? b.createdBy ?? "Unassigned";
+      const name = b.agentName  ?? key;
+      if (!map[key]) map[key] = { name, won: 0, revenue: 0 };
+      map[key].won++;
+      map[key].revenue += b.totalAmount ?? 0;
     }
-    load();
-  }, []);
+
+    const sorted = Object.values(map)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    return sorted.length ? sorted : [{ name: "Unassigned", won: 0, revenue: 0 }];
+  }, [bookings]);
 
   const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
 
