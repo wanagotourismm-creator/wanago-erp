@@ -90,23 +90,41 @@ export async function fetchDashboardRawData(): Promise<{
   }
 }
 
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+// Rolling 12-month window ending at the current month, each bucket keyed
+// by actual year+month — previously bucketed by month NAME only (no
+// year), so every January across every year got summed into one "Jan"
+// bucket. Harmless with under a year of history; actively wrong (and
+// silently so — the chart just renders confident-looking bad numbers)
+// once the business has a second year of payments.
 export async function fetchRevenueData(): Promise<RevenueDataPoint[]> {
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const now = new Date();
+  const buckets: { year: number; monthIndex: number }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({ year: d.getFullYear(), monthIndex: d.getMonth() });
+  }
+
+  function label(b: { year: number; monthIndex: number }): string {
+    return `${MONTH_NAMES[b.monthIndex]} ${String(b.year).slice(2)}`;
+  }
+
   try {
     const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PAYMENTS));
     const payments = snap.docs.map(d => d.data());
 
-    return months.map((month, i) => ({
-      month,
+    return buckets.map((b) => ({
+      month: label(b),
       amount: payments
         .filter(p => {
           const d = p.createdAt?.toDate?.();
-          return d && d.getMonth() === i;
+          return d && d.getFullYear() === b.year && d.getMonth() === b.monthIndex;
         })
         .reduce((sum, p) => sum + (p.amount ?? 0), 0),
     }));
   } catch (err) {
     console.error("[dashboard.service] fetchRevenueData failed — showing a flat ₹0 chart:", err);
-    return months.map(month => ({ month, amount: 0 }));
+    return buckets.map(b => ({ month: label(b), amount: 0 }));
   }
 }

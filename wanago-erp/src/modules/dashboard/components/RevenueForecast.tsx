@@ -58,17 +58,14 @@ function getEMAForecast(data: RevenueDataPoint[]) {
 
 export function RevenueForecast({ data }: Props) {
   const { ema, forecast } = getEMAForecast(data);
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const now    = new Date();
 
-  // Build timeline — last 6 months + 3 forecast
-  const timeline = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const m = months[d.getMonth()];
-    const found = data.find(x => x.month === m);
-    timeline.push({ label: `${m} ${String(d.getFullYear()).slice(2)}`, amount: found?.amount ?? 0, forecast: false });
-  }
+  // data is already a rolling 12-month window (oldest -> newest) ending at
+  // the current month, each entry labeled with its own year (e.g. "Jan
+  // 26") — previously this re-derived the last 6 months independently and
+  // matched them back into `data` by month NAME ONLY (no year), so it
+  // inherited the same cross-year mixing bug fetchRevenueData had. Taking
+  // the array's own last 6 entries directly is both simpler and correct.
+  const timeline = data.slice(-6).map(d => ({ label: d.month, amount: d.amount, forecast: false }));
   for (const f of forecast) {
     timeline.push({ label: f.label, amount: f.amount, forecast: true });
   }
