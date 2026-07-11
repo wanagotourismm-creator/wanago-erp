@@ -2,6 +2,7 @@ import { collection, getCountFromServer } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { fetchRecentActivity } from "@/lib/activity-log";
+import type { Timestamp } from "@/types/global";
 
 export type CollectionHealth = {
   label:   string;
@@ -27,7 +28,7 @@ const CHECKED_COLLECTIONS: { label: string; key: string }[] = [
 
 export async function checkSystemHealth(): Promise<{
   collections: CollectionHealth[];
-  lastActivityAt: string | null;
+  lastActivityAt: Timestamp | Date | string | null;
 }> {
   const collections = await Promise.all(
     CHECKED_COLLECTIONS.map(async (c): Promise<CollectionHealth> => {
@@ -40,10 +41,18 @@ export async function checkSystemHealth(): Promise<{
     })
   );
 
-  let lastActivityAt: string | null = null;
+  // Was previously `String(recent[0].createdAt)` — a Firestore Timestamp's
+  // toString() isn't a format formatDate()/date-fns can parse, so this
+  // crashed with "RangeError: Invalid time value" the moment any real
+  // activity existed. Dormant until now: the activities collection's
+  // writes were themselves being silently rejected by a Firestore rule
+  // (see the activity-log fix), so this path never had real data to
+  // trigger it. Fixed by keeping the original Timestamp/Date/string value
+  // instead of stringifying it.
+  let lastActivityAt: Timestamp | Date | string | null = null;
   try {
     const recent = await fetchRecentActivity(1);
-    if (recent[0]) lastActivityAt = String(recent[0].createdAt);
+    if (recent[0]) lastActivityAt = recent[0].createdAt;
   } catch {
     // leave as null
   }

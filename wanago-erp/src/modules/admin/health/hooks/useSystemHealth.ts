@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { checkSystemHealth, type CollectionHealth } from "@/modules/admin/health/services/health.service";
+import type { Timestamp } from "@/types/global";
 
 export function useSystemHealth() {
   const [collections, setCollections] = useState<CollectionHealth[]>([]);
-  const [lastActivityAt, setLastActivityAt] = useState<string | null>(null);
+  const [lastActivityAt, setLastActivityAt] = useState<Timestamp | Date | string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
