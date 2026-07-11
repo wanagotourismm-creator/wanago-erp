@@ -481,6 +481,24 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    // ── Activity log (cross-department audit trail) ──────────
+    // Previously had no dedicated rule (fell through to the permissive
+    // catch-all below, which additionally requires hasRequiredFields() on
+    // create) — logActivity()'s write shape ({entityType, entityName,
+    // action, detail, actorId, actorName, createdAt}) doesn't include
+    // those fields, so every single write was being silently rejected.
+    // Same non-standard-shape precedent as teamspaceMessages/notifications
+    // above: skip hasRequiredFields() rather than force artificial fields
+    // onto an audit record. Read restricted to Admin/Super Admin — this is
+    // an internal audit trail, not something every employee should be able
+    // to query directly, even though it's only ever surfaced in the
+    // admin-only Activity Log UI today.
+    match /activities/{id} {
+      allow read:          if isAdmin();
+      allow create:        if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
     // ── Trash (soft-delete recovery) ─────────────────────────
     // `create` stays open to any authenticated user because every delete()
     // across every collection writes a trash copy first, regardless of
@@ -569,10 +587,22 @@ service cloud.firestore {
     // (e.g. the audit-log `activities` collection), which is exactly the
     // gap the Admin-only Collection Explorer screen relied on the UI (not
     // the rules) to prevent.
+    //
+    // IMPORTANT: Firestore evaluates every `match` block whose path pattern
+    // matches a request and grants access if ANY of them allow it (rules
+    // are OR'd, not "most specific wins") — confirmed live against this
+    // project. That means a stricter dedicated rule above can never
+    // actually restrict what this catch-all already grants; it can only
+    // add more access. `activities` is excluded by name below so its
+    // dedicated Admin-only read/update block isn't silently overridden by
+    // this catch-all's broader `isAuthenticated()` grant. This same
+    // interaction likely affects other dedicated rules in this file
+    // (anywhere a specific block is stricter than this catch-all) — out of
+    // scope for this change, flagged separately.
     match /{collection}/{id} {
-      allow read:   if isAuthenticated();
+      allow read:   if isAuthenticated() && collection != 'activities';
       allow create: if isAuthenticated() && hasRequiredFields();
-      allow update: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities';
       allow delete: if isAdmin();
     }
   }
