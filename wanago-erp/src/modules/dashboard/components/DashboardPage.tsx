@@ -26,21 +26,33 @@ import { PayrollSummaryCard }   from "@/modules/dashboard/components/PayrollSumm
 import { PendingDuesPanel }     from "@/modules/dashboard/components/PendingDuesPanel";
 import { InternationalFollowUps } from "@/modules/dashboard/components/InternationalFollowUps";
 import { ContinueTrainingCard }   from "@/modules/dashboard/components/ContinueTrainingCard";
-import { SalesPersonalDashboard } from "@/modules/dashboard/components/SalesPersonalDashboard";
+import { SalesPersonalDashboard }      from "@/modules/dashboard/components/SalesPersonalDashboard";
+import { MarketingPersonalDashboard }  from "@/modules/dashboard/components/MarketingPersonalDashboard";
+import { HrPersonalDashboard }         from "@/modules/dashboard/components/HrPersonalDashboard";
+import { FinancePersonalDashboard }    from "@/modules/dashboard/components/FinancePersonalDashboard";
+import { OperationsPersonalDashboard } from "@/modules/dashboard/components/OperationsPersonalDashboard";
 import { SkeletonCard }         from "@/components/ui/Skeleton";
 import { formatCurrency }       from "@/lib/utils/helpers";
+
+// Every non-admin role gets a dashboard scoped to their own department's
+// work instead of the company-wide view below (which includes things like
+// full company payroll and every other department's data that, say, a
+// sales rep or an HR user has no reason to see). Admin/Super Admin keep
+// the full company-wide dashboard.
+const PERSONAL_DASHBOARDS: Partial<Record<string, React.ComponentType>> = {
+  sales:       SalesPersonalDashboard,
+  marketing:   MarketingPersonalDashboard,
+  hr:          HrPersonalDashboard,
+  finance:     FinancePersonalDashboard,
+  operations:  OperationsPersonalDashboard,
+};
 
 export function DashboardPage() {
   const { user } = useAuthStore();
 
-  // Sales reps get a dashboard scoped to their own leads/bookings/goals
-  // instead of the company-wide view below (which includes things like
-  // full company payroll and every other department's data that a sales
-  // rep has no reason to see). Other non-admin roles (marketing, hr,
-  // finance, operations) are still on the company-wide view below for now
-  // — their own scoped dashboards are a follow-up, not yet built.
-  if (user?.systemRole === "sales") {
-    return <SalesPersonalDashboard />;
+  const PersonalDashboard = user?.systemRole ? PERSONAL_DASHBOARDS[user.systemRole] : undefined;
+  if (PersonalDashboard) {
+    return <PersonalDashboard />;
   }
 
   return <CompanyWideDashboard />;
