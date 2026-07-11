@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Wanago ERP",
     short_name: "Wanago ERP",
-    description: "Operations Management System for Wanago Tourism",
+    description: "Operations Management System for Wanago Tours & Travels",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#ffffff",

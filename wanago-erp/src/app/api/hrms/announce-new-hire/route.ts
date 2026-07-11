@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         userId:   teammate.userId,
         email:    user?.email ?? teammate.email ?? null,
         title:    `🎉 Please welcome ${payload.fullName} to Team Wanago!`,
-        body:     `${payload.fullName} just joined Wanago Travel & Co as our new ${payload.designation}. Say hi and make them feel at home!`,
+        body:     `${payload.fullName} just joined Wanago Tours & Travels as our new ${payload.designation}. Say hi and make them feel at home!`,
         link:     "/hrms/employees",
         category: "system",
       });

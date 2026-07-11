@@ -100,7 +100,7 @@ export function Sidebar() {
         <div className="relative h-11 w-[180px]">
           <Image
             src={isDark ? "/images/logo-white-clean.png" : "/images/logo-dark-clean.png"}
-            alt="Wanago Travel & Co"
+            alt="Wanago Tours & Travels"
             fill
             className="object-contain object-left"
             priority

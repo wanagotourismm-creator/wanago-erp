@@ -54,7 +54,7 @@ export function MobileMenuSheet() {
         <div className="relative h-9 w-[150px]">
           <Image
             src={isDark ? "/images/logo-white-clean.png" : "/images/logo-dark-clean.png"}
-            alt="Wanago Travel & Co"
+            alt="Wanago Tours & Travels"
             fill
             className="object-contain object-left"
             priority

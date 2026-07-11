@@ -42,7 +42,7 @@ export type CompanySettings = {
 const DOC_ID = "company";
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
-  businessName:      "Wanago Tourism",
+  businessName:      "Wanago Tours & Travels",
   email:             "",
   phone:             "",
   address:           "",

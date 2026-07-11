@@ -17,9 +17,9 @@ function generateCertificateId(): string {
   return `WNG-${stamp}-${rand}`;
 }
 
-// "Wanago Tourism — Certificate of Completion" — employee name, module
-// title, completion date, and a verification ID, on a simple bordered
-// A4-landscape layout. Returns a Blob ready to upload.
+// "Wanago Tours & Travels — Certificate of Completion" — employee name,
+// module title, completion date, and a verification ID, on a simple
+// bordered A4-landscape layout. Returns a Blob ready to upload.
 async function generateCertificatePdf(employeeName: string, moduleTitle: string, certificateId: string): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -37,7 +37,7 @@ async function generateCertificatePdf(employeeName: string, moduleTitle: string,
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(22, 74, 50);
-  doc.text("WANAGO TOURISM", centerX, 36, { align: "center" });
+  doc.text("WANAGO TOURS & TRAVELS", centerX, 36, { align: "center" });
 
   doc.setFontSize(28);
   doc.setTextColor(20, 20, 20);

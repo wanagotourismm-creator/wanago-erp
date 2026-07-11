@@ -89,7 +89,7 @@ function renderEmailHtml(subject: string, body: string, link?: string, category?
       <tr>
         <td style="background:${headerGradient};padding:36px 24px;text-align:center;">
           <img src="${logoUrl}" alt="Wanago" width="130" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;margin-bottom:14px;" />
-          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">${meta?.label ?? "Wanago Travel & Co"}</p>
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">${meta?.label ?? "Wanago Tours & Travels"}</p>
         </td>
       </tr>
       <tr>
@@ -107,7 +107,7 @@ function renderEmailHtml(subject: string, body: string, link?: string, category?
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
         </td>
       </tr>
     </table>
@@ -133,7 +133,7 @@ function renderWelcomeEmailHtml(fullName: string, designation: string) {
           <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#16a34a;margin:0 0 12px;">Welcome to Team Wanago</p>
           <h1 style="font-size:24px;margin:0 0 16px;color:#111;">Hi ${fullName}! 👋</h1>
           <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
-            We're thrilled to welcome you to <strong>Wanago Travel &amp; Co</strong> as our new <strong>${designation}</strong>.
+            We're thrilled to welcome you to <strong>Wanago Tours &amp; Travels</strong> as our new <strong>${designation}</strong>.
             Your journey with us starts now, and we can't wait to see the places we'll go together.
           </p>
           <div style="border-left:3px solid #16a34a;background:#f0fdf4;padding:16px 20px;border-radius:0 10px 10px 0;margin:0 0 24px;">
@@ -151,7 +151,7 @@ function renderWelcomeEmailHtml(fullName: string, designation: string) {
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
         </td>
       </tr>
     </table>
@@ -221,7 +221,7 @@ function renderLeaveDecisionEmailHtml(params: {
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
         </td>
       </tr>
     </table>
@@ -256,7 +256,7 @@ async function sendViaGmail(params: { to: string; subject: string; html: string;
 
   try {
     await gmailTransport.sendMail({
-      from: `Wanago Travel & Co <${user}>`,
+      from: `Wanago Tours & Travels <${user}>`,
       to: params.to,
       subject: params.subject,
       html: params.html,
@@ -356,7 +356,7 @@ function renderCertificateEmailHtml(employeeName: string, moduleTitle: string, c
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
         </td>
       </tr>
     </table>
@@ -398,7 +398,7 @@ function renderQuotationEmailHtml(customerName: string, refNumber: string, grand
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Travel &amp; Co</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
         </td>
       </tr>
     </table>
@@ -414,7 +414,7 @@ export async function sendQuotationEmail(params: {
 }): Promise<{ ok: boolean; error?: string }> {
   return sendRawEmail({
     to: params.to,
-    subject: `Your Quotation ${params.refNumber} — Wanago Travel & Co ✈️`,
+    subject: `Your Quotation ${params.refNumber} — Wanago Tours & Travels ✈️`,
     html: renderQuotationEmailHtml(params.customerName, params.refNumber, params.grandTotal),
     attachments: [{ filename: `Quotation-${params.refNumber}.pdf`, url: params.pdfUrl }],
   });

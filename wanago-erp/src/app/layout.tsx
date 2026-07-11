@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 
 export const metadata: Metadata = {
   title: { default: "Wanago ERP", template: "%s | Wanago ERP" },
-  description: "Operations Management System for Wanago Tourism",
+  description: "Operations Management System for Wanago Tours & Travels",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
