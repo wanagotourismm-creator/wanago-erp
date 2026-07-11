@@ -87,6 +87,13 @@ export async function requireAdminOrFinance(idToken: string | null): Promise<{ u
   return verifyRole(idToken, ["admin", "super_admin", "finance"]);
 }
 
+// admin/super_admin/operations/sales — mirrors the itineraryBrochures
+// firestore.rules write grant, so the PDF generation route enforces the
+// same boundary as direct Firestore writes to that collection.
+export async function requireOperationsOrSales(idToken: string | null): Promise<{ uid: string } | null> {
+  return verifyRole(idToken, ["admin", "super_admin", "operations", "sales"]);
+}
+
 // Verifies the caller is a signed-in, active user — no role restriction.
 // Used to gate API routes that any authenticated staff member can
 // legitimately trigger (sending a notification email/WhatsApp, a leave

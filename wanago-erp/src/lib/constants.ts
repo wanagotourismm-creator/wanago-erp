@@ -143,6 +143,9 @@ export const FIRESTORE_COLLECTIONS = {
   ONBOARDING_TASKS: "onboardingTasks",
   CALL_LOGS:       "callLogs",
   HRMS_SUSPICIOUS_ATTENDANCE: "hrmsSuspiciousAttendance",
+  ITINERARY_BROCHURES: "itineraryBrochures",
+  AI_USAGE_LOGS:   "aiUsageLogs",
+  DIGESTS:         "digests",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
@@ -220,6 +223,7 @@ export const REF_FORMATS = {
   EXPENSE:   "EXP",
   ONBOARDING: "ONB",
   CALL:      "CALL",
+  ITINERARY_BROCHURE: "BRC",
 } as const;
 
 // Recruitment pipeline stages, in order

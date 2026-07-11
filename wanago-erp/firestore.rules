@@ -257,6 +257,12 @@ service cloud.firestore {
                       getUserRole() in ['super_admin','admin','operations','sales'];
     }
 
+    match /itineraryBrochures/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','operations','sales'];
+    }
+
     // ── Marketing ─────────────────────────────────────────────
     match /campaigns/{id} {
       allow read: if isAuthenticated();
@@ -487,6 +493,28 @@ service cloud.firestore {
     // means no CLIENT (of any role) can ever write to it directly.
     match /systemUsage/{id} {
       allow read:  if isAdmin();
+      allow write: if false;
+    }
+
+    // ── AI usage log (Admin "AI Usage" reporting, Phase 1 of the AI/ML
+    // roadmap) ─────────────────────────────────────────────────────
+    // Every entry is written server-side by geminiService.ts via the Admin
+    // SDK (ai-usage-log.service.ts), which bypasses these rules entirely —
+    // same precedent as systemUsage above: `write: if false` just blocks
+    // any client of any role from writing here directly.
+    match /aiUsageLogs/{id} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
+    // ── Scheduled digests (Phase 2 of the AI/ML roadmap) ──────────────
+    // Precomputed weekly/daily summaries (e.g. sales leaderboard) written
+    // by Vercel Cron routes via the Admin SDK, same `write: if false`
+    // precedent as systemUsage/aiUsageLogs above. Readable by any
+    // authenticated user — these are team-facing (leaderboard, digests),
+    // not sensitive like the AI usage/audit logs are.
+    match /digests/{id} {
+      allow read:  if isAuthenticated();
       allow write: if false;
     }
 
