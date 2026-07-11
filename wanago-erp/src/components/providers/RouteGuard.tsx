@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth.store";
 import type { SystemRole } from "@/types/rbac";
 import { canAccessPage } from "@/lib/rbac";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { LogoLoader } from "@/components/ui/LogoLoader";
 
 type Props = {
   children: React.ReactNode;
@@ -43,16 +44,9 @@ export function RouteGuard({ children, requiredPage }: Props) {
       .catch(() => setMaintenance({ on: false, message: "" }));
   }, [user]);
 
-  // Show nothing while checking auth
+  // Show branded loader while checking auth
   if (!initialized) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LogoLoader />;
   }
 
   if (!user) return null;

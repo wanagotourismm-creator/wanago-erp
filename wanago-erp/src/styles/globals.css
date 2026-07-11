@@ -157,6 +157,10 @@
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
+@keyframes wanagoPulse {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.94); }
+}
 
 .modal-enter {
   animation: modalIn 0.2s ease-out;
@@ -164,4 +168,7 @@
 .tour-fill {
   transform-origin: left;
   animation: tourFill linear forwards;
+}
+.animate-wanago-pulse {
+  animation: wanagoPulse 1.6s ease-in-out infinite;
 }
