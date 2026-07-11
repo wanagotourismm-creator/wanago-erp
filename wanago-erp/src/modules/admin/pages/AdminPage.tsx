@@ -31,6 +31,7 @@ import { TicketsPanel } from "@/modules/tickets/components/TicketsPanel";
 import { GoalsPanel } from "@/modules/goals/components/GoalsPanel";
 import { IntegrationsPanel } from "@/modules/admin/integrations/components/IntegrationsPanel";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
+import { UsagePanel } from "@/modules/admin/usage/components/UsagePanel";
 import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
 import { CollectionExplorer } from "@/modules/admin/explorer/components/CollectionExplorer";
 import { AdminOverview, type AdminTabKey } from "@/modules/admin/overview/components/AdminOverview";
@@ -267,7 +268,12 @@ export function AdminPage() {
 
         {tab === "goals" && <GoalsPanel />}
 
-        {tab === "health" && <SystemHealthPanel />}
+        {tab === "health" && (
+          <div className="space-y-8">
+            <SystemHealthPanel />
+            <UsagePanel />
+          </div>
+        )}
 
         {tab === "trash" && isSuperAdmin && <TrashPanel />}
 

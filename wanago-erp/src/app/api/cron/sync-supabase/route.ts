@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
@@ -67,6 +68,17 @@ export async function GET(req: NextRequest) {
     const { error } = await supabase.from("reporting_bookings").upsert(batch);
     if (error) return NextResponse.json({ error: `Bookings sync failed: ${error.message}` }, { status: 502 });
   }
+
+  // Self-reported row counts for the Admin "Usage & Quotas" panel — this
+  // app doesn't have (and deliberately didn't request) a Supabase
+  // Management API token, which is what real storage-byte usage needs;
+  // row counts are a good-enough proxy given how small/fixed-shape these
+  // two tables are (see api/admin/usage/route.ts for the estimate).
+  await db.collection("systemUsage").doc("supabaseSync").set({
+    customersSynced: customerRows.length,
+    bookingsSynced: bookingRows.length,
+    lastSyncedAt: FieldValue.serverTimestamp(),
+  });
 
   return NextResponse.json({ ok: true, customersSynced: customerRows.length, bookingsSynced: bookingRows.length });
 }
