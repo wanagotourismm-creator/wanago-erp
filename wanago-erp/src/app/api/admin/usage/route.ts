@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, getAdminDb } from "@/lib/firebase/admin";
-import { sumMetricSince } from "@/lib/gcp/monitoring";
+import { sumMetricSince, getLastMonitoringError } from "@/lib/gcp/monitoring";
 
 export const runtime = "nodejs";
 
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     writes:  { count: writes  ?? 0, limit: FIRESTORE_DAILY_LIMITS.writes,  pct: writesPct },
     deletes: { count: deletes ?? 0, limit: FIRESTORE_DAILY_LIMITS.deletes, pct: deletesPct },
     warningLevel: warningLevel(Math.max(readsPct, writesPct, deletesPct)),
-    error: firebaseAvailable ? undefined : "Couldn't reach Cloud Monitoring — check the service account has the Monitoring Viewer role.",
+    error: firebaseAvailable ? undefined : (getLastMonitoringError() ?? "Couldn't reach Cloud Monitoring — check the service account has the Monitoring Viewer role."),
   };
 
   const db = getAdminDb();

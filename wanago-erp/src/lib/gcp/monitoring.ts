@@ -21,13 +21,24 @@ function getMonitoringClient(): MetricServiceClient | null {
   }
 }
 
+// Set whenever sumMetricSince() fails, so the API route can surface the
+// real reason (e.g. "permission denied" vs "API not enabled") instead of
+// a single generic message — this is the kind of one-off setup that's
+// easy to get subtly wrong (IAM role granted but API not enabled, wrong
+// project, etc.), so a specific error matters for troubleshooting it.
+let lastError: string | null = null;
+export function getLastMonitoringError(): string | null {
+  return lastError;
+}
+
 // Sums a Cloud Monitoring delta metric (e.g. Firestore document reads)
 // over the given time window — used for "how many X has today used so
 // far," compared against Firebase Spark's daily free-tier limits.
 export async function sumMetricSince(metricType: string, since: Date): Promise<number | null> {
   const c = getMonitoringClient();
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  if (!c || !projectId) return null;
+  if (!c) { lastError = "FIREBASE_SERVICE_ACCOUNT_KEY not configured or invalid"; return null; }
+  if (!projectId) { lastError = "NEXT_PUBLIC_FIREBASE_PROJECT_ID not configured"; return null; }
 
   const now = new Date();
   const windowSeconds = Math.max(60, Math.floor((now.getTime() - since.getTime()) / 1000));
@@ -55,8 +66,10 @@ export async function sumMetricSince(metricType: string, since: Date): Promise<n
         total += Number(v?.int64Value ?? v?.doubleValue ?? 0);
       }
     }
+    lastError = null;
     return total;
   } catch (err) {
+    lastError = err instanceof Error ? err.message : String(err);
     console.error(`[gcp/monitoring] sumMetricSince(${metricType}) failed:`, err);
     return null;
   }
