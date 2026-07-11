@@ -79,6 +79,14 @@ export async function requireHrOrAdmin(idToken: string | null): Promise<{ uid: s
   return verifyRole(idToken, ["admin", "super_admin", "hr"]);
 }
 
+// admin/super_admin/finance — for read-only financial reports Finance
+// needs alongside Admin (e.g. the Customer Retention report), matching how
+// firestore.rules already treats Finance as a peer of Admin on financial
+// collections (payments/invoices finance_approve, reports:export).
+export async function requireAdminOrFinance(idToken: string | null): Promise<{ uid: string } | null> {
+  return verifyRole(idToken, ["admin", "super_admin", "finance"]);
+}
+
 // Verifies the caller is a signed-in, active user — no role restriction.
 // Used to gate API routes that any authenticated staff member can
 // legitimately trigger (sending a notification email/WhatsApp, a leave

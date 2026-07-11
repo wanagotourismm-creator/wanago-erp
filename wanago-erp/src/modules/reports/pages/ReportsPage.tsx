@@ -17,9 +17,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { useAuthStore } from "@/store/auth.store";
+import { auth } from "@/lib/firebase/client";
 import type { SystemRole } from "@/types/rbac";
 
-type ReportKey = "employees" | "attendance" | "leaves" | "payroll" | "recruitment" | "performance";
+type ReportKey = "employees" | "attendance" | "leaves" | "payroll" | "recruitment" | "performance" | "customer-retention";
 
 type ReportRow = Record<string, string | number>;
 
@@ -36,6 +37,7 @@ const REPORT_TYPES: { key: ReportKey; label: string; hasDepartment: boolean; all
   { key: "payroll",     label: "Payroll Report",      hasDepartment: false, allowedRoles: ["super_admin", "admin", "hr", "finance"] },
   { key: "recruitment", label: "Recruitment Report",  hasDepartment: false, allowedRoles: ["super_admin", "admin", "hr"] },
   { key: "performance", label: "Performance Report",  hasDepartment: false, allowedRoles: ["super_admin", "admin", "hr"] },
+  { key: "customer-retention", label: "Customer Retention", hasDepartment: false, allowedRoles: ["super_admin", "admin", "finance"] },
 ];
 
 async function loadReportData(key: ReportKey): Promise<{ columns: string[]; rows: ReportRow[]; dateField?: string; deptField?: string }> {
@@ -103,6 +105,24 @@ async function loadReportData(key: ReportKey): Promise<{ columns: string[]; rows
         rows: data.map(r => ({
           Employee: r.employeeName, Type: r.reviewType, Period: r.period, Rating: r.rating,
           Reviewer: r.reviewerName, Date: formatDate(r.reviewDate),
+        })),
+      };
+    }
+    case "customer-retention": {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/reports/customer-retention", {
+        headers: idToken ? { authorization: `Bearer ${idToken}` } : {},
+      });
+      if (!res.ok) throw new Error("Failed to load customer retention report");
+      const { cohorts } = await res.json() as {
+        cohorts: { month: string; newCustomers: number; rebooked90: number; pct90: number; rebooked180: number; pct180: number }[];
+      };
+      return {
+        columns: ["Signup Cohort", "New Customers", "Rebooked (90d)", "% (90d)", "Rebooked (180d)", "% (180d)"],
+        rows: cohorts.map(c => ({
+          "Signup Cohort": c.month, "New Customers": c.newCustomers,
+          "Rebooked (90d)": c.rebooked90, "% (90d)": `${c.pct90.toFixed(1)}%`,
+          "Rebooked (180d)": c.rebooked180, "% (180d)": `${c.pct180.toFixed(1)}%`,
         })),
       };
     }
