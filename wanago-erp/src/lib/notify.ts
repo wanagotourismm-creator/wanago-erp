@@ -1,4 +1,5 @@
 import { createNotification } from "@/modules/notifications/services/notification.service";
+import { auth } from "@/lib/firebase/client";
 import type { NotificationCategory } from "@/modules/notifications/types";
 
 // Fires the in-app notification (source of truth) plus best-effort email/
@@ -18,23 +19,26 @@ export async function notifyUser(params: {
   if (params.userId) {
     tasks.push(createNotification(params.userId, params.title, params.body, params.link ?? null, params.category));
   }
-  if (params.email) {
-    tasks.push(
-      fetch("/api/notify/email", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to: params.email, subject: params.title, body: params.body, link: params.link, category: params.category }),
-      }).catch(() => {})
-    );
-  }
-  if (params.phone) {
-    tasks.push(
-      fetch("/api/notify/whatsapp", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to: params.phone, body: `${params.title}\n${params.body}` }),
-      }).catch(() => {})
-    );
+  if (params.email || params.phone) {
+    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+    if (params.email) {
+      tasks.push(
+        fetch("/api/notify/email", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+          body: JSON.stringify({ to: params.email, subject: params.title, body: params.body, link: params.link, category: params.category }),
+        }).catch(() => {})
+      );
+    }
+    if (params.phone) {
+      tasks.push(
+        fetch("/api/notify/whatsapp", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+          body: JSON.stringify({ to: params.phone, body: `${params.title}\n${params.body}` }),
+        }).catch(() => {})
+      );
+    }
   }
 
   await Promise.allSettled(tasks);

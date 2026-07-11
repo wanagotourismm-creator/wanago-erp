@@ -1,6 +1,6 @@
 import { orderBy, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
+import { storage, auth } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
@@ -42,21 +42,23 @@ export async function fetchEmployeeByUserId(uid: string, email?: string | null):
 // employee. Posts to an API route rather than importing notify-server.ts
 // directly, since that pulls in firebase-admin (Node-only, can't bundle
 // into this client-side service).
-function sendWelcomeEmail(employee: Employee): void {
+async function sendWelcomeEmail(employee: Employee): Promise<void> {
   if (!employee.email) return;
+  const idToken = await auth.currentUser?.getIdToken().catch(() => null);
   fetch("/api/hrms/send-welcome-email", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
     body: JSON.stringify({ to: employee.email, fullName: employee.fullName, designation: employee.designation }),
   }).catch(() => {});
 }
 
 // Best-effort — tells the rest of the team about the new hire (in-app +
 // email, one per teammate). Never blocks employee creation if it fails.
-function announceNewHire(employee: Employee): void {
+async function announceNewHire(employee: Employee): Promise<void> {
+  const idToken = await auth.currentUser?.getIdToken().catch(() => null);
   fetch("/api/hrms/announce-new-hire", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
     body: JSON.stringify({ employeeId: employee.id, fullName: employee.fullName, designation: employee.designation }),
   }).catch(() => {});
 }

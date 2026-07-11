@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
+import { auth } from "@/lib/firebase/client";
 import { cn } from "@/lib/utils/helpers";
 import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";
@@ -98,13 +99,14 @@ export function EmployeesPage() {
     }
 
     setSendingWelcome(true);
+    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
     const succeeded: string[] = [];
     const failed: string[] = [];
     for (const employee of recipients) {
       try {
         const res = await fetch("/api/hrms/send-welcome-email", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
           body: JSON.stringify({ to: employee.email, fullName: employee.fullName, designation: employee.designation }),
         });
         if (res.ok) succeeded.push(employee.fullName);

@@ -16,6 +16,7 @@ import { getCurrentPosition, reverseGeocode, distanceMeters, type GeoPosition } 
 import { detectSuspiciousLocation } from "@/lib/geo-fraud";
 import { logSuspiciousAttempt } from "@/modules/hrms/attendance/services/suspicious-attendance.service";
 import { notifyUser } from "@/lib/notify";
+import { auth } from "@/lib/firebase/client";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
@@ -469,9 +470,10 @@ export function useEss() {
     try {
       const requester = await fetchEmployeeById(leave.employeeId);
       if (!requester?.email) return;
+      const idToken = await auth.currentUser?.getIdToken().catch(() => null);
       await fetch("/api/hrms/send-leave-decision-email", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify({
           to: requester.email, fullName: requester.fullName, leaveType: leave.leaveType,
           fromDate: leave.fromDate, toDate: leave.toDate, decision,

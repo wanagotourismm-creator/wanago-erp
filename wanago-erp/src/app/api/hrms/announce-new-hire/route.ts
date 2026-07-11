@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb, requireHrOrAdmin } from "@/lib/firebase/admin";
 import { notifyUserServer } from "@/lib/server/notify-server";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { isRateLimited } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
 type EmployeeDoc = { id: string; userId?: string | null; email: string | null; employeeStatus?: string };
 type UserDoc = { id: string; email: string };
 
+function bearerToken(req: NextRequest): string | null {
+  const header = req.headers.get("authorization");
+  if (!header?.startsWith("Bearer ")) return null;
+  return header.slice(7);
+}
+
 // Client-callable — employee.service.ts's createEmployee() runs in the
 // browser and can't import notify-server.ts directly (Node-only
 // firebase-admin). Fired best-effort alongside the new hire's own welcome
 // email; this one instead tells everyone ELSE on the team about the new
 // hire, same "introduce the new member" idea the user asked for.
+// Gated to HR/Admin — this route also enumerates every active employee's
+// contact info server-side, so it needs the same real permission check as
+// the Employees page it's triggered from, not just an authenticated caller.
 export async function POST(req: NextRequest) {
+  const caller = await requireHrOrAdmin(bearerToken(req));
+  if (!caller) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+  if (isRateLimited(`announce-new-hire:${caller.uid}`, 60_000, 30)) {
+    return NextResponse.json({ error: "Too many requests — please wait a minute and try again." }, { status: 429 });
+  }
+
   let payload: { employeeId?: string; fullName?: string; designation?: string };
   try {
     payload = await req.json();

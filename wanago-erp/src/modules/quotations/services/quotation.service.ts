@@ -1,6 +1,6 @@
 import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
+import { storage, auth } from "@/lib/firebase/client";
 import { quotationRepository } from "@/modules/quotations/services/quotation.repository";
 import { toDate, formatDate, joinAddressCity } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
@@ -97,9 +97,10 @@ async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<void> {
     await uploadBytes(storageRef, blob);
     const pdfUrl = await getDownloadURL(storageRef);
 
+    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
     await fetch("/api/quotations/send-email", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
       body: JSON.stringify({
         to: customer.email, customerName: quotation.customerName, refNumber: quotation.refNumber,
         grandTotal: quotation.totalAmount, pdfUrl,

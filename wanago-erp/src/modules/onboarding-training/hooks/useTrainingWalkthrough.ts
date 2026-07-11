@@ -7,6 +7,7 @@ import { useTrainingWalkthroughStore } from "@/store/training-walkthrough.store"
 import { fetchTrainingSteps } from "@/modules/onboarding-training/services/onboarding-training.service";
 import { ensureProgress, updateProgress } from "@/modules/onboarding-training/services/training-progress.service";
 import { issueCertificate } from "@/modules/onboarding-training/services/certificate.service";
+import { auth } from "@/lib/firebase/client";
 import type { TrainingModule, TrainingCertificate } from "@/modules/onboarding-training/types";
 
 export function useTrainingWalkthrough() {
@@ -93,9 +94,10 @@ export function useTrainingWalkthrough() {
           }), 12000);
           setJustIssuedCertificate(cert);
           if (user.email) {
+            const idToken = await auth.currentUser?.getIdToken().catch(() => null);
             fetch("/api/onboarding-training/certificate-email", {
               method: "POST",
-              headers: { "content-type": "application/json" },
+              headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
               body: JSON.stringify({
                 to: user.email, employeeName: cert.employeeName, moduleTitle: cert.moduleTitle,
                 certificateId: cert.certificateId, pdfUrl: cert.pdfUrl,

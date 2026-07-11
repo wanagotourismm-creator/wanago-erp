@@ -70,3 +70,31 @@ export async function requireAdmin(idToken: string | null): Promise<{ uid: strin
 export async function requireSuperAdmin(idToken: string | null): Promise<{ uid: string } | null> {
   return verifyRole(idToken, ["super_admin"]);
 }
+
+// admin/super_admin/hr — the set of roles that can already manage employee
+// records via the HRMS Employees page (see PAGE_ACCESS in src/lib/rbac.ts).
+// Used to gate server-triggered actions tied to that same page (welcome
+// email, new-hire announcement) with the same real permission boundary.
+export async function requireHrOrAdmin(idToken: string | null): Promise<{ uid: string } | null> {
+  return verifyRole(idToken, ["admin", "super_admin", "hr"]);
+}
+
+// Verifies the caller is a signed-in, active user — no role restriction.
+// Used to gate API routes that any authenticated staff member can
+// legitimately trigger (sending a notification email/WhatsApp, a leave
+// decision, a quotation email), where the only thing that needs checking
+// server-side is "this is a real logged-in account," not a specific role.
+export async function requireAuth(idToken: string | null): Promise<{ uid: string } | null> {
+  if (!idToken) return null;
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
+  if (!adminAuth || !adminDb) return null;
+  try {
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    const userDoc = await adminDb.collection("users").doc(decoded.uid).get();
+    if (!userDoc.exists || userDoc.data()?.isActive === false) return null;
+    return { uid: decoded.uid };
+  } catch {
+    return null;
+  }
+}
