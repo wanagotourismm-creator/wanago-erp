@@ -25,7 +25,10 @@ const STATUS_FILTERS = [
 ];
 
 export function QuotationsPage() {
-  const { quotations, loading, addQuotation, editQuotation, removeQuotation, convertToBooking, load } = useQuotations();
+  const {
+    quotations, loading, addQuotation, editQuotation, removeQuotation, convertToBooking, load,
+    sendToCustomer, acceptQuotation, declineQuotation,
+  } = useQuotations();
   const { user } = useAuthStore();
   const canManage = !!user && MANAGE_ROLES.includes(user.systemRole);
   const canDelete = !!user && isAdminRole(user.systemRole);
@@ -88,6 +91,18 @@ export function QuotationsPage() {
     if (!confirm(`Convert quotation "${quotation.refNumber}" into a booking?`)) return;
     await convertToBooking(quotation);
     setViewingQuotation(null);
+  }
+
+  async function handleSend(quotation: Quotation) {
+    await sendToCustomer(quotation);
+  }
+
+  async function handleAccept(quotation: Quotation) {
+    await acceptQuotation(quotation);
+  }
+
+  async function handleReject(quotation: Quotation) {
+    await declineQuotation(quotation);
   }
 
   return (
@@ -188,6 +203,9 @@ export function QuotationsPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onConvert={handleConvert}
+        onSend={handleSend}
+        onAccept={handleAccept}
+        onReject={handleReject}
       />
 
       {/* Form drawer */}

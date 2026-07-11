@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   fetchQuotations, createQuotation, updateQuotation,
   deleteQuotation, convertQuotationToBooking,
+  sendQuotation, markQuotationAccepted, rejectQuotation,
 } from "@/modules/quotations/services/quotation.service";
 import { useAuthStore } from "@/store/auth.store";
 import { logActivity } from "@/lib/activity-log";
@@ -95,8 +96,57 @@ export function useQuotations() {
     }
   }
 
+  async function sendToCustomer(quotation: Quotation): Promise<{ error: string | null }> {
+    try {
+      await sendQuotation(quotation);
+      const updated = await fetchQuotations();
+      setQuotations(updated);
+      logActivity({
+        entityType: "Quotation", entityName: quotation.customerName, action: "status_changed",
+        detail: `Sent quotation ${quotation.refNumber} to customer`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+      return { error: null };
+    } catch {
+      return { error: "Failed to send quotation" };
+    }
+  }
+
+  async function acceptQuotation(quotation: Quotation): Promise<{ error: string | null }> {
+    try {
+      await markQuotationAccepted(quotation.id);
+      const updated = await fetchQuotations();
+      setQuotations(updated);
+      logActivity({
+        entityType: "Quotation", entityName: quotation.customerName, action: "status_changed",
+        detail: `Marked quotation ${quotation.refNumber} as accepted`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+      return { error: null };
+    } catch {
+      return { error: "Failed to mark quotation as accepted" };
+    }
+  }
+
+  async function declineQuotation(quotation: Quotation): Promise<{ error: string | null }> {
+    try {
+      await rejectQuotation(quotation.id);
+      const updated = await fetchQuotations();
+      setQuotations(updated);
+      logActivity({
+        entityType: "Quotation", entityName: quotation.customerName, action: "status_changed",
+        detail: `Marked quotation ${quotation.refNumber} as rejected`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+      return { error: null };
+    } catch {
+      return { error: "Failed to reject quotation" };
+    }
+  }
+
   return {
     quotations, loading, error, load,
     addQuotation, editQuotation, removeQuotation, convertToBooking,
+    sendToCustomer, acceptQuotation, declineQuotation,
   };
 }

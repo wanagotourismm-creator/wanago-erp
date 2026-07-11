@@ -52,12 +52,14 @@ async function notifyCreator(createdBy: string, title: string, body: string): Pr
   }
 }
 
-// Auto-emails the branded quotation PDF to the customer the moment a
-// quotation is created — mirrors how leave decisions auto-email the
-// employee. Best-effort and entirely non-blocking: no customer email on
-// file, or any failure generating/uploading/sending, just means no email
-// goes out — the quotation itself is already saved either way.
-async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<void> {
+// Emails the branded quotation PDF to the customer — fired automatically
+// the moment a quotation is created (mirrors how leave decisions
+// auto-email the employee), and reused by sendQuotation() below to
+// resend/send-on-demand once status tracking exists. Best-effort and
+// entirely non-blocking: no customer email on file, or any failure
+// generating/uploading/sending, just means no email goes out — the
+// quotation itself is already saved either way.
+export async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<void> {
   try {
     const customer = await fetchCustomerById(quotation.customerId);
     if (!customer?.email) return;
@@ -209,6 +211,28 @@ export async function updateQuotation(
 
 export async function deleteQuotation(id: string): Promise<void> {
   return quotationRepository.delete(id);
+}
+
+// Status transitions — previously only "draft" (on create) and
+// "converted" (on convertQuotationToBooking) were ever written, so a
+// quotation could never reach "accepted" and the Convert to Booking
+// button (gated on status === "accepted") could never appear. These give
+// staff the missing manual actions; "accepted" is a manual call because
+// there's no existing signal (e.g. a linked payment) that could infer it
+// automatically — payments in this app attach to Invoices, which don't
+// exist yet at the quotation stage.
+
+export async function sendQuotation(quotation: Quotation): Promise<void> {
+  await quotationRepository.update(quotation.id, { status: "sent" } as Partial<Quotation>);
+  await sendQuotationPdfToCustomer(quotation);
+}
+
+export async function markQuotationAccepted(id: string): Promise<void> {
+  await quotationRepository.update(id, { status: "accepted" } as Partial<Quotation>);
+}
+
+export async function rejectQuotation(id: string): Promise<void> {
+  await quotationRepository.update(id, { status: "rejected" } as Partial<Quotation>);
 }
 
 export async function approveQuotationFinance(id: string, approvedBy: string): Promise<void> {

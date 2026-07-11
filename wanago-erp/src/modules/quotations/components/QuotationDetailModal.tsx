@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Edit2, Trash2, Download, Receipt, MapPin, ArrowRightLeft, Loader2 } from "lucide-react";
+import { X, Edit2, Trash2, Download, Receipt, MapPin, ArrowRightLeft, Loader2, Send, CheckCircle2, XCircle } from "lucide-react";
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
 import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
@@ -17,6 +17,9 @@ type Props = {
   onEdit:    (quotation: Quotation) => void;
   onDelete:  (quotation: Quotation) => void;
   onConvert: (quotation: Quotation) => void;
+  onSend:    (quotation: Quotation) => void;
+  onAccept:  (quotation: Quotation) => void;
+  onReject:  (quotation: Quotation) => void;
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -51,14 +54,19 @@ function FinanceApprovalBadge({ status }: { status: string }) {
   );
 }
 
-export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, onEdit, onDelete, onConvert }: Props) {
+export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, onEdit, onDelete, onConvert, onSend, onAccept, onReject }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [converting,  setConverting]  = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   if (!quotation) return null;
   const q = quotation;
 
-  const canConvert = q.status === "accepted" && q.financeApprovalStatus === "approved";
+  const canConvert   = q.status === "accepted" && q.financeApprovalStatus === "approved";
+  // Draft/sent are the only "open" states — accepted/rejected/expired/
+  // converted are all terminal (or, for accepted, moves on to conversion).
+  const canSend      = canEdit && q.status === "draft";
+  const canDecide    = canEdit && (q.status === "draft" || q.status === "sent");
 
   async function handleDownloadPdf() {
     setDownloading(true);
@@ -108,6 +116,34 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
       await onConvert(q);
     } finally {
       setConverting(false);
+    }
+  }
+
+  async function handleSend() {
+    setUpdatingStatus(true);
+    try {
+      await onSend(q);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  async function handleAccept() {
+    setUpdatingStatus(true);
+    try {
+      await onAccept(q);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  async function handleReject() {
+    if (!confirm(`Mark quotation "${q.refNumber}" as rejected? The customer didn't accept it.`)) return;
+    setUpdatingStatus(true);
+    try {
+      await onReject(q);
+    } finally {
+      setUpdatingStatus(false);
     }
   }
 
@@ -221,15 +257,44 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
               {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Download PDF
             </button>
           </div>
-          {canConvert && (
-            <button
-              onClick={handleConvert}
-              disabled={converting}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-60"
-            >
-              {converting ? <Loader2 size={13} className="animate-spin" /> : <ArrowRightLeft size={13} />} Convert to Booking
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {canSend && (
+              <button
+                onClick={handleSend}
+                disabled={updatingStatus}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors disabled:opacity-60"
+              >
+                {updatingStatus ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Send to Customer
+              </button>
+            )}
+            {canDecide && (
+              <button
+                onClick={handleReject}
+                disabled={updatingStatus}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-60"
+              >
+                <XCircle size={13} /> Reject
+              </button>
+            )}
+            {canDecide && (
+              <button
+                onClick={handleAccept}
+                disabled={updatingStatus}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-green-600/40 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors disabled:opacity-60 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30"
+              >
+                {updatingStatus ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Mark Accepted
+              </button>
+            )}
+            {canConvert && (
+              <button
+                onClick={handleConvert}
+                disabled={converting}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-60"
+              >
+                {converting ? <Loader2 size={13} className="animate-spin" /> : <ArrowRightLeft size={13} />} Convert to Booking
+              </button>
+            )}
+          </div>
         </div>
 
       </div>

@@ -162,6 +162,9 @@ export function ApprovalsPage() {
         onEdit={() => {}}
         onDelete={() => {}}
         onConvert={() => {}}
+        onSend={() => {}}
+        onAccept={() => {}}
+        onReject={() => {}}
       />
 
       <InvoiceDetailModal
