@@ -38,3 +38,10 @@ create index if not exists reporting_bookings_created_at_idx  on reporting_booki
 -- caller is Admin/Finance via their Firebase ID token first.
 alter table reporting_customers enable row level security;
 alter table reporting_bookings  enable row level security;
+
+-- service_role bypasses RLS but still needs the underlying table
+-- privileges granted (Supabase's dashboard SQL Editor normally does this
+-- automatically for new tables; explicit here so this script is correct
+-- regardless of how it's run, e.g. via a direct Postgres connection).
+grant select, insert, update, delete on public.reporting_customers to service_role;
+grant select, insert, update, delete on public.reporting_bookings  to service_role;
