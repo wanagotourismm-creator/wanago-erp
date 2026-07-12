@@ -163,7 +163,7 @@ export async function createDraftQuotationFromWonLead(
       notes:         tripNotes,
       leadId:        lead.id,
       createdBy,
-    }, createdBy);
+    }, createdBy, { autoSend: false });
   } catch {
     // Best-effort — the lead is already won and the customer already
     // exists either way, so a failure here should never surface as an error.

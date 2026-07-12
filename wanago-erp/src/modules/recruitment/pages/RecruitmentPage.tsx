@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, RefreshCw, Briefcase, Users, UserCheck, XCircle, Upload } from "lucide-react";
 import { useJobOpenings } from "@/modules/recruitment/jobs/hooks/useJobOpenings";
 import { useCandidates } from "@/modules/recruitment/candidates/hooks/useCandidates";
@@ -49,8 +50,23 @@ export function RecruitmentPage() {
   const [jobImportOpen, setJobImportOpen] = useState(false);
   const [candImportOpen, setCandImportOpen] = useState(false);
   const [offices,       setOffices]       = useState<Office[]>([]);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => { fetchOffices().then(setOffices); }, []);
+
+  // Supports deep-linking straight into a candidate's detail view, e.g.
+  // from Global Search (/recruitment?view=<id>).
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || candidates.length === 0) return;
+    const match = candidates.find((c) => c.id === viewId);
+    if (match) {
+      setTab("candidates");
+      setViewingCand(match);
+    }
+    router.replace("/recruitment");
+  }, [searchParams, candidates, router]);
 
   const stats = useMemo(() => ({
     openJobs:   jobs.filter(j => j.jobStatus === "open").length,

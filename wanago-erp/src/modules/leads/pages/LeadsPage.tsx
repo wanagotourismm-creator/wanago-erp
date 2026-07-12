@@ -79,6 +79,16 @@ export function LeadsPage() {
     }
   }, [searchParams, router]);
 
+  // Supports deep-linking straight into a lead's detail view, e.g. from
+  // Global Search (/leads?view=<id>).
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || leads.length === 0) return;
+    const match = leads.find((l) => l.id === viewId);
+    if (match) setViewingLead(match);
+    router.replace("/leads");
+  }, [searchParams, leads, router]);
+
   // Filter leads
   const filtered = useMemo(() => {
     return leads.filter((l) => {

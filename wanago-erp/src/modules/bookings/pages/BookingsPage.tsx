@@ -81,6 +81,16 @@ export function BookingsPage() {
     }
   }, [searchParams, router, canCreate]);
 
+  // Supports deep-linking straight into a booking's detail view, e.g.
+  // from Global Search (/bookings?view=<id>).
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || bookings.length === 0) return;
+    const match = bookings.find((b) => b.id === viewId);
+    if (match) setViewingBooking(match);
+    router.replace("/bookings");
+  }, [searchParams, bookings, router]);
+
   useEffect(() => {
     fetchCustomers().then(setCustomers).catch(() => {});
     fetchPackages().then(setPackages).catch(() => {});

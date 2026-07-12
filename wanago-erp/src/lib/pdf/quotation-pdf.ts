@@ -49,10 +49,15 @@ const MAX_CONTENT_Y = 265;
 // Every rupee figure on the PDF is rounded to match formatCurrency()'s
 // maximumFractionDigits: 0 used everywhere else in the app — without this,
 // float noise from per-pax price * pax math (e.g. 999.99 * 3 =
-// 2999.9700000000003) shows up as "₹2,999.97" on the PDF next to "₹3,000"
-// in the UI, and a different figure again on the "in words" line.
+// 2999.9700000000003) shows up as "Rs. 2,999.97" on the PDF next to
+// "Rs. 3,000" in the UI, and a different figure again on the "in words" line.
+//
+// Prefixed with "Rs." rather than the ₹ symbol — jsPDF's built-in fonts
+// (Helvetica/Times/Courier) are the 14 standard PDF fonts, which only cover
+// Latin-1 and don't include the ₹ glyph (U+20B9) at all, so it silently
+// rendered as a fallback/notdef glyph that looks like a tiny superscript "1".
 function formatINR(amount: number): string {
-  return Math.round(amount).toLocaleString("en-IN");
+  return `Rs. ${Math.round(amount).toLocaleString("en-IN")}`;
 }
 
 async function loadImageAsDataUrl(url: string): Promise<string | null> {
@@ -216,9 +221,9 @@ async function buildQuotationPdfDoc(input: QuotationPdfInput): Promise<any> {
       const descLines = doc.splitTextToSize(item.description, CONTENT_W * 0.48);
       doc.text(descLines, colDesc, rowY);
       doc.text(item.pax != null && item.pax > 0 ? String(item.pax) : "-", colPax, rowY);
-      doc.text(`₹${formatINR(item.price)}`, colPrice, rowY);
+      doc.text(`${formatINR(item.price)}`, colPrice, rowY);
       doc.setFont("helvetica", "bold");
-      doc.text(`₹${formatINR(item.total)}`, colTotal, rowY, { align: "right" });
+      doc.text(`${formatINR(item.total)}`, colTotal, rowY, { align: "right" });
       doc.setFont("helvetica", "normal");
       rowY += rowH;
     }
@@ -232,12 +237,12 @@ async function buildQuotationPdfDoc(input: QuotationPdfInput): Promise<any> {
       doc.setFontSize(9.5);
       doc.setTextColor(...TEXT_DARK);
       doc.text("TOTAL", colPrice, totalsY);
-      doc.text(`₹${formatINR(input.subtotal)}`, colTotal, totalsY, { align: "right" });
+      doc.text(`${formatINR(input.subtotal)}`, colTotal, totalsY, { align: "right" });
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.text("GRAND TOTAL", colPrice, totalsY + 8);
-      doc.text(`₹${formatINR(input.grandTotal)}`, colTotal, totalsY + 8, { align: "right" });
+      doc.text(`${formatINR(input.grandTotal)}`, colTotal, totalsY + 8, { align: "right" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);

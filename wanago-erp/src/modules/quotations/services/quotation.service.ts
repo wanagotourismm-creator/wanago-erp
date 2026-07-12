@@ -144,7 +144,15 @@ export async function fetchQuotationById(id: string): Promise<Quotation | null> 
 
 export async function createQuotation(
   data: QuotationFormData,
-  createdBy: string
+  createdBy: string,
+  // Auto-sends by default (the manual "New Quotation" form is filled in
+  // with real pricing before submit, so the quotation is genuinely ready).
+  // Callers that seed an unreviewed starting draft — e.g.
+  // createDraftQuotationFromWonLead, whose starting price can be 0 when
+  // the lead has no budget on file — must pass autoSend: false so nothing
+  // goes to the customer until a human has reviewed/priced it and sent it
+  // explicitly via sendQuotation().
+  options?: { autoSend?: boolean }
 ): Promise<Quotation> {
   const refNumber = await nextRefNumber("QUOTATION");
   const { subtotal, taxAmount, totalAmount } = computeTotals(data.lineItems, data.taxRate, data.pax);
@@ -172,7 +180,9 @@ export async function createQuotation(
   });
 
   await notifyFinanceApprovers(quotation);
-  await sendQuotationPdfToCustomer(quotation);
+  if (options?.autoSend !== false) {
+    await sendQuotationPdfToCustomer(quotation);
+  }
 
   return quotation;
 }

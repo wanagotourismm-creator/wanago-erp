@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useItineraries } from "@/modules/itineraries/hooks/useItineraries";
 import { ItinerariesTable } from "@/modules/itineraries/components/ItinerariesTable";
@@ -52,6 +53,8 @@ const ITINERARY_TEMPLATE_COLUMNS: TemplateColumn[] = [
 export function ItinerariesPage() {
   const { itineraries, loading, addItinerary, editItinerary, removeItinerary, load } = useItineraries();
   const { user } = useAuthStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingItinerary, setEditingItinerary] = useState<Itinerary | null>(null);
@@ -62,6 +65,16 @@ export function ItinerariesPage() {
   const [offices,         setOffices]         = useState<Office[]>([]);
 
   useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
+
+  // Supports deep-linking straight into an itinerary's detail view, e.g.
+  // from Global Search (/itineraries?view=<id>).
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || itineraries.length === 0) return;
+    const match = itineraries.find((i) => i.id === viewId);
+    if (match) setViewingItinerary(match);
+    router.replace("/itineraries");
+  }, [searchParams, itineraries, router]);
 
   // Filter itineraries
   const filtered = useMemo(() => {

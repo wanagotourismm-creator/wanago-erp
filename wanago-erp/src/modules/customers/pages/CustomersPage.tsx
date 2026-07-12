@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useCustomers } from "@/modules/customers/hooks/useCustomers";
 import { CustomersTable } from "@/modules/customers/components/CustomersTable";
@@ -45,6 +46,8 @@ export function CustomersPage() {
   const { user } = useAuthStore();
   const canManage = !!user && hasPermission(user.systemRole, "customers:edit");
   const canCreate = !!user && hasPermission(user.systemRole, "customers:create");
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -55,6 +58,16 @@ export function CustomersPage() {
   const [offices,         setOffices]         = useState<Office[]>([]);
 
   useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
+
+  // Supports deep-linking straight into a customer's detail view, e.g.
+  // from Global Search (/customers?view=<id>).
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || customers.length === 0) return;
+    const match = customers.find((c) => c.id === viewId);
+    if (match) setViewingCustomer(match);
+    router.replace("/customers");
+  }, [searchParams, customers, router]);
 
   const filtered = useMemo(() => {
     return customers.filter((c) => {

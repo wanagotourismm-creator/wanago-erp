@@ -8,6 +8,7 @@ import { MobileMenuSheet } from "@/components/layout/MobileMenuSheet";
 import { OfflineBanner } from "@/components/layout/OfflineBanner";
 import { RouteGuard } from "@/components/providers/RouteGuard";
 import { TeamSpacePanel } from "@/modules/teamspace/components/TeamSpacePanel";
+import { GlobalSearchPalette } from "@/modules/global-search/components/GlobalSearchPalette";
 import { AIAssistantPanel } from "@/modules/aiassistant/components/AIAssistantPanel";
 import { PendingNotificationsModal } from "@/modules/notifications/components/PendingNotificationsModal";
 import { TrainingWalkthroughOverlay } from "@/modules/onboarding-training/components/TrainingWalkthroughOverlay";
@@ -80,6 +81,7 @@ export function AppShell({ children, requiredPage, fullBleed }: Props) {
         <AIAssistantPanel />
         <PendingNotificationsModal />
         <TrainingWalkthroughOverlay />
+        <GlobalSearchPalette />
 
       </div>
     </RouteGuard>

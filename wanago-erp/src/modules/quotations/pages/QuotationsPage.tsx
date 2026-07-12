@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, RefreshCw, FileText, Send, CheckCircle2, ArrowRightLeft } from "lucide-react";
 import { useQuotations } from "@/modules/quotations/hooks/useQuotations";
 import { QuotationsTable } from "@/modules/quotations/components/QuotationsTable";
@@ -32,12 +33,24 @@ export function QuotationsPage() {
   const { user } = useAuthStore();
   const canManage = !!user && MANAGE_ROLES.includes(user.systemRole);
   const canDelete = !!user && isAdminRole(user.systemRole);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [formOpen,          setFormOpen]          = useState(false);
   const [editingQuotation,  setEditingQuotation]  = useState<Quotation | null>(null);
   const [viewingQuotation,  setViewingQuotation]  = useState<Quotation | null>(null);
   const [statusFilter,      setStatusFilter]      = useState("");
   const [search,            setSearch]            = useState("");
+
+  // Supports deep-linking straight into a quotation's detail view, e.g.
+  // from Global Search (/quotations?view=<id>).
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || quotations.length === 0) return;
+    const match = quotations.find((q) => q.id === viewId);
+    if (match) setViewingQuotation(match);
+    router.replace("/quotations");
+  }, [searchParams, quotations, router]);
 
   const filtered = useMemo(() => {
     return quotations.filter((q) => {

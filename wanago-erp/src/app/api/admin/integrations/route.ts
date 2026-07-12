@@ -9,13 +9,14 @@ const DOC_PATH = ["integrationSecrets", "keys"] as const;
 // True secrets — never sent back to the client once saved, only whether
 // each is configured (the UI shows them masked/write-only).
 const SECRET_FIELDS = [
-  "anthropicApiKey", "openaiApiKey", "resendApiKey", "twilioAccountSid", "twilioAuthToken",
+  "anthropicApiKey", "openaiApiKey", "resendApiKey",
   "gmailAppPassword", "googleTtsApiKey",
+  "metaWhatsappAccessToken", "metaWhatsappAppSecret", "metaWhatsappVerifyToken",
 ] as const;
-// Plain identifiers, not secrets (an email "from" address / a phone
-// number) — safe to send back so the admin can actually see and edit
-// what's configured instead of it always looking blank.
-const PLAIN_FIELDS = ["resendFromEmail", "twilioWhatsappNumber", "gmailUser"] as const;
+// Plain identifiers, not secrets (an email "from" address / a phone number
+// ID) — safe to send back so the admin can actually see and edit what's
+// configured instead of it always looking blank.
+const PLAIN_FIELDS = ["resendFromEmail", "gmailUser", "metaWhatsappPhoneNumberId"] as const;
 
 const FIELDS = [...SECRET_FIELDS, ...PLAIN_FIELDS] as const;
 
