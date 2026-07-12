@@ -1,6 +1,6 @@
 import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, auth } from "@/lib/firebase/client";
+import { auth } from "@/lib/firebase/client";
+import { uploadFile } from "@/lib/storage/upload";
 import { quotationRepository } from "@/modules/quotations/services/quotation.repository";
 import { toDate, formatDate, joinAddressCity } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
@@ -95,9 +95,7 @@ export async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<
       socialHandle: "@wana.go",
     });
 
-    const storageRef = ref(storage, `quotations/${quotation.refNumber}.pdf`);
-    await uploadBytes(storageRef, blob);
-    const pdfUrl = await getDownloadURL(storageRef);
+    const pdfUrl = await uploadFile(`quotations/${quotation.refNumber}.pdf`, blob);
 
     const idToken = await auth.currentUser?.getIdToken().catch(() => null);
     await fetch("/api/quotations/send-email", {

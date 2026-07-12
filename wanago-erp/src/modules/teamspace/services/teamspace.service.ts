@@ -1,11 +1,11 @@
 import {
   where, arrayUnion, arrayRemove, getDocs, query, collection, doc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
+import { uploadFile } from "@/lib/storage/upload";
 import type { Channel, Conversation, Message, MessageTargetType, MessageAttachment, AttachmentType } from "@/modules/teamspace/types";
 import type { ChannelSchema } from "@/modules/teamspace/schemas";
 
@@ -171,8 +171,6 @@ export async function uploadChatAttachment(convId: string, file: File): Promise<
     throw new Error("That file is larger than 20MB — try a smaller one.");
   }
   const path = `teamspace/${convId}/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(path, file);
   return { url, type: attachmentTypeFor(file.type), name: file.name };
 }

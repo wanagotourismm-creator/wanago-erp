@@ -1,9 +1,8 @@
 import { orderBy } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { uploadFile } from "@/lib/storage/upload";
 import type { TrainingProgram, TrainingProgramFormData, TrainingMaterial } from "@/modules/training/programs/types";
 
 class TrainingProgramRepository extends BaseRepository<TrainingProgram> {
@@ -49,9 +48,7 @@ export async function uploadTrainingMaterial(
   file: File,
   existingMaterials: TrainingMaterial[]
 ): Promise<TrainingMaterial[]> {
-  const storageRef = ref(storage, `training/${programId}/${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(`training/${programId}/${Date.now()}-${file.name}`, file);
 
   const materials = [...existingMaterials, { id: `${Date.now()}`, label, url }];
   await repo.update(programId, { materials } as Partial<TrainingProgram>);

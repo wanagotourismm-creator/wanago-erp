@@ -1,9 +1,9 @@
 import { orderBy, where } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, auth } from "@/lib/firebase/client";
+import { auth } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { uploadFile } from "@/lib/storage/upload";
 import type { Employee, EmployeeDocument } from "@/modules/hrms/shared/types";
 import type { EmployeeFormData } from "@/modules/hrms/employees/types";
 
@@ -112,9 +112,7 @@ export async function deleteEmployee(id: string): Promise<void> {
 }
 
 export async function uploadProfilePicture(employeeId: string, file: File): Promise<string> {
-  const storageRef = ref(storage, `employees/${employeeId}/profile-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(`employees/${employeeId}/profile-${Date.now()}-${file.name}`, file);
   await repo.update(employeeId, { profilePictureUrl: url } as Partial<Employee>);
   return url;
 }
@@ -125,9 +123,7 @@ export async function uploadEmployeeDocument(
   file: File,
   existingDocuments: EmployeeDocument[]
 ): Promise<EmployeeDocument[]> {
-  const storageRef = ref(storage, `employees/${employeeId}/documents/${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(`employees/${employeeId}/documents/${Date.now()}-${file.name}`, file);
 
   const newDoc: EmployeeDocument = {
     id:         `${Date.now()}`,

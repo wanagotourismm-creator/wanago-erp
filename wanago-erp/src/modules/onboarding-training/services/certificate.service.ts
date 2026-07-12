@@ -1,9 +1,8 @@
 import { where, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
+import { uploadFile } from "@/lib/storage/upload";
 import type { TrainingCertificate } from "@/modules/onboarding-training/types";
 
 class TrainingCertificateRepository extends BaseRepository<TrainingCertificate> {
@@ -77,9 +76,7 @@ async function generateCertificatePdf(employeeName: string, moduleTitle: string,
 }
 
 async function uploadCertificatePdf(certificateId: string, blob: Blob): Promise<string> {
-  const storageRef = ref(storage, `training-certificates/${certificateId}.pdf`);
-  await uploadBytes(storageRef, blob);
-  return getDownloadURL(storageRef);
+  return uploadFile(`training-certificates/${certificateId}.pdf`, blob);
 }
 
 // Generates the PDF, uploads it, and writes the Firestore record — called

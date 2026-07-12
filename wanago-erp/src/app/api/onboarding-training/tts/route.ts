@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb, getAdminStorage } from "@/lib/firebase/admin";
+import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+
+const STORAGE_BUCKET = "app-uploads";
 
 export const runtime = "nodejs";
 
@@ -31,8 +34,8 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getAdminDb();
-  const bucket = getAdminStorage();
-  if (!db || !bucket) {
+  const supabase = getSupabaseAdmin();
+  if (!db || !supabase) {
     return NextResponse.json({ error: "Server isn't configured for this yet" }, { status: 501 });
   }
 
@@ -78,10 +81,15 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(audioContent, "base64");
   const filePath = `training-audio/${stepId}/${language}.mp3`;
-  const file = bucket.file(filePath);
-  await file.save(buffer, { contentType: "audio/mpeg" });
-  await file.makePublic();
-  const url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+  const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, buffer, {
+    contentType: "audio/mpeg",
+    upsert: true,
+  });
+  if (uploadError) {
+    return NextResponse.json({ error: "Voiceover upload failed" }, { status: 502 });
+  }
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+  const url = data.publicUrl;
 
   await stepRef.update(language === "en" ? { audioUrlEn: url } : { audioUrlMl: url });
 

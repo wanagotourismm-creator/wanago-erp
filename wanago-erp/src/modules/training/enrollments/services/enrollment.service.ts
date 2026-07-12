@@ -1,9 +1,8 @@
 import { orderBy } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { uploadFile } from "@/lib/storage/upload";
 import type { TrainingEnrollment, TrainingEnrollmentFormData } from "@/modules/training/enrollments/types";
 
 class EnrollmentRepository extends BaseRepository<TrainingEnrollment> {
@@ -46,9 +45,7 @@ export async function deleteEnrollment(id: string): Promise<void> {
 }
 
 export async function uploadCertificate(enrollmentId: string, file: File): Promise<string> {
-  const storageRef = ref(storage, `training/certificates/${enrollmentId}-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(`training/certificates/${enrollmentId}-${Date.now()}-${file.name}`, file);
   await repo.update(enrollmentId, { certificateUrl: url } as Partial<TrainingEnrollment>);
   return url;
 }

@@ -1,9 +1,8 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
 import { expenseRepository } from "@/modules/expenses/services/expense.repository";
 import { toDate } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { uploadFile } from "@/lib/storage/upload";
 import type { Expense, ExpenseFormData } from "@/modules/expenses/types";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
@@ -55,9 +54,7 @@ export async function deleteExpense(id: string): Promise<void> {
 }
 
 export async function uploadReceipt(expenseId: string, file: File): Promise<string> {
-  const storageRef = ref(storage, `expenses/${expenseId}/receipt-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(`expenses/${expenseId}/receipt-${Date.now()}-${file.name}`, file);
   await expenseRepository.update(expenseId, { receiptUrl: url } as Partial<Expense>);
   return url;
 }

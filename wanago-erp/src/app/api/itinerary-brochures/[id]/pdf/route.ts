@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOperationsOrSales, getAdminDb, getAdminStorage } from "@/lib/firebase/admin";
+import { requireOperationsOrSales, getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { renderBrochureHtml } from "@/modules/itinerary-brochures/pdf-templates";
 import { launchBrowser } from "@/lib/pdf/browser";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
@@ -7,6 +8,11 @@ import type { ItineraryBrochure } from "@/modules/itinerary-brochures/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+// Temporary bridge — Firebase Storage requires the Blaze plan, not active
+// yet, so generated PDFs land in the same Supabase bucket every other
+// upload was migrated to (see /api/storage/upload).
+const STORAGE_BUCKET = "app-uploads";
 
 function bearerToken(req: NextRequest): string | null {
   const header = req.headers.get("authorization");
@@ -34,8 +40,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const db = getAdminDb();
-  const storage = getAdminStorage();
-  if (!db || !storage) return NextResponse.json({ error: "Server not configured" }, { status: 500 });
+  const supabase = getSupabaseAdmin();
+  if (!db || !supabase) return NextResponse.json({ error: "Server not configured" }, { status: 500 });
 
   const snap = await db.collection(FIRESTORE_COLLECTIONS.ITINERARY_BROCHURES).doc(id).get();
   if (!snap.exists) return NextResponse.json({ error: "Brochure not found" }, { status: 404 });
@@ -55,14 +61,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await page.evaluateHandle("document.fonts.ready");
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
 
-    // getSignedUrl (not makePublic) because buckets with uniform
-    // bucket-level access — the default for newer Firebase projects —
-    // reject per-object ACL changes; a far-future signed URL works
-    // regardless of that setting and matches how the rest of the app
-    // already resolves Storage URLs via download tokens on the client SDK.
-    const file = storage.file(`itinerary-brochures/${id}.pdf`);
-    await file.save(Buffer.from(pdfBuffer), { contentType: "application/pdf" });
-    const [pdfUrl] = await file.getSignedUrl({ action: "read", expires: "01-01-2500" });
+    const filePath = `itinerary-brochures/${id}.pdf`;
+    const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, Buffer.from(pdfBuffer), {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+    if (uploadError) throw uploadError;
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+    const pdfUrl = data.publicUrl;
 
     await db.collection(FIRESTORE_COLLECTIONS.ITINERARY_BROCHURES).doc(id).update({
       pdfUrl,

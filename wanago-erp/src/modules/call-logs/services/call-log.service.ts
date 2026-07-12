@@ -1,9 +1,8 @@
 import { where, type QueryConstraint } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
 import { callLogRepository } from "@/modules/call-logs/services/call-log.repository";
 import { toDate } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { uploadFile } from "@/lib/storage/upload";
 import type { CallLog, CallLogFormData } from "@/modules/call-logs/types";
 
 // Sorted client-side (not via Firestore orderBy) so filtered queries only
@@ -49,9 +48,7 @@ export async function createCallLog(
 }
 
 export async function uploadCallRecording(callLogId: string, file: File): Promise<string> {
-  const storageRef = ref(storage, `callLogs/${callLogId}/recording-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(`callLogs/${callLogId}/recording-${Date.now()}-${file.name}`, file);
   await callLogRepository.update(callLogId, { recordingFileUrl: url } as Partial<CallLog>);
   return url;
 }

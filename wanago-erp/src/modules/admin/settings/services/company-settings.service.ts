@@ -1,7 +1,7 @@
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { uploadFile } from "@/lib/storage/upload";
 
 export type CompanySettings = {
   businessName:      string;
@@ -82,13 +82,9 @@ export async function updateCompanySettings(
 }
 
 export async function uploadCompanyLogo(file: File): Promise<string> {
-  const storageRef = ref(storage, `company/logo-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  return uploadFile(`company/logo-${Date.now()}-${file.name}`, file);
 }
 
 export async function uploadPaymentQr(file: File): Promise<string> {
-  const storageRef = ref(storage, `company/payment-qr-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  return uploadFile(`company/payment-qr-${Date.now()}-${file.name}`, file);
 }

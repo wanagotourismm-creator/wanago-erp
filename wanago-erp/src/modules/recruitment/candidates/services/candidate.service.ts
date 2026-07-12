@@ -1,10 +1,9 @@
 import { orderBy } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS, RECRUITMENT_STAGES } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import { decrementJobOpening } from "@/modules/recruitment/jobs/services/job.service";
+import { uploadFile } from "@/lib/storage/upload";
 import type { Candidate, CandidateFormData } from "@/modules/recruitment/candidates/types";
 
 class CandidateRepository extends BaseRepository<Candidate> {
@@ -67,9 +66,7 @@ export async function deleteCandidate(id: string): Promise<void> {
 }
 
 export async function uploadResume(candidateId: string, file: File): Promise<string> {
-  const storageRef = ref(storage, `candidates/${candidateId}/resume-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  const url = await uploadFile(`candidates/${candidateId}/resume-${Date.now()}-${file.name}`, file);
   await repo.update(candidateId, { resumeUrl: url } as Partial<Candidate>);
   return url;
 }

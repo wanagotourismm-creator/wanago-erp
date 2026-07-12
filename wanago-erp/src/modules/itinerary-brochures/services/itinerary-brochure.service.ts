@@ -1,5 +1,5 @@
-import { ref, uploadBytes, getDownloadURL, listAll } from "firebase/storage";
-import { storage, auth } from "@/lib/firebase/client";
+import { auth } from "@/lib/firebase/client";
+import { uploadFile, listFiles } from "@/lib/storage/upload";
 import { itineraryBrochureRepository } from "@/modules/itinerary-brochures/services/itinerary-brochure.repository";
 import { toDate } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
@@ -81,9 +81,7 @@ export async function duplicateItineraryBrochure(
 // many brochures (cover image and per-day images) instead of re-uploading
 // the same photo for every new itinerary.
 export async function uploadBrochureImage(file: File): Promise<string> {
-  const storageRef = ref(storage, `itinerary-images/${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  return uploadFile(`itinerary-images/${Date.now()}-${file.name}`, file);
 }
 
 // Lists every photo ever uploaded to the shared `itinerary-images/` prefix
@@ -92,10 +90,7 @@ export async function uploadBrochureImage(file: File): Promise<string> {
 // `listAll` is the source of truth and is cheap enough for a folder of
 // destination photos (dozens-hundreds, not thousands).
 export async function fetchBrochureImageLibrary(): Promise<string[]> {
-  const folderRef = ref(storage, "itinerary-images");
-  const result = await listAll(folderRef);
-  const urls = await Promise.all(result.items.map((item) => getDownloadURL(item)));
-  return urls.reverse();
+  return listFiles("itinerary-images");
 }
 
 // Triggers server-side Puppeteer generation (src/app/api/itinerary-brochures/[id]/pdf)

@@ -1,8 +1,8 @@
 import { orderBy, where, getDocs, query, collection, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/client";
+import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { uploadFile } from "@/lib/storage/upload";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
 import type { AttendanceRecordSchema } from "@/modules/hrms/attendance/schemas";
 
@@ -67,9 +67,7 @@ export async function fetchAttendanceForDate(employeeId: string, date: string): 
 export async function uploadAttendanceSelfie(
   employeeId: string, date: string, action: "check_in" | "check_out", file: File
 ): Promise<string> {
-  const storageRef = ref(storage, `attendance-selfies/${employeeId}/${date}-${action}-${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  return uploadFile(`attendance-selfies/${employeeId}/${date}-${action}-${Date.now()}-${file.name}`, file);
 }
 
 export async function createAttendanceRecord(data: AttendanceRecordSchema, createdBy: string): Promise<AttendanceRecord> {
