@@ -149,6 +149,7 @@ export const FIRESTORE_COLLECTIONS = {
   WHATSAPP_CONVERSATIONS: "whatsappConversations",
   WHATSAPP_MESSAGES:      "whatsappMessages",
   TEAM_PULSE_RESPONSES:   "teamPulseResponses",
+  REFERRAL_BONUSES:       "referralBonuses",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

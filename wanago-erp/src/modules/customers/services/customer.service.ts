@@ -4,6 +4,15 @@ import { toDate } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
 
+// Random 8-char code, not checked for uniqueness against existing customers
+// — kept here (rather than importing from the referrals module) to avoid a
+// circular import, since referral.service.ts itself imports fetchCustomers
+// from this file. At this scale (a handful of customers created per day)
+// the collision odds on a 36^8 keyspace are negligible.
+function generateReferralCode(): string {
+  return `REF${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
 // Note: sorted client-side (not via Firestore orderBy) so filtered
 // queries only need single-field indexes, which Firestore creates
 // automatically — no manual composite index deployment required.
@@ -40,6 +49,8 @@ export async function createCustomer(
     assignedTo:     data.assignedTo     || null,
     agentName:      data.agentName      || null,
     notes:          data.notes          || null,
+    referralCode:         generateReferralCode(),
+    referredByCustomerId: data.referredByCustomerId ?? null,
   });
 }
 

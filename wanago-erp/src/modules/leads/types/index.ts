@@ -41,6 +41,11 @@ export type Lead = FirestoreRecord & {
   // Optional so existing pre-feature leads just show as not-yet-checked.
   matchedCustomerId?: string | null;
 
+  // Referral program — set if this lead entered a valid referral code
+  // (resolved to the referring Customer's id at submit time), carried
+  // forward onto the new Customer record if/when this lead converts.
+  referredByCustomerId?: string | null;
+
   // Office
   officeId:       string;
   officeName:     string;

@@ -16,6 +16,7 @@ import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImpo
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";
 import { resolveOffice } from "@/lib/bulk/resolveOffice";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import { findCustomerByReferralCode } from "@/modules/referrals/services/referral.service";
 import type { Office } from "@/modules/admin/offices/types";
 import { leadSchema } from "@/modules/leads/schemas";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
@@ -200,8 +201,13 @@ export function LeadsPage() {
   }
 
   async function handleSubmit(data: LeadSchema) {
+    const { referralCodeEntered, ...rest } = data;
+    const referredByCustomer = referralCodeEntered
+      ? await findCustomerByReferralCode(referralCodeEntered).catch(() => null)
+      : null;
+
     const payload = {
-      ...data,
+      ...rest,
       email:          data.email          || null,
       alternatePhone: data.alternatePhone  || null,
       notes:          data.notes           || null,
@@ -216,6 +222,10 @@ export function LeadsPage() {
       createdBy:      user?.uid ?? "",
       status:         "active",
       refNumber:      editingLead?.refNumber ?? "",
+      // The referral-code field is create-only (hidden on edit), so on an
+      // edit this always resolves to null above — fall back to whatever
+      // was already on the lead instead of silently wiping it out.
+      referredByCustomerId: referredByCustomer?.id ?? editingLead?.referredByCustomerId ?? null,
     };
 
     if (editingLead) {

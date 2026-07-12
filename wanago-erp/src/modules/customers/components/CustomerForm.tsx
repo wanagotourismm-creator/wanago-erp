@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, MapPin, StickyNote, Lock } from "lucide-react";
+import { X, Loader2, User, MapPin, StickyNote, Lock, Gift } from "lucide-react";
 import { customerSchema, type CustomerSchema } from "@/modules/customers/schemas";
 import { CUSTOMER_TYPES, CUSTOMER_SOURCES } from "@/modules/customers/components/CustomerBadges";
 import { SalesAgentSelect } from "@/components/shared/SalesAgentSelect";
 import { canReassignSalesAgent } from "@/lib/rbac-scope";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
+import { fetchReferralSettings } from "@/modules/referrals/services/referral.service";
 import type { Customer } from "@/modules/customers/types";
 
 type Props = {
@@ -44,6 +45,11 @@ const inputClass = cn(
 
 export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
+  const [referralEnabled, setReferralEnabled] = useState(false);
+
+  useEffect(() => {
+    if (open) fetchReferralSettings().then(s => setReferralEnabled(s.enabled)).catch(() => {});
+  }, [open]);
 
   const {
     register, handleSubmit, reset, watch, setValue,
@@ -221,6 +227,21 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
               />
             </Field>
           </div>
+
+          {referralEnabled && !customer && (
+            <>
+              <div className="border-t border-border" />
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Gift size={14} className="text-primary" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-primary">Referral</p>
+                </div>
+                <Field label="Referral Code" error={errors.referralCodeEntered?.message}>
+                  <input className={inputClass} placeholder="e.g. REF7K2P9Q" {...register("referralCodeEntered")} />
+                </Field>
+              </div>
+            </>
+          )}
 
         </div>
 

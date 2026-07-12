@@ -29,6 +29,10 @@ export const leadSchema = z.object({
   officeId:       z.string().min(1),
   officeName:     z.string().min(1),
   notes:          z.string().optional().or(z.literal("")),
+
+  // Form-only — resolved to referredByCustomerId at submit time (see
+  // LeadsPage.handleSubmit), not stored on the Lead as-is.
+  referralCodeEntered: z.string().optional().or(z.literal("")),
 });
 
 export type LeadSchema = z.infer<typeof leadSchema>;

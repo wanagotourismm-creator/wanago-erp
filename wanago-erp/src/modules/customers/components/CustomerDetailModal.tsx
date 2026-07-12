@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle, History } from "lucide-react";
+import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle, History, Gift, Copy, Check } from "lucide-react";
 import { CustomerTypeBadge, CustomerSegmentBadge } from "@/modules/customers/components/CustomerBadges";
 import { computeCustomerSegment } from "@/modules/customers/utils/segment";
 import { PhoneLink } from "@/components/shared/PhoneLink";
@@ -16,10 +16,13 @@ import { BOOKING_STATUS } from "@/lib/constants";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
+import { fetchReferralSettings, fetchReferralBonusesForCustomer } from "@/modules/referrals/services/referral.service";
+import { ReferralBonusStatusBadge } from "@/modules/referrals/components/ReferralBonusBadge";
 import type { Customer } from "@/modules/customers/types";
 import type { Booking } from "@/modules/bookings/types";
 import type { Invoice } from "@/modules/invoices/types";
 import type { Lead } from "@/modules/leads/types";
+import type { ReferralBonus } from "@/modules/referrals/types";
 import type { CallLogSchema } from "@/modules/call-logs/schemas";
 import type { CallMethod, CallDirection } from "@/modules/call-logs/types";
 
@@ -71,6 +74,9 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [enquiries, setEnquiries]       = useState<Lead[]>([]);
   const [loadingEnquiries, setLoadingEnquiries] = useState(false);
+  const [referralEnabled, setReferralEnabled] = useState(false);
+  const [earnedBonuses, setEarnedBonuses] = useState<ReferralBonus[]>([]);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const [callFormOpen, setCallFormOpen] = useState(false);
   const [callPrefill, setCallPrefill] = useState<{ method: CallMethod; direction: CallDirection }>({
@@ -110,7 +116,23 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
     return () => { cancelled = true; };
   }, [customer?.id]);
 
+  useEffect(() => {
+    if (!customer) { setEarnedBonuses([]); return; }
+    let cancelled = false;
+    fetchReferralSettings().then((s) => { if (!cancelled) setReferralEnabled(s.enabled); }).catch(() => {});
+    fetchReferralBonusesForCustomer(customer.id).then((b) => { if (!cancelled) setEarnedBonuses(b); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [customer?.id]);
+
   if (!customer) return null;
+
+  function copyReferralCode() {
+    if (!customer?.referralCode) return;
+    navigator.clipboard.writeText(customer.referralCode).then(() => {
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 1500);
+    }).catch(() => {});
+  }
 
   const totalPendingDues = bookings.reduce((sum, b) => sum + Math.max(b.balanceAmount, 0), 0);
 
@@ -309,6 +331,47 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
               </div>
             )}
           </div>
+
+          {referralEnabled && (
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <Gift size={13} className="text-primary" />
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Referral</p>
+              </div>
+              <div className="divide-y divide-border rounded-xl border border-border px-3">
+                <Row
+                  label="Referral Code"
+                  value={
+                    customer.referralCode ? (
+                      <button
+                        onClick={copyReferralCode}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2 py-1 font-mono text-xs hover:border-primary/40 hover:bg-muted transition-colors"
+                      >
+                        {customer.referralCode}
+                        {codeCopied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                      </button>
+                    ) : null
+                  }
+                />
+                {earnedBonuses.length > 0 && (
+                  <Row label="Referrals Made" value={`${earnedBonuses.length}`} />
+                )}
+              </div>
+              {earnedBonuses.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {earnedBonuses.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-foreground">{b.referredCustomerName}</p>
+                        <p className="text-[11px] text-muted-foreground">{b.bookingRefNumber} · {formatCurrency(b.bonusAmount)}</p>
+                      </div>
+                      <ReferralBonusStatusBadge status={b.bonusStatus} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <CallLogHistory key={callLogRefreshKey} customerId={customer.id} />
 

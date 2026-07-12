@@ -460,14 +460,29 @@ service cloud.firestore {
     // structure"), so it needs its own allowance alongside Admin's.
     match /settings/{id} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() || (id == 'incentives' && getUserRole() == 'sales_head');
+      allow create: if isAdmin() || (id == 'incentives' && getUserRole() == 'sales_head')
+                       || (id == 'referralProgram' && getUserRole() == 'marketing');
       allow update: if (
         isAdmin() && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(
             ['maintenanceMode', 'maintenanceMessage']
           ) || isSuperAdmin()
         )
-      ) || (id == 'incentives' && getUserRole() == 'sales_head');
+      ) || (id == 'incentives' && getUserRole() == 'sales_head')
+        || (id == 'referralProgram' && getUserRole() == 'marketing');
+      allow delete: if isAdmin();
+    }
+
+    // ── Referral program (Marketing) ─────────────────────────
+    // Bonus records are created automatically as a side effect of
+    // Operations confirming a booking (createReferralBonusIfEligible),
+    // so any authenticated staff member can create one — but only
+    // Admin/Marketing can mark one paid, since that's the team that owns
+    // this program and actually settles the payout outside the system.
+    match /referralBonuses/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAdmin() || getUserRole() == 'marketing';
       allow delete: if isAdmin();
     }
 

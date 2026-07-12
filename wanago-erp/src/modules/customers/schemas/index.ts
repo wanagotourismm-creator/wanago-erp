@@ -18,6 +18,10 @@ export const customerSchema = z.object({
   agentName:      z.string().optional().or(z.literal("")),
 
   notes:          z.string().optional().or(z.literal("")),
+
+  // Form-only — resolved to referredByCustomerId at submit time (see
+  // CustomersPage.handleSubmit), not stored on the Customer as-is.
+  referralCodeEntered: z.string().optional().or(z.literal("")),
 });
 
 export type CustomerSchema = z.infer<typeof customerSchema>;

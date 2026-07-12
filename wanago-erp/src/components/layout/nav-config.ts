@@ -160,6 +160,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "speakerphone",
         roles: ["super_admin","admin","marketing"],
       },
+      {
+        label: "Referral Program",
+        href:  "/referral-program",
+        icon:  "gift",
+        roles: ["super_admin","admin","marketing"],
+      },
     ],
   },
   {

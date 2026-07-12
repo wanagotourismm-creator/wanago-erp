@@ -27,6 +27,13 @@ export type Customer = FirestoreRecord & {
   // incentives engine's Fast Closure Bonus / Self-Generated Lead Bonus.
   convertedFromLeadId?: string | null;
 
+  // Referral program (Marketing) — every customer gets a shareable code the
+  // moment they're created; referredByCustomerId is set if *they* came in
+  // via someone else's code (captured on the Lead/Customer form). Optional
+  // so pre-feature records just show as having no code/referrer yet.
+  referralCode?:        string | null;
+  referredByCustomerId?: string | null;
+
   notes:          string | null;
   refNumber:      string;
 };

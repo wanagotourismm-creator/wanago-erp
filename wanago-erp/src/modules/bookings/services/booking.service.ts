@@ -8,6 +8,7 @@ import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Booking, BookingFormData } from "@/modules/bookings/types";
 import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
+import { createReferralBonusIfEligible } from "@/modules/referrals/services/referral.service";
 
 // Approve/reject used to be a plain read-then-write with no check that the
 // booking was still in the expected status — two approvers acting on the
@@ -225,6 +226,8 @@ export async function approveBookingAsOperations(
     `Booking ${existing.refNumber} confirmed`,
     `${existing.customerName}'s booking has been approved by Operations and is now fully confirmed.`
   );
+
+  await createReferralBonusIfEligible({ ...existing, status: BOOKING_STATUS.CONFIRMED }, approvedBy);
 }
 
 // Finance rejects the booking with a reason instead of approving — editing

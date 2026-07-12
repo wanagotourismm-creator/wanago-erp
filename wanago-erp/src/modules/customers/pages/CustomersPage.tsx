@@ -24,6 +24,7 @@ import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
 import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
 import { fetchLeads } from "@/modules/leads/services/lead.service";
+import { findCustomerByReferralCode } from "@/modules/referrals/services/referral.service";
 import type { Office } from "@/modules/admin/offices/types";
 import { customerSchema } from "@/modules/customers/schemas";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
@@ -208,8 +209,13 @@ export function CustomersPage() {
   }
 
   async function handleSubmit(data: CustomerSchema) {
+    const { referralCodeEntered, ...rest } = data;
+    const referredByCustomer = referralCodeEntered
+      ? await findCustomerByReferralCode(referralCodeEntered).catch(() => null)
+      : null;
+
     const payload = {
-      ...data,
+      ...rest,
       email:          data.email          || null,
       alternatePhone: data.alternatePhone || null,
       city:           data.city           || null,
@@ -218,6 +224,10 @@ export function CustomersPage() {
       createdBy:      user?.uid ?? "",
       status:         "active",
       refNumber:      editingCustomer?.refNumber ?? "",
+      // The referral-code field is create-only (hidden on edit), so on an
+      // edit this always resolves to null above — fall back to whatever
+      // was already on the customer instead of silently wiping it out.
+      referredByCustomerId: referredByCustomer?.id ?? editingCustomer?.referredByCustomerId ?? null,
     };
 
     if (editingCustomer) {
