@@ -33,6 +33,11 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/my-training",
         icon:  "graduation-cap",
       },
+      {
+        label: "Team Pulse",
+        href:  "/team-pulse",
+        icon:  "heart",
+      },
     ],
   },
   {
@@ -67,6 +72,12 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/sales-team",
         icon:  "chart-bar",
         roles: ["sales_head","admin","super_admin"],
+      },
+      {
+        label: "WhatsApp Inbox",
+        href:  "/whatsapp-inbox",
+        icon:  "message-circle",
+        roles: ["super_admin","admin","sales","sales_head","marketing","support"],
       },
     ],
   },

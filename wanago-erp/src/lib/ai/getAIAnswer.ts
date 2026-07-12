@@ -1,6 +1,10 @@
 // Server-only — imported exclusively by src/app/api/ai-assistant/route.ts.
-// Never import this from client code: it reads raw API keys from
-// process.env, which must not be bundled into the browser.
+// Never import this from client code: it ultimately reaches geminiService,
+// which reads raw API keys from process.env that must not be bundled into
+// the browser. Only builds the help-assistant-specific system prompt now —
+// the actual Gemini/Groq calls, fallback chain, and usage logging live in
+// the shared src/modules/ai-core/services/geminiService.ts.
+import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 export type ArticleContext = { title: string; content: string };
@@ -13,15 +17,6 @@ const LANGUAGE_NAMES: Record<AILanguage, string> = {
   en: "English",
   ml: "Malayalam",
 };
-
-// Current free-tier-eligible models (verified against provider docs as of
-// this writing — check ai.google.dev/gemini-api/docs/pricing and
-// console.groq.com/docs/models if either provider starts erroring, since
-// model names/availability change over time). The Gemini -> Groq -> KB-only
-// fallback chain means a stale model name here degrades gracefully rather
-// than breaking the assistant outright.
-const GEMINI_MODEL = "gemini-3.5-flash";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 function buildSystemPrompt(articles: ArticleContext[], language: AILanguage): string {
   const context = articles
@@ -44,86 +39,29 @@ function buildSystemPrompt(articles: ArticleContext[], language: AILanguage): st
   ].join("\n");
 }
 
-async function callGemini(apiKey: string, system: string, history: ChatTurn[], question: string): Promise<string> {
-  const contents = [
-    ...history.map((h) => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.content }] })),
-    { role: "user", parts: [{ text: question }] },
-  ];
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: { parts: [{ text: system }] },
-        generationConfig: { maxOutputTokens: 500, temperature: 0.2 },
-      }),
-    }
-  );
-
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Empty response from Gemini");
-  return text;
-}
-
-async function callGroq(apiKey: string, system: string, history: ChatTurn[], question: string): Promise<string> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      max_tokens: 500,
-      temperature: 0.2,
-      messages: [
-        { role: "system", content: system },
-        ...history.map((h) => ({ role: h.role, content: h.content })),
-        { role: "user", content: question },
-      ],
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Groq API error: ${res.status}`);
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty response from Groq");
-  return text;
-}
-
-// Tries Gemini first, falls back to Groq on any failure (rate limit, error,
-// timeout), and falls back to a kb-only signal if both fail or neither key
-// is configured — callers use that signal to show the matched help
-// article(s) directly instead of a broken/blank AI response.
+// Falls back to a kb-only signal if both providers fail or neither key is
+// configured — callers use that signal to show the matched help article(s)
+// directly instead of a broken/blank AI response.
 export async function getAIAnswer(
   question: string,
   articles: ArticleContext[],
   history: ChatTurn[] = [],
-  language: AILanguage = "en"
+  language: AILanguage = "en",
+  createdBy: string = "unknown"
 ): Promise<AIAnswerResult> {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
   const system = buildSystemPrompt(articles, language);
 
-  if (geminiKey) {
-    try {
-      const answer = await callGemini(geminiKey, system, history, question);
-      return { source: "gemini", answer };
-    } catch {
-      // fall through to Groq
-    }
+  try {
+    const { text, provider } = await generateText({
+      feature: "help-assistant",
+      system,
+      prompt: question,
+      history,
+      createdBy,
+    });
+    return { source: provider, answer: text };
+  } catch (err) {
+    if (!(err instanceof AiGenerationError)) throw err;
+    return { source: "kb-only" };
   }
-
-  if (groqKey) {
-    try {
-      const answer = await callGroq(groqKey, system, history, question);
-      return { source: "groq", answer };
-    } catch {
-      // fall through to kb-only
-    }
-  }
-
-  return { source: "kb-only" };
 }

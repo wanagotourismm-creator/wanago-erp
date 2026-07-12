@@ -2,6 +2,7 @@ import { searchHelpArticles } from "@/modules/helpcenter/services/help-article.s
 import type { HelpArticle } from "@/modules/helpcenter/types";
 import type { AIAnswerSource } from "@/modules/aiassistant/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
+import { auth } from "@/lib/firebase/client";
 
 export type AssistantTurn = { role: "user" | "assistant"; content: string };
 
@@ -43,6 +44,7 @@ export async function askAssistant(
         question,
         history,
         language,
+        createdBy: auth.currentUser?.uid ?? "unknown",
         articles: articles.map((a) => ({ title: a.title, content: a.content })),
       }),
     });

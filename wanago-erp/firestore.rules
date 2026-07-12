@@ -507,6 +507,27 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── Team Pulse (anonymous check-in, Phase 5 of the AI/ML roadmap) ──
+    // "Anonymous to viewers, traceable in the database" — the app's own
+    // Team Pulse UI never reads or displays individual documents (only the
+    // aggregate, computed server-side by /api/team-pulse/results via the
+    // Admin SDK), but each doc still carries a `createdBy` uid for abuse
+    // prevention, so isAdmin() can still see who-said-what through the raw
+    // Collection Explorer if truly needed. Doc ID is always
+    // `${roundId}_${uid}` (enforced client-side, not by these rules) so a
+    // resubmission overwrites rather than creating a second response.
+    match /teamPulseResponses/{id} {
+      // A user may read their OWN response doc directly by ID (that's all
+      // hasSubmittedThisRound() does — "have I already answered this
+      // round"), but can't query/list the collection, since a list query
+      // requires every matched doc to satisfy the rule and only one ever
+      // will. Aggregate stats come from /api/team-pulse/results (Admin
+      // SDK) instead, never a client-side query.
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid);
+      allow create, update: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     // ── Scheduled digests (Phase 2 of the AI/ML roadmap) ──────────────
     // Precomputed weekly/daily summaries (e.g. sales leaderboard) written
     // by Vercel Cron routes via the Admin SDK, same `write: if false`
@@ -637,7 +658,11 @@ service cloud.firestore {
     // (anywhere a specific block is stricter than this catch-all) — out of
     // scope for this change, flagged separately.
     match /{collection}/{id} {
-      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage';
+      // teamPulseResponses excluded the same way activities/systemUsage
+      // are — its dedicated isAdmin()-only read rule above would otherwise
+      // be silently overridden by this catch-all's broader grant, breaking
+      // the "individual responses are never visible to viewers" guarantee.
+      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses';
       allow create: if isAuthenticated() && hasRequiredFields();
       allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities';
       allow delete: if isAdmin();

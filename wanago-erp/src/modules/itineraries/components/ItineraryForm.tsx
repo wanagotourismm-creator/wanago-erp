@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, MapPin, CalendarDays, StickyNote, Plus, Trash2 } from "lucide-react";
+import { X, Loader2, MapPin, CalendarDays, StickyNote, Plus, Trash2, Sparkles } from "lucide-react";
 import { itinerarySchema, type ItinerarySchema } from "@/modules/itineraries/schemas";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
+import { TRIP_TYPES } from "@/lib/constants";
+import { draftItinerary } from "@/modules/itineraries/services/itinerary-ai.service";
 import type { Itinerary } from "@/modules/itineraries/types";
 
 type Props = {
@@ -41,9 +43,11 @@ const inputClass = cn(
 
 export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
+  const [aiDrafting, setAiDrafting] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const {
-    register, handleSubmit, reset, control,
+    register, handleSubmit, reset, control, watch, setValue,
     formState: { errors, isSubmitting },
   } = useForm<ItinerarySchema>({
     resolver: zodResolver(itinerarySchema),
@@ -51,19 +55,25 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
       durationDays:    1,
       itineraryStatus: "draft",
       days:            [],
+      inclusions:      [],
+      exclusions:      [],
       officeId:        user?.officeId   ?? "main",
       officeName:      user?.officeName ?? "Head Office",
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "days" });
+  const { fields, append, remove, replace } = useFieldArray({ control, name: "days" });
 
   useEffect(() => {
     if (open) {
       if (itinerary) {
         reset({
           ...itinerary,
+          tripType:    itinerary.tripType    ?? "",
           packageName: itinerary.packageName ?? "",
+          tagline:     itinerary.tagline      ?? "",
+          inclusions:  itinerary.inclusions   ?? [],
+          exclusions:  itinerary.exclusions   ?? [],
           notes:       itinerary.notes       ?? "",
         });
       } else {
@@ -71,12 +81,41 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
           durationDays:    1,
           itineraryStatus: "draft",
           days:            [],
+          inclusions:      [],
+          exclusions:      [],
           officeId:        user?.officeId   ?? "main",
           officeName:      user?.officeName ?? "Head Office",
         });
       }
+      setAiError(null);
     }
   }, [open, itinerary, reset, user]);
+
+  const destination = watch("destination");
+  const durationDays = watch("durationDays");
+  const tripType = watch("tripType");
+
+  async function handleDraftWithAi() {
+    if (!destination || !durationDays) {
+      setAiError("Enter a destination and duration first.");
+      return;
+    }
+    setAiDrafting(true);
+    setAiError(null);
+
+    const result = await draftItinerary({ destination, durationDays: Number(durationDays), tripType: tripType || undefined });
+
+    if ("error" in result) {
+      setAiError(result.error);
+    } else {
+      setValue("title", result.draft.title);
+      setValue("tagline", result.draft.tagline);
+      setValue("inclusions", result.draft.inclusions);
+      setValue("exclusions", result.draft.exclusions);
+      replace(result.draft.days);
+    }
+    setAiDrafting(false);
+  }
 
   function handleAddDay() {
     append({ dayNumber: fields.length + 1, title: "", description: "" });
@@ -153,6 +192,14 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
               <Field label="Duration (days)" required error={errors.durationDays?.message}>
                 <input className={inputClass} type="number" min={1} placeholder="5" {...register("durationDays")} />
               </Field>
+              <Field label="Trip Type" error={errors.tripType?.message}>
+                <select className={inputClass} {...register("tripType")}>
+                  <option value="">Select type</option>
+                  {Object.entries(TRIP_TYPES).map(([k, v]) => (
+                    <option key={k} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>
+                  ))}
+                </select>
+              </Field>
               <Field label="Package" error={errors.packageName?.message}>
                 <input className={inputClass} placeholder="e.g. Bali Bliss 5N/6D" {...register("packageName")} />
               </Field>
@@ -162,7 +209,67 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
                   <option value="confirmed">Confirmed</option>
                 </select>
               </Field>
+              <div className="col-span-2">
+                <Field label="Tagline" error={errors.tagline?.message}>
+                  <input className={inputClass} placeholder="e.g. Sun, sea, and serenity in Bali" {...register("tagline")} />
+                </Field>
+              </div>
             </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDraftWithAi}
+                disabled={aiDrafting}
+                className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+              >
+                {aiDrafting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                Draft with AI
+              </button>
+              <p className="text-[11px] text-muted-foreground">
+                Fills title, tagline, inclusions/exclusions, and the day plan below from the destination/duration/trip type above — review and edit before saving.
+              </p>
+            </div>
+            {aiError && <p className="mt-2 text-xs text-destructive font-medium">{aiError}</p>}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border" />
+
+          {/* ── Inclusions / Exclusions ── */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Inclusions" error={errors.inclusions?.message as string | undefined}>
+              <Controller
+                control={control}
+                name="inclusions"
+                render={({ field }) => (
+                  <textarea
+                    rows={4}
+                    placeholder={"One per line, e.g.\nAirport transfers\nDaily breakfast"}
+                    className={cn(inputClass, "resize-none")}
+                    value={field.value.join("\n")}
+                    onChange={(e) => field.onChange(e.target.value.split("\n"))}
+                    onBlur={() => field.onChange(field.value.map((v) => v.trim()).filter(Boolean))}
+                  />
+                )}
+              />
+            </Field>
+            <Field label="Exclusions" error={errors.exclusions?.message as string | undefined}>
+              <Controller
+                control={control}
+                name="exclusions"
+                render={({ field }) => (
+                  <textarea
+                    rows={4}
+                    placeholder={"One per line, e.g.\nInternational flights\nTravel insurance"}
+                    className={cn(inputClass, "resize-none")}
+                    value={field.value.join("\n")}
+                    onChange={(e) => field.onChange(e.target.value.split("\n"))}
+                    onBlur={() => field.onChange(field.value.map((v) => v.trim()).filter(Boolean))}
+                  />
+                )}
+              />
+            </Field>
           </div>
 
           {/* Divider */}

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, MapPin, Receipt, StickyNote, Plus, Trash2 } from "lucide-react";
+import { X, Loader2, User, MapPin, Receipt, StickyNote, Plus, Trash2, Sparkles } from "lucide-react";
 import { quotationSchema, type QuotationSchema } from "@/modules/quotations/schemas";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
 import { fetchPackages } from "@/modules/packages/services/package.service";
+import { draftQuoteLineItems } from "@/modules/quotations/services/quotation-ai.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn, formatCurrency } from "@/lib/utils/helpers";
 import type { Customer } from "@/modules/customers/types";
@@ -52,6 +53,8 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [packages,  setPackages]  = useState<Package[]>([]);
+  const [aiDrafting, setAiDrafting] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const {
     register, handleSubmit, reset, watch, setValue, control,
@@ -114,6 +117,25 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
 
   function handleAddItem() {
     append({ description: "", amount: 0 });
+  }
+
+  const destination = watch("destination");
+  const packageName = watch("packageName");
+
+  async function handleDraftWithAi() {
+    if (!destination) {
+      setAiError("Enter a destination first.");
+      return;
+    }
+    setAiDrafting(true);
+    setAiError(null);
+    const result = await draftQuoteLineItems({ destination, pax: Number(watchedPax) || 1, packageName: packageName || undefined });
+    if ("error" in result) {
+      setAiError(result.error);
+    } else {
+      for (const item of result.draft.lineItems) append({ description: item.description, amount: 0 });
+    }
+    setAiDrafting(false);
   }
 
   function handleRemoveItem(index: number) {
@@ -234,14 +256,30 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
                 <Receipt size={14} className="text-primary" />
                 <p className="text-xs font-bold uppercase tracking-widest text-primary">Line Items</p>
               </div>
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
-              >
-                <Plus size={13} /> Add Item
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDraftWithAi}
+                  disabled={aiDrafting}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+                >
+                  {aiDrafting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                  Suggest Items
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+                >
+                  <Plus size={13} /> Add Item
+                </button>
+              </div>
             </div>
+
+            {aiError && <p className="mb-2 text-xs text-destructive font-medium">{aiError}</p>}
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              &quot;Suggest Items&quot; adds typical line item descriptions for this destination — prices always default to ₹0 for you to fill in from real rates.
+            </p>
 
             {errors.lineItems?.message && (
               <p className="mb-2 text-xs text-destructive font-medium">{errors.lineItems.message}</p>

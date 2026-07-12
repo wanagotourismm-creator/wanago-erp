@@ -16,10 +16,13 @@ import { OnsiteRemoteSplit }    from "@/modules/dashboard/components/OnsiteRemot
 import { RevenueChart }         from "@/modules/dashboard/components/RevenueChart";
 import { LeadPipeline }         from "@/modules/dashboard/components/LeadPipeline";
 import { RevenueForecast }      from "@/modules/dashboard/components/RevenueForecast";
+import { InsightsCard }         from "@/modules/dashboard/components/InsightsCard";
+import { FounderBriefingCard }  from "@/modules/dashboard/components/FounderBriefingCard";
 import { TeamStatusDonut }      from "@/modules/dashboard/components/TeamStatusDonut";
 import { HiringStatsCard }      from "@/modules/dashboard/components/HiringStatsCard";
 import { SmartRecommendations } from "@/modules/dashboard/components/SmartRecommendations";
 import { TopPerformers }        from "@/modules/dashboard/components/TopPerformers";
+import { WeeklyLeaderboardCard } from "@/modules/dashboard/components/WeeklyLeaderboardCard";
 import { DepartingSoon }        from "@/modules/dashboard/components/DepartingSoon";
 import { RecentActivity }       from "@/modules/dashboard/components/RecentActivity";
 import { PayoutPanel }          from "@/modules/dashboard/components/PayoutPanel";
@@ -99,6 +102,8 @@ function CompanyWideDashboard() {
         followUpCount={stats?.followUpPending ?? 0}
       />
 
+      <FounderBriefingCard />
+
       {/* Stat cards — first one is featured (dark green) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
@@ -161,8 +166,11 @@ function CompanyWideDashboard() {
             <LeadPipeline pipeline={pipeline} />
           </div>
 
-          {/* Forecast */}
-          <RevenueForecast data={revenue} />
+          {/* Forecast + Insights */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RevenueForecast data={revenue} />
+            <InsightsCard bookings={bookings} loading={loading} />
+          </div>
 
           {/* Team + Hiring */}
           {employeeBreakdown.loading || hiringStats.loading ? (
@@ -187,6 +195,8 @@ function CompanyWideDashboard() {
             <SmartRecommendations />
             <TopPerformers bookings={bookings} loading={loading} />
           </div>
+
+          <WeeklyLeaderboardCard />
 
           {/* Onboarding training — only renders when something's actionable */}
           <ContinueTrainingCard />

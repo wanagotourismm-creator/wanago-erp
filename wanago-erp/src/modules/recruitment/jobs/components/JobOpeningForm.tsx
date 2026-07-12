@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, Briefcase } from "lucide-react";
+import { X, Loader2, Briefcase, Sparkles } from "lucide-react";
 import { jobOpeningSchema, type JobOpeningSchema } from "@/modules/recruitment/jobs/schemas";
 import { EMPLOYMENT_TYPE_LABELS, DEPARTMENTS } from "@/modules/hrms/employees/components/EmployeeBadges";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
+import { draftJobDescription } from "@/modules/recruitment/jobs/services/job-ai.service";
 import type { JobOpening } from "@/modules/recruitment/jobs/types";
 
 type Props = {
@@ -44,9 +45,11 @@ const today = new Date().toISOString().slice(0, 10);
 
 export function JobOpeningForm({ open, job, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
+  const [aiDrafting, setAiDrafting] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const {
-    register, handleSubmit, reset,
+    register, handleSubmit, reset, watch, setValue,
     formState: { errors, isSubmitting },
   } = useForm<JobOpeningSchema>({
     resolver: zodResolver(jobOpeningSchema),
@@ -70,6 +73,27 @@ export function JobOpeningForm({ open, job, onClose, onSubmit }: Props) {
       }
     }
   }, [open, job, reset, user]);
+
+  const title = watch("title");
+  const department = watch("department");
+  const location = watch("location");
+  const employmentType = watch("employmentType");
+
+  async function handleDraftWithAi() {
+    if (!title) {
+      setAiError("Enter a job title first.");
+      return;
+    }
+    setAiDrafting(true);
+    setAiError(null);
+    const result = await draftJobDescription({ title, department, location, employmentType });
+    if ("error" in result) setAiError(result.error);
+    else {
+      setValue("description", result.draft.description);
+      setValue("requirements", result.draft.requirements);
+    }
+    setAiDrafting(false);
+  }
 
   if (!open) return null;
 
@@ -125,6 +149,18 @@ export function JobOpeningForm({ open, job, onClose, onSubmit }: Props) {
             <Field label="Closing Date">
               <input className={inputClass} type="date" {...register("closingDate")} />
             </Field>
+            <div className="col-span-2">
+              <button
+                type="button"
+                onClick={handleDraftWithAi}
+                disabled={aiDrafting}
+                className="mb-2 inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+              >
+                {aiDrafting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                Draft with AI
+              </button>
+              {aiError && <p className="mb-2 text-xs text-destructive font-medium">{aiError}</p>}
+            </div>
             <div className="col-span-2">
               <Field label="Description">
                 <textarea rows={3} className={cn(inputClass, "resize-none")} placeholder="Role summary..." {...register("description")} />

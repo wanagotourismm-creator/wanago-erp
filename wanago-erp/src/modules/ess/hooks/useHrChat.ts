@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { auth } from "@/lib/firebase/client";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -30,7 +31,7 @@ export function useHrChat(context: ChatContext) {
       const res = await fetch("/api/hr-chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: next, context }),
+        body: JSON.stringify({ messages: next, context, createdBy: auth.currentUser?.uid ?? "unknown" }),
       });
       const data = await res.json();
       if (!res.ok) {

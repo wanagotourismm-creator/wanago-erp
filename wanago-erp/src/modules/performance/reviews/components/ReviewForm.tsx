@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, Star } from "lucide-react";
+import { X, Loader2, Star, Sparkles } from "lucide-react";
 import { performanceReviewSchema, type PerformanceReviewSchema } from "@/modules/performance/reviews/schemas";
 import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
 import { RATING_LABELS } from "@/lib/constants";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
+import { polishReviewNotes } from "@/modules/performance/reviews/services/review-ai.service";
 import type { Employee } from "@/modules/hrms/shared/types";
 import type { PerformanceReview } from "@/modules/performance/reviews/types";
 
@@ -47,6 +48,8 @@ const today = new Date().toISOString().slice(0, 10);
 export function ReviewForm({ open, review, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const {
     register, handleSubmit, reset, watch, setValue,
@@ -85,11 +88,33 @@ export function ReviewForm({ open, review, onClose, onSubmit }: Props) {
 
   const selectedEmployeeId = watch("employeeId");
   const selectedRating = watch("rating");
+  const employeeName = watch("employeeName");
+  const strengths = watch("strengths");
+  const areasForImprovement = watch("areasForImprovement");
+  const comments = watch("comments");
 
   function handleEmployeeChange(id: string) {
     const emp = employees.find(e => e.id === id);
     setValue("employeeId", id);
     setValue("employeeName", emp?.fullName ?? "");
+  }
+
+  async function handlePolishWithAi() {
+    if (!strengths?.trim() && !areasForImprovement?.trim() && !comments?.trim()) {
+      setAiError("Type some rough notes into at least one field first.");
+      return;
+    }
+    setAiBusy(true);
+    setAiError(null);
+    const result = await polishReviewNotes({ employeeName, rating: selectedRating, strengths, areasForImprovement, comments });
+    if ("error" in result) {
+      setAiError(result.error);
+    } else {
+      if (result.draft.strengths) setValue("strengths", result.draft.strengths);
+      if (result.draft.areasForImprovement) setValue("areasForImprovement", result.draft.areasForImprovement);
+      if (result.draft.comments) setValue("comments", result.draft.comments);
+    }
+    setAiBusy(false);
   }
 
   if (!open) return null;
@@ -159,6 +184,22 @@ export function ReviewForm({ open, review, onClose, onSubmit }: Props) {
               ))}
             </div>
           </Field>
+
+          <div>
+            <button
+              type="button"
+              onClick={handlePolishWithAi}
+              disabled={aiBusy}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+            >
+              {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+              Polish with AI
+            </button>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Rewrites your rough notes below into clearer, more professional language — never adds new claims you haven&apos;t written.
+            </p>
+            {aiError && <p className="mt-1.5 text-xs text-destructive font-medium">{aiError}</p>}
+          </div>
 
           <Field label="Strengths">
             <textarea rows={2} className={cn(inputClass, "resize-none")} placeholder="What went well..." {...register("strengths")} />

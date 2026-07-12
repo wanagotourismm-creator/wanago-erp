@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests — please wait a minute and try again." }, { status: 429 });
   }
 
-  let body: { question?: string; history?: ChatTurn[]; articles?: ArticleContext[]; language?: AILanguage };
+  let body: { question?: string; history?: ChatTurn[]; articles?: ArticleContext[]; language?: AILanguage; createdBy?: string };
   try {
     body = await req.json();
   } catch {
@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
   }
 
   const language: AILanguage = body.language === "ml" ? "ml" : "en";
-  const result = await getAIAnswer(question, articles, history, language);
+  const createdBy = String(body.createdBy ?? "unknown").slice(0, 128);
+  const result = await getAIAnswer(question, articles, history, language, createdBy);
   return NextResponse.json(result);
 }

@@ -13,6 +13,7 @@ import { AvgHoursWeekCard }  from "@/modules/dashboard/components/AvgHoursWeekCa
 import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSplit";
 import { MySalesProgress }   from "@/modules/dashboard/components/MySalesProgress";
 import { MyRankCard }        from "@/modules/dashboard/components/MyRankCard";
+import { WeeklyLeaderboardCard } from "@/modules/dashboard/components/WeeklyLeaderboardCard";
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
 import { SkeletonCard } from "@/components/ui/Skeleton";
@@ -96,6 +97,7 @@ export function SalesPersonalDashboard() {
 
         <div className="space-y-6">
           <MyRankCard rank={rank} loading={rank.loading} />
+          <WeeklyLeaderboardCard />
         </div>
       </div>
 

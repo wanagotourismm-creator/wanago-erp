@@ -89,6 +89,14 @@
         { "fieldPath": "source",    "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "digests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type",   "order": "ASCENDING"  },
+        { "fieldPath": "weekOf", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

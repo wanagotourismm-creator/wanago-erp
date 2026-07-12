@@ -146,6 +146,9 @@ export const FIRESTORE_COLLECTIONS = {
   ITINERARY_BROCHURES: "itineraryBrochures",
   AI_USAGE_LOGS:   "aiUsageLogs",
   DIGESTS:         "digests",
+  WHATSAPP_CONVERSATIONS: "whatsappConversations",
+  WHATSAPP_MESSAGES:      "whatsappMessages",
+  TEAM_PULSE_RESPONSES:   "teamPulseResponses",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

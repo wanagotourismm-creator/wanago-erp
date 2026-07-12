@@ -39,6 +39,7 @@ export function ItineraryDetailModal({ itinerary, onClose, onEdit, onDelete }: P
             <div className="min-w-0">
               <h2 className="truncate text-base font-semibold text-foreground">{itinerary.title}</h2>
               <p className="text-xs text-muted-foreground">{itinerary.refNumber} · Added {formatDate(itinerary.createdAt)}</p>
+              {itinerary.tagline && <p className="mt-0.5 truncate text-xs italic text-primary">{itinerary.tagline}</p>}
             </div>
           </div>
           <button
@@ -110,6 +111,27 @@ export function ItineraryDetailModal({ itinerary, onClose, onEdit, onDelete }: P
               </div>
             )}
           </div>
+
+          {(itinerary.inclusions.length > 0 || itinerary.exclusions.length > 0) && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {itinerary.inclusions.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">Inclusions</p>
+                  <ul className="rounded-xl border border-border px-3 py-2 text-xs text-foreground space-y-1">
+                    {itinerary.inclusions.map((item, i) => <li key={i}>• {item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {itinerary.exclusions.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">Exclusions</p>
+                  <ul className="rounded-xl border border-border px-3 py-2 text-xs text-foreground space-y-1">
+                    {itinerary.exclusions.map((item, i) => <li key={i}>• {item}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {itinerary.notes && (
             <div>

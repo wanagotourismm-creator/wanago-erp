@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { RefreshCw, Users } from "lucide-react";
+import { RefreshCw, Users, Sparkles } from "lucide-react";
 import { useSalesTeamPerformance } from "@/modules/sales-team/hooks/useSalesTeamPerformance";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { KudosModal } from "@/modules/sales-team/components/KudosModal";
 import { formatCurrency, initials } from "@/lib/utils/helpers";
+import type { DraftKudosInput } from "@/modules/sales-team/services/kudos-ai.service";
+import type { SalesAgentPerformance } from "@/modules/sales-team/types";
 
 const MONTH_LABELS = [
   "January", "February", "March", "April", "May", "June",
@@ -34,6 +37,14 @@ export function SalesTeamPage() {
   const { performance, loading, error, reload } = useSalesTeamPerformance();
   const monthOptions = useMemo(buildMonthOptions, []);
   const [selected, setSelected] = useState(monthOptions[0].value);
+  const [kudosInput, setKudosInput] = useState<DraftKudosInput | null>(null);
+
+  function handleDraftKudos(p: SalesAgentPerformance, monthLabel: string) {
+    setKudosInput({
+      agentName: p.agentName, monthLabel,
+      revenue: p.revenue, bookingsConfirmed: 0, leadsWon: p.leadsWon, conversionRate: p.conversionRate,
+    });
+  }
 
   const filtered = useMemo(() => {
     const [year, month] = selected.split("-").map(Number);
@@ -90,6 +101,7 @@ export function SalesTeamPage() {
                   <th className="px-4 py-3 text-right">Conversion</th>
                   <th className="px-4 py-3 text-right">Revenue</th>
                   <th className="px-4 py-3 text-right">Incentive</th>
+                  <th className="px-4 py-3 text-right">Recognition</th>
                 </tr>
               </thead>
               <tbody>
@@ -108,6 +120,14 @@ export function SalesTeamPage() {
                     <td className="px-4 py-3 text-right text-muted-foreground">{p.conversionRate.toFixed(1)}%</td>
                     <td className="px-4 py-3 text-right text-muted-foreground">{formatCurrency(p.revenue)}</td>
                     <td className="px-4 py-3 text-right font-semibold text-foreground">{formatCurrency(p.incentiveAmount)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => handleDraftKudos(p, monthOptions.find(o => o.value === selected)?.label ?? "")}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        <Sparkles size={11} /> Draft Kudos
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -115,6 +135,8 @@ export function SalesTeamPage() {
           </div>
         </div>
       )}
+
+      <KudosModal open={kudosInput !== null} input={kudosInput} onClose={() => setKudosInput(null)} />
 
     </div>
   );

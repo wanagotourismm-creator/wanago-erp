@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, KeyRound, Loader2, Sparkles, Mail, MessageCircle, Send, Volume2 } from "lucide-react";
+import { Check, KeyRound, Loader2, Mail, MessageCircle, Send, Volume2 } from "lucide-react";
 import { fetchIntegrationStatus, saveIntegrationSecrets } from "@/modules/admin/integrations/services/integrations.service";
 import { cn } from "@/lib/utils/helpers";
 
@@ -12,14 +12,12 @@ import { cn } from "@/lib/utils/helpers";
 type FieldDef = { key: string; label: string; placeholder: string; secret?: boolean };
 type Section = { title: string; icon: React.ElementType; description?: string; fields: FieldDef[] };
 
+// "Ask HR" previously had its own Anthropic/OpenAI key section here — it
+// now runs on the same free Gemini/Groq stack as every other AI feature
+// (GEMINI_API_KEY/GROQ_API_KEY env vars, no per-feature admin config
+// needed), so those fields were removed rather than left as dead UI that
+// could tempt someone into paying for a key that does nothing.
 const SECTIONS: Section[] = [
-  {
-    title: "AI Assistant (Ask HR)", icon: Sparkles,
-    fields: [
-      { key: "anthropicApiKey", label: "Anthropic API Key", placeholder: "sk-ant-..." },
-      { key: "openaiApiKey", label: "OpenAI API Key", placeholder: "sk-..." },
-    ],
-  },
   {
     title: "Email (Gmail SMTP)", icon: Send,
     description: "Preferred — sends real email from your own Gmail address, no domain needed. Requires 2-Step Verification turned on for the Gmail account, then an App Password generated at myaccount.google.com/apppasswords.",
@@ -44,11 +42,13 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "WhatsApp (Twilio)", icon: MessageCircle,
+    title: "WhatsApp (Meta Cloud API)", icon: MessageCircle,
+    description: "Direct Meta integration — no Twilio markup, and replies within 24h of a customer's last message are free. Set up a WhatsApp Business App at developers.facebook.com, verify a phone number, and generate a permanent System User access token. Register /api/whatsapp/webhook as the webhook URL in Meta's dashboard — the Verify Token below must match what you enter there.",
     fields: [
-      { key: "twilioAccountSid", label: "Account SID", placeholder: "AC..." },
-      { key: "twilioAuthToken", label: "Auth Token", placeholder: "•••••••••" },
-      { key: "twilioWhatsappNumber", label: "WhatsApp Number", placeholder: "+14155238886", secret: false },
+      { key: "metaWhatsappAccessToken", label: "Access Token", placeholder: "EAAG..." },
+      { key: "metaWhatsappPhoneNumberId", label: "Phone Number ID", placeholder: "1234567890", secret: false },
+      { key: "metaWhatsappVerifyToken", label: "Webhook Verify Token", placeholder: "choose any string" },
+      { key: "metaWhatsappAppSecret", label: "App Secret", placeholder: "used to verify inbound webhook signatures" },
     ],
   },
 ];

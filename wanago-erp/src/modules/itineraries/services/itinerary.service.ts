@@ -28,6 +28,8 @@ export async function createItinerary(
     status:      "active",
     packageName: data.packageName || null,
     notes:       data.notes || null,
+    tripType:    data.tripType || null,
+    tagline:     data.tagline || null,
   });
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getIntegrationSecret } from "@/lib/get-integration-secret";
+import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 
 export const runtime = "nodejs";
 
@@ -55,55 +55,13 @@ function buildSystemPrompt(context: ChatContext): string {
   return lines.join("\n");
 }
 
-async function callAnthropic(apiKey: string, system: string, messages: ChatMessage[]): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-5",
-      max_tokens: 600,
-      system,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-    }),
-  });
-  if (!res.ok) throw new Error(`Anthropic API error: ${res.status}`);
-  const data = await res.json();
-  const text = data.content?.find((b: { type: string }) => b.type === "text")?.text;
-  if (!text) throw new Error("Empty response from Anthropic");
-  return text;
-}
-
-async function callOpenAI(apiKey: string, system: string, messages: ChatMessage[]): Promise<string> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      max_tokens: 600,
-      messages: [{ role: "system", content: system }, ...messages],
-    }),
-  });
-  if (!res.ok) throw new Error(`OpenAI API error: ${res.status}`);
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty response from OpenAI");
-  return text;
-}
-
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: "Too many requests — please wait a minute and try again." }, { status: 429 });
   }
 
-  let body: { messages?: ChatMessage[]; context?: ChatContext };
+  let body: { messages?: ChatMessage[]; context?: ChatContext; createdBy?: string };
   try {
     body = await req.json();
   } catch {
@@ -120,25 +78,20 @@ export async function POST(req: NextRequest) {
   }
 
   const system = buildSystemPrompt(body.context ?? {});
-  const [anthropicKey, openaiKey] = await Promise.all([
-    getIntegrationSecret("anthropicApiKey", "ANTHROPIC_API_KEY"),
-    getIntegrationSecret("openaiApiKey", "OPENAI_API_KEY"),
-  ]);
+  const history = messages.slice(0, -1);
+  const prompt = messages[messages.length - 1].content;
+  const createdBy = String(body.createdBy ?? "unknown").slice(0, 128);
 
   try {
-    if (anthropicKey) {
-      const reply = await callAnthropic(anthropicKey, system, messages);
-      return NextResponse.json({ reply });
+    const { text } = await generateText({ feature: "hr-chat", system, prompt, history, createdBy, maxOutputTokens: 600 });
+    return NextResponse.json({ reply: text });
+  } catch (err) {
+    if (err instanceof AiGenerationError) {
+      return NextResponse.json(
+        { error: "The AI assistant isn't set up yet. An admin needs to add a GEMINI_API_KEY or GROQ_API_KEY to the deployment." },
+        { status: 501 }
+      );
     }
-    if (openaiKey) {
-      const reply = await callOpenAI(openaiKey, system, messages);
-      return NextResponse.json({ reply });
-    }
-    return NextResponse.json(
-      { error: "The AI assistant isn't set up yet. An admin needs to add an ANTHROPIC_API_KEY or OPENAI_API_KEY to the deployment." },
-      { status: 501 }
-    );
-  } catch {
     return NextResponse.json({ error: "The AI assistant is temporarily unavailable. Please try again shortly." }, { status: 502 });
   }
 }

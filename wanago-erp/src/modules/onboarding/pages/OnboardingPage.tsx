@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, RefreshCw, Upload } from "lucide-react";
+import { Plus, RefreshCw, Upload, Sparkles } from "lucide-react";
 import { useOnboardingTasks } from "@/modules/onboarding/hooks/useOnboardingTasks";
 import { OnboardingBoard } from "@/modules/onboarding/components/OnboardingBoard";
 import { OnboardingTaskForm } from "@/modules/onboarding/components/OnboardingTaskForm";
+import { OnboardingAiChecklistModal } from "@/modules/onboarding/components/OnboardingAiChecklistModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { BulkImportModal, type TemplateColumn, type ParseRowResult } from "@/components/bulk/BulkImportModal";
@@ -16,7 +17,7 @@ import { fetchEmployees } from "@/modules/hrms/employees/services/employee.servi
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import type { Employee } from "@/modules/hrms/shared/types";
 import type { Office } from "@/modules/admin/offices/types";
-import type { OnboardingStage, OnboardingTask } from "@/modules/onboarding/types";
+import type { OnboardingStage, OnboardingTask, OnboardingTaskFormData } from "@/modules/onboarding/types";
 import type { OnboardingTaskSchema } from "@/modules/onboarding/schemas";
 
 const TEMPLATE_COLUMNS: TemplateColumn[] = [
@@ -47,6 +48,7 @@ export function OnboardingPage() {
   const { user } = useAuthStore();
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [aiChecklistOpen, setAiChecklistOpen] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
 
@@ -98,6 +100,17 @@ export function OnboardingPage() {
     return { data: result.data };
   }
 
+  async function handleAiCreateMany(rows: OnboardingTaskFormData[]): Promise<{ created: number; failed: number }> {
+    let created = 0;
+    let failed = 0;
+    for (const row of rows) {
+      const { error } = await addTask(row);
+      if (error) failed++;
+      else created++;
+    }
+    return { created, failed };
+  }
+
   async function onImport(rows: OnboardingTaskSchema[]): Promise<{ created: number; failed: number }> {
     let created = 0;
     let failed = 0;
@@ -134,6 +147,7 @@ export function OnboardingPage() {
             <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => load()}>Refresh</Button>
             <Button variant="outline" size="sm" icon={<Upload size={14} />} onClick={() => setImportOpen(true)}>Import</Button>
             <BulkExportButton filenameBase="onboarding-tasks" rows={exportRows} />
+            <Button variant="outline" size="sm" icon={<Sparkles size={14} />} onClick={() => setAiChecklistOpen(true)}>Generate Checklist</Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setFormOpen(true)}>Add Task</Button>
           </>
         }
@@ -155,6 +169,13 @@ export function OnboardingPage() {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
+      />
+
+      <OnboardingAiChecklistModal
+        open={aiChecklistOpen}
+        employees={employees}
+        onClose={() => setAiChecklistOpen(false)}
+        onCreateMany={handleAiCreateMany}
       />
 
       <BulkImportModal<OnboardingTaskSchema>

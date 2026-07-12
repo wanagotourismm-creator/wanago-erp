@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, PhoneCall, Paperclip, StickyNote } from "lucide-react";
+import { X, Loader2, PhoneCall, Paperclip, StickyNote, Sparkles } from "lucide-react";
 import { callLogSchema, type CallLogSchema } from "@/modules/call-logs/schemas";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { cn } from "@/lib/utils/helpers";
+import { suggestNextSteps } from "@/modules/call-logs/services/call-log-ai.service";
 import type { CallMethod, CallDirection } from "@/modules/call-logs/types";
 
 type Props = {
@@ -53,6 +54,9 @@ export function CallLogForm({
   prefillMethod, prefillDirection,
 }: Props) {
   const [recordingFile, setRecordingFile] = useState<File | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const {
     register, handleSubmit, reset, watch,
@@ -71,6 +75,8 @@ export function CallLogForm({
   useEffect(() => {
     if (open) {
       setRecordingFile(null);
+      setAiSuggestion(null);
+      setAiError(null);
       reset({
         contactName, phone, leadId, customerId,
         callMethod: prefillMethod ?? "phone",
@@ -84,6 +90,22 @@ export function CallLogForm({
   if (!open) return null;
 
   const followUpNeeded = watch("followUpNeeded");
+  const notes = watch("notes");
+  const outcome = watch("outcome");
+
+  async function handleSuggestNextSteps() {
+    if (!notes?.trim()) {
+      setAiError("Add some call notes first.");
+      return;
+    }
+    setAiBusy(true);
+    setAiError(null);
+    setAiSuggestion(null);
+    const result = await suggestNextSteps({ notes, outcome, contactName });
+    if ("error" in result) setAiError(result.error);
+    else setAiSuggestion(result.text);
+    setAiBusy(false);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -149,6 +171,24 @@ export function CallLogForm({
               className={cn(inputClass, "resize-none")}
             />
           </Field>
+
+          <div>
+            <button
+              type="button"
+              onClick={handleSuggestNextSteps}
+              disabled={aiBusy}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+            >
+              {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+              Suggest Next Steps
+            </button>
+            {aiError && <p className="mt-2 text-xs text-destructive font-medium">{aiError}</p>}
+            {aiSuggestion && (
+              <div className="mt-2 whitespace-pre-wrap rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs text-foreground">
+                {aiSuggestion}
+              </div>
+            )}
+          </div>
 
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">

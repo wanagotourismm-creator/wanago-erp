@@ -1,9 +1,11 @@
 "use client";
 
-import { X, Phone, Mail, Edit2, Trash2, FileText, User, Briefcase } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Phone, Mail, Edit2, Trash2, FileText, User, Briefcase, Sparkles, Loader2 } from "lucide-react";
 import { STAGE_STYLES } from "@/modules/recruitment/candidates/components/CandidatesTable";
 import { formatDate, initials, cn } from "@/lib/utils/helpers";
 import { RECRUITMENT_STAGE_LABELS } from "@/lib/constants";
+import { summarizeResume } from "@/modules/recruitment/candidates/services/candidate-ai.service";
 import type { Candidate } from "@/modules/recruitment/candidates/types";
 
 type Props = {
@@ -25,7 +27,26 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function CandidateDetailModal({ candidate, canManage, onClose, onEdit, onDelete, onStage }: Props) {
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSummary(null);
+    setSummaryError(null);
+  }, [candidate?.id]);
+
   if (!candidate) return null;
+
+  async function handleSummarize() {
+    if (!candidate?.resumeUrl) return;
+    setSummarizing(true);
+    setSummaryError(null);
+    const result = await summarizeResume(candidate.resumeUrl);
+    if ("error" in result) setSummaryError(result.error);
+    else setSummary(result.text);
+    setSummarizing(false);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -91,13 +112,29 @@ export function CandidateDetailModal({ candidate, canManage, onClose, onEdit, on
                 label="Resume"
                 value={
                   candidate.resumeUrl ? (
-                    <a href={candidate.resumeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-primary hover:underline">
-                      <FileText size={12} /> View
-                    </a>
+                    <span className="inline-flex items-center gap-3">
+                      <a href={candidate.resumeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                        <FileText size={12} /> View
+                      </a>
+                      <button
+                        onClick={handleSummarize}
+                        disabled={summarizing}
+                        className="inline-flex items-center gap-1 text-primary hover:underline disabled:opacity-60"
+                      >
+                        {summarizing ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                        Summarize
+                      </button>
+                    </span>
                   ) : null
                 }
               />
             </div>
+            {summaryError && <p className="mt-1.5 text-xs text-destructive font-medium">{summaryError}</p>}
+            {summary && (
+              <p className="mt-1.5 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs text-foreground whitespace-pre-wrap">
+                {summary}
+              </p>
+            )}
           </div>
 
           {candidate.notes && (

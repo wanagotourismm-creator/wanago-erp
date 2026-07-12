@@ -10,9 +10,14 @@ export const itinerarySchema = z.object({
   title:           z.string().min(2, "Title must be at least 2 characters"),
   destination:     z.string().min(2, "Destination is required"),
   durationDays:    z.coerce.number().min(1, "Duration must be at least 1 day").default(1),
+  tripType:        z.string().optional().or(z.literal("")),
   packageName:     z.string().optional().or(z.literal("")),
 
   days:            z.array(itineraryDaySchema).default([]),
+
+  tagline:         z.string().optional().or(z.literal("")),
+  inclusions:      z.array(z.string()).default([]),
+  exclusions:      z.array(z.string()).default([]),
 
   officeId:        z.string().min(1),
   officeName:      z.string().min(1),

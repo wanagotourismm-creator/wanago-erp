@@ -68,13 +68,13 @@ export const PERMISSION_MAP: PermissionMap = {
 export const PAGE_ACCESS: PageAccess = {
   super_admin: ["*"],
   admin:       ["*"],
-  operations:  ["dashboard", "ess", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "itinerary-brochures", "ops-approvals", "settings"],
-  finance:     ["dashboard", "ess", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "incentives", "approvals", "settings"],
-  marketing:   ["dashboard", "ess", "leads", "customers", "marketing", "reports", "campaigns", "settings"],
-  hr:          ["dashboard", "ess", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "incentives", "settings"],
-  sales:       ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "settings"],
-  sales_head:  ["dashboard", "ess", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "sales-team", "incentives", "settings"],
-  support:     ["dashboard", "ess", "leads", "customers", "bookings", "settings"],
+  operations:  ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "itinerary-brochures", "ops-approvals", "settings"],
+  finance:     ["dashboard", "ess", "team-pulse", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "incentives", "approvals", "settings"],
+  marketing:   ["dashboard", "ess", "team-pulse", "leads", "customers", "marketing", "reports", "campaigns", "whatsapp-inbox", "settings"],
+  hr:          ["dashboard", "ess", "team-pulse", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "incentives", "settings"],
+  sales:       ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "whatsapp-inbox", "settings"],
+  sales_head:  ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "sales-team", "incentives", "whatsapp-inbox", "settings"],
+  support:     ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "whatsapp-inbox", "settings"],
 };
 
 // ── Dynamic permission overrides ─────────────────────────────
