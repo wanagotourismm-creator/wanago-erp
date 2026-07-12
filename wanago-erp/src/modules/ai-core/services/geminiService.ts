@@ -80,6 +80,14 @@ async function callGeminiRaw(params: {
   const generationConfig: Record<string, unknown> = {
     maxOutputTokens: params.maxOutputTokens,
     temperature: params.temperature,
+    // gemini-3.5-flash is a reasoning model that otherwise spends most of
+    // maxOutputTokens on invisible "thinking" tokens before emitting any
+    // actual output — verified live: a 500-token budget produced ~480
+    // thoughtsTokenCount and a 5-token truncated (invalid-JSON) response.
+    // Every feature in this app wants a direct answer, not visible
+    // reasoning, so thinking is disabled outright rather than just
+    // padding the token budget to compensate.
+    thinkingConfig: { thinkingBudget: 0 },
   };
   if (params.responseSchema) {
     generationConfig.responseMimeType = "application/json";
@@ -103,6 +111,13 @@ async function callGeminiRaw(params: {
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new AiGenerationError("Empty response from Gemini");
+  // A MAX_TOKENS finish means the response was cut off mid-generation —
+  // for plain text that's a silently-truncated answer, for JSON mode it's
+  // guaranteed-invalid JSON. Either way it must not be returned as if it
+  // were complete.
+  if (data?.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+    throw new AiGenerationError("Response truncated (hit maxOutputTokens)");
+  }
   return text;
 }
 
