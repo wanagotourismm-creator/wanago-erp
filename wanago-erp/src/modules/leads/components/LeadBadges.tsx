@@ -43,3 +43,14 @@ export function PriorityBadge({ priority }: { priority: string }) {
     </span>
   );
 }
+
+// Shown the moment a lead's phone number matches an existing Customer —
+// surfaces "this person has enquired/booked with us before" as soon as the
+// enquiry comes in, instead of only being discovered silently at "won".
+export function ReturningCustomerBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+      🔁 Returning Customer
+    </span>
+  );
+}

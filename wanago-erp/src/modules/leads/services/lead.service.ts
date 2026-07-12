@@ -3,7 +3,7 @@ import { leadRepository } from "@/modules/leads/services/lead.repository";
 import { toDate, phoneMatchKey } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
-import { fetchCustomers, createCustomer } from "@/modules/customers/services/customer.service";
+import { fetchCustomers, createCustomer, fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { fetchQuotations, createQuotation } from "@/modules/quotations/services/quotation.service";
 import type { Customer } from "@/modules/customers/types";
 
@@ -14,13 +14,26 @@ export async function fetchLeads(filters?: {
   stage?: string;
   assignedTo?: string;
   officeId?: string;
+  matchedCustomerId?: string;
 }): Promise<Lead[]> {
   const constraints: QueryConstraint[] = [];
-  if (filters?.stage)      constraints.push(where("stage",      "==", filters.stage));
-  if (filters?.assignedTo) constraints.push(where("assignedTo", "==", filters.assignedTo));
-  if (filters?.officeId)   constraints.push(where("officeId",   "==", filters.officeId));
+  if (filters?.stage)             constraints.push(where("stage",             "==", filters.stage));
+  if (filters?.assignedTo)        constraints.push(where("assignedTo",        "==", filters.assignedTo));
+  if (filters?.officeId)          constraints.push(where("officeId",          "==", filters.officeId));
+  if (filters?.matchedCustomerId) constraints.push(where("matchedCustomerId", "==", filters.matchedCustomerId));
   const leads = await leadRepository.findMany({ constraints });
   return leads.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
+}
+
+// Looks up an existing Customer by phone (last-10-digit match, so format
+// differences like "+91 98765 43210" vs "9876543210" don't miss a real
+// match) — shared by createLead (flag it immediately) and
+// convertLeadToCustomer (reuse instead of duplicating).
+async function findMatchingCustomer(phone: string): Promise<Customer | null> {
+  const key = phoneMatchKey(phone);
+  if (!key) return null;
+  const customers = await fetchCustomers();
+  return customers.find(c => phoneMatchKey(c.phone) === key) ?? null;
 }
 
 export async function fetchLeadById(id: string): Promise<Lead | null> {
@@ -32,6 +45,7 @@ export async function createLead(
   createdBy: string
 ): Promise<Lead> {
   const refNumber = await nextRefNumber("LEAD");
+  const matchedCustomer = await findMatchingCustomer(data.phone).catch(() => null);
 
   return leadRepository.create({
     ...data,
@@ -48,6 +62,7 @@ export async function createLead(
     tripType:        data.tripType || null,
     source:          data.source || null,
     pax:             data.pax || null,
+    matchedCustomerId: matchedCustomer?.id ?? null,
   });
 }
 
@@ -91,15 +106,24 @@ export async function deleteLead(id: string): Promise<void> {
  * without the user having to go find and re-select the customer.
  */
 export async function convertLeadToCustomer(lead: Lead, createdBy: string): Promise<Customer> {
-  const existingCustomers = await fetchCustomers();
-  // Matches on the last 10 digits so "+91 98765 43210" vs "9876543210"
-  // formatting differences don't create a duplicate customer for the same
-  // person — an exact string match previously missed these routinely.
-  const leadKey = phoneMatchKey(lead.phone);
-  const existing = leadKey ? existingCustomers.find(c => phoneMatchKey(c.phone) === leadKey) : undefined;
-  if (existing) return existing;
+  // Already flagged at creation time (or a previous conversion) — reuse
+  // that link directly instead of re-scanning every customer.
+  if (lead.matchedCustomerId) {
+    const existing = await fetchCustomerById(lead.matchedCustomerId);
+    if (existing) return existing;
+  }
 
-  return createCustomer({
+  // Fallback for leads created before this matching existed, or a customer
+  // that was created *after* this lead came in — same last-10-digit phone
+  // match as findMatchingCustomer, backfilled onto the lead once found so
+  // the Customer's "Enquiry History" and the Lead's badge both pick it up.
+  const existing = await findMatchingCustomer(lead.phone);
+  if (existing) {
+    await leadRepository.update(lead.id, { matchedCustomerId: existing.id } as Partial<Lead>).catch(() => {});
+    return existing;
+  }
+
+  const customer = await createCustomer({
     fullName:       lead.name,
     email:          lead.email,
     phone:          lead.phone,
@@ -116,6 +140,9 @@ export async function convertLeadToCustomer(lead: Lead, createdBy: string): Prom
     assignedTo:     lead.assignedTo ?? null,
     agentName:      lead.agentName  ?? null,
   }, createdBy);
+
+  await leadRepository.update(lead.id, { matchedCustomerId: customer.id } as Partial<Lead>).catch(() => {});
+  return customer;
 }
 
 // Auto-seeds a draft quotation for the customer the moment their lead is

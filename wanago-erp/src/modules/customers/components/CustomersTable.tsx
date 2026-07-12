@@ -10,15 +10,16 @@ import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow
 import type { Customer } from "@/modules/customers/types";
 
 type Props = {
-  customers: Customer[];
-  loading:   boolean;
-  canManage: boolean;
-  onView:    (customer: Customer) => void;
-  onEdit:    (customer: Customer) => void;
-  onDelete:  (customer: Customer) => void;
+  customers:     Customer[];
+  loading:       boolean;
+  canManage:     boolean;
+  enquiryCounts?: Record<string, number>;
+  onView:        (customer: Customer) => void;
+  onEdit:        (customer: Customer) => void;
+  onDelete:      (customer: Customer) => void;
 };
 
-export function CustomersTable({ customers, loading, canManage, onView, onEdit, onDelete }: Props) {
+export function CustomersTable({ customers, loading, canManage, enquiryCounts = {}, onView, onEdit, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (customers.length === 0) {
@@ -61,7 +62,10 @@ export function CustomersTable({ customers, loading, canManage, onView, onEdit, 
                         {initials(customer.fullName)}
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{customer.fullName}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium text-foreground">{customer.fullName}</p>
+                          {(enquiryCounts[customer.id] ?? 0) >= 2 && <span title="Repeat customer">🔁</span>}
+                        </div>
                         <p className="text-[11px] text-muted-foreground">{customer.refNumber}</p>
                       </div>
                     </div>
@@ -180,7 +184,10 @@ export function CustomersTable({ customers, loading, canManage, onView, onEdit, 
                       {initials(customer.fullName)}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{customer.fullName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-sm font-medium text-foreground">{customer.fullName}</p>
+                        {(enquiryCounts[customer.id] ?? 0) >= 2 && <span title="Repeat customer">🔁</span>}
+                      </div>
                       <p className="text-[11px] text-muted-foreground">{customer.refNumber}</p>
                     </div>
                   </div>

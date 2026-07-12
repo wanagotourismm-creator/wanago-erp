@@ -21,6 +21,7 @@ import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
 import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
+import { fetchLeads } from "@/modules/leads/services/lead.service";
 import type { Office } from "@/modules/admin/offices/types";
 import { customerSchema } from "@/modules/customers/schemas";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
@@ -56,8 +57,24 @@ export function CustomersPage() {
   const [search,          setSearch]          = useState("");
   const [importOpen,      setImportOpen]      = useState(false);
   const [offices,         setOffices]         = useState<Office[]>([]);
+  const [repeatOnly,      setRepeatOnly]      = useState(false);
+  const [enquiryCounts,   setEnquiryCounts]   = useState<Record<string, number>>({});
 
   useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
+
+  // Every Lead ever matched to a Customer by phone, counted per customer —
+  // 2+ enquiries means a repeat customer, regardless of whether any of
+  // those enquiries actually converted to a booking.
+  useEffect(() => {
+    fetchLeads().then((leads) => {
+      const counts: Record<string, number> = {};
+      for (const lead of leads) {
+        if (!lead.matchedCustomerId) continue;
+        counts[lead.matchedCustomerId] = (counts[lead.matchedCustomerId] ?? 0) + 1;
+      }
+      setEnquiryCounts(counts);
+    }).catch(() => {});
+  }, []);
 
   // Supports deep-linking straight into a customer's detail view, e.g.
   // from Global Search (/customers?view=<id>).
@@ -74,9 +91,15 @@ export function CustomersPage() {
       const matchType   = !typeFilter || c.customerType === typeFilter;
       const matchSearch = !search || [c.fullName, c.phone, c.email ?? "", c.city ?? ""]
         .some(f => f?.toLowerCase().includes(search.toLowerCase()));
-      return matchType && matchSearch;
+      const matchRepeat = !repeatOnly || (enquiryCounts[c.id] ?? 0) >= 2;
+      return matchType && matchSearch && matchRepeat;
     });
-  }, [customers, typeFilter, search]);
+  }, [customers, typeFilter, search, repeatOnly, enquiryCounts]);
+
+  const repeatCount = useMemo(
+    () => customers.filter(c => (enquiryCounts[c.id] ?? 0) >= 2).length,
+    [customers, enquiryCounts]
+  );
 
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -252,6 +275,25 @@ export function CustomersPage() {
             </span>
           </button>
         ))}
+        {repeatCount > 0 && (
+          <button
+            onClick={() => setRepeatOnly((v) => !v)}
+            className={cn(
+              "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all",
+              repeatOnly
+                ? "bg-primary text-white shadow-sm"
+                : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+            )}
+          >
+            🔁 Repeat Customers
+            <span className={cn(
+              "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+              repeatOnly ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+            )}>
+              {repeatCount}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Search */}
@@ -272,6 +314,7 @@ export function CustomersPage() {
           customers={filtered}
           loading={loading}
           canManage={canManage}
+          enquiryCounts={enquiryCounts}
           onView={setViewingCustomer}
           onEdit={handleEdit}
           onDelete={handleDelete}

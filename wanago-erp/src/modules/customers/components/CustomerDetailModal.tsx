@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle } from "lucide-react";
+import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle, History } from "lucide-react";
 import { CustomerTypeBadge } from "@/modules/customers/components/CustomerBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
@@ -9,12 +9,15 @@ import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { BookingStatusBadge } from "@/modules/bookings/components/BookingBadges";
 import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
 import { InvoiceStatusBadge } from "@/modules/invoices/components/InvoiceBadges";
+import { fetchLeads } from "@/modules/leads/services/lead.service";
+import { StageBadge } from "@/modules/leads/components/LeadBadges";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
 import type { Customer } from "@/modules/customers/types";
 import type { Booking } from "@/modules/bookings/types";
 import type { Invoice } from "@/modules/invoices/types";
+import type { Lead } from "@/modules/leads/types";
 import type { CallLogSchema } from "@/modules/call-logs/schemas";
 import type { CallMethod, CallDirection } from "@/modules/call-logs/types";
 
@@ -64,6 +67,8 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
   const [bookings, setBookings]         = useState<Booking[]>([]);
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [enquiries, setEnquiries]       = useState<Lead[]>([]);
+  const [loadingEnquiries, setLoadingEnquiries] = useState(false);
 
   const [callFormOpen, setCallFormOpen] = useState(false);
   const [callPrefill, setCallPrefill] = useState<{ method: CallMethod; direction: CallDirection }>({
@@ -86,6 +91,20 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoadingBookings(false); });
+    return () => { cancelled = true; };
+  }, [customer?.id]);
+
+  // Every past Lead matched to this Customer by phone — the "track record"
+  // of how many times this person has enquired, whether or not each
+  // enquiry ever turned into a booking.
+  useEffect(() => {
+    if (!customer) { setEnquiries([]); return; }
+    let cancelled = false;
+    setLoadingEnquiries(true);
+    fetchLeads({ matchedCustomerId: customer.id })
+      .then((leads) => { if (!cancelled) setEnquiries(leads); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingEnquiries(false); });
     return () => { cancelled = true; };
   }, [customer?.id]);
 
@@ -159,6 +178,11 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
             {customer.source && (
               <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {customer.source}
+              </span>
+            )}
+            {enquiries.length >= 2 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+                🔁 Repeat Enquirer · {enquiries.length}x
               </span>
             )}
           </div>
@@ -250,6 +274,30 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
                   </p>
                 )}
               </>
+            )}
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <History size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Enquiry History</p>
+            </div>
+            {loadingEnquiries ? (
+              <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">Loading…</p>
+            ) : enquiries.length === 0 ? (
+              <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">No past enquiries on record</p>
+            ) : (
+              <div className="divide-y divide-border rounded-xl border border-border px-3">
+                {enquiries.map((lead) => (
+                  <div key={lead.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{lead.destination}</p>
+                      <p className="text-[11px] text-muted-foreground">{lead.refNumber} · {formatDate(lead.createdAt)}</p>
+                    </div>
+                    <StageBadge stage={lead.stage} />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 

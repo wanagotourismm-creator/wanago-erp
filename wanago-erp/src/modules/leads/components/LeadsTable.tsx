@@ -63,7 +63,10 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage }
                         {initials(lead.name)}
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{lead.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium text-foreground">{lead.name}</p>
+                          {lead.matchedCustomerId && <span title="Returning customer">🔁</span>}
+                        </div>
                         <p className="text-[11px] text-muted-foreground">{lead.refNumber}</p>
                       </div>
                     </div>
@@ -193,7 +196,10 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage }
                       {initials(lead.name)}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{lead.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate font-medium text-foreground">{lead.name}</p>
+                        {lead.matchedCustomerId && <span title="Returning customer">🔁</span>}
+                      </div>
                       <p className="text-[11px] text-muted-foreground">{lead.refNumber}</p>
                     </div>
                   </div>

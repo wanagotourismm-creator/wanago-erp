@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall, MessageCircle } from "lucide-react";
-import { StageBadge, PriorityBadge } from "@/modules/leads/components/LeadBadges";
+import { StageBadge, PriorityBadge, ReturningCustomerBadge } from "@/modules/leads/components/LeadBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatDateTime, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
@@ -108,6 +108,7 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Pr
           <div className="flex flex-wrap items-center gap-2">
             <StageBadge stage={lead.stage} />
             <PriorityBadge priority={lead.priority} />
+            {lead.matchedCustomerId && <ReturningCustomerBadge />}
             {lead.source && (
               <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {lead.source}

@@ -34,6 +34,13 @@ export type Lead = FirestoreRecord & {
   // — feeds the Self-Generated Lead Bonus. Optional, defaults to false.
   isSelfGenerated?: boolean;
 
+  // Set at creation time (and backfilled at "won" conversion) if this
+  // lead's phone number matches an existing Customer — surfaces "this
+  // person has enquired/booked with us before" immediately, rather than
+  // only silently reusing the Customer record once the lead is won.
+  // Optional so existing pre-feature leads just show as not-yet-checked.
+  matchedCustomerId?: string | null;
+
   // Office
   officeId:       string;
   officeName:     string;
