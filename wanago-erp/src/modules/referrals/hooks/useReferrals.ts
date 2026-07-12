@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/auth.store";
 import type { ReferralSettings, ReferralBonus } from "@/modules/referrals/types";
 
 export function useReferrals() {
-  const [settings, setSettings] = useState<ReferralSettings>({ enabled: false, bonusAmount: 500 });
+  const [settings, setSettings] = useState<ReferralSettings>({ enabled: false, bonusAmount: 500, partnerBonusAmount: 500 });
   const [bonuses,  setBonuses]  = useState<ReferralBonus[]>([]);
   const [loading,  setLoading]  = useState(true);
   const { user } = useAuthStore();

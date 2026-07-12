@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall, MessageCircle } from "lucide-react";
+import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall, MessageCircle, Link2, Copy, Check, PackageCheck } from "lucide-react";
 import { StageBadge, PriorityBadge, ReturningCustomerBadge } from "@/modules/leads/components/LeadBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatDateTime, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
@@ -18,7 +18,12 @@ type Props = {
   onEdit:    (lead: Lead) => void;
   onDelete:  (lead: Lead) => void;
   onStage:   (lead: Lead, stage: string) => void;
+  onGenerateLink: (lead: Lead) => Promise<{ token: string | null; error: string | null }>;
 };
+
+function appOrigin(): string {
+  return typeof window !== "undefined" ? window.location.origin : "https://wanago-erp.vercel.app";
+}
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -29,16 +34,33 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Props) {
+export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage, onGenerateLink }: Props) {
   const [callFormOpen, setCallFormOpen] = useState(false);
   const [callPrefill, setCallPrefill] = useState<{ method: CallMethod; direction: CallDirection } | null>(null);
   const [callLogRefreshKey, setCallLogRefreshKey] = useState(0);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const { addCallLog } = useCallLogs({ leadId: lead?.id });
 
   if (!lead) return null;
 
   const canQuote = !["quoted", "negotiation", "won", "lost"].includes(lead.stage);
   const canMarkWon = ["quoted", "negotiation"].includes(lead.stage);
+  const bookingLink = lead.bookingLinkToken ? `${appOrigin()}/book/${lead.bookingLinkToken}` : null;
+
+  async function handleGenerateLink() {
+    setGeneratingLink(true);
+    await onGenerateLink(lead!);
+    setGeneratingLink(false);
+  }
+
+  function copyLink() {
+    if (!bookingLink) return;
+    navigator.clipboard.writeText(bookingLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1500);
+    }).catch(() => {});
+  }
 
   function openLogCallForm(prefill: { method: CallMethod; direction: CallDirection } | null) {
     setCallPrefill(prefill);
@@ -182,6 +204,62 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage }: Pr
               <Row label="Last Contacted" value={lead.lastContactedAt ? formatDateTime(lead.lastContactedAt as never) : null} />
             </div>
           </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <Link2 size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Customer Booking Link</p>
+            </div>
+            {bookingLink ? (
+              <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5">
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{bookingLink}</span>
+                <button
+                  onClick={copyLink}
+                  title="Copy link"
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  {linkCopied ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                </button>
+                <a
+                  href={buildWhatsAppLink(lead.phone, `Hi ${lead.name.split(" ")[0]}, here's your link to pick your ${lead.destination} package: ${bookingLink}`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Share via WhatsApp"
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <MessageCircle size={13} />
+                </a>
+              </div>
+            ) : (
+              <button
+                onClick={handleGenerateLink}
+                disabled={generatingLink}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted disabled:opacity-60 transition-colors"
+              >
+                <Link2 size={13} /> {generatingLink ? "Generating..." : "Generate Booking Link"}
+              </button>
+            )}
+          </div>
+
+          {lead.customerRequestedAt && (
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <PackageCheck size={13} className="text-primary" />
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Customer Request</p>
+              </div>
+              <div className="divide-y divide-border rounded-xl border border-border px-3">
+                <Row label="Package Chosen" value={lead.customerSelectedPackageName} />
+                <Row label="Preferred Date" value={lead.customerRequestedTravelDate ? formatDate(lead.customerRequestedTravelDate) : null} />
+                <Row label="Travellers" value={lead.customerRequestedPax} />
+                <Row label="Submitted" value={formatDateTime(lead.customerRequestedAt as never)} />
+              </div>
+              {lead.customerRequestNotes && (
+                <p className="mt-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-xs text-foreground whitespace-pre-wrap">
+                  {lead.customerRequestNotes}
+                </p>
+              )}
+            </div>
+          )}
 
           {lead.notes && (
             <div>

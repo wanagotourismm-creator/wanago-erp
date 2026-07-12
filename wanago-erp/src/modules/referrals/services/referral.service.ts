@@ -3,13 +3,14 @@ import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { fetchCustomers, fetchCustomerById } from "@/modules/customers/services/customer.service";
+import { findReferralPartnerByCode, fetchReferralPartnerById } from "@/modules/referrals/services/referral-partner.service";
 import { toDate } from "@/lib/utils/helpers";
 import type { ReferralSettings, ReferralBonus } from "@/modules/referrals/types";
 import type { Booking } from "@/modules/bookings/types";
 import type { Customer } from "@/modules/customers/types";
 
 const SETTINGS_DOC_ID = "referralProgram";
-const DEFAULT_SETTINGS: ReferralSettings = { enabled: false, bonusAmount: 500 };
+const DEFAULT_SETTINGS: ReferralSettings = { enabled: false, bonusAmount: 500, partnerBonusAmount: 500 };
 
 export async function fetchReferralSettings(): Promise<ReferralSettings> {
   const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, SETTINGS_DOC_ID));
@@ -40,6 +41,11 @@ export async function fetchReferralBonusesForCustomer(referrerCustomerId: string
   return bonuses.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
 }
 
+export async function fetchReferralBonusesForPartner(referrerPartnerId: string): Promise<ReferralBonus[]> {
+  const bonuses = await referralBonusRepo.findMany({ constraints: [where("referrerPartnerId", "==", referrerPartnerId)] });
+  return bonuses.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
+}
+
 export async function markReferralBonusPaid(id: string, paidBy: string): Promise<void> {
   // serverTimestamp() returns a FieldValue sentinel at write time, not the
   // real Timestamp paidAt's read-type declares — same cast pattern used
@@ -58,40 +64,87 @@ export async function findCustomerByReferralCode(code: string): Promise<Customer
   return customers.find(c => c.referralCode?.toUpperCase() === trimmed) ?? null;
 }
 
+export type ResolvedReferrer =
+  | { type: "customer"; id: string; name: string }
+  | { type: "partner";  id: string; name: string }
+  | null;
+
+// Checks both referrer pools for a code entered on a Lead/Customer form (or
+// resolved server-side by the public /r/{code} link) — a code only ever
+// belongs to one or the other, customers and partners draw from separate
+// generateReferralCode() calls with different prefixes (REF vs RPX) so
+// collision between the two pools isn't a real concern.
+export async function resolveReferralCode(code: string): Promise<ResolvedReferrer> {
+  const customer = await findCustomerByReferralCode(code);
+  if (customer) return { type: "customer", id: customer.id, name: customer.fullName };
+
+  const partner = await findReferralPartnerByCode(code);
+  if (partner) return { type: "partner", id: partner.id, name: partner.fullName };
+
+  return null;
+}
+
 // Called when a booking is confirmed by Operations — credits the referrer
 // once per booking (guarded by checking for an existing bonus tied to this
 // exact bookingId, so a re-approval or retry can't double-pay), and only
 // when the referral program is switched on and the booked customer actually
-// came in via a referral. Best-effort/non-blocking: the booking is already
-// confirmed regardless of whether this succeeds.
+// came in via a referral (either a past customer's code, or a Freelance
+// Referral Executive's code). Best-effort/non-blocking: the booking is
+// already confirmed regardless of whether this succeeds.
 export async function createReferralBonusIfEligible(booking: Booking, createdBy: string): Promise<void> {
   try {
     const settings = await fetchReferralSettings();
     if (!settings.enabled) return;
 
     const customer = await fetchCustomerById(booking.customerId);
-    if (!customer?.referredByCustomerId) return;
+    if (!customer) return;
+    if (!customer.referredByCustomerId && !customer.referredByPartnerId) return;
 
     const existingBonuses = await referralBonusRepo.findMany({ constraints: [where("bookingId", "==", booking.id)] });
     if (existingBonuses.length > 0) return;
 
-    const referrer = await fetchCustomerById(customer.referredByCustomerId);
-    if (!referrer) return;
+    if (customer.referredByCustomerId) {
+      const referrer = await fetchCustomerById(customer.referredByCustomerId);
+      if (!referrer) return;
+      await referralBonusRepo.create({
+        referrerType:         "customer",
+        referrerCustomerId:   referrer.id,
+        referrerPartnerId:    null,
+        referrerName:         referrer.fullName,
+        referredCustomerId:   customer.id,
+        referredCustomerName: customer.fullName,
+        bookingId:            booking.id,
+        bookingRefNumber:     booking.refNumber,
+        bonusAmount:          settings.bonusAmount,
+        bonusStatus:          "pending",
+        paidBy:               null,
+        paidAt:               null,
+        createdBy,
+        status:               "active",
+      });
+      return;
+    }
 
-    await referralBonusRepo.create({
-      referrerCustomerId:   referrer.id,
-      referrerName:         referrer.fullName,
-      referredCustomerId:   customer.id,
-      referredCustomerName: customer.fullName,
-      bookingId:            booking.id,
-      bookingRefNumber:     booking.refNumber,
-      bonusAmount:          settings.bonusAmount,
-      bonusStatus:          "pending",
-      paidBy:               null,
-      paidAt:               null,
-      createdBy,
-      status:               "active",
-    });
+    if (customer.referredByPartnerId) {
+      const referrer = await fetchReferralPartnerById(customer.referredByPartnerId);
+      if (!referrer) return;
+      await referralBonusRepo.create({
+        referrerType:         "partner",
+        referrerCustomerId:   null,
+        referrerPartnerId:    referrer.id,
+        referrerName:         referrer.fullName,
+        referredCustomerId:   customer.id,
+        referredCustomerName: customer.fullName,
+        bookingId:            booking.id,
+        bookingRefNumber:     booking.refNumber,
+        bonusAmount:          settings.partnerBonusAmount,
+        bonusStatus:          "pending",
+        paidBy:               null,
+        paidAt:               null,
+        createdBy,
+        status:               "active",
+      });
+    }
   } catch {
     // Best-effort — booking confirmation must succeed regardless.
   }

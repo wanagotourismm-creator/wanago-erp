@@ -100,10 +100,11 @@ export function slugify(str: string): string {
 // the cleaned number looks like one — anything else (already has a
 // country code, or an unexpected format) passes through unchanged rather
 // than guessing wrong.
-export function buildWhatsAppLink(phone: string): string {
+export function buildWhatsAppLink(phone: string, message?: string): string {
   const digits = phone.replace(/\D/g, "");
   const withCountryCode = digits.length === 10 ? `91${digits}` : digits;
-  return `https://wa.me/${withCountryCode}`;
+  const base = `https://wa.me/${withCountryCode}`;
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
 
 // ── Number helpers ────────────────────────────────────────────

@@ -55,7 +55,7 @@ const STAGE_FILTERS = [
 ];
 
 export function LeadsPage() {
-  const { leads, loading, addLead, editLead, changeStage, removeLead, load } = useLeads();
+  const { leads, loading, addLead, editLead, changeStage, removeLead, generateLink, load } = useLeads();
   const { user } = useAuthStore();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -346,6 +346,7 @@ export function LeadsPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStage={(lead, stage) => changeStage(lead.id, stage)}
+        onGenerateLink={generateLink}
       />
 
       {/* Form drawer */}

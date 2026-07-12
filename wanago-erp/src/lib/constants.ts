@@ -150,6 +150,8 @@ export const FIRESTORE_COLLECTIONS = {
   WHATSAPP_MESSAGES:      "whatsappMessages",
   TEAM_PULSE_RESPONSES:   "teamPulseResponses",
   REFERRAL_BONUSES:       "referralBonuses",
+  REFERRAL_PARTNERS:      "referralPartners",
+  REFERRAL_POSTERS:       "referralPosters",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
@@ -228,6 +230,7 @@ export const REF_FORMATS = {
   ONBOARDING: "ONB",
   CALL:      "CALL",
   ITINERARY_BROCHURE: "BRC",
+  REFERRAL_PARTNER: "RPX",
 } as const;
 
 // Recruitment pipeline stages, in order

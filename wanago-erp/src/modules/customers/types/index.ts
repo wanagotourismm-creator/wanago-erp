@@ -34,6 +34,11 @@ export type Customer = FirestoreRecord & {
   referralCode?:        string | null;
   referredByCustomerId?: string | null;
 
+  // Set instead of referredByCustomerId when the referrer was a Freelance
+  // Referral Executive (see referrals/types) rather than a past customer —
+  // exactly one of the two is ever set, never both.
+  referredByPartnerId?: string | null;
+
   notes:          string | null;
   refNumber:      string;
 };

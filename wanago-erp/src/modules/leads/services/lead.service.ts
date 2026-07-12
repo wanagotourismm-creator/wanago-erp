@@ -98,6 +98,18 @@ export async function deleteLead(id: string): Promise<void> {
   return leadRepository.delete(id);
 }
 
+// Generates the customer self-booking link (/book/{token}) for this lead —
+// a long random token, not tied to any account, so no login is needed to
+// use it. Idempotent: returns the existing token if one was already
+// generated, so re-clicking "Generate Link" doesn't invalidate a link
+// already sent to the customer.
+export async function generateBookingLink(lead: Lead): Promise<string> {
+  if (lead.bookingLinkToken) return lead.bookingLinkToken;
+  const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
+  await leadRepository.update(lead.id, { bookingLinkToken: token } as Partial<Lead>);
+  return token;
+}
+
 /**
  * Called whenever a lead is marked "won" — creates a matching Customer
  * record if one doesn't already exist for that phone number. Returns the

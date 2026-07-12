@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   fetchLeads, createLead, updateLead,
   updateLeadStage, deleteLead, convertLeadToCustomer,
-  createDraftQuotationFromWonLead,
+  createDraftQuotationFromWonLead, generateBookingLink,
 } from "@/modules/leads/services/lead.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
@@ -125,5 +125,15 @@ export function useLeads() {
     }
   }
 
-  return { leads: scopedLeads, loading, error, load, addLead, editLead, changeStage, removeLead };
+  async function generateLink(lead: Lead): Promise<{ token: string | null; error: string | null }> {
+    try {
+      const token = await generateBookingLink(lead);
+      setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, bookingLinkToken: token } : l));
+      return { token, error: null };
+    } catch {
+      return { token: null, error: "Failed to generate booking link" };
+    }
+  }
+
+  return { leads: scopedLeads, loading, error, load, addLead, editLead, changeStage, removeLead, generateLink };
 }

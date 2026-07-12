@@ -486,6 +486,27 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Freelance Referral Executives — holds bank account/UPI payout
+    // details, so (like teamPulseResponses) this is excluded from the
+    // generic catch-all below and given its own restricted read: only
+    // Admin/Marketing (who manage the program and settle payouts) can see
+    // it, not every authenticated employee. The public /r/{code} link and
+    // its lookup route only ever go through the Admin SDK server-side
+    // (bypassing these rules), so this restriction never blocks that flow.
+    match /referralPartners/{id} {
+      allow read: if isAdmin() || getUserRole() == 'marketing';
+      allow create, update: if isAdmin() || getUserRole() == 'marketing';
+      allow delete: if isAdmin();
+    }
+
+    // Poster artwork/captions — not sensitive, any authenticated staff
+    // member can view the kit; only Admin/Marketing manage it.
+    match /referralPosters/{id} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() || getUserRole() == 'marketing';
+      allow delete: if isAdmin();
+    }
+
     // ── Help Center (AI assistant knowledge base) ────────────
     match /helpArticles/{id} {
       allow read: if isAuthenticated();
@@ -677,7 +698,7 @@ service cloud.firestore {
       // are — its dedicated isAdmin()-only read rule above would otherwise
       // be silently overridden by this catch-all's broader grant, breaking
       // the "individual responses are never visible to viewers" guarantee.
-      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses';
+      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses' && collection != 'referralPartners';
       allow create: if isAuthenticated() && hasRequiredFields();
       allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities';
       allow delete: if isAdmin();

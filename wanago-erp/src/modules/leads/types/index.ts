@@ -46,6 +46,28 @@ export type Lead = FirestoreRecord & {
   // forward onto the new Customer record if/when this lead converts.
   referredByCustomerId?: string | null;
 
+  // Set instead of referredByCustomerId when the referrer was a Freelance
+  // Referral Executive rather than a past customer — exactly one of the
+  // two is ever set. Also set automatically (never both manually) when
+  // this lead came in through the public /r/{code} tracking link instead
+  // of a staff member typing a code into the Lead/Customer form.
+  referredByPartnerId?: string | null;
+
+  // Customer self-booking link — a long random token (not a real secret,
+  // just unguessable) that resolves to this lead at /book/{token} with no
+  // login. Generated on demand from the Lead detail page; null until then.
+  bookingLinkToken?: string | null;
+
+  // What the customer picked when they used that link — staff still
+  // reviews and creates the actual quotation/booking manually, this is
+  // just their stated preference showing up on the Lead.
+  customerSelectedPackageId?:   string | null;
+  customerSelectedPackageName?: string | null;
+  customerRequestedTravelDate?: string | null;
+  customerRequestedPax?:        number | null;
+  customerRequestNotes?:        string | null;
+  customerRequestedAt?:         Timestamp | Date | string | null;
+
   // Office
   officeId:       string;
   officeName:     string;
