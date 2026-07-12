@@ -8,12 +8,14 @@ import { CustomersTable } from "@/modules/customers/components/CustomersTable";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { CustomerDetailModal } from "@/modules/customers/components/CustomerDetailModal";
 import { CustomerForm } from "@/modules/customers/components/CustomerForm";
-import { CUSTOMER_TYPES } from "@/modules/customers/components/CustomerBadges";
+import { CUSTOMER_TYPES, CUSTOMER_SEGMENT_LABELS } from "@/modules/customers/components/CustomerBadges";
+import { computeCustomerSegment, type CustomerSegment } from "@/modules/customers/utils/segment";
+import { BOOKING_STATUS } from "@/lib/constants";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
-import { cn } from "@/lib/utils/helpers";
+import { cn, toDate } from "@/lib/utils/helpers";
 import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";
 import { resolveOffice } from "@/lib/bulk/resolveOffice";
@@ -57,24 +59,58 @@ export function CustomersPage() {
   const [search,          setSearch]          = useState("");
   const [importOpen,      setImportOpen]      = useState(false);
   const [offices,         setOffices]         = useState<Office[]>([]);
-  const [repeatOnly,      setRepeatOnly]      = useState(false);
-  const [enquiryCounts,   setEnquiryCounts]   = useState<Record<string, number>>({});
+  const [segmentFilter,   setSegmentFilter]   = useState<CustomerSegment | "">("");
+  const [segments,        setSegments]        = useState<Record<string, CustomerSegment>>({});
 
   useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
-  // Every Lead ever matched to a Customer by phone, counted per customer —
-  // 2+ enquiries means a repeat customer, regardless of whether any of
-  // those enquiries actually converted to a booking.
+  // Segments every customer using the shared computeCustomerSegment rule —
+  // enquiry count from matched Leads, booking count/value/recency from
+  // Bookings. Recomputed whenever the customer list changes so a brand new
+  // customer isn't stuck showing as unsegmented.
   useEffect(() => {
-    fetchLeads().then((leads) => {
-      const counts: Record<string, number> = {};
+    if (customers.length === 0) return;
+    Promise.all([fetchLeads(), fetchBookings()]).then(([leads, bookings]) => {
+      const enquiryCounts: Record<string, number> = {};
+      const lastEnquiryAt: Record<string, Date> = {};
       for (const lead of leads) {
         if (!lead.matchedCustomerId) continue;
-        counts[lead.matchedCustomerId] = (counts[lead.matchedCustomerId] ?? 0) + 1;
+        enquiryCounts[lead.matchedCustomerId] = (enquiryCounts[lead.matchedCustomerId] ?? 0) + 1;
+        const created = toDate(lead.createdAt);
+        if (created && (!lastEnquiryAt[lead.matchedCustomerId] || created > lastEnquiryAt[lead.matchedCustomerId])) {
+          lastEnquiryAt[lead.matchedCustomerId] = created;
+        }
       }
-      setEnquiryCounts(counts);
+
+      const bookingCounts: Record<string, number> = {};
+      const bookingValues: Record<string, number> = {};
+      const lastBookingAt: Record<string, Date> = {};
+      for (const booking of bookings) {
+        const created = toDate(booking.createdAt);
+        if (created && (!lastBookingAt[booking.customerId] || created > lastBookingAt[booking.customerId])) {
+          lastBookingAt[booking.customerId] = created;
+        }
+        if (booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.COMPLETED) {
+          bookingCounts[booking.customerId] = (bookingCounts[booking.customerId] ?? 0) + 1;
+          bookingValues[booking.customerId] = (bookingValues[booking.customerId] ?? 0) + booking.totalAmount;
+        }
+      }
+
+      const nextSegments: Record<string, CustomerSegment> = {};
+      for (const customer of customers) {
+        const lastActivityAt = [lastEnquiryAt[customer.id], lastBookingAt[customer.id]]
+          .filter((d): d is Date => !!d)
+          .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+        nextSegments[customer.id] = computeCustomerSegment({
+          enquiryCount:      enquiryCounts[customer.id] ?? 0,
+          bookingCount:      bookingCounts[customer.id] ?? 0,
+          totalBookingValue: bookingValues[customer.id] ?? 0,
+          lastActivityAt,
+        });
+      }
+      setSegments(nextSegments);
     }).catch(() => {});
-  }, []);
+  }, [customers]);
 
   // Supports deep-linking straight into a customer's detail view, e.g.
   // from Global Search (/customers?view=<id>).
@@ -88,18 +124,19 @@ export function CustomersPage() {
 
   const filtered = useMemo(() => {
     return customers.filter((c) => {
-      const matchType   = !typeFilter || c.customerType === typeFilter;
-      const matchSearch = !search || [c.fullName, c.phone, c.email ?? "", c.city ?? ""]
+      const matchType    = !typeFilter || c.customerType === typeFilter;
+      const matchSearch  = !search || [c.fullName, c.phone, c.email ?? "", c.city ?? ""]
         .some(f => f?.toLowerCase().includes(search.toLowerCase()));
-      const matchRepeat = !repeatOnly || (enquiryCounts[c.id] ?? 0) >= 2;
-      return matchType && matchSearch && matchRepeat;
+      const matchSegment = !segmentFilter || segments[c.id] === segmentFilter;
+      return matchType && matchSearch && matchSegment;
     });
-  }, [customers, typeFilter, search, repeatOnly, enquiryCounts]);
+  }, [customers, typeFilter, search, segmentFilter, segments]);
 
-  const repeatCount = useMemo(
-    () => customers.filter(c => (enquiryCounts[c.id] ?? 0) >= 2).length,
-    [customers, enquiryCounts]
-  );
+  const segmentCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    Object.values(segments).forEach(s => { counts[s] = (counts[s] ?? 0) + 1; });
+    return counts;
+  }, [segments]);
 
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -275,25 +312,28 @@ export function CustomersPage() {
             </span>
           </button>
         ))}
-        {repeatCount > 0 && (
-          <button
-            onClick={() => setRepeatOnly((v) => !v)}
-            className={cn(
-              "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all",
-              repeatOnly
-                ? "bg-primary text-white shadow-sm"
-                : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
-            )}
-          >
-            🔁 Repeat Customers
-            <span className={cn(
-              "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-              repeatOnly ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-            )}>
-              {repeatCount}
-            </span>
-          </button>
-        )}
+        {(Object.entries(CUSTOMER_SEGMENT_LABELS) as [CustomerSegment, string][])
+          .filter(([value]) => (segmentCounts[value] ?? 0) > 0)
+          .map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setSegmentFilter((v) => (v === value ? "" : value))}
+              className={cn(
+                "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all",
+                segmentFilter === value
+                  ? "bg-primary text-white shadow-sm"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+              )}
+            >
+              {label}
+              <span className={cn(
+                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                segmentFilter === value ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+              )}>
+                {segmentCounts[value] ?? 0}
+              </span>
+            </button>
+          ))}
       </div>
 
       {/* Search */}
@@ -314,7 +354,7 @@ export function CustomersPage() {
           customers={filtered}
           loading={loading}
           canManage={canManage}
-          enquiryCounts={enquiryCounts}
+          segments={segments}
           onView={setViewingCustomer}
           onEdit={handleEdit}
           onDelete={handleDelete}

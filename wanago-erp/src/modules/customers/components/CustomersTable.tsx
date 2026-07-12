@@ -1,7 +1,8 @@
 "use client";
 
 import { Edit2, Trash2, Phone, Mail } from "lucide-react";
-import { CustomerTypeBadge } from "@/modules/customers/components/CustomerBadges";
+import { CustomerTypeBadge, CustomerSegmentBadge } from "@/modules/customers/components/CustomerBadges";
+import type { CustomerSegment } from "@/modules/customers/utils/segment";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { formatDate, initials } from "@/lib/utils/helpers";
@@ -10,16 +11,16 @@ import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow
 import type { Customer } from "@/modules/customers/types";
 
 type Props = {
-  customers:     Customer[];
-  loading:       boolean;
-  canManage:     boolean;
-  enquiryCounts?: Record<string, number>;
-  onView:        (customer: Customer) => void;
-  onEdit:        (customer: Customer) => void;
-  onDelete:      (customer: Customer) => void;
+  customers: Customer[];
+  loading:   boolean;
+  canManage: boolean;
+  segments?: Record<string, CustomerSegment>;
+  onView:    (customer: Customer) => void;
+  onEdit:    (customer: Customer) => void;
+  onDelete:  (customer: Customer) => void;
 };
 
-export function CustomersTable({ customers, loading, canManage, enquiryCounts = {}, onView, onEdit, onDelete }: Props) {
+export function CustomersTable({ customers, loading, canManage, segments = {}, onView, onEdit, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (customers.length === 0) {
@@ -62,10 +63,7 @@ export function CustomersTable({ customers, loading, canManage, enquiryCounts = 
                         {initials(customer.fullName)}
                       </div>
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-medium text-foreground">{customer.fullName}</p>
-                          {(enquiryCounts[customer.id] ?? 0) >= 2 && <span title="Repeat customer">🔁</span>}
-                        </div>
+                        <p className="font-medium text-foreground">{customer.fullName}</p>
                         <p className="text-[11px] text-muted-foreground">{customer.refNumber}</p>
                       </div>
                     </div>
@@ -88,7 +86,10 @@ export function CustomersTable({ customers, loading, canManage, enquiryCounts = 
 
                   {/* Type */}
                   <td className="px-4 py-3">
-                    <CustomerTypeBadge type={customer.customerType} />
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <CustomerTypeBadge type={customer.customerType} />
+                      {segments[customer.id] && <CustomerSegmentBadge segment={segments[customer.id]} />}
+                    </div>
                   </td>
 
                   {/* City */}
@@ -184,14 +185,14 @@ export function CustomersTable({ customers, loading, canManage, enquiryCounts = 
                       {initials(customer.fullName)}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-medium text-foreground">{customer.fullName}</p>
-                        {(enquiryCounts[customer.id] ?? 0) >= 2 && <span title="Repeat customer">🔁</span>}
-                      </div>
+                      <p className="truncate text-sm font-medium text-foreground">{customer.fullName}</p>
                       <p className="text-[11px] text-muted-foreground">{customer.refNumber}</p>
                     </div>
                   </div>
-                  <CustomerTypeBadge type={customer.customerType} />
+                  <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                    <CustomerTypeBadge type={customer.customerType} />
+                    {segments[customer.id] && <CustomerSegmentBadge segment={segments[customer.id]} />}
+                  </div>
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">

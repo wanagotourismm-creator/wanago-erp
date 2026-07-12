@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle, History } from "lucide-react";
-import { CustomerTypeBadge } from "@/modules/customers/components/CustomerBadges";
+import { CustomerTypeBadge, CustomerSegmentBadge } from "@/modules/customers/components/CustomerBadges";
+import { computeCustomerSegment } from "@/modules/customers/utils/segment";
 import { PhoneLink } from "@/components/shared/PhoneLink";
-import { formatDate, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
+import { formatDate, formatCurrency, initials, buildWhatsAppLink, toDate } from "@/lib/utils/helpers";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { BookingStatusBadge } from "@/modules/bookings/components/BookingBadges";
 import { fetchInvoices } from "@/modules/invoices/services/invoice.service";
 import { InvoiceStatusBadge } from "@/modules/invoices/components/InvoiceBadges";
 import { fetchLeads } from "@/modules/leads/services/lead.service";
 import { StageBadge } from "@/modules/leads/components/LeadBadges";
+import { BOOKING_STATUS } from "@/lib/constants";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
@@ -112,6 +114,17 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
 
   const totalPendingDues = bookings.reduce((sum, b) => sum + Math.max(b.balanceAmount, 0), 0);
 
+  const confirmedBookings = bookings.filter(b => b.status === BOOKING_STATUS.CONFIRMED || b.status === BOOKING_STATUS.COMPLETED);
+  const lastActivityAt = [...enquiries.map(e => toDate(e.createdAt)), ...bookings.map(b => toDate(b.createdAt))]
+    .filter((d): d is Date => !!d)
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const segment = computeCustomerSegment({
+    enquiryCount:      enquiries.length,
+    bookingCount:      confirmedBookings.length,
+    totalBookingValue: confirmedBookings.reduce((sum, b) => sum + b.totalAmount, 0),
+    lastActivityAt,
+  });
+
   function openLogCallForm() {
     setCallPrefill({ method: "phone", direction: "outbound" });
     setCallFormOpen(true);
@@ -175,14 +188,10 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
 
           <div className="flex flex-wrap items-center gap-2">
             <CustomerTypeBadge type={customer.customerType} />
+            <CustomerSegmentBadge segment={segment} />
             {customer.source && (
               <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {customer.source}
-              </span>
-            )}
-            {enquiries.length >= 2 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
-                🔁 Repeat Enquirer · {enquiries.length}x
               </span>
             )}
           </div>
