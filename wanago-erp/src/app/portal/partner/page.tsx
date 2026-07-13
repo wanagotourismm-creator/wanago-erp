@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, MousePointerClick, UserPlus2, CheckCircle2, TrendingUp, Copy, Check, Sparkles, Send } from "lucide-react";
+import { Loader2, MousePointerClick, UserPlus2, CheckCircle2, TrendingUp, Copy, Check, Sparkles, Send, Trophy } from "lucide-react";
 import { PortalShell } from "@/modules/portal/components/PortalShell";
 import {
-  fetchPartnerMe, fetchPartnerPosters, submitPartnerReferral,
-  type PartnerPortalMe, type PartnerPortalPoster,
+  fetchPartnerMe, fetchPartnerPosters, submitPartnerReferral, fetchPartnerLeaderboard,
+  type PartnerPortalMe, type PartnerPortalPoster, type PartnerLeaderboard,
 } from "@/modules/portal/services/partner-portal.service";
 import { formatCurrency, cn } from "@/lib/utils/helpers";
 
@@ -29,6 +29,7 @@ function StatTile({ icon: Icon, label, value }: { icon: React.ElementType; label
 function PartnerDashboard() {
   const [me, setMe] = useState<PartnerPortalMe | null>(null);
   const [posters, setPosters] = useState<PartnerPortalPoster[]>([]);
+  const [leaderboard, setLeaderboard] = useState<PartnerLeaderboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -40,7 +41,9 @@ function PartnerDashboard() {
   const [referSuccess, setReferSuccess] = useState(false);
 
   useEffect(() => {
-    Promise.all([fetchPartnerMe(), fetchPartnerPosters()]).then(([m, p]) => { setMe(m); setPosters(p); }).finally(() => setLoading(false));
+    Promise.all([fetchPartnerMe(), fetchPartnerPosters(), fetchPartnerLeaderboard()])
+      .then(([m, p, l]) => { setMe(m); setPosters(p); setLeaderboard(l); })
+      .finally(() => setLoading(false));
   }, []);
 
   function copyLink() {
@@ -94,6 +97,43 @@ function PartnerDashboard() {
         <StatTile icon={CheckCircle2} label="Bookings" value={String(me.stats.bookings)} />
         <StatTile icon={TrendingUp} label="Bonus Pending" value={formatCurrency(me.stats.bonusPending)} />
       </div>
+
+      {leaderboard && leaderboard.top.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trophy size={15} className="text-primary" />
+              <p className="text-sm font-semibold text-foreground">Top Referral Executives</p>
+            </div>
+            {leaderboard.myRank && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                You&apos;re #{leaderboard.myRank} of {leaderboard.totalPartners}
+              </span>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            {leaderboard.top.map((entry) => (
+              <div
+                key={entry.rank}
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm",
+                  entry.isMe ? "border-primary bg-primary/5" : "border-border"
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-semibold text-muted-foreground w-5">
+                    {entry.rank <= 3 ? ["🥇", "🥈", "🥉"][entry.rank - 1] : `${entry.rank}.`}
+                  </span>
+                  <span className={cn("font-medium", entry.isMe ? "text-primary" : "text-foreground")}>
+                    {entry.name}{entry.isMe && " (You)"}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">{entry.bookings} bookings · {formatCurrency(entry.revenue)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">

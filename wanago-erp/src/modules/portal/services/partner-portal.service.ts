@@ -8,6 +8,8 @@ export type PartnerPortalMe = {
   leads: PartnerPortalLead[];
 };
 export type PartnerPortalPoster = { id: string; title: string; imageUrl: string; captionTemplate: string; destination: string | null };
+export type PartnerLeaderboardEntry = { rank: number; name: string; isMe: boolean; revenue: number; bookings: number };
+export type PartnerLeaderboard = { myRank: number | null; totalPartners: number; top: PartnerLeaderboardEntry[] };
 
 export async function fetchPartnerMe(): Promise<PartnerPortalMe | null> {
   const res = await portalFetch("/api/portal/partner/me");
@@ -20,6 +22,12 @@ export async function fetchPartnerPosters(): Promise<PartnerPortalPoster[]> {
   if (!res.ok) return [];
   const data = await res.json();
   return data.posters ?? [];
+}
+
+export async function fetchPartnerLeaderboard(): Promise<PartnerLeaderboard | null> {
+  const res = await portalFetch("/api/portal/partner/leaderboard");
+  if (!res.ok) return null;
+  return res.json();
 }
 
 export async function submitPartnerReferral(input: { name: string; phone: string; destination?: string }): Promise<{ error: string | null }> {
