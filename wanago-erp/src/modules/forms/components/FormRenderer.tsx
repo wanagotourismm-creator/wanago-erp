@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Star, Loader2, CheckCircle2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
+import { evaluateCondition } from "@/modules/forms/utils/condition";
 import type { FormField } from "@/modules/forms/types";
 
 export type FormAnswers = Record<string, string | string[] | number | null>;
@@ -57,9 +58,15 @@ export function FormRenderer({ fields, onSubmit, onUploadFile, submitLabel = "Su
     setAnswer(field.id, current.includes(option) ? current.filter(o => o !== option) : [...current, option]);
   }
 
+  // Only fields whose condition (if any) is currently satisfied — a
+  // required-but-hidden question is neither shown nor validated, and its
+  // stale answer (from before an earlier answer changed and hid it) is
+  // dropped from what actually gets submitted.
+  const visibleFields = fields.filter(f => evaluateCondition(f.condition, answers));
+
   function validate(): boolean {
     const nextErrors: Record<string, string> = {};
-    for (const field of fields) {
+    for (const field of visibleFields) {
       if (!field.required) continue;
       const v = answers[field.id];
       const empty = v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
@@ -74,7 +81,11 @@ export function FormRenderer({ fields, onSubmit, onUploadFile, submitLabel = "Su
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const result = await onSubmit(answers);
+      const visibleIds = new Set(visibleFields.map(f => f.id));
+      const submittedAnswers = Object.fromEntries(
+        Object.entries(answers).filter(([id]) => visibleIds.has(id))
+      );
+      const result = await onSubmit(submittedAnswers);
       if (result?.error) { setSubmitError(result.error); return; }
       setDone(true);
     } catch {
@@ -97,7 +108,7 @@ export function FormRenderer({ fields, onSubmit, onUploadFile, submitLabel = "Su
 
   return (
     <div className="space-y-5">
-      {fields.map((field) => (
+      {visibleFields.map((field) => (
         <div key={field.id} className="space-y-1.5">
           <label className={cn("flex items-center gap-1 text-sm font-medium", labelClass)}>
             {field.label} {field.required && <span className="text-destructive">*</span>}

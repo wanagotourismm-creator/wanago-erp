@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, FileText, ListPlus, Plus, Trash2, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
-import { formSchema, type FormSchema } from "@/modules/forms/schemas";
+import { X, Loader2, FileText, ListPlus, Plus, Trash2, GripVertical, ArrowUp, ArrowDown, GitBranch } from "lucide-react";
+import { formSchema, type FormSchema, type FormFieldSchema } from "@/modules/forms/schemas";
 import { FIELD_TYPE_OPTIONS, CHOICE_FIELD_TYPES } from "@/modules/forms/components/FormBadges";
 import { StringListEditor } from "@/modules/itinerary-brochures/components/StringListEditor";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
-import type { Form } from "@/modules/forms/types";
+import type { Control } from "react-hook-form";
+import type { Form, FieldConditionOperator } from "@/modules/forms/types";
 
 type Props = {
   open:    boolean;
@@ -45,6 +46,85 @@ function newFieldId(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 }
 
+const OPERATOR_LABELS: Record<FieldConditionOperator, string> = {
+  equals: "is", not_equals: "is not", contains: "contains",
+};
+
+// Per-question "Show this only if..." rule — only offers earlier questions
+// as the trigger (later ones don't exist yet when this one would be shown,
+// so allowing them would create a rule that can never fire).
+function ConditionEditor({ control, index, earlierFields }: {
+  control: Control<FormSchema>;
+  index: number;
+  earlierFields: FormFieldSchema[];
+}) {
+  if (earlierFields.length === 0) return null;
+
+  return (
+    <Controller
+      control={control}
+      name={`fields.${index}.condition`}
+      render={({ field: condField }) => {
+        const enabled = !!condField.value;
+        const triggerField = earlierFields.find(f => f.id === condField.value?.fieldId);
+        const triggerHasOptions = triggerField && CHOICE_FIELD_TYPES.includes(triggerField.type);
+
+        return (
+          <div className="rounded-lg border border-dashed border-border p-2.5 space-y-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-input"
+                checked={enabled}
+                onChange={(e) => condField.onChange(e.target.checked
+                  ? { fieldId: earlierFields[0].id, operator: "equals", value: "" }
+                  : null)}
+              />
+              <GitBranch size={12} className="text-primary" /> Only show this question conditionally
+            </label>
+
+            {enabled && condField.value && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <select
+                  className={cn(inputClass, "text-xs")}
+                  value={condField.value.fieldId}
+                  onChange={(e) => condField.onChange({ ...condField.value, fieldId: e.target.value })}
+                >
+                  {earlierFields.map((f, i) => <option key={f.id} value={f.id}>{f.label || `Question ${i + 1}`}</option>)}
+                </select>
+                <select
+                  className={cn(inputClass, "text-xs")}
+                  value={condField.value.operator}
+                  onChange={(e) => condField.onChange({ ...condField.value, operator: e.target.value as FieldConditionOperator })}
+                >
+                  {(Object.entries(OPERATOR_LABELS) as [FieldConditionOperator, string][]).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                {triggerHasOptions ? (
+                  <select
+                    className={cn(inputClass, "text-xs")}
+                    value={condField.value.value}
+                    onChange={(e) => condField.onChange({ ...condField.value, value: e.target.value })}
+                  >
+                    <option value="">Select value...</option>
+                    {triggerField!.options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    className={cn(inputClass, "text-xs")}
+                    placeholder="Value"
+                    value={condField.value.value}
+                    onChange={(e) => condField.onChange({ ...condField.value, value: e.target.value })}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }}
+    />
+  );
+}
+
 const DEFAULT_VALUES: FormSchema = {
   title: "", description: "", fields: [], visibility: "internal", formStatus: "draft",
   officeId: "", officeName: "",
@@ -62,6 +142,11 @@ export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
   });
 
   const { fields, append, remove, move } = useFieldArray({ control, name: "fields" });
+  // Live labels/types/options for the ConditionEditor's "earlier questions"
+  // dropdown — useFieldArray's own `fields` only reflects add/remove/reorder,
+  // not per-keystroke edits to a field's label, so a renamed question would
+  // otherwise still show its old label in the trigger picker.
+  const watchedFields = useWatch({ control, name: "fields" }) ?? [];
 
   useEffect(() => {
     if (!open) return;
@@ -85,7 +170,7 @@ export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
   }, [open, form, reset, user]);
 
   function handleAddField() {
-    append({ id: newFieldId(), type: "short_text", label: "", placeholder: "", required: false, options: [] });
+    append({ id: newFieldId(), type: "short_text", label: "", placeholder: "", required: false, options: [], condition: null });
   }
 
   if (!open) return null;
@@ -217,6 +302,8 @@ export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
                           ) : <></>
                         )}
                       />
+
+                      <ConditionEditor control={control} index={index} earlierFields={watchedFields.slice(0, index)} />
 
                       <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                         <input type="checkbox" className="h-4 w-4 rounded border-input" {...register(`fields.${index}.required`)} />

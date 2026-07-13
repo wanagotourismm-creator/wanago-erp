@@ -4,6 +4,18 @@ export type FormFieldType =
   | "short_text" | "long_text" | "number" | "dropdown"
   | "multiple_choice" | "checkboxes" | "date" | "file" | "rating";
 
+export type FieldConditionOperator = "equals" | "not_equals" | "contains";
+
+// "Show this question only if [an earlier question]'s answer [operator]
+// [value]" — fieldId always points at a question earlier in the same
+// form's fields array (the builder only ever offers earlier questions as
+// the trigger, so there's no forward-reference/cycle to worry about).
+export type FieldCondition = {
+  fieldId:  string;
+  operator: FieldConditionOperator;
+  value:    string;
+};
+
 export type FormField = {
   id:           string; // client-generated, stable across edits/reorders — answers key off this, not array index
   type:         FormFieldType;
@@ -11,6 +23,7 @@ export type FormField = {
   placeholder:  string | null;
   required:     boolean;
   options:      string[]; // dropdown / multiple_choice / checkboxes only
+  condition:    FieldCondition | null;
 };
 
 export type FormVisibility = "internal" | "public";

@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export const fieldConditionSchema = z.object({
+  fieldId:  z.string().min(1),
+  operator: z.enum(["equals", "not_equals", "contains"]),
+  value:    z.string(),
+});
+
 export const formFieldSchema = z.object({
   id:          z.string(),
   type: z.enum([
@@ -10,6 +16,7 @@ export const formFieldSchema = z.object({
   placeholder: z.string().optional().or(z.literal("")),
   required:    z.boolean().default(false),
   options:     z.array(z.string()).default([]),
+  condition:   fieldConditionSchema.nullable().default(null),
 });
 
 export const formSchema = z.object({
