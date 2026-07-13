@@ -1,8 +1,8 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Frown, Smile } from "lucide-react";
 import { cn, initials, timeAgo } from "@/lib/utils/helpers";
-import type { WhatsAppConversation } from "@/modules/whatsapp-inbox/types";
+import type { WhatsAppConversation, WhatsAppIntent } from "@/modules/whatsapp-inbox/types";
 
 type Props = {
   conversations: WhatsAppConversation[];
@@ -10,6 +10,40 @@ type Props = {
   activeId: string | null;
   onSelect: (c: WhatsAppConversation) => void;
 };
+
+const INTENT_LABELS: Record<WhatsAppIntent, string> = {
+  new_inquiry:      "New Inquiry",
+  booking_question:  "Booking",
+  payment:           "Payment",
+  complaint:         "Complaint",
+  general:           "General",
+};
+
+// Only surfaces a badge for signal worth a glance — neutral sentiment and
+// "general" intent are the common case and would just be visual noise on
+// every row, so those render nothing.
+function ConversationBadges({ sentiment, intent }: { sentiment: WhatsAppConversation["sentiment"]; intent: WhatsAppConversation["intent"] }) {
+  if (!sentiment && !intent) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {sentiment === "negative" && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive">
+          <Frown size={9} /> Negative
+        </span>
+      )}
+      {sentiment === "positive" && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-green-700 dark:text-green-400">
+          <Smile size={9} /> Positive
+        </span>
+      )}
+      {intent && intent !== "general" && (
+        <span className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+          {INTENT_LABELS[intent]}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function ConversationList({ conversations, loading, activeId, onSelect }: Props) {
   if (loading) {
@@ -57,6 +91,7 @@ export function ConversationList({ conversations, loading, activeId, onSelect }:
                 </span>
               )}
             </div>
+            <ConversationBadges sentiment={c.sentiment} intent={c.intent} />
           </div>
         </button>
       ))}

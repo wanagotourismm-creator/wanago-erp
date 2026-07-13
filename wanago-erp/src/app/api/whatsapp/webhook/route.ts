@@ -5,6 +5,7 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { phoneMatchKey } from "@/lib/utils/helpers";
+import { classifyInboundMessage } from "@/modules/whatsapp-inbox/services/whatsapp-classify.service";
 
 export const runtime = "nodejs";
 
@@ -79,6 +80,8 @@ async function findOrCreateConversation(
     lastMessageAt:        now,
     lastMessageDirection: null,
     unreadCount: 0,
+    sentiment: null,
+    intent:    null,
     createdAt: now,
     updatedAt: now,
     createdBy: "system",
@@ -139,6 +142,18 @@ export async function POST(req: NextRequest) {
           customerName: convoDoc.data()?.customerName ?? profileName,
           updatedAt: now,
         });
+
+        // Best-effort — a classification failure (rate limit, malformed
+        // response) must never block message delivery above, which is why
+        // this runs after that write, not before, and swallows its own
+        // errors (classifyInboundMessage returns null rather than throwing).
+        const classification = await classifyInboundMessage(body);
+        if (classification) {
+          await convoDoc.ref.update({
+            sentiment: classification.sentiment,
+            intent:    classification.intent,
+          });
+        }
       }
 
       for (const st of value.statuses ?? []) {

@@ -2,6 +2,8 @@ import type { FirestoreRecord } from "@/types/global";
 
 export type WhatsAppMessageDirection = "inbound" | "outbound";
 export type WhatsAppDeliveryStatus = "sent" | "delivered" | "read" | "failed" | "received";
+export type WhatsAppSentiment = "positive" | "neutral" | "negative";
+export type WhatsAppIntent = "new_inquiry" | "booking_question" | "payment" | "complaint" | "general";
 
 export type WhatsAppConversation = FirestoreRecord & {
   phoneNumber: string; // E.164, e.g. "+919876543210"
@@ -16,6 +18,13 @@ export type WhatsAppConversation = FirestoreRecord & {
   lastMessageAt:        FirestoreRecord["createdAt"] | null;
   lastMessageDirection: WhatsAppMessageDirection | null;
   unreadCount: number;
+
+  // Set by the webhook after each inbound message (see
+  // whatsapp-classify.service.ts) — reflects the customer's latest message,
+  // not the whole thread's history. null until the first inbound message
+  // is classified.
+  sentiment?: WhatsAppSentiment | null;
+  intent?:    WhatsAppIntent | null;
 };
 
 export type WhatsAppMessage = FirestoreRecord & {
