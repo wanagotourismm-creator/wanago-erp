@@ -153,6 +153,8 @@ export const FIRESTORE_COLLECTIONS = {
   REFERRAL_PARTNERS:      "referralPartners",
   REFERRAL_POSTERS:       "referralPosters",
   REFERRAL_CLICKS:        "referralClicks",
+  BOOKING_REQUESTS:       "bookingRequests",
+  QUICK_INQUIRIES:        "quickInquiries",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

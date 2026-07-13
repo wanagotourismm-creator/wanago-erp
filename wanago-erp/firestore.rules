@@ -515,6 +515,29 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── Customer/Partner self-service portals ─────────────────────────
+    // Portal sessions (Firebase custom tokens for synthetic "cust_{id}" /
+    // "partner_{id}" uids, minted by /api/portal/login) never talk to
+    // Firestore directly — every /api/portal/* route reads/writes via the
+    // Admin SDK after verifying the caller's own token server-side
+    // (requirePortalAuth), so these two collections only need normal
+    // staff-facing rules; write:false blocks any client write of either
+    // kind (staff or portal), matching every other "server writes only"
+    // collection in this file.
+    // No `allow create` here — every doc is written by the Admin SDK from
+    // /api/portal/customer/booking-requests, which bypasses these rules
+    // entirely, so create is implicitly denied for any client write.
+    match /bookingRequests/{id} {
+      allow read, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Same reasoning — written only by /api/portal/quick-inquiry.
+    match /quickInquiries/{id} {
+      allow read, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
     // ── Help Center (AI assistant knowledge base) ────────────
     match /helpArticles/{id} {
       allow read: if isAuthenticated();

@@ -113,3 +113,26 @@ export async function requireAuth(idToken: string | null): Promise<{ uid: string
     return null;
   }
 }
+
+export type PortalCaller = { portalType: "customer" | "partner"; entityId: string };
+
+// Verifies a Customer/Freelance-Referral-Executive portal session — these
+// aren't staff (no `users/{uid}` doc, requireAuth() above would reject
+// them), they're signed in via a Firebase custom token minted by
+// /api/portal/login for a synthetic uid ("cust_{customerId}" /
+// "partner_{partnerId}"). The uid itself is the only claim trusted; every
+// portal API route uses the returned entityId to scope reads/writes to
+// exactly that one customer/partner's own data, never anyone else's.
+export async function requirePortalAuth(idToken: string | null): Promise<PortalCaller | null> {
+  if (!idToken) return null;
+  const adminAuth = getAdminAuth();
+  if (!adminAuth) return null;
+  try {
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    if (decoded.uid.startsWith("cust_")) return { portalType: "customer", entityId: decoded.uid.slice(5) };
+    if (decoded.uid.startsWith("partner_")) return { portalType: "partner", entityId: decoded.uid.slice(8) };
+    return null;
+  } catch {
+    return null;
+  }
+}
