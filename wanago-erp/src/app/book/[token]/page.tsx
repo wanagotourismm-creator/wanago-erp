@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   CheckCircle2, MapPin, Calendar, Users as UsersIcon, Loader2, ShieldCheck,
   BadgeCheck, Clock, ArrowLeft, ArrowRight, Sparkles, Phone, Mail, Check,
-  Plane, TreePalm, Compass, Sailboat,
+  Plane, TreePalm, Compass, Sailboat, Receipt, Download, Circle,
 } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 
@@ -31,7 +31,51 @@ type LinkData = {
   alreadySubmitted: boolean;
   submittedPackageName: string | null;
   company: { businessName: string; phone: string | null; email: string | null };
+  tracking: {
+    quotation: { refNumber: string; status: string; totalAmount: number } | null;
+    booking:   { refNumber: string; status: string; travelDate: string | null; pax: number; totalAmount: number; advanceAmount: number; balanceAmount: number } | null;
+    invoice:   { refNumber: string; status: string; totalAmount: number; amountPaid: number; balanceDue: number } | null;
+  };
 };
+
+const QUOTATION_STATUS_LABELS: Record<string, string> = {
+  draft: "Being Prepared", sent: "Sent to You", accepted: "Accepted",
+  rejected: "Rejected", expired: "Expired", converted: "Converted to Booking",
+};
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  pending_finance: "Under Review", finance_approved: "Finance Approved",
+  finance_rejected: "Needs Attention", ops_pending: "Being Finalized",
+  ops_rejected: "Needs Attention", confirmed: "Confirmed", completed: "Trip Completed", cancelled: "Cancelled",
+};
+const INVOICE_STATUS_LABELS: Record<string, string> = {
+  draft: "Being Prepared", sent: "Sent to You", unpaid: "Payment Due",
+  partial: "Partially Paid", paid: "Fully Paid", overdue: "Overdue",
+};
+
+function TrackRow({ done, active, title, subtitle, action }: {
+  done: boolean; active?: boolean; title: string; subtitle?: React.ReactNode; action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 py-3">
+      <div className="mt-0.5 flex-shrink-0">
+        {done ? (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white">
+            <Check size={13} strokeWidth={3} />
+          </div>
+        ) : (
+          <div className={cn("flex h-6 w-6 items-center justify-center rounded-full", active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+            <Circle size={10} fill="currentColor" />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className={cn("text-sm font-semibold", done || active ? "text-foreground" : "text-muted-foreground")}>{title}</p>
+        {subtitle && <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>}
+        {action && <div className="mt-2">{action}</div>}
+      </div>
+    </div>
+  );
+}
 
 const GRADIENTS = [
   "from-rose-500 via-pink-500 to-fuchsia-600",
@@ -239,33 +283,80 @@ export default function BookingLinkPage() {
       <div className="mx-auto -mt-14 max-w-2xl px-4 pb-16 sm:-mt-20">
 
         {alreadyDone ? (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-2xl sm:p-10">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-              <CheckCircle2 size={32} className="text-green-600" />
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-2xl sm:p-10">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                <CheckCircle2 size={32} className="text-green-600" />
+              </div>
+              <p className="text-lg font-semibold text-foreground">
+                {submitted ? `Thanks, ${firstName}!` : `You're all set, ${firstName}!`}
+              </p>
+              <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+                {submitted
+                  ? `We've received your request for "${selectedPackage?.title}".`
+                  : `You already picked "${data.submittedPackageName}".`}
+              </p>
             </div>
-            <p className="text-lg font-semibold text-foreground">
-              {submitted ? `Thanks, ${firstName}!` : `You're all set, ${firstName}!`}
-            </p>
-            <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-              {submitted
-                ? `We've received your request for "${selectedPackage?.title}".`
-                : `You already picked "${data.submittedPackageName}".`}
-            </p>
 
-            <div className="mx-auto mt-6 max-w-sm space-y-3 rounded-xl border border-dashed border-border p-4 text-left">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-primary">What happens next</p>
-              {[
-                "Our travel expert reviews your request",
-                "You'll get a call or WhatsApp within 24 hours",
-                "Confirm the details and pack your bags!",
-              ].map((text, i) => (
-                <div key={text} className="flex items-start gap-2.5">
-                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                    {i + 1}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{text}</span>
-                </div>
-              ))}
+            {/* ── Track Your Trip ── */}
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-xl sm:p-7">
+              <p className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">Track Your Trip</p>
+              <div className="divide-y divide-border">
+                <TrackRow
+                  done
+                  title="Enquiry Received"
+                  subtitle={`${data.destination} · ${firstName}`}
+                />
+                <TrackRow
+                  done={data.alreadySubmitted || submitted}
+                  active={!data.tracking.quotation}
+                  title="Package Selected"
+                  subtitle={data.submittedPackageName ?? selectedPackage?.title}
+                />
+                <TrackRow
+                  done={!!data.tracking.quotation}
+                  active={!data.tracking.quotation}
+                  title="Quotation"
+                  subtitle={data.tracking.quotation
+                    ? <>{QUOTATION_STATUS_LABELS[data.tracking.quotation.status] ?? data.tracking.quotation.status} · ₹{data.tracking.quotation.totalAmount.toLocaleString("en-IN")} · {data.tracking.quotation.refNumber}</>
+                    : "Not sent yet"}
+                  action={data.tracking.quotation && (
+                    <a
+                      href={`/api/public/booking-link/${params.token}/pdf?type=quotation`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+                    >
+                      <Download size={12} /> Download Quotation
+                    </a>
+                  )}
+                />
+                <TrackRow
+                  done={!!data.tracking.booking}
+                  active={!!data.tracking.quotation && !data.tracking.booking}
+                  title="Booking"
+                  subtitle={data.tracking.booking
+                    ? <>
+                        {BOOKING_STATUS_LABELS[data.tracking.booking.status] ?? data.tracking.booking.status}
+                        {data.tracking.booking.travelDate && <> · {data.tracking.booking.travelDate}</>} · {data.tracking.booking.pax} traveller{data.tracking.booking.pax !== 1 ? "s" : ""}
+                      </>
+                    : "Not confirmed yet"}
+                />
+                <TrackRow
+                  done={!!data.tracking.invoice && ["paid"].includes(data.tracking.invoice.status)}
+                  active={!!data.tracking.invoice}
+                  title="Invoice & Payment"
+                  subtitle={data.tracking.invoice
+                    ? <>{INVOICE_STATUS_LABELS[data.tracking.invoice.status] ?? data.tracking.invoice.status} · ₹{data.tracking.invoice.amountPaid.toLocaleString("en-IN")} paid{data.tracking.invoice.balanceDue > 0 && <>, ₹{data.tracking.invoice.balanceDue.toLocaleString("en-IN")} due</>}</>
+                    : "Not issued yet"}
+                  action={data.tracking.invoice && (
+                    <a
+                      href={`/api/public/booking-link/${params.token}/pdf?type=invoice`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+                    >
+                      <Receipt size={12} /> Download Invoice
+                    </a>
+                  )}
+                />
+              </div>
             </div>
           </div>
         ) : (

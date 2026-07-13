@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { notifyUserServer } from "@/lib/server/notify-server";
+import { fetchCustomerTrackingDocs } from "@/lib/server/booking-portal";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ type LeadRecord = {
   name: string;
   destination: string;
   assignedTo?: string | null;
+  matchedCustomerId?: string | null;
   customerRequestedAt?: unknown;
   customerSelectedPackageName?: string | null;
 };
@@ -59,6 +61,35 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
   const company = companySnap.exists ? companySnap.data() : null;
 
+  // Only resolvable once this lead has been matched to a Customer record
+  // (see leads/services/lead.service.ts) — Quotations/Bookings/Invoices are
+  // all keyed by customerId, not leadId, so there's nothing to show before
+  // that link exists (i.e. before the lead is converted/"won").
+  const tracking: {
+    quotation: { refNumber: string; status: string; totalAmount: number } | null;
+    booking:   { refNumber: string; status: string; travelDate: string | null; pax: number; totalAmount: number; advanceAmount: number; balanceAmount: number } | null;
+    invoice:   { refNumber: string; status: string; totalAmount: number; amountPaid: number; balanceDue: number } | null;
+  } = { quotation: null, booking: null, invoice: null };
+
+  if (lead.matchedCustomerId) {
+    const docs = await fetchCustomerTrackingDocs(db, lead.matchedCustomerId);
+    if (docs.quotation) {
+      const q = docs.quotation as unknown as { refNumber: string; status: string; totalAmount: number };
+      tracking.quotation = { refNumber: q.refNumber, status: q.status, totalAmount: q.totalAmount };
+    }
+    if (docs.booking) {
+      const b = docs.booking as unknown as { refNumber: string; status: string; travelDate: string | null; pax: number; totalAmount: number; advanceAmount: number; balanceAmount: number };
+      tracking.booking = {
+        refNumber: b.refNumber, status: b.status, travelDate: b.travelDate, pax: b.pax,
+        totalAmount: b.totalAmount, advanceAmount: b.advanceAmount, balanceAmount: b.balanceAmount,
+      };
+    }
+    if (docs.invoice) {
+      const inv = docs.invoice as unknown as { refNumber: string; status: string; totalAmount: number; amountPaid: number; balanceDue: number };
+      tracking.invoice = { refNumber: inv.refNumber, status: inv.status, totalAmount: inv.totalAmount, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue };
+    }
+  }
+
   return NextResponse.json({
     leadName:    lead.name,
     destination: lead.destination,
@@ -70,6 +101,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       phone:        company?.phone ?? null,
       email:        company?.email ?? null,
     },
+    tracking,
   });
 }
 

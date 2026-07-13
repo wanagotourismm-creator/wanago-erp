@@ -35,7 +35,8 @@ export type DocumentPdfInput = {
   notes?:      string | null;
 };
 
-export async function generateDocumentPdf(input: DocumentPdfInput): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function buildDocumentPdfDoc(input: DocumentPdfInput): Promise<any> {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
@@ -150,5 +151,20 @@ export async function generateDocumentPdf(input: DocumentPdfInput): Promise<void
     doc.text(`Notes: ${input.notes}`, 14, ty, { maxWidth: 180 });
   }
 
+  return doc;
+}
+
+export async function generateDocumentPdf(input: DocumentPdfInput): Promise<void> {
+  const doc = await buildDocumentPdfDoc(input);
   doc.save(`${input.type}-${input.refNumber}.pdf`);
+}
+
+// Server-safe variant — same document, returned as bytes instead of
+// triggering a browser download (jsPDF's .save() creates and clicks a link
+// element, which doesn't exist in a Node/API-route context). Used by the
+// public booking-link portal to let a customer download their own
+// quotation/invoice with no login.
+export async function generateDocumentPdfBuffer(input: DocumentPdfInput): Promise<ArrayBuffer> {
+  const doc = await buildDocumentPdfDoc(input);
+  return doc.output("arraybuffer");
 }
