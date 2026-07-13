@@ -161,7 +161,7 @@ export const NAV_CONFIG: NavGroup[] = [
         roles: ["super_admin","admin","marketing"],
       },
       {
-        label: "Referral Program",
+        label: "Refer & Earn",
         href:  "/referral-program",
         icon:  "gift",
         roles: ["super_admin","admin","marketing"],

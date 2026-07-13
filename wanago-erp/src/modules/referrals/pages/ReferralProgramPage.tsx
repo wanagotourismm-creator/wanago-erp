@@ -121,7 +121,7 @@ export function ReferralProgramPage() {
     <div className="space-y-5">
 
       <PageHeader
-        title="Referral Program"
+        title="Refer & Earn"
         description="Reward anyone — customers or freelance partners — who sends us a booking"
       />
 
@@ -141,7 +141,13 @@ export function ReferralProgramPage() {
       </div>
 
       {tab === "analytics" && (
-        <ReferralAnalyticsDashboard onSelectReferrer={setDetailStat} />
+        <ReferralAnalyticsDashboard
+          onSelectReferrer={setDetailStat}
+          onAddExecutive={() => { setTab("partners"); setEditingPartner(null); setPartnerFormOpen(true); }}
+          onManagePosters={() => setTab("posters")}
+          enabled={settings.enabled}
+          onToggleEnabled={handleToggle}
+        />
       )}
 
       {tab === "overview" && (
@@ -153,7 +159,7 @@ export function ReferralProgramPage() {
                   <Gift size={16} className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Referral Program</p>
+                  <p className="text-sm font-semibold text-foreground">Refer &amp; Earn</p>
                   <p className="text-xs text-muted-foreground">
                     {settings.enabled ? "On — referral fields and the /r/{code} link are active" : "Off — referral fields are hidden across the app"}
                   </p>
