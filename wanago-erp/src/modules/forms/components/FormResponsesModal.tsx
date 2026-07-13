@@ -20,7 +20,7 @@ function answerToText(value: unknown): string {
 }
 
 export function FormResponsesModal({ form, onClose }: Props) {
-  const { responses, loading } = useFormResponses(form?.id ?? null);
+  const { responses, loading } = useFormResponses(form);
 
   if (!form) return null;
 

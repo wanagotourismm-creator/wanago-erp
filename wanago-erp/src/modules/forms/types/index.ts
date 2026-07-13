@@ -29,6 +29,23 @@ export type FormField = {
 export type FormVisibility = "internal" | "public";
 export type FormLifecycleStatus = "draft" | "published" | "closed";
 
+// Which question's answer feeds each Lead field when "auto-create a Lead"
+// is on — null means "leave that field blank/default", not "required".
+export type FormLeadMapping = {
+  nameFieldId:  string | null;
+  emailFieldId: string | null;
+  phoneFieldId: string | null;
+  notesFieldId: string | null;
+};
+
+export type FormActions = {
+  // In-app notification to a single staff member on every new response.
+  notifyUserId:   string | null;
+  notifyUserName: string | null;
+  createLead:     boolean;
+  leadMapping:    FormLeadMapping;
+};
+
 export type Form = FirestoreRecord & {
   title:            string;
   description:      string | null;
@@ -45,6 +62,7 @@ export type Form = FirestoreRecord & {
   refNumber:        string;
   // Denormalized so the list page can show a count without a query per row.
   responseCount:    number;
+  actions:          FormActions;
 };
 
 export type FormFormData = Omit<

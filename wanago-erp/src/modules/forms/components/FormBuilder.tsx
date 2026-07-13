@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, FileText, ListPlus, Plus, Trash2, GripVertical, ArrowUp, ArrowDown, GitBranch } from "lucide-react";
+import { X, Loader2, FileText, ListPlus, Plus, Trash2, GripVertical, ArrowUp, ArrowDown, GitBranch, Zap } from "lucide-react";
 import { formSchema, type FormSchema, type FormFieldSchema } from "@/modules/forms/schemas";
 import { FIELD_TYPE_OPTIONS, CHOICE_FIELD_TYPES } from "@/modules/forms/components/FormBadges";
 import { StringListEditor } from "@/modules/itinerary-brochures/components/StringListEditor";
+import { fetchUsers } from "@/modules/admin/users/services/user-admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import type { Control } from "react-hook-form";
 import type { Form, FieldConditionOperator } from "@/modules/forms/types";
+import type { UserProfile } from "@/modules/auth/types";
 
 type Props = {
   open:    boolean;
@@ -125,16 +127,102 @@ function ConditionEditor({ control, index, earlierFields }: {
   );
 }
 
+const DEFAULT_ACTIONS: FormSchema["actions"] = {
+  notifyUserId: null, notifyUserName: null, createLead: false,
+  leadMapping: { nameFieldId: null, emailFieldId: null, phoneFieldId: null, notesFieldId: null },
+};
+
 const DEFAULT_VALUES: FormSchema = {
   title: "", description: "", fields: [], visibility: "internal", formStatus: "draft",
-  officeId: "", officeName: "",
+  officeId: "", officeName: "", actions: DEFAULT_ACTIONS,
 };
+
+// Runs after every response: notify a staff member, and/or auto-create a
+// Lead by mapping answers onto Lead fields (name/email/phone/notes).
+function AutomationSection({ control, setValue, fields }: {
+  control: Control<FormSchema>;
+  setValue: (name: "actions.notifyUserName", value: string | null) => void;
+  fields: FormFieldSchema[];
+}) {
+  const [users, setUsers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    fetchUsers().then(setUsers).catch(() => {});
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <Controller
+        control={control}
+        name="actions.notifyUserId"
+        render={({ field }) => (
+          <Field label="Notify a staff member on every response">
+            <select
+              className={inputClass}
+              value={field.value ?? ""}
+              onChange={(e) => {
+                const selected = users.find(u => u.uid === e.target.value);
+                field.onChange(e.target.value || null);
+                setValue("actions.notifyUserName", selected?.displayName ?? null);
+              }}
+            >
+              <option value="">Don&apos;t notify anyone</option>
+              {users.map(u => <option key={u.uid} value={u.uid}>{u.displayName}</option>)}
+            </select>
+          </Field>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="actions.createLead"
+        render={({ field }) => (
+          <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+            <input type="checkbox" className="h-4 w-4 rounded border-input" checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />
+            Auto-create a Lead from each response
+          </label>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="actions.createLead"
+        render={({ field: createLeadField }) => (
+          createLeadField.value && fields.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 rounded-lg border border-dashed border-border p-3">
+              {([
+                ["leadMapping.nameFieldId",  "Lead Name from"],
+                ["leadMapping.emailFieldId", "Lead Email from"],
+                ["leadMapping.phoneFieldId", "Lead Phone from"],
+                ["leadMapping.notesFieldId", "Lead Notes from"],
+              ] as const).map(([path, label]) => (
+                <Controller
+                  key={path}
+                  control={control}
+                  name={`actions.${path}`}
+                  render={({ field }) => (
+                    <Field label={label}>
+                      <select className={cn(inputClass, "text-xs")} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)}>
+                        <option value="">Not mapped</option>
+                        {fields.map((f, i) => <option key={f.id} value={f.id}>{f.label || `Question ${i + 1}`}</option>)}
+                      </select>
+                    </Field>
+                  )}
+                />
+              ))}
+            </div>
+          ) : <></>
+        )}
+      />
+    </div>
+  );
+}
 
 export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
 
   const {
-    register, handleSubmit, reset, control,
+    register, handleSubmit, reset, control, setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -159,6 +247,7 @@ export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
         formStatus: form.formStatus,
         officeId: form.officeId,
         officeName: form.officeName,
+        actions: form.actions ?? DEFAULT_ACTIONS,
       });
     } else {
       reset({
@@ -314,6 +403,17 @@ export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
                 })}
               </div>
             )}
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Automation */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Zap size={14} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Automation</p>
+            </div>
+            <AutomationSection control={control} setValue={setValue} fields={watchedFields} />
           </div>
 
         </div>

@@ -19,6 +19,22 @@ export const formFieldSchema = z.object({
   condition:   fieldConditionSchema.nullable().default(null),
 });
 
+export const formLeadMappingSchema = z.object({
+  nameFieldId:  z.string().nullable().default(null),
+  emailFieldId: z.string().nullable().default(null),
+  phoneFieldId: z.string().nullable().default(null),
+  notesFieldId: z.string().nullable().default(null),
+});
+
+export const formActionsSchema = z.object({
+  notifyUserId:   z.string().nullable().default(null),
+  notifyUserName: z.string().nullable().default(null),
+  createLead:     z.boolean().default(false),
+  leadMapping:    formLeadMappingSchema.default({
+    nameFieldId: null, emailFieldId: null, phoneFieldId: null, notesFieldId: null,
+  }),
+});
+
 export const formSchema = z.object({
   title:       z.string().min(2, "Title must be at least 2 characters"),
   description: z.string().optional().or(z.literal("")),
@@ -27,6 +43,10 @@ export const formSchema = z.object({
   formStatus:  z.enum(["draft", "published", "closed"]).default("draft"),
   officeId:    z.string().min(1),
   officeName:  z.string().min(1),
+  actions:     formActionsSchema.default({
+    notifyUserId: null, notifyUserName: null, createLead: false,
+    leadMapping: { nameFieldId: null, emailFieldId: null, phoneFieldId: null, notesFieldId: null },
+  }),
 });
 
 export type FormFieldSchema = z.infer<typeof formFieldSchema>;

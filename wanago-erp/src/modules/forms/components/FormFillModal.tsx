@@ -15,7 +15,7 @@ type Props = {
 // member, so file-field uploads go through the same authenticated
 // /api/storage/upload bridge every other module already uses.
 export function FormFillModal({ form, onClose }: Props) {
-  const { submit } = useFormResponses(form?.id ?? null);
+  const { submit } = useFormResponses(form);
 
   if (!form) return null;
 

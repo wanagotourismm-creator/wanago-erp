@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { FIRESTORE_COLLECTIONS, REF_FORMATS } from "@/lib/constants";
+import { buildLeadDraftFromAnswers } from "@/modules/forms/utils/actions";
+import type { FormActions } from "@/modules/forms/types";
 
 export const runtime = "nodejs";
 
@@ -16,7 +18,26 @@ type FormRecord = {
   fields: unknown[];
   visibility: string;
   formStatus: string;
+  officeId: string;
+  officeName: string;
+  actions: FormActions;
 };
+
+// Mirrors nextRefNumber() (lib/firebase/ref-counter.ts) but against the
+// Admin SDK's transaction API — no client-side equivalent is usable from a
+// server route with no signed-in user (same pattern as the referral route).
+async function nextRefNumberAdmin(prefix: keyof typeof REF_FORMATS): Promise<string> {
+  const db = getAdminDb();
+  if (!db) throw new Error("Admin SDK not configured");
+  const pfx = REF_FORMATS[prefix];
+  const counterRef = db.collection("refCounters").doc(pfx);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(counterRef);
+    const current = snap.exists ? (snap.data()?.next as number) : 1001;
+    tx.set(counterRef, { next: current + 1 });
+    return `${pfx}-${current}`;
+  });
+}
 
 async function findPublicForm(token: string): Promise<FormRecord | null> {
   const db = getAdminDb();
@@ -73,5 +94,54 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     responseCount: FieldValue.increment(1),
   });
 
+  await runFormActionsAdmin(db, form, body.answers).catch(() => {});
+
   return NextResponse.json({ ok: true });
+}
+
+// Best-effort — mirrors runFormActions() in form-response.service.ts, but
+// against the Admin SDK since a public visitor has no client-side Firestore
+// write access. A failure here must never fail the submission itself.
+async function runFormActionsAdmin(
+  db: NonNullable<ReturnType<typeof getAdminDb>>,
+  form: FormRecord,
+  answers: Record<string, unknown>
+): Promise<void> {
+  const { actions } = form;
+  if (!actions) return;
+  const now = FieldValue.serverTimestamp();
+
+  if (actions.notifyUserId) {
+    await db.collection(FIRESTORE_COLLECTIONS.NOTIFICATIONS).add({
+      recipientId: actions.notifyUserId,
+      title: `New response — ${form.title}`,
+      body: "A new form response just came in.",
+      link: "/forms",
+      category: "system",
+      read: false,
+      createdBy: actions.notifyUserId,
+      createdAt: now, updatedAt: now,
+      status: "active",
+    });
+  }
+
+  if (actions.createLead) {
+    const draft = buildLeadDraftFromAnswers(answers, actions.leadMapping);
+    const refNumber = await nextRefNumberAdmin("LEAD");
+    await db.collection(FIRESTORE_COLLECTIONS.LEADS).add({
+      ...draft,
+      alternatePhone: null,
+      destination: "Not specified",
+      tripType: null, travelDate: null, returnDate: null, duration: null, pax: null, budget: null,
+      stage: "new", priority: "warm", source: `Form: ${form.title}`,
+      assignedTo: null, agentName: null,
+      matchedCustomerId: null,
+      officeId: form.officeId, officeName: form.officeName,
+      lastContactedAt: null,
+      refNumber,
+      createdAt: now, updatedAt: now,
+      createdBy: "public-form",
+      status: "active",
+    });
+  }
 }
