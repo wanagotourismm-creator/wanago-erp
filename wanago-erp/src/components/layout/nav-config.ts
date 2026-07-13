@@ -38,6 +38,11 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/team-pulse",
         icon:  "heart",
       },
+      {
+        label: "Forms",
+        href:  "/forms",
+        icon:  "file-invoice",
+      },
     ],
   },
   {

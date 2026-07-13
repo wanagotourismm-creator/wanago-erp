@@ -155,6 +155,8 @@ export const FIRESTORE_COLLECTIONS = {
   REFERRAL_CLICKS:        "referralClicks",
   BOOKING_REQUESTS:       "bookingRequests",
   QUICK_INQUIRIES:        "quickInquiries",
+  FORMS:                  "forms",
+  FORM_RESPONSES:         "formResponses",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
@@ -234,6 +236,7 @@ export const REF_FORMATS = {
   CALL:      "CALL",
   ITINERARY_BROCHURE: "BRC",
   REFERRAL_PARTNER: "RPX",
+  FORM: "FRM",
 } as const;
 
 // Recruitment pipeline stages, in order
