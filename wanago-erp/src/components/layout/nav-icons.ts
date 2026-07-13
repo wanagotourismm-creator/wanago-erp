@@ -3,7 +3,7 @@ import {
   Package, Store, Map, FileText, CreditCard,
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
   BarChart3, Settings, Clock,
-  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle, Gauge, MessageCircle, Heart, Gift,
+  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle, Gauge, MessageCircle, Heart, Gift, Inbox,
 } from "lucide-react";
 
 // Shared icon map keyed by nav-config's `icon: string` field — single
@@ -36,4 +36,5 @@ export const NAV_ICONS: Record<string, React.ElementType> = {
   "message-circle":   MessageCircle,
   "heart":            Heart,
   "gift":             Gift,
+  "inbox":            Inbox,
 };

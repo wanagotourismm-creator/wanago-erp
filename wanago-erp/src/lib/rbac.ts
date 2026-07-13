@@ -70,10 +70,10 @@ export const PAGE_ACCESS: PageAccess = {
   admin:       ["*"],
   operations:  ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "itinerary-brochures", "ops-approvals", "settings"],
   finance:     ["dashboard", "ess", "team-pulse", "bookings", "invoices", "payments", "expenses", "reports", "hrms-payroll", "incentives", "approvals", "settings"],
-  marketing:   ["dashboard", "ess", "team-pulse", "leads", "customers", "marketing", "reports", "campaigns", "referral-program", "whatsapp-inbox", "settings"],
+  marketing:   ["dashboard", "ess", "team-pulse", "leads", "customers", "marketing", "reports", "campaigns", "referral-program", "whatsapp-inbox", "intake", "settings"],
   hr:          ["dashboard", "ess", "team-pulse", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "recruitment", "performance", "training", "reports", "incentives", "settings"],
-  sales:       ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "whatsapp-inbox", "settings"],
-  sales_head:  ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "sales-team", "incentives", "whatsapp-inbox", "settings"],
+  sales:       ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "whatsapp-inbox", "intake", "settings"],
+  sales_head:  ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "quotations", "packages", "itineraries", "itinerary-brochures", "sales-team", "incentives", "whatsapp-inbox", "intake", "settings"],
   support:     ["dashboard", "ess", "team-pulse", "leads", "customers", "bookings", "whatsapp-inbox", "settings"],
 };
 

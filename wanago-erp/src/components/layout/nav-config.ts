@@ -50,6 +50,12 @@ export const NAV_CONFIG: NavGroup[] = [
         roles: ["super_admin","admin","sales","marketing","support"],
       },
       {
+        label: "Intake",
+        href:  "/intake",
+        icon:  "inbox",
+        roles: ["super_admin","admin","sales","sales_head","marketing"],
+      },
+      {
         label: "Customers",
         href:  "/customers",
         icon:  "user-check",
