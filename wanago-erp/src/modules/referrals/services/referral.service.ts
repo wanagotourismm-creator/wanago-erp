@@ -4,7 +4,8 @@ import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { fetchCustomers, fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { findReferralPartnerByCode, fetchReferralPartnerById } from "@/modules/referrals/services/referral-partner.service";
-import { toDate } from "@/lib/utils/helpers";
+import { toDate, formatCurrency } from "@/lib/utils/helpers";
+import { notifyUser } from "@/lib/notify";
 import type { ReferralSettings, ReferralBonus } from "@/modules/referrals/types";
 import type { Booking } from "@/modules/bookings/types";
 import type { Customer } from "@/modules/customers/types";
@@ -47,14 +48,36 @@ export async function fetchReferralBonusesForPartner(referrerPartnerId: string):
 }
 
 export async function markReferralBonusPaid(id: string, paidBy: string): Promise<void> {
+  const bonus = await referralBonusRepo.findById(id);
+
   // serverTimestamp() returns a FieldValue sentinel at write time, not the
   // real Timestamp paidAt's read-type declares — same cast pattern used
   // elsewhere in this app for the same reason (see booking.service.ts).
-  return referralBonusRepo.update(id, {
+  await referralBonusRepo.update(id, {
     bonusStatus: "paid",
     paidBy,
     paidAt: serverTimestamp(),
   } as unknown as Partial<ReferralBonus>);
+
+  // Best-effort — the payout itself is already recorded above regardless
+  // of whether the referrer can be reached. WhatsApp may fail silently if
+  // they haven't messaged the business number in the last 24h (Meta
+  // requires a pre-approved template outside that window); email is the
+  // more reliable fallback when they have one on file.
+  if (bonus) {
+    const referrer = bonus.referrerType === "partner"
+      ? await fetchReferralPartnerById(bonus.referrerPartnerId ?? "")
+      : await fetchCustomerById(bonus.referrerCustomerId ?? "");
+    if (referrer) {
+      notifyUser({
+        email: referrer.email ?? null,
+        phone: referrer.phone ?? null,
+        title: "Your referral bonus has been paid",
+        body: `${formatCurrency(bonus.bonusAmount)} for referring ${bonus.referredCustomerName} (${bonus.bookingRefNumber}) has been paid out. Thanks for referring Wanago!`,
+        category: "system",
+      }).catch(() => {});
+    }
+  }
 }
 
 export async function findCustomerByReferralCode(code: string): Promise<Customer | null> {

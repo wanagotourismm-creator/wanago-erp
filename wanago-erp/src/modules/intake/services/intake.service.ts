@@ -2,6 +2,8 @@ import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
 import { createLead } from "@/modules/leads/services/lead.service";
+import { fetchCustomerById } from "@/modules/customers/services/customer.service";
+import { notifyUser } from "@/lib/notify";
 import type { BookingRequest, QuickInquiry, IntakeStatus } from "@/modules/intake/types";
 import type { LeadFormData } from "@/modules/leads/types";
 
@@ -21,7 +23,26 @@ export async function fetchBookingRequests(): Promise<BookingRequest[]> {
 }
 
 export async function markBookingRequestStatus(id: string, requestStatus: IntakeStatus): Promise<void> {
-  return bookingRequestRepo.update(id, { requestStatus });
+  await bookingRequestRepo.update(id, { requestStatus });
+
+  // Best-effort — only fires on the "we're reaching out" transition, not
+  // every status change, so the customer gets exactly one heads-up rather
+  // than a notification per status edit.
+  if (requestStatus === "contacted") {
+    const request = await bookingRequestRepo.findById(id);
+    if (request) {
+      const customer = await fetchCustomerById(request.customerId);
+      if (customer) {
+        notifyUser({
+          email: customer.email ?? null,
+          phone: customer.phone ?? null,
+          title: "We're reaching out about your trip request",
+          body: `Thanks for your interest in ${request.packageName} — our team is reviewing it and will contact you shortly to finalize the details.`,
+          category: "followup",
+        }).catch(() => {});
+      }
+    }
+  }
 }
 
 export async function fetchQuickInquiries(): Promise<QuickInquiry[]> {
