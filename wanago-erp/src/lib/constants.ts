@@ -155,6 +155,7 @@ export const FIRESTORE_COLLECTIONS = {
   REFERRAL_CLICKS:        "referralClicks",
   BOOKING_REQUESTS:       "bookingRequests",
   QUICK_INQUIRIES:        "quickInquiries",
+  HR_POLICY_DOCUMENTS:    "hrPolicyDocuments",
   FORMS:                  "forms",
   FORM_RESPONSES:         "formResponses",
 } as const;

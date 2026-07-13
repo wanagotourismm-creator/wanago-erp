@@ -544,6 +544,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── HR Policy Documents (grounds the Ask HR assistant) ────────────
+    // extractedText is only ever written server-side by
+    // /api/hrms/policies/extract (Admin SDK, bypasses this rule) — the
+    // client only ever creates the initial record (fileUrl set,
+    // extractedText null) and reads/archives/deletes afterward.
+    match /hrPolicyDocuments/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || getUserRole() == 'hr';
+    }
+
     // ── Reference number counters (internal) ─────────────────
     // One doc per prefix (e.g. "WGO", "INV"), storing the next sequence
     // number — written transactionally by nextRefNumber() whenever any

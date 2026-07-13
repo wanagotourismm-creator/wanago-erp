@@ -188,6 +188,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "gauge",
         roles: ["super_admin","admin","hr","finance"],
       },
+      {
+        label: "HR Policy Documents",
+        href:  "/hrms/policies",
+        icon:  "file-invoice",
+        roles: ["super_admin","admin","hr"],
+      },
     ],
   },
   {
