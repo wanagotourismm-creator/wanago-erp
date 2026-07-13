@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, MousePointerClick, UserPlus2, CheckCircle2, TrendingUp, Copy, Check, Sparkles, Send, Trophy } from "lucide-react";
+import { Loader2, MousePointerClick, UserPlus2, CheckCircle2, TrendingUp, Copy, Check, Sparkles, Send, Trophy, Medal, Gem, Rocket } from "lucide-react";
 import { PortalShell } from "@/modules/portal/components/PortalShell";
+import { BadgeTrack, type BadgeMilestone } from "@/modules/portal/components/BadgeTrack";
+import { ShareStatsCard } from "@/modules/portal/components/ShareStatsCard";
+import { AnimatedCounter } from "@/modules/portal/components/AnimatedCounter";
 import {
   fetchPartnerMe, fetchPartnerPosters, submitPartnerReferral, fetchPartnerLeaderboard,
   type PartnerPortalMe, type PartnerPortalPoster, type PartnerLeaderboard,
@@ -14,13 +17,20 @@ function trackingLink(code: string): string {
   return `${base}/r/${code}`;
 }
 
-function StatTile({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+const BOOKING_MILESTONES: BadgeMilestone[] = [
+  { value: 1,  label: "First Booking", icon: Medal },
+  { value: 5,  label: "Rising Star",   icon: Rocket },
+  { value: 10, label: "Top Referrer",  icon: Trophy },
+  { value: 25, label: "Elite Partner", icon: Gem },
+];
+
+function StatTile({ icon: Icon, label, value, format }: { icon: React.ElementType; label: string; value: number; format?: (n: number) => string }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
         <Icon size={16} className="text-primary" />
       </div>
-      <p className="mt-3 text-2xl font-bold text-foreground">{value}</p>
+      <p className="mt-3 text-2xl font-bold text-foreground"><AnimatedCounter value={value} format={format} /></p>
       <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
     </div>
   );
@@ -92,11 +102,23 @@ function PartnerDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile icon={MousePointerClick} label="Clicks" value={String(me.stats.clicks)} />
-        <StatTile icon={UserPlus2} label="Leads Sent" value={String(me.stats.leadsSent)} />
-        <StatTile icon={CheckCircle2} label="Bookings" value={String(me.stats.bookings)} />
-        <StatTile icon={TrendingUp} label="Bonus Pending" value={formatCurrency(me.stats.bonusPending)} />
+        <StatTile icon={MousePointerClick} label="Clicks" value={me.stats.clicks} />
+        <StatTile icon={UserPlus2} label="Leads Sent" value={me.stats.leadsSent} />
+        <StatTile icon={CheckCircle2} label="Bookings" value={me.stats.bookings} />
+        <StatTile icon={TrendingUp} label="Bonus Pending" value={me.stats.bonusPending} format={formatCurrency} />
       </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <BadgeTrack current={me.stats.bookings} milestones={BOOKING_MILESTONES} currentLabel="bookings" />
+      </div>
+
+      {me.stats.bookings > 0 && (
+        <ShareStatsCard
+          headline={`I've helped Wanago close ${me.stats.bookings} booking${me.stats.bookings === 1 ? "" : "s"}! 🎉`}
+          subline="Become a Wanago Referral Executive and start earning too."
+          shareText={`I'm a Wanago Tours & Travels Referral Executive — ${me.stats.bookings} booking${me.stats.bookings === 1 ? "" : "s"} and ${formatCurrency(me.stats.bonusPaid + me.stats.bonusPending)} earned so far. Plan your trip through my link: ${trackingLink(me.referralCode)}`}
+        />
+      )}
 
       {leaderboard && leaderboard.top.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">

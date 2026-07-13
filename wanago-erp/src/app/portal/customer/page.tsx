@@ -1,19 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, MapPin, Calendar, Users as UsersIcon, Luggage, Copy, Check } from "lucide-react";
+import { Loader2, MapPin, Calendar, Users as UsersIcon, Luggage, Copy, Check, UserPlus, Users, Award, Crown } from "lucide-react";
 import { PortalShell } from "@/modules/portal/components/PortalShell";
+import { TripCountdown } from "@/modules/portal/components/TripCountdown";
+import { BookingProgressTimeline } from "@/modules/portal/components/BookingProgressTimeline";
+import { BadgeTrack, type BadgeMilestone } from "@/modules/portal/components/BadgeTrack";
+import { ShareStatsCard } from "@/modules/portal/components/ShareStatsCard";
+import { AnimatedCounter } from "@/modules/portal/components/AnimatedCounter";
 import {
   fetchCustomerMe, fetchCustomerPackages, fetchCustomerBookingRequests, submitBookingRequest,
   type CustomerPortalMe, type CustomerPortalPackage, type CustomerBookingRequest,
 } from "@/modules/portal/services/customer-portal.service";
 import { formatCurrency, formatDate, cn } from "@/lib/utils/helpers";
-import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 
 function trackingLink(code: string): string {
   const base = process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
   return `${base}/r/${code}`;
 }
+
+const REFERRAL_MILESTONES: BadgeMilestone[] = [
+  { value: 1,  label: "First Referral", icon: UserPlus },
+  { value: 3,  label: "Connector",      icon: Users },
+  { value: 5,  label: "Advocate",       icon: Award },
+  { value: 10, label: "Wanago Legend",  icon: Crown },
+];
 
 function CustomerDashboard() {
   const [me, setMe] = useState<CustomerPortalMe | null>(null);
@@ -75,17 +86,7 @@ function CustomerDashboard() {
         <p className="text-sm text-muted-foreground">Your bookings, and your next trip</p>
       </div>
 
-      {me.referralCode && (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Refer a Friend, Earn a Bonus</p>
-          <div className="mt-1.5 flex items-center gap-2">
-            <code className="flex-1 truncate rounded-lg bg-card px-3 py-2 text-xs text-foreground">{trackingLink(me.referralCode)}</code>
-            <button onClick={copyCode} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-          </div>
-        </div>
-      )}
+      <TripCountdown bookings={me.bookings} />
 
       <div>
         <p className="mb-2 text-sm font-semibold text-foreground">Your Bookings</p>
@@ -102,9 +103,6 @@ function CustomerDashboard() {
                       <MapPin size={11} /> {b.destination} · {b.refNumber}
                     </p>
                   </div>
-                  <span className="flex-shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-                    {BOOKING_STATUS_LABELS[b.status as keyof typeof BOOKING_STATUS_LABELS] ?? b.status}
-                  </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   {b.travelDate && <span className="flex items-center gap-1"><Calendar size={11} /> {formatDate(b.travelDate)}</span>}
@@ -112,6 +110,7 @@ function CustomerDashboard() {
                   <span>Total {formatCurrency(b.totalAmount)}</span>
                   {b.balanceAmount > 0 && <span className="text-amber-600">Balance {formatCurrency(b.balanceAmount)}</span>}
                 </div>
+                <BookingProgressTimeline status={b.status} balanceAmount={b.balanceAmount} />
               </div>
             ))}
           </div>
@@ -131,6 +130,35 @@ function CustomerDashboard() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {me.referralCode && (
+        <div className="space-y-4 rounded-2xl border border-primary/20 bg-card p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Refer a Friend, Earn a Bonus</p>
+            {me.referralStats.count > 0 && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-bold text-foreground text-sm"><AnimatedCounter value={me.referralStats.count} /></span> referred · {formatCurrency(me.referralStats.revenue)} generated
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 truncate rounded-lg bg-muted px-3 py-2 text-xs text-foreground">{trackingLink(me.referralCode)}</code>
+            <button onClick={copyCode} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+          </div>
+
+          <BadgeTrack current={me.referralStats.count} milestones={REFERRAL_MILESTONES} currentLabel="referrals" />
+
+          {me.referralStats.count > 0 && (
+            <ShareStatsCard
+              headline={`I've sent Wanago ${me.referralStats.count} referral${me.referralStats.count === 1 ? "" : "s"}! ✈️`}
+              subline="Refer your friends and earn a bonus for every trip they book."
+              shareText={`I've referred ${me.referralStats.count} friend${me.referralStats.count === 1 ? "" : "s"} to Wanago Tours & Travels and earned ${formatCurrency(me.referralStats.revenue)} in bonuses! Plan your next trip through my link: ${trackingLink(me.referralCode)}`}
+            />
+          )}
         </div>
       )}
 

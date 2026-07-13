@@ -6,7 +6,11 @@ export type CustomerPortalBooking = {
   totalAmount: number; advanceAmount: number; balanceAmount: number;
   status: string; createdAt: string | null;
 };
-export type CustomerPortalMe = { fullName: string; referralCode: string | null; bookings: CustomerPortalBooking[] };
+export type CustomerReferralStats = { count: number; revenue: number };
+export type CustomerPortalMe = {
+  fullName: string; referralCode: string | null; bookings: CustomerPortalBooking[];
+  referralStats: CustomerReferralStats;
+};
 export type CustomerPortalPackage = {
   id: string; title: string; destination: string; category: string;
   durationDays: number; durationNights: number; basePrice: number; inclusions: string;

@@ -43,9 +43,21 @@ export async function GET(req: NextRequest) {
     };
   }).sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 
+  // Powers the referral milestone badges in the portal — real counts only,
+  // no invented reward tiers (what a milestone actually unlocks, if
+  // anything beyond recognition, is a business decision for Wanago to
+  // make separately, not something to bake into the UI silently).
+  const referralBonusesSnap = await db.collection(FIRESTORE_COLLECTIONS.REFERRAL_BONUSES)
+    .where("referrerCustomerId", "==", caller.entityId).get();
+  const referralStats = {
+    count: referralBonusesSnap.size,
+    revenue: referralBonusesSnap.docs.reduce((sum, d) => sum + ((d.data().bookingRevenue as number) ?? 0), 0),
+  };
+
   return NextResponse.json({
     fullName: customer.fullName,
     referralCode: customer.referralCode,
     bookings,
+    referralStats,
   });
 }
