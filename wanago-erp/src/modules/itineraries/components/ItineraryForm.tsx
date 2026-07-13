@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
+import type { Control, UseFormSetValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, MapPin, CalendarDays, StickyNote, Plus, Trash2, Sparkles } from "lucide-react";
 import { itinerarySchema, type ItinerarySchema } from "@/modules/itineraries/schemas";
@@ -9,7 +10,9 @@ import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import { TRIP_TYPES } from "@/lib/constants";
 import { draftItinerary } from "@/modules/itineraries/services/itinerary-ai.service";
-import type { Itinerary } from "@/modules/itineraries/types";
+import { fetchPackages } from "@/modules/packages/services/package.service";
+import { CREATE_NEW_PACKAGE, type Itinerary } from "@/modules/itineraries/types";
+import type { Package } from "@/modules/packages/types";
 
 type Props = {
   open:       boolean;
@@ -41,6 +44,56 @@ const inputClass = cn(
   "[&:focus]:shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
 );
 
+// Links this itinerary to a real Package record — replacing the old
+// free-text "Package" field — and either adopts the chosen package's
+// destination/duration/title into this itinerary, or (via "+ Create new
+// package") seeds a brand-new Package from this itinerary's own details.
+// itinerary.service.ts keeps the two records' shared fields in sync on
+// every subsequent save from either side.
+function PackageSelect({ control, setValue }: {
+  control: Control<ItinerarySchema>;
+  setValue: UseFormSetValue<ItinerarySchema>;
+}) {
+  const [packages, setPackages] = useState<Package[]>([]);
+
+  useEffect(() => {
+    fetchPackages().then(setPackages).catch(() => {});
+  }, []);
+
+  return (
+    <Controller
+      control={control}
+      name="packageId"
+      render={({ field }) => (
+        <select
+          className={inputClass}
+          value={field.value ?? ""}
+          onChange={(e) => {
+            const value = e.target.value;
+            field.onChange(value || null);
+            if (value === CREATE_NEW_PACKAGE) {
+              setValue("packageName", null);
+              return;
+            }
+            const pkg = packages.find(p => p.id === value);
+            if (pkg) {
+              setValue("packageName", pkg.title);
+              setValue("destination", pkg.destination);
+              setValue("durationDays", pkg.durationDays || 1);
+            } else {
+              setValue("packageName", null);
+            }
+          }}
+        >
+          <option value="">No package linked</option>
+          <option value={CREATE_NEW_PACKAGE}>+ Create new package from this itinerary</option>
+          {packages.map(p => <option key={p.id} value={p.id}>{p.title} — {p.destination}</option>)}
+        </select>
+      )}
+    />
+  );
+}
+
 export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [aiDrafting, setAiDrafting] = useState(false);
@@ -57,6 +110,7 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
       days:            [],
       inclusions:      [],
       exclusions:      [],
+      packageId:       null,
       officeId:        user?.officeId   ?? "main",
       officeName:      user?.officeName ?? "Head Office",
     },
@@ -70,6 +124,7 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
         reset({
           ...itinerary,
           tripType:    itinerary.tripType    ?? "",
+          packageId:   itinerary.packageId   ?? null,
           packageName: itinerary.packageName ?? "",
           tagline:     itinerary.tagline      ?? "",
           inclusions:  itinerary.inclusions   ?? [],
@@ -83,6 +138,7 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
           days:            [],
           inclusions:      [],
           exclusions:      [],
+          packageId:       null,
           officeId:        user?.officeId   ?? "main",
           officeName:      user?.officeName ?? "Head Office",
         });
@@ -200,8 +256,11 @@ export function ItineraryForm({ open, itinerary, onClose, onSubmit }: Props) {
                   ))}
                 </select>
               </Field>
-              <Field label="Package" error={errors.packageName?.message}>
-                <input className={inputClass} placeholder="e.g. Bali Bliss 5N/6D" {...register("packageName")} />
+              <Field label="Package" error={errors.packageId?.message}>
+                <PackageSelect control={control} setValue={setValue} />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Linking a package keeps destination, duration, and title in sync both ways.
+                </p>
               </Field>
               <Field label="Status" error={errors.itineraryStatus?.message}>
                 <select className={inputClass} {...register("itineraryStatus")}>

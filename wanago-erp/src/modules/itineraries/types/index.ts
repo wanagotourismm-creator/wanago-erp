@@ -11,7 +11,12 @@ export type Itinerary = FirestoreRecord & {
   destination:      string;
   durationDays:     number;
   tripType:         string | null;   // matches TRIP_TYPES — optional, only used to steer AI drafting today
-  packageName:      string | null;   // free-text reference to a package for now (no live cross-module link — keep it simple)
+  // Live link to a Package (chosen or auto-created via the PackageSelect in
+  // ItineraryForm) — packageName is a denormalized copy of that Package's
+  // title, kept in sync by lib/package-itinerary-sync.ts on every save on
+  // either side, not hand-typed.
+  packageId:        string | null;
+  packageName:      string | null;
   days:             ItineraryDay[];
   // Populated either by hand or via the "Draft with AI" button
   // (itinerary-ai.service.ts) — plain editable fields either way, an AI
@@ -27,3 +32,8 @@ export type Itinerary = FirestoreRecord & {
 };
 
 export type ItineraryFormData = Omit<Itinerary, "id" | "createdAt" | "updatedAt" | "status" | "refNumber">;
+
+// Sentinel value for the PackageSelect's "+ Create new package" option —
+// itinerary.service.createItinerary/updateItinerary swap it out for a real
+// package id after creating the package.
+export const CREATE_NEW_PACKAGE = "__create_new_package__";

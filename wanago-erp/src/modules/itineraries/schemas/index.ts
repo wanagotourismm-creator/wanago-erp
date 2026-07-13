@@ -11,7 +11,8 @@ export const itinerarySchema = z.object({
   destination:     z.string().min(2, "Destination is required"),
   durationDays:    z.coerce.number().min(1, "Duration must be at least 1 day").default(1),
   tripType:        z.string().optional().or(z.literal("")),
-  packageName:     z.string().optional().or(z.literal("")),
+  packageId:       z.string().nullable().default(null),
+  packageName:     z.string().nullable().optional().or(z.literal("")),
 
   days:            z.array(itineraryDaySchema).default([]),
 

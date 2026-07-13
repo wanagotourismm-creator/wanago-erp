@@ -146,6 +146,7 @@ export function ItinerariesPage() {
       destination:     d.destination,
       durationDays:    d.durationDays,
       tripType:        d.tripType || null,
+      packageId:       null,
       packageName:     d.packageName || null,
       days:            d.days,
       tagline:         d.tagline || null,
