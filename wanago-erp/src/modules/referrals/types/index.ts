@@ -25,6 +25,7 @@ export type ReferralBonus = FirestoreRecord & {
   referredCustomerName: string;
   bookingId:            string;
   bookingRefNumber:     string;
+  bookingRevenue:       number; // the confirmed booking's totalAmount at the time the bonus was created — powers the analytics revenue-per-referrer view without a re-fetch of Bookings
   bonusAmount:          number;
   bonusStatus:          "pending" | "paid";
   paidBy:               string | null;
@@ -73,3 +74,11 @@ export type ReferralPoster = FirestoreRecord & {
 export type ReferralPosterFormData = Omit<
   ReferralPoster, "id" | "createdAt" | "updatedAt" | "createdBy" | "status"
 >;
+
+// One doc per /r/{code} page load — see the route's comment on why this
+// measures link opens rather than deduplicated unique visitors.
+export type ReferralClick = FirestoreRecord & {
+  code:         string;
+  referrerType: ReferrerType;
+  referrerId:   string;
+};

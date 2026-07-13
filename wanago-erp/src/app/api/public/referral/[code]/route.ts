@@ -73,6 +73,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
   const referrer = await resolveCode(code);
   if (!referrer) return NextResponse.json({ error: "This link isn't valid" }, { status: 404 });
 
+  // Best-effort click log — one doc per page load, used only for the
+  // clicks->leads->bookings funnel in the analytics tab. Not deduplicated
+  // per visitor (no cookies/session on a no-login public page), so this
+  // measures link opens, not unique people; a refresh counts again, which
+  // is an acceptable approximation at this scale rather than added
+  // complexity for exact uniqueness.
+  db.collection(FIRESTORE_COLLECTIONS.REFERRAL_CLICKS).add({
+    code: code.trim().toUpperCase(),
+    referrerType: referrer.type,
+    referrerId: referrer.id,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    createdBy: "referral-link",
+    status: "active",
+  }).catch(() => {});
+
   return NextResponse.json({ referrerName: referrer.name });
 }
 

@@ -507,6 +507,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Click analytics for the /r/{code} public link — written only by the
+    // Admin SDK (that route bypasses these rules entirely), read restricted
+    // to Admin/Marketing same as the other referral-program internals.
+    match /referralClicks/{id} {
+      allow read: if isAdmin() || getUserRole() == 'marketing';
+      allow write: if false;
+    }
+
     // ── Help Center (AI assistant knowledge base) ────────────
     match /helpArticles/{id} {
       allow read: if isAuthenticated();

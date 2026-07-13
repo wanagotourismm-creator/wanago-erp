@@ -1,6 +1,6 @@
 "use client";
 
-import { Send, Edit2, Trash2, Copy, Check } from "lucide-react";
+import { Send, Edit2, Trash2, Copy, Check, BarChart3 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils/helpers";
 import type { ReferralPartner } from "@/modules/referrals/types";
@@ -11,6 +11,10 @@ type Props = {
   onEdit: (p: ReferralPartner) => void;
   onDelete: (p: ReferralPartner) => void;
   onShare: (p: ReferralPartner) => void;
+  onViewDetails: (p: ReferralPartner) => void;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onToggleSelectAll: () => void;
 };
 
 function CopyCodeButton({ code }: { code: string }) {
@@ -25,7 +29,9 @@ function CopyCodeButton({ code }: { code: string }) {
   );
 }
 
-export function ReferralPartnersTable({ partners, loading, onEdit, onDelete, onShare }: Props) {
+export function ReferralPartnersTable({
+  partners, loading, onEdit, onDelete, onShare, onViewDetails, selected, onToggleSelect, onToggleSelectAll,
+}: Props) {
   if (loading) {
     return <p className="py-8 text-center text-xs text-muted-foreground">Loading...</p>;
   }
@@ -37,12 +43,17 @@ export function ReferralPartnersTable({ partners, loading, onEdit, onDelete, onS
     );
   }
 
+  const allSelected = partners.length > 0 && partners.every(p => selected.has(p.id));
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
+              <th className="w-9 px-4 py-3">
+                <input type="checkbox" checked={allSelected} onChange={onToggleSelectAll} className="h-4 w-4 rounded border-input" />
+              </th>
               {["Name", "Phone", "Code", "Payout", "Status", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
               ))}
@@ -50,8 +61,13 @@ export function ReferralPartnersTable({ partners, loading, onEdit, onDelete, onS
           </thead>
           <tbody className="divide-y divide-border">
             {partners.map((p) => (
-              <tr key={p.id}>
-                <td className="px-4 py-3 font-medium text-foreground">{p.fullName}</td>
+              <tr key={p.id} className={cn(selected.has(p.id) && "bg-primary/5")}>
+                <td className="px-4 py-3">
+                  <input type="checkbox" checked={selected.has(p.id)} onChange={() => onToggleSelect(p.id)} className="h-4 w-4 rounded border-input" />
+                </td>
+                <td className="px-4 py-3 font-medium text-foreground">
+                  <button onClick={() => onViewDetails(p)} className="hover:underline hover:text-primary transition-colors text-left">{p.fullName}</button>
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">{p.phone}</td>
                 <td className="px-4 py-3"><CopyCodeButton code={p.referralCode} /></td>
                 <td className="px-4 py-3 text-xs text-muted-foreground uppercase">{p.payoutMethod}</td>
@@ -65,6 +81,7 @@ export function ReferralPartnersTable({ partners, loading, onEdit, onDelete, onS
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1.5">
+                    <button onClick={() => onViewDetails(p)} title="View performance" className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"><BarChart3 size={13} /></button>
                     <button onClick={() => onShare(p)} title="Send kit" className="flex h-7 w-7 items-center justify-center rounded-lg text-primary hover:bg-primary/10 transition-colors"><Send size={13} /></button>
                     <button onClick={() => onEdit(p)} title="Edit" className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"><Edit2 size={13} /></button>
                     <button onClick={() => onDelete(p)} title="Delete" className="flex h-7 w-7 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors"><Trash2 size={13} /></button>

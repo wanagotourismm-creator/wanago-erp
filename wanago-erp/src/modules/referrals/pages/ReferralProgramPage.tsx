@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Gift, CheckCircle2, Plus, Users, Image as ImageIcon, LayoutGrid } from "lucide-react";
+import { Gift, CheckCircle2, Plus, Users, Image as ImageIcon, LayoutGrid, BarChart3, Send } from "lucide-react";
 import { useReferrals } from "@/modules/referrals/hooks/useReferrals";
 import { useReferralPartners } from "@/modules/referrals/hooks/useReferralPartners";
 import { ReferralBonusStatusBadge } from "@/modules/referrals/components/ReferralBonusBadge";
@@ -9,6 +9,9 @@ import { ReferralPartnersTable } from "@/modules/referrals/components/ReferralPa
 import { ReferralPartnerForm } from "@/modules/referrals/components/ReferralPartnerForm";
 import { PosterKitManager } from "@/modules/referrals/components/PosterKitManager";
 import { ShareKitModal } from "@/modules/referrals/components/ShareKitModal";
+import { BulkKitModal } from "@/modules/referrals/components/BulkKitModal";
+import { ReferralAnalyticsDashboard } from "@/modules/referrals/components/ReferralAnalyticsDashboard";
+import { ReferrerDetailModal } from "@/modules/referrals/components/ReferrerDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Switch } from "@/components/ui/Switch";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -16,8 +19,9 @@ import { SkeletonTable } from "@/components/ui/Skeleton";
 import { formatDate, formatCurrency, cn } from "@/lib/utils/helpers";
 import type { ReferralPartner } from "@/modules/referrals/types";
 import type { ReferralPartnerSchema } from "@/modules/referrals/schemas/partner.schema";
+import type { ReferrerStat } from "@/modules/referrals/services/referral-analytics.service";
 
-type Tab = "overview" | "partners" | "posters";
+type Tab = "analytics" | "overview" | "partners" | "posters";
 
 export function ReferralProgramPage() {
   const { settings, bonuses, loading, saveSettings, markPaid } = useReferrals();
@@ -31,6 +35,9 @@ export function ReferralProgramPage() {
   const [partnerFormOpen, setPartnerFormOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<ReferralPartner | null>(null);
   const [shareTarget, setShareTarget] = useState<ReferralPartner | null>(null);
+  const [detailStat, setDetailStat] = useState<ReferrerStat | null>(null);
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   useEffect(() => { setBonusAmountInput(String(settings.bonusAmount)); setPartnerBonusInput(String(settings.partnerBonusAmount)); }, [settings]);
 
@@ -76,9 +83,35 @@ export function ReferralProgramPage() {
     if (confirm(`Remove ${p.fullName} as a referral executive?`)) await removePartner(p.id);
   }
 
+  function toggleSelectPartner(id: string) {
+    setSelectedPartnerIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllPartners() {
+    setSelectedPartnerIds(prev =>
+      prev.size === partners.length ? new Set() : new Set(partners.map(p => p.id))
+    );
+  }
+
+  // Opens the detail modal with a zeroed stat as a starting point — the
+  // modal fetches the referrer's real leads/bonuses itself regardless, so
+  // this is only wrong for the summary tiles at the top when opened from
+  // the table (vs. the leaderboard, which already has the real numbers).
+  function viewPartnerDetails(p: ReferralPartner) {
+    setDetailStat({
+      referrerType: "partner", referrerId: p.id, referrerName: p.fullName,
+      clicks: 0, leadsSent: 0, bookings: 0, revenue: 0, bonusEarned: 0, bonusPending: 0,
+    });
+  }
+
   const pendingTotal = bonuses.filter(b => b.bonusStatus === "pending").reduce((sum, b) => sum + b.bonusAmount, 0);
 
   const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
+    { key: "analytics", label: "Analytics", icon: BarChart3 },
     { key: "overview", label: "Overview", icon: Gift },
     { key: "partners", label: "Freelance Executives", icon: Users },
     { key: "posters", label: "Poster Kits", icon: ImageIcon },
@@ -106,6 +139,10 @@ export function ReferralProgramPage() {
           </button>
         ))}
       </div>
+
+      {tab === "analytics" && (
+        <ReferralAnalyticsDashboard onSelectReferrer={setDetailStat} />
+      )}
 
       {tab === "overview" && (
         <div className="space-y-5">
@@ -230,13 +267,26 @@ export function ReferralProgramPage() {
 
       {tab === "partners" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
-            <button
-              onClick={() => { setEditingPartner(null); setPartnerFormOpen(true); }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
-            >
-              <Plus size={14} /> Add Executive
-            </button>
+          <div className="flex items-center justify-between">
+            {selectedPartnerIds.size > 0 ? (
+              <p className="text-xs font-medium text-muted-foreground">{selectedPartnerIds.size} selected</p>
+            ) : <span />}
+            <div className="flex items-center gap-2">
+              {selectedPartnerIds.size > 0 && (
+                <button
+                  onClick={() => setBulkOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Send size={14} /> Bulk Send Kit
+                </button>
+              )}
+              <button
+                onClick={() => { setEditingPartner(null); setPartnerFormOpen(true); }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
+              >
+                <Plus size={14} /> Add Executive
+              </button>
+            </div>
           </div>
           <ReferralPartnersTable
             partners={partners}
@@ -244,6 +294,10 @@ export function ReferralProgramPage() {
             onEdit={(p) => { setEditingPartner(p); setPartnerFormOpen(true); }}
             onDelete={handlePartnerDelete}
             onShare={setShareTarget}
+            onViewDetails={viewPartnerDetails}
+            selected={selectedPartnerIds}
+            onToggleSelect={toggleSelectPartner}
+            onToggleSelectAll={toggleSelectAllPartners}
           />
         </div>
       )}
@@ -272,6 +326,14 @@ export function ReferralProgramPage() {
         recipientEmail={shareTarget?.email ?? null}
         referralCode={shareTarget?.referralCode ?? ""}
       />
+
+      <BulkKitModal
+        open={bulkOpen}
+        partners={partners.filter(p => selectedPartnerIds.has(p.id))}
+        onClose={() => { setBulkOpen(false); setSelectedPartnerIds(new Set()); }}
+      />
+
+      <ReferrerDetailModal stat={detailStat} onClose={() => setDetailStat(null)} />
 
     </div>
   );

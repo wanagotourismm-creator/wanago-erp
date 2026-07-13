@@ -152,6 +152,7 @@ export const FIRESTORE_COLLECTIONS = {
   REFERRAL_BONUSES:       "referralBonuses",
   REFERRAL_PARTNERS:      "referralPartners",
   REFERRAL_POSTERS:       "referralPosters",
+  REFERRAL_CLICKS:        "referralClicks",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [
