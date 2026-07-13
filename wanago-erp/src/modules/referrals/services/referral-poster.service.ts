@@ -1,6 +1,5 @@
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { where } from "firebase/firestore";
-import { storage } from "@/lib/firebase/client";
+import { uploadFile } from "@/lib/storage/upload";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
@@ -18,12 +17,14 @@ export async function fetchReferralPosters(activeOnly = false): Promise<Referral
   return posters.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
 }
 
-// Real uploaded artwork only — same Storage upload pattern as
-// uploadCompanyLogo (company-settings.service.ts); never generated/faked.
+// Real uploaded artwork only — proxied through /api/storage/upload to
+// Supabase Storage (see lib/storage/upload.ts) like every other upload in
+// the app, since Firebase Storage itself needs the Blaze plan and isn't
+// provisioned. Returns a public URL, which is required here since posters
+// get shared to people with no account (WhatsApp/email kit, public
+// /r/{code} page).
 export async function uploadReferralPosterImage(file: File): Promise<string> {
-  const storageRef = ref(storage, `referral-posters/${Date.now()}-${file.name}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  return uploadFile(`referral-posters/${Date.now()}-${file.name}`, file);
 }
 
 export async function createReferralPoster(
