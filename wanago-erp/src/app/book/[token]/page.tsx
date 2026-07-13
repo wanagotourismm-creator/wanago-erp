@@ -2,10 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { Fraunces } from "next/font/google";
+import { motion } from "framer-motion";
 import {
   CheckCircle2, MapPin, Calendar, Users as UsersIcon, Loader2, ShieldCheck,
   BadgeCheck, Clock, ArrowLeft, ArrowRight, Sparkles, Phone, Mail, Check,
+  Plane, TreePalm, Compass, Sailboat,
 } from "lucide-react";
+import { cn } from "@/lib/utils/helpers";
+
+const fraunces = Fraunces({ subsets: ["latin"], weight: ["500", "600"], style: ["italic"], display: "swap" });
 
 type PackageOption = {
   id: string;
@@ -47,9 +53,18 @@ function gradientFor(category: string, index: number): string {
 
 const STEPS = ["Choose Package", "Trip Details", "Confirm"];
 
+// Same floating-icon language as the login screen, kept local since this
+// page is a standalone public route with no layout/auth wrapper.
+const FLOATING_ICONS = [
+  { Icon: Plane,     top: "10%", left: "6%",   size: 28, duration: 9,  delay: 0   },
+  { Icon: TreePalm,  top: "72%", left: "4%",   size: 32, duration: 11, delay: 1.2 },
+  { Icon: Compass,   top: "16%", right: "8%",  size: 26, duration: 8,  delay: 0.6, hideOnMobile: true },
+  { Icon: Sailboat,  top: "78%", right: "10%", size: 26, duration: 9.5, delay: 1.5, hideOnMobile: true },
+];
+
 function Stepper({ step }: { step: number }) {
   return (
-    <div className="mx-auto mb-8 flex max-w-sm items-center justify-between">
+    <div className="mx-auto mb-7 flex max-w-sm items-center justify-between">
       {STEPS.map((label, i) => {
         const n = i + 1;
         const done = step > n;
@@ -122,7 +137,7 @@ export default function BookingLinkPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#05070a] via-[#0d1a2b] to-[#16324f]">
+      <div className="travel-gradient-bg flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 size={28} className="animate-spin text-white" />
           <p className="text-sm text-white/70">Loading your trip...</p>
@@ -133,7 +148,7 @@ export default function BookingLinkPage() {
 
   if (notFound || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#05070a] via-[#0d1a2b] to-[#16324f] px-4">
+      <div className="travel-gradient-bg flex min-h-screen items-center justify-center px-4">
         <div className="text-center text-white">
           <p className="text-lg font-semibold">This link isn&apos;t valid</p>
           <p className="mt-1 text-sm text-white/60">Please check the link or contact us directly.</p>
@@ -148,54 +163,83 @@ export default function BookingLinkPage() {
   return (
     <div className="min-h-screen bg-background">
 
-      {/* ── Hero ── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#05070a] via-[#0d1a2b] to-[#1b3654] px-4 pb-14 pt-10 text-white">
-        <div className="pointer-events-none absolute inset-0 opacity-30" style={{
-          backgroundImage: "radial-gradient(circle at 20% 20%, rgba(34,128,80,0.5), transparent 40%), radial-gradient(circle at 80% 0%, rgba(99,102,241,0.35), transparent 35%)",
-        }} />
-        <div className="relative mx-auto max-w-lg text-center">
-          <img src="/images/logo-white-clean.png" alt="Wanago" className="mx-auto mb-6 h-7 w-auto" />
-          {!alreadyDone && (
-            <>
-              <p className="text-sm text-white/70">Hi {firstName}, your trip to</p>
-              <h1 className="mt-1 font-serif text-4xl italic tracking-tight" style={{ fontFamily: "Georgia, 'Playfair Display', serif" }}>
-                {data.destination}
-              </h1>
-              <p className="mx-auto mt-3 max-w-xs text-sm text-white/60">
-                Pick a package below and tell us your dates — our travel experts take it from there.
-              </p>
-            </>
-          )}
-          {alreadyDone && (
-            <>
-              <p className="mt-2 text-sm text-white/70">Your request for</p>
-              <h1 className="mt-1 font-serif text-3xl italic tracking-tight" style={{ fontFamily: "Georgia, 'Playfair Display', serif" }}>
-                {data.destination}
-              </h1>
-            </>
-          )}
+      {/* ── Hero — same animated brand gradient + floating icons as the Sign-In screen ── */}
+      <div className="travel-gradient-bg relative overflow-hidden px-4 pb-24 pt-8 text-white sm:pb-32 sm:pt-10">
 
+        {FLOATING_ICONS.map(({ Icon, top, left, right, size, duration, delay, hideOnMobile }, i) => (
+          <motion.div
+            key={i}
+            className={cn("pointer-events-none absolute text-white/25", hideOnMobile && "hidden sm:block")}
+            style={{ top, left, right }}
+            animate={{ y: [0, -14, 0], rotate: [0, 4, -3, 0] }}
+            transition={{ duration, repeat: Infinity, ease: "easeInOut", delay }}
+          >
+            <Icon size={size} strokeWidth={1.5} />
+          </motion.div>
+        ))}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
+
+        <div className="relative mx-auto flex max-w-5xl flex-col items-center gap-10 lg:flex-row lg:items-center lg:justify-between">
+          <div className="text-center lg:text-left">
+            <img src="/images/logo-white-clean.png" alt="Wanago" className="mx-auto mb-8 h-8 w-auto lg:mx-0" />
+
+            {!alreadyDone ? (
+              <>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/60">Hi {firstName}, your trip to</p>
+                <h1 className={cn(fraunces.className, "mt-2 text-5xl italic leading-tight text-white sm:text-6xl")} style={{ textShadow: "0 2px 20px rgba(0,0,0,0.35)" }}>
+                  {data.destination}
+                </h1>
+                <p className="mx-auto mt-4 max-w-sm text-sm text-white/70 lg:mx-0">
+                  Pick a package below and tell us your dates — our travel experts take it from there.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/60">Your request for</p>
+                <h1 className={cn(fraunces.className, "mt-2 text-4xl italic leading-tight text-white sm:text-5xl")}>
+                  {data.destination}
+                </h1>
+              </>
+            )}
+
+            {!alreadyDone && (
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
+                {[
+                  { icon: ShieldCheck, label: "Secure & Encrypted" },
+                  { icon: BadgeCheck,  label: "Verified Agency" },
+                  { icon: Clock,       label: "24/7 Support" },
+                ].map(({ icon: Icon, label }) => (
+                  <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold text-white/85 backdrop-blur-sm">
+                    <Icon size={12} /> {label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop-only trip snapshot panel, balances the layout the way
+              the login screen's left showcase does */}
           {!alreadyDone && (
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              {[
-                { icon: ShieldCheck, label: "Secure & Encrypted" },
-                { icon: BadgeCheck,  label: "Verified Agency" },
-                { icon: Clock,       label: "24/7 Support" },
-              ].map(({ icon: Icon, label }) => (
-                <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/80 backdrop-blur-sm">
-                  <Icon size={11} /> {label}
-                </span>
-              ))}
+            <div className="hidden max-w-xs rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-md lg:block">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-white/60">Your Trip Snapshot</p>
+              <div className="mt-3 space-y-2.5 text-sm">
+                <div className="flex items-center gap-2 text-white/85">
+                  <MapPin size={13} /> {data.destination}
+                </div>
+                <div className="flex items-center gap-2 text-white/85">
+                  <Sparkles size={13} /> {data.packages.length} package{data.packages.length !== 1 ? "s" : ""} available
+                </div>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       {/* ── Body ── */}
-      <div className="mx-auto -mt-6 max-w-lg px-4 pb-14">
+      <div className="mx-auto -mt-14 max-w-2xl px-4 pb-16 sm:-mt-20">
 
         {alreadyDone ? (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-xl">
+          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-2xl sm:p-10">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
               <CheckCircle2 size={32} className="text-green-600" />
             </div>
@@ -208,7 +252,7 @@ export default function BookingLinkPage() {
                 : `You already picked "${data.submittedPackageName}".`}
             </p>
 
-            <div className="mt-6 space-y-3 rounded-xl border border-dashed border-border p-4 text-left">
+            <div className="mx-auto mt-6 max-w-sm space-y-3 rounded-xl border border-dashed border-border p-4 text-left">
               <p className="text-[11px] font-bold uppercase tracking-widest text-primary">What happens next</p>
               {[
                 "Our travel expert reviews your request",
@@ -225,7 +269,7 @@ export default function BookingLinkPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-xl sm:p-7">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
             <Stepper step={step} />
 
             {/* Step 1 — choose package */}
@@ -236,42 +280,44 @@ export default function BookingLinkPage() {
                     No packages are available right now — please contact us directly.
                   </p>
                 ) : (
-                  data.packages.map((pkg, i) => {
-                    const active = selectedPackage?.id === pkg.id;
-                    return (
-                      <button
-                        key={pkg.id}
-                        onClick={() => setSelectedPackage(pkg)}
-                        className={`relative w-full overflow-hidden rounded-2xl text-left transition-all ${active ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : ""}`}
-                      >
-                        <div className={`bg-gradient-to-br ${gradientFor(pkg.category, i)} p-4 text-white`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/70">{pkg.category || "Package"}</p>
-                              <p className="text-lg font-bold">{pkg.title}</p>
-                              <p className="mt-0.5 flex items-center gap-1 text-xs text-white/80">
-                                <MapPin size={11} /> {pkg.destination} · {pkg.durationDays}D/{pkg.durationNights}N
-                              </p>
-                            </div>
-                            {active && (
-                              <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-primary">
-                                <Check size={14} strokeWidth={3} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {data.packages.map((pkg, i) => {
+                      const active = selectedPackage?.id === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          onClick={() => setSelectedPackage(pkg)}
+                          className={`relative w-full overflow-hidden rounded-2xl text-left transition-all ${active ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : ""}`}
+                        >
+                          <div className={`bg-gradient-to-br ${gradientFor(pkg.category, i)} p-4 text-white`}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-white/70">{pkg.category || "Package"}</p>
+                                <p className="text-lg font-bold">{pkg.title}</p>
+                                <p className="mt-0.5 flex items-center gap-1 text-xs text-white/80">
+                                  <MapPin size={11} /> {pkg.destination} · {pkg.durationDays}D/{pkg.durationNights}N
+                                </p>
                               </div>
-                            )}
+                              {active && (
+                                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-primary">
+                                  <Check size={14} strokeWidth={3} />
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-3 flex items-end justify-between">
+                              <p className="text-2xl font-bold">₹{pkg.basePrice.toLocaleString("en-IN")}</p>
+                              <span className="text-[10px] text-white/70">per person</span>
+                            </div>
                           </div>
-                          <div className="mt-3 flex items-end justify-between">
-                            <p className="text-2xl font-bold">₹{pkg.basePrice.toLocaleString("en-IN")}</p>
-                            <span className="text-[10px] text-white/70">per person</span>
-                          </div>
-                        </div>
-                        {pkg.inclusions && (
-                          <p className="border-x border-b border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground line-clamp-2">
-                            {pkg.inclusions}
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })
+                          {pkg.inclusions && (
+                            <p className="border-x border-b border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground line-clamp-2">
+                              {pkg.inclusions}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
 
                 {selectedPackage && (
@@ -287,7 +333,7 @@ export default function BookingLinkPage() {
 
             {/* Step 2 — trip details */}
             {step === 2 && selectedPackage && (
-              <div className="space-y-4">
+              <div className="mx-auto max-w-md space-y-4">
                 <div className={`rounded-xl bg-gradient-to-br ${gradientFor(selectedPackage.category, 0)} p-3 text-white`}>
                   <p className="text-xs font-semibold">{selectedPackage.title}</p>
                   <p className="text-[11px] text-white/75">₹{selectedPackage.basePrice.toLocaleString("en-IN")} per person · {selectedPackage.durationDays}D/{selectedPackage.durationNights}N</p>
@@ -347,7 +393,7 @@ export default function BookingLinkPage() {
 
             {/* Step 3 — confirm */}
             {step === 3 && selectedPackage && (
-              <div className="space-y-4">
+              <div className="mx-auto max-w-md space-y-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Sparkles size={15} className="text-primary" /> Review your request
                 </div>
