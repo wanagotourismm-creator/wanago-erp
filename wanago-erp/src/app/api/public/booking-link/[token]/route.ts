@@ -40,9 +40,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const lead = await findLeadByToken(token);
   if (!lead) return NextResponse.json({ error: "This link isn't valid" }, { status: 404 });
 
-  const packagesSnap = await db.collection(FIRESTORE_COLLECTIONS.PACKAGES)
-    .where("packageStatus", "==", "active")
-    .get();
+  const [packagesSnap, companySnap] = await Promise.all([
+    db.collection(FIRESTORE_COLLECTIONS.PACKAGES).where("packageStatus", "==", "active").get(),
+    db.collection(FIRESTORE_COLLECTIONS.SETTINGS).doc("company").get(),
+  ]);
 
   // Deliberately excludes costPrice (profit-sensitive, internal-only) and
   // every other Package field beyond what a customer should see.
@@ -56,12 +57,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     };
   });
 
+  const company = companySnap.exists ? companySnap.data() : null;
+
   return NextResponse.json({
     leadName:    lead.name,
     destination: lead.destination,
     packages,
     alreadySubmitted:     !!lead.customerRequestedAt,
     submittedPackageName: lead.customerSelectedPackageName ?? null,
+    company: {
+      businessName: company?.businessName ?? "Wanago Tours & Travels",
+      phone:        company?.phone ?? null,
+      email:        company?.email ?? null,
+    },
   });
 }
 
