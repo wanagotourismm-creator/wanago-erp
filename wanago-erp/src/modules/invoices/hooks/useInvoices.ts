@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchInvoices, createInvoice, updateInvoice,
+  fetchInvoices, fetchInvoiceById, createInvoice, updateInvoice,
   markInvoiceSent, deleteInvoice,
 } from "@/modules/invoices/services/invoice.service";
 import { useAuthStore } from "@/store/auth.store";
@@ -65,8 +65,11 @@ export function useInvoices() {
   async function sendInvoice(id: string): Promise<{ error: string | null }> {
     try {
       await markInvoiceSent(id);
-      const updated = await fetchInvoices();
-      setInvoices(updated);
+      // Single-document refresh instead of a full-collection refetch —
+      // markInvoiceSent recomputes status server-side, so we still want
+      // fresh truth for this one invoice, just not the whole collection.
+      const updated = await fetchInvoiceById(id);
+      if (updated) setInvoices(prev => prev.map(inv => inv.id === id ? updated : inv));
       return { error: null };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Failed to mark invoice sent" };

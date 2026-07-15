@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchQuotations, createQuotation, updateQuotation,
+  fetchQuotations, fetchQuotationById, createQuotation, updateQuotation,
   deleteQuotation, convertQuotationToBooking,
   sendQuotation, markQuotationAccepted, rejectQuotation,
 } from "@/modules/quotations/services/quotation.service";
@@ -31,6 +31,16 @@ export function useQuotations() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Re-fetches just the one mutated quotation and splices it back into
+  // state, instead of re-fetching the entire collection — same freshness
+  // guarantee (the server may have changed fields the caller's partial
+  // data doesn't know about, e.g. recomputed totals or a status reset),
+  // but O(1) reads instead of O(collection size) on every action.
+  async function refreshOne(id: string): Promise<void> {
+    const updated = await fetchQuotationById(id);
+    if (updated) setQuotations(prev => prev.map(q => q.id === id ? updated : q));
+  }
+
   async function addQuotation(data: QuotationFormData): Promise<{ error: string | null }> {
     try {
       const quotation = await createQuotation(data, user?.uid ?? "");
@@ -47,15 +57,15 @@ export function useQuotations() {
   }
 
   // Totals depend on lineItems/taxRate in ways that are easier to trust
-  // from a full refetch than to hand-merge client-side (unlike Invoice's
-  // simple balanceDue subtraction).
+  // from a server refetch than to hand-merge client-side (unlike Invoice's
+  // simple balanceDue subtraction) — refreshOne() gets that same fresh
+  // server truth for just this one quotation.
   async function editQuotation(
     id: string, data: Partial<QuotationFormData>
   ): Promise<{ error: string | null }> {
     try {
       await updateQuotation(id, data);
-      const updated = await fetchQuotations();
-      setQuotations(updated);
+      await refreshOne(id);
       return { error: null };
     } catch {
       return { error: "Failed to update quotation" };
@@ -83,8 +93,7 @@ export function useQuotations() {
   async function convertToBooking(quotation: Quotation): Promise<{ error: string | null }> {
     try {
       await convertQuotationToBooking(quotation, user?.uid ?? "");
-      const updated = await fetchQuotations();
-      setQuotations(updated);
+      await refreshOne(quotation.id);
       logActivity({
         entityType: "Quotation", entityName: quotation.customerName, action: "status_changed",
         detail: `Converted quotation ${quotation.refNumber} to a booking`,
@@ -99,8 +108,7 @@ export function useQuotations() {
   async function sendToCustomer(quotation: Quotation): Promise<{ error: string | null }> {
     try {
       await sendQuotation(quotation);
-      const updated = await fetchQuotations();
-      setQuotations(updated);
+      await refreshOne(quotation.id);
       logActivity({
         entityType: "Quotation", entityName: quotation.customerName, action: "status_changed",
         detail: `Sent quotation ${quotation.refNumber} to customer`,
@@ -115,8 +123,7 @@ export function useQuotations() {
   async function acceptQuotation(quotation: Quotation): Promise<{ error: string | null }> {
     try {
       await markQuotationAccepted(quotation.id);
-      const updated = await fetchQuotations();
-      setQuotations(updated);
+      await refreshOne(quotation.id);
       logActivity({
         entityType: "Quotation", entityName: quotation.customerName, action: "status_changed",
         detail: `Marked quotation ${quotation.refNumber} as accepted`,
@@ -131,8 +138,7 @@ export function useQuotations() {
   async function declineQuotation(quotation: Quotation): Promise<{ error: string | null }> {
     try {
       await rejectQuotation(quotation.id);
-      const updated = await fetchQuotations();
-      setQuotations(updated);
+      await refreshOne(quotation.id);
       logActivity({
         entityType: "Quotation", entityName: quotation.customerName, action: "status_changed",
         detail: `Marked quotation ${quotation.refNumber} as rejected`,

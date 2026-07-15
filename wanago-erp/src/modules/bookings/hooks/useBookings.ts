@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  fetchBookings, createBooking, updateBooking,
+  fetchBookings, fetchBookingById, createBooking, updateBooking,
   updateBookingStatus, deleteBooking,
   approveBookingAsFinance, approveBookingAsOperations,
   rejectBookingAsFinance, rejectBookingAsOperations,
@@ -64,12 +64,14 @@ export function useBookings() {
   ): Promise<{ error: string | null }> {
     try {
       await updateBooking(id, data);
-      // A full refetch (rather than an optimistic shallow merge) is needed
-      // because updateBooking may also silently resubmit a rejected
+      // A server refetch (rather than an optimistic shallow merge) is
+      // needed because updateBooking may also silently resubmit a rejected
       // booking server-side (status reset + cleared rejection fields),
-      // which wouldn't be reflected in the caller's partial `data`.
-      const updated = await fetchBookings();
-      setBookings(updated);
+      // which wouldn't be reflected in the caller's partial `data` — but
+      // that only requires fresh truth for THIS booking, not the whole
+      // collection, so fetch just the one document instead.
+      const updated = await fetchBookingById(id);
+      if (updated) setBookings(prev => prev.map(b => b.id === id ? updated : b));
       return { error: null };
     } catch {
       return { error: "Failed to update booking" };
