@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { askAssistant, transcribeAudio, type AssistantTurn } from "@/modules/aiassistant/services/ai-assistant.service";
+import { useCallback, useRef, useState } from "react";
+import { askAssistant, confirmProposedAction, transcribeAudio, type AssistantTurn } from "@/modules/aiassistant/services/ai-assistant.service";
 import type { AIChatMessage } from "@/modules/aiassistant/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
+import { useUIStore } from "@/store/ui.store";
 
 let idCounter = 0;
 function nextId(): string {
@@ -12,7 +13,10 @@ function nextId(): string {
 }
 
 export function useAIAssistant() {
-  const [open, setOpen] = useState(false);
+  const open = useUIStore((s) => s.aiAssistantOpen);
+  const openPanel = useUIStore((s) => s.openAIAssistant);
+  const closePanel = useUIStore((s) => s.closeAIAssistant);
+
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState<AILanguage>("en");
@@ -23,27 +27,29 @@ export function useAIAssistant() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const openPanel  = useCallback(() => setOpen(true), []);
-  const closePanel = useCallback(() => setOpen(false), []);
-
   const ask = useCallback(async (question: string) => {
     const trimmed = question.trim();
     if (!trimmed || loading) return;
 
-    const history: AssistantTurn[] = messages.map((m) => ({ role: m.role, content: m.content }));
+    const history: AssistantTurn[] = messages
+      .filter((m) => m.content)
+      .map((m) => ({ role: m.role, content: m.content! }));
     setMessages((prev) => [...prev, { id: nextId(), role: "user", content: trimmed }]);
     setLoading(true);
 
     try {
       const result = await askAssistant(trimmed, history, language);
-      setMessages((prev) => [...prev, {
-        id: nextId(), role: "assistant",
-        content: result.answer, source: result.source, articles: result.articles,
-      }]);
+      if (result.kind === "answer") {
+        setMessages((prev) => [...prev, { id: nextId(), role: "assistant", content: result.text }]);
+      } else if (result.kind === "proposal") {
+        setMessages((prev) => [...prev, {
+          id: nextId(), role: "assistant",
+          proposal: { tool: result.tool, args: result.args, summary: result.summary, status: "pending" },
+        }]);
+      } else {
+        setMessages((prev) => [...prev, { id: nextId(), role: "assistant", content: result.message }]);
+      }
     } catch {
-      // Previously unguarded — a permission-denied or network failure left
-      // the user's message posted with the spinner clearing and no reply
-      // and no error, ever. Post a visible assistant-side failure instead.
       setMessages((prev) => [...prev, {
         id: nextId(), role: "assistant",
         content: "Sorry, something went wrong answering that. Please try again.",
@@ -52,6 +58,27 @@ export function useAIAssistant() {
       setLoading(false);
     }
   }, [messages, loading, language]);
+
+  const confirmAction = useCallback(async (messageId: string) => {
+    const message = messages.find((m) => m.id === messageId);
+    if (!message?.proposal || message.proposal.status !== "pending") return;
+
+    const { tool, args, summary } = message.proposal;
+    const result = await confirmProposedAction(tool, args, summary);
+
+    setMessages((prev) => prev.map((m) => {
+      if (m.id !== messageId || !m.proposal) return m;
+      return result.ok
+        ? { ...m, proposal: { ...m.proposal, status: "confirmed", resultDocId: result.docId } }
+        : { ...m, proposal: { ...m.proposal, status: "error", errorMessage: result.error } };
+    }));
+  }, [messages]);
+
+  const cancelAction = useCallback((messageId: string) => {
+    setMessages((prev) => prev.map((m) =>
+      m.id === messageId && m.proposal ? { ...m, proposal: { ...m.proposal, status: "cancelled" } } : m
+    ));
+  }, []);
 
   // Returns the transcribed text on success (caller decides what to do with
   // it — e.g. drop it into the input box for the employee to review before
@@ -122,6 +149,7 @@ export function useAIAssistant() {
 
   return {
     open, openPanel, closePanel, messages, loading, ask,
+    confirmAction, cancelAction,
     language, setLanguage,
     recording, transcribing, voiceError, startRecording, stopRecording,
   };

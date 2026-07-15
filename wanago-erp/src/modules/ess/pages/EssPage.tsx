@@ -27,9 +27,9 @@ import { MyAssetsList } from "@/modules/ess/components/MyAssetsList";
 import { RequestAssetForm } from "@/modules/ess/components/RequestAssetForm";
 import { MyTicketsList } from "@/modules/ess/components/MyTicketsList";
 import { ReportIssueForm } from "@/modules/ess/components/ReportIssueForm";
-import { HrChatPanel } from "@/modules/ess/components/HrChatPanel";
 import { TeamRosterPanel } from "@/modules/ess/components/TeamRosterPanel";
 import { useAuthStore } from "@/store/auth.store";
+import { useUIStore } from "@/store/ui.store";
 import { hasPermission } from "@/lib/rbac";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -48,6 +48,7 @@ export function EssPage() {
   const isManager = directReports.length > 0;
   const { roster, loading: rosterLoading } = useTeamRoster(directReports);
   const isHrOrAdmin = !!user && hasPermission(user.systemRole, "hrms:manage");
+  const openAIAssistant = useUIStore((s) => s.openAIAssistant);
 
   const [section, setSection] = useState("overview");
   const [applyOpen, setApplyOpen] = useState(false);
@@ -124,7 +125,6 @@ export function EssPage() {
         { key: "activity", label: "Activity", icon: Activity },
       ],
     },
-    { label: "Assistant", items: [{ key: "ask", label: "Ask HR", icon: Sparkles }] },
   ];
 
   return (
@@ -147,7 +147,7 @@ export function EssPage() {
                 { label: "Request Correction", icon: PencilLine, onClick: () => { setCorrectionDate(todayStr()); setCorrectionOpen(true); } },
                 { label: "Request Asset", icon: Laptop, onClick: () => setAssetRequestOpen(true) },
                 { label: "Report Issue", icon: LifeBuoy, onClick: () => setReportIssueOpen(true) },
-                { label: "Ask HR", icon: Sparkles, onClick: () => setSection("ask") },
+                { label: "Ask HR", icon: Sparkles, onClick: openAIAssistant },
               ].map((a) => (
                 <button key={a.label} onClick={a.onClick}
                   className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors shadow-sm">
@@ -284,10 +284,6 @@ export function EssPage() {
         {section === "payslips" && <MyPayslipsList payroll={payroll} />}
 
         {section === "activity" && <MyActivityList activity={activity} />}
-
-        {section === "ask" && (
-          <HrChatPanel employee={employee} leaveBalances={leaveBalances} holidays={holidays} />
-        )}
       </HrShell>
 
       <ApplyLeaveForm open={applyOpen} enabledLeaveTypes={enabledLeaveTypes} onClose={() => setApplyOpen(false)} onSubmit={applyLeave} />

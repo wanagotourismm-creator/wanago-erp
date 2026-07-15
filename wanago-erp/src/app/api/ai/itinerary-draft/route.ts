@@ -4,9 +4,9 @@ import { itineraryDraftSchema, itineraryDraftResponseSchema } from "@/modules/it
 
 export const runtime = "nodejs";
 
-// Same defensive pattern as /api/ai-assistant and /api/hr-chat — no
-// server-side session infra, so IP-based rate limiting is the only guard
-// against cost abuse of this public endpoint.
+// Same defensive pattern as /api/ai/quote-draft — this route (unlike
+// /api/ai-assistant) has no server-side session infra, so IP-based rate
+// limiting is the only guard against cost abuse of this public endpoint.
 const requestLog = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;

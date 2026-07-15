@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAIAnswer, type ChatTurn, type ArticleContext, type AILanguage } from "@/lib/ai/getAIAnswer";
+import { requireAuth, getUserRole } from "@/lib/firebase/admin";
+import { runAssistantTurn } from "@/modules/ai-core/services/ai-assistant-orchestrator";
+import { AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import type { ChatTurn } from "@/modules/ai-core/services/geminiService";
 
 export const runtime = "nodejs";
 
 const MAX_HISTORY = 10;
 const MAX_MESSAGE_LENGTH = 1000;
-const MAX_ARTICLE_LENGTH = 4000;
-const MAX_ARTICLES = 3;
 
-// Same defensive pattern as /api/hr-chat — this route has no server-side
-// session infra (everything else talks to Firestore directly from the
-// client), so the only real risk here is API-cost abuse of a public
-// endpoint, which this rate limiter blunts.
+// Unlike the old ai-assistant/hr-chat routes, this one can trigger AI
+// write-tool proposals, so it requires a verified caller identity (see
+// requireAuth in src/lib/firebase/admin.ts) rather than relying only on the
+// IP rate limiter below. The limiter stays as defense-in-depth against
+// cost-abuse from a compromised/shared token.
 const requestLog = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 15;
@@ -30,7 +32,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests — please wait a minute and try again." }, { status: 429 });
   }
 
-  let body: { question?: string; history?: ChatTurn[]; articles?: ArticleContext[]; language?: AILanguage; createdBy?: string };
+  const idToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
+  const caller = await requireAuth(idToken);
+  if (!caller) {
+    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  }
+
+  let body: { question?: string; history?: ChatTurn[]; language?: "en" | "ml" };
   try {
     body = await req.json();
   } catch {
@@ -47,19 +55,19 @@ export async function POST(req: NextRequest) {
     .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_LENGTH) }));
 
-  const articles = (body.articles ?? [])
-    .slice(0, MAX_ARTICLES)
-    .map((a) => ({
-      title: String(a.title ?? "").slice(0, 200),
-      content: String(a.content ?? "").slice(0, MAX_ARTICLE_LENGTH),
-    }));
+  const callerRole = await getUserRole(caller.uid);
+  const language: "en" | "ml" = body.language === "ml" ? "ml" : "en";
 
-  if (articles.length === 0) {
-    return NextResponse.json({ source: "kb-only" });
+  try {
+    const result = await runAssistantTurn({ question, history, createdBy: caller.uid, callerRole, language });
+    return NextResponse.json(result);
+  } catch (err) {
+    if (err instanceof AiGenerationError) {
+      return NextResponse.json(
+        { error: "The AI assistant isn't set up yet. An admin needs to add a GEMINI_API_KEY or GROQ_API_KEY to the deployment." },
+        { status: 501 }
+      );
+    }
+    return NextResponse.json({ error: "The AI assistant is temporarily unavailable. Please try again shortly." }, { status: 502 });
   }
-
-  const language: AILanguage = body.language === "ml" ? "ml" : "en";
-  const createdBy = String(body.createdBy ?? "unknown").slice(0, 128);
-  const result = await getAIAnswer(question, articles, history, language, createdBy);
-  return NextResponse.json(result);
 }

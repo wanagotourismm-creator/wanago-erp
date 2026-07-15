@@ -145,6 +145,7 @@ export const FIRESTORE_COLLECTIONS = {
   HRMS_SUSPICIOUS_ATTENDANCE: "hrmsSuspiciousAttendance",
   ITINERARY_BROCHURES: "itineraryBrochures",
   AI_USAGE_LOGS:   "aiUsageLogs",
+  AI_ACTION_LOGS:  "aiActionLogs",
   DIGESTS:         "digests",
   WHATSAPP_CONVERSATIONS: "whatsappConversations",
   WHATSAPP_MESSAGES:      "whatsappMessages",

@@ -5,6 +5,7 @@ type UIState = {
   sidebarCollapsed:   boolean;
   mobileSidebarOpen:  boolean;
   commandPaletteOpen: boolean;
+  aiAssistantOpen:    boolean;
   theme:              "light" | "dark" | "system";
 
   toggleSidebar:       () => void;
@@ -14,6 +15,8 @@ type UIState = {
   toggleMobileSidebar: () => void;
   openCommandPalette:  () => void;
   closeCommandPalette: () => void;
+  openAIAssistant:     () => void;
+  closeAIAssistant:    () => void;
   setTheme:            (t: UIState["theme"]) => void;
 };
 
@@ -23,6 +26,7 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed:   false,
       mobileSidebarOpen:  false,
       commandPaletteOpen: false,
+      aiAssistantOpen:    false,
       theme:              "system",
 
       toggleSidebar:       () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -32,6 +36,8 @@ export const useUIStore = create<UIState>()(
       toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
       openCommandPalette:  () => set({ commandPaletteOpen: true }),
       closeCommandPalette: () => set({ commandPaletteOpen: false }),
+      openAIAssistant:     () => set({ aiAssistantOpen: true }),
+      closeAIAssistant:    () => set({ aiAssistantOpen: false }),
       setTheme:            (theme) => set({ theme }),
     }),
     {

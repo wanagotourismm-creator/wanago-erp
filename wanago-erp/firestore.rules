@@ -584,6 +584,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── AI action logs (unified assistant write-tool audit trail) ──
+    // Written only by the trusted Admin-SDK path in
+    // ai-action-log.service.ts after the client executes an AI-proposed
+    // write via the normal createLead/createQuotation service functions —
+    // same admin-only-write boundary as aiUsageLogs above.
+    match /aiActionLogs/{id} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
     // ── Team Pulse (anonymous check-in, Phase 5 of the AI/ML roadmap) ──
     // "Anonymous to viewers, traceable in the database" — the app's own
     // Team Pulse UI never reads or displays individual documents (only the

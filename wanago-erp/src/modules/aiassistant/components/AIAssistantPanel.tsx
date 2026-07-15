@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Sparkles, X, Send, Loader2, AlertTriangle, BookOpen, Mic, Square, Volume2, VolumeX,
+  Sparkles, X, Send, Loader2, AlertTriangle, Mic, Square, Volume2, VolumeX, Check, CheckCircle2, XCircle,
 } from "lucide-react";
 import { useAIAssistant } from "@/modules/aiassistant/hooks/useAIAssistant";
 import { cn } from "@/lib/utils/helpers";
@@ -17,38 +17,71 @@ function findVoice(lang: AILanguage): SpeechSynthesisVoice | null {
   return window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(prefix)) ?? null;
 }
 
-function AssistantMessage({ message }: { message: AIChatMessage }) {
-  const isFallback = message.source === "kb-only" || message.source === "no-match";
+function ProposalCard({ message, onConfirm, onCancel }: {
+  message: AIChatMessage;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const proposal = message.proposal!;
+  const [confirming, setConfirming] = useState(false);
+
+  async function handleConfirm() {
+    setConfirming(true);
+    await onConfirm();
+    setConfirming(false);
+  }
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] space-y-2">
-        {isFallback && message.source === "kb-only" && (
-          <div className="flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 w-fit">
-            <AlertTriangle size={11} />
-            Showing help article (AI temporarily unavailable)
+      <div className="max-w-[85%] rounded-xl border border-border bg-card px-3 py-2.5 space-y-2">
+        <p className="text-sm text-foreground">{proposal.summary}</p>
+
+        {proposal.status === "pending" && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleConfirm}
+              disabled={confirming}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {confirming ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+              Confirm
+            </button>
+            <button
+              onClick={onCancel}
+              disabled={confirming}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         )}
 
-        {message.content && (
-          <div className="rounded-2xl bg-muted px-3 py-2 text-foreground">
-            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+        {proposal.status === "confirmed" && (
+          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 size={13} /> Created
           </div>
         )}
 
-        {isFallback && message.articles && message.articles.length > 0 && (
-          <div className="space-y-2">
-            {message.articles.map((a) => (
-              <div key={a.id} className="rounded-xl border border-border bg-card px-3 py-2.5">
-                <div className="mb-1 flex items-center gap-1.5">
-                  <BookOpen size={12} className="text-primary flex-shrink-0" />
-                  <p className="text-xs font-semibold text-foreground">{a.title}</p>
-                </div>
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{a.content}</p>
-              </div>
-            ))}
+        {proposal.status === "cancelled" && (
+          <p className="text-xs font-medium text-muted-foreground">Cancelled — nothing was created.</p>
+        )}
+
+        {proposal.status === "error" && (
+          <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+            <XCircle size={13} /> {proposal.errorMessage ?? "Couldn't create this."}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AssistantMessage({ message }: { message: AIChatMessage }) {
+  if (!message.content) return null;
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-foreground">
+        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
       </div>
     </div>
   );
@@ -57,6 +90,7 @@ function AssistantMessage({ message }: { message: AIChatMessage }) {
 export function AIAssistantPanel() {
   const {
     open, openPanel, closePanel, messages, loading, ask,
+    confirmAction, cancelAction,
     language, setLanguage,
     recording, transcribing, voiceError, startRecording, stopRecording,
   } = useAIAssistant();
@@ -136,7 +170,7 @@ export function AIAssistantPanel() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">Wanago Assistant</p>
-                  <p className="text-[11px] text-muted-foreground truncate">Ask how to use the ERP</p>
+                  <p className="text-[11px] text-muted-foreground truncate">Ask about the ERP, HR, or your leads &amp; quotes</p>
                 </div>
               </div>
 
@@ -182,22 +216,33 @@ export function AIAssistantPanel() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-3">
                     <Sparkles size={20} className="text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-foreground">Ask me anything about using Wanago ERP</p>
-                  <p className="mt-1 text-xs text-muted-foreground">e.g. &ldquo;How do I apply for leave?&rdquo; or &ldquo;How do I create an invoice?&rdquo; — type or use the mic, in English or Malayalam.</p>
+                  <p className="text-sm font-medium text-foreground">Ask me anything about Wanago</p>
+                  <p className="mt-1 text-xs text-muted-foreground">e.g. &ldquo;How do I apply for leave?&rdquo;, &ldquo;What&rsquo;s the status of lead LD-0012?&rdquo;, or &ldquo;Create a lead for John, Goa trip&rdquo; — type or use the mic, in English or Malayalam.</p>
                 </div>
               )}
 
-              {messages.map((m) => (
-                m.role === "user" ? (
-                  <div key={m.id} className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-white">
-                      <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>
+              {messages.map((m) => {
+                if (m.role === "user") {
+                  return (
+                    <div key={m.id} className="flex justify-end">
+                      <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-white">
+                        <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <AssistantMessage key={m.id} message={m} />
-                )
-              ))}
+                  );
+                }
+                if (m.proposal) {
+                  return (
+                    <ProposalCard
+                      key={m.id}
+                      message={m}
+                      onConfirm={() => confirmAction(m.id)}
+                      onCancel={() => cancelAction(m.id)}
+                    />
+                  );
+                }
+                return <AssistantMessage key={m.id} message={m} />;
+              })}
 
               {loading && (
                 <div className="flex justify-start">

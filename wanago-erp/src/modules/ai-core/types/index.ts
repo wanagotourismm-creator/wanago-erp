@@ -28,3 +28,15 @@ export type AiSettings = {
   temperature: number;
   maxOutputTokens: number;
 };
+
+// One entry per AI-initiated write the user confirmed (or that failed after
+// confirmation) — written server-side after the client executes the actual
+// Firestore write, same admin-only-write trust boundary as AiUsageLog.
+export type AiActionLog = FirestoreRecord & {
+  tool:             string;
+  argsSummary:      string;
+  resultCollection: string | null;
+  resultDocId:      string | null;
+  outcome:          AiOutcome;
+  errorMessage:     string | null;
+};

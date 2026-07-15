@@ -114,6 +114,22 @@ export async function requireAuth(idToken: string | null): Promise<{ uid: string
   }
 }
 
+// Reads a verified caller's systemRole after requireAuth() has already
+// confirmed they're a real, active account — kept separate rather than
+// folded into requireAuth() so routes that only need "is this a real user"
+// don't pay for a role they don't use, while the AI assistant (which needs
+// the role to gate write-tool proposals) can fetch it in one extra read.
+export async function getUserRole(uid: string): Promise<string | null> {
+  const adminDb = getAdminDb();
+  if (!adminDb) return null;
+  try {
+    const userDoc = await adminDb.collection("users").doc(uid).get();
+    return (userDoc.data()?.systemRole as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type PortalCaller = { portalType: "customer" | "partner"; entityId: string };
 
 // Verifies a Customer/Freelance-Referral-Executive portal session — these
