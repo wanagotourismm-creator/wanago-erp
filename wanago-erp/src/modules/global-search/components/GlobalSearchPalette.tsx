@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
-import { Search, Loader2, X, Users, UserCheck, CalendarCheck, Map, FileText, UserPlus } from "lucide-react";
+import {
+  Search, Loader2, X, Users, UserCheck, CalendarCheck, Map, FileText, UserPlus,
+  Receipt, CreditCard, Store, Package, Wallet, Megaphone, UserCircle, Compass,
+} from "lucide-react";
 import { useGlobalSearchUIStore } from "@/store/global-search-ui.store";
 import { useGlobalSearch } from "@/modules/global-search/hooks/useGlobalSearch";
 import { SEARCH_ENTITY_LABELS, type SearchEntityType, type SearchResult } from "@/modules/global-search/types";
+import { useAuthStore } from "@/store/auth.store";
+import { canAccessPage } from "@/lib/rbac";
+import { NAV_CONFIG } from "@/components/layout/nav-config";
+import type { SystemRole } from "@/types/rbac";
 
 const ENTITY_ICONS: Record<SearchEntityType, React.ElementType> = {
   customer:  UserCheck,
@@ -15,6 +22,14 @@ const ENTITY_ICONS: Record<SearchEntityType, React.ElementType> = {
   itinerary: Map,
   quotation: FileText,
   candidate: UserPlus,
+  invoice:   Receipt,
+  payment:   CreditCard,
+  supplier:  Store,
+  package:   Package,
+  expense:   Wallet,
+  campaign:  Megaphone,
+  employee:  UserCircle,
+  page:      Compass,
 };
 
 function groupByEntity(results: SearchResult[]): Partial<Record<SearchEntityType, SearchResult[]>> {
@@ -28,7 +43,23 @@ function groupByEntity(results: SearchResult[]): Partial<Record<SearchEntityType
 export function GlobalSearchPalette() {
   const { open, closePalette, togglePalette } = useGlobalSearchUIStore();
   const { results, loading, ensureIndex } = useGlobalSearch();
+  const { user } = useAuthStore();
   const router = useRouter();
+
+  // "Go to page" entries, sourced straight from the same nav config the
+  // sidebar renders — same role-gating expression Sidebar.tsx already uses,
+  // so the palette never suggests a page the signed-in user can't open.
+  const pageResults = useMemo((): SearchResult[] => {
+    if (!user) return [];
+    const role = user.systemRole as SystemRole;
+    return NAV_CONFIG.flatMap((group) => group.items)
+      .filter((item) => !item.roles || item.roles.includes(role) || canAccessPage(role, item.href.replace("/", "")))
+      .map((item): SearchResult => ({
+        id: item.href, entityType: "page",
+        title: item.label, subtitle: item.href,
+        href: item.href,
+      }));
+  }, [user]);
 
   // ⌘K / Ctrl+K opens the palette from anywhere in the app.
   useEffect(() => {
@@ -53,7 +84,7 @@ export function GlobalSearchPalette() {
     router.push(r.href);
   }
 
-  const grouped = groupByEntity(results);
+  const grouped = groupByEntity([...pageResults, ...results]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh]" onClick={closePalette}>
@@ -66,7 +97,7 @@ export function GlobalSearchPalette() {
             <Search size={16} className="flex-shrink-0 text-muted-foreground" />
             <Command.Input
               autoFocus
-              placeholder="Search customers, leads, bookings, itineraries, quotations, candidates…"
+              placeholder="Search anything, or jump to a page…"
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
             {loading && <Loader2 size={14} className="flex-shrink-0 animate-spin text-muted-foreground" />}
