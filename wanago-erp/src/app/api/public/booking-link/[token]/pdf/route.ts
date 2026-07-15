@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { fetchCustomerTrackingDocs, loadLogoDataUriServer } from "@/lib/server/booking-portal";
 import { generateQuotationPdfBlob } from "@/lib/pdf/quotation-pdf";
-import { generateDocumentPdfBuffer } from "@/lib/pdf/document-pdf";
+import { generateInvoicePdfBuffer } from "@/lib/pdf/invoice-pdf";
 import { joinAddressCity, formatDate } from "@/lib/utils/helpers";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 
@@ -99,20 +99,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const taxAmount = inv.taxAmount ?? 0;
   const subtotal = inv.totalAmount - taxAmount;
-  const buffer = await generateDocumentPdfBuffer({
-    type: "invoice",
+  const logoDataUrl = await loadLogoDataUriServer();
+  const description = inv.bookingRef ? `Booking ${inv.bookingRef}` : "Services rendered";
+  const buffer = await generateInvoicePdfBuffer({
     refNumber: inv.refNumber,
-    date: inv.issueDate,
-    dueDateOrValidUntil: inv.dueDate,
+    date: formatDate(inv.issueDate, "dd/MM/yyyy"),
+    dueDate: inv.dueDate ? formatDate(inv.dueDate, "dd/MM/yyyy") : null,
     company: {
       businessName: company.businessName ?? "Wanago Tours & Travels",
-      address: company.address, city: company.city, phone: company.phone, email: company.email,
-      gstNumber: company.gstNumber, gstEnabled: !!company.gstEnabled,
+      addressLine: joinAddressCity(company.address, company.city),
+      phone: company.phone || undefined,
+      gstNumber: company.gstEnabled ? company.gstNumber || undefined : undefined,
     },
     customer: { name: inv.customerName, phone: inv.customerPhone },
-    lineItems: [{ description: inv.bookingRef ? `Booking ${inv.bookingRef}` : "Services rendered", amount: subtotal }],
-    subtotal, taxRate: inv.taxRate, taxAmount: inv.taxAmount, totalAmount: inv.totalAmount,
-    amountPaid: inv.amountPaid, balanceDue: inv.balanceDue, notes: inv.notes,
+    lineItems: [{ description, pax: null, price: subtotal, total: inv.totalAmount }],
+    subtotal, grandTotal: inv.totalAmount,
+    amountPaid: inv.amountPaid, balanceDue: inv.balanceDue,
+    bank: {
+      accountName: company.bankAccountName || company.businessName, accountNumber: company.bankAccountNumber,
+      ifsc: company.bankIfscCode, bankName: company.bankName, qrDataUrl: company.paymentQrUrl || null,
+    },
+    logoDataUrl: logoDataUrl ?? "",
+    websiteUrl: "www.wanago.in",
+    socialHandle: "@wana.go",
   });
 
   return new NextResponse(Buffer.from(buffer), {

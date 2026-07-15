@@ -158,6 +158,41 @@ export async function convertLeadToCustomer(lead: Lead, createdBy: string): Prom
   return customer;
 }
 
+// Shared by both quotation-seeding paths below — line item amounts are
+// per-pax prices (the quotation service multiplies by pax to get the
+// total), so the lead's budget (a whole-trip figure) is divided back down
+// to a starting per-pax price.
+function buildDraftQuotationPayload(lead: Lead, customer: Customer, createdBy: string, notePrefix: string) {
+  const pax = lead.pax || 1;
+  const perPaxBudget = lead.budget ? lead.budget / pax : 0;
+
+  const tripNotes = [
+    notePrefix,
+    lead.tripType   ? `Trip type: ${lead.tripType}.` : null,
+    lead.travelDate ? `Travel date: ${lead.travelDate}.` : null,
+    lead.duration   ? `Duration: ${lead.duration} night(s).` : null,
+    lead.notes      ? `Lead notes: ${lead.notes}` : null,
+  ].filter(Boolean).join(" ");
+
+  return {
+    customerId:    customer.id,
+    customerName:  lead.name,
+    customerPhone: lead.phone,
+    destination:   lead.destination,
+    packageId:     null,
+    packageName:   null,
+    pax,
+    lineItems:     [{ description: `${lead.destination} package`, amount: perPaxBudget }],
+    taxRate:       null,
+    validUntil:    null,
+    officeId:      lead.officeId,
+    officeName:    lead.officeName,
+    notes:         tripNotes,
+    leadId:        lead.id,
+    createdBy,
+  };
+}
+
 // Auto-seeds a draft quotation for the customer the moment their lead is
 // marked "won" — so the sales agent lands on a quotation that already has
 // the customer, destination, pax and a starting price line filled in,
@@ -173,39 +208,38 @@ export async function createDraftQuotationFromWonLead(
     const existingQuotations = await fetchQuotations();
     if (existingQuotations.some(q => q.leadId === lead.id)) return;
 
-    const tripNotes = [
-      `Auto-created from won lead ${lead.refNumber}.`,
-      lead.tripType   ? `Trip type: ${lead.tripType}.` : null,
-      lead.travelDate ? `Travel date: ${lead.travelDate}.` : null,
-      lead.duration   ? `Duration: ${lead.duration} night(s).` : null,
-      lead.notes      ? `Lead notes: ${lead.notes}` : null,
-    ].filter(Boolean).join(" ");
-
-    // Line item amounts are per-pax prices (the quotation service multiplies
-    // by pax to get the total) — the lead's budget is the customer's whole-
-    // trip figure, so divide it back down to a starting per-pax price.
-    const pax = lead.pax || 1;
-    const perPaxBudget = lead.budget ? lead.budget / pax : 0;
-
-    await createQuotation({
-      customerId:    customer.id,
-      customerName:  lead.name,
-      customerPhone: lead.phone,
-      destination:   lead.destination,
-      packageId:     null,
-      packageName:   null,
-      pax,
-      lineItems:     [{ description: `${lead.destination} package`, amount: perPaxBudget }],
-      taxRate:       null,
-      validUntil:    null,
-      officeId:      lead.officeId,
-      officeName:    lead.officeName,
-      notes:         tripNotes,
-      leadId:        lead.id,
+    await createQuotation(
+      buildDraftQuotationPayload(lead, customer, createdBy, `Auto-created from won lead ${lead.refNumber}.`),
       createdBy,
-    }, createdBy, { autoSend: false });
+      { autoSend: false }
+    );
   } catch {
     // Best-effort — the lead is already won and the customer already
     // exists either way, so a failure here should never surface as an error.
   }
+}
+
+// Manual counterpart used by the Leads page's "Create Quotation" action —
+// lets an agent start a real quotation (as a draft, priced and sent later
+// from the Quotations page) at any point in the pipeline, not just once a
+// lead is marked "won". Reuses/creates the Customer the same way won-lead
+// conversion does, and is dedup'd on leadId the same way — so clicking it
+// again on a lead that already has a quotation just reopens that one
+// instead of creating a duplicate. Unlike the won-lead path, errors here
+// are surfaced to the caller since a human explicitly asked for this.
+export async function createQuotationFromLead(
+  lead: Lead, createdBy: string
+): Promise<{ quotationId: string }> {
+  const customer = await convertLeadToCustomer(lead, createdBy);
+
+  const existingQuotations = await fetchQuotations();
+  const existing = existingQuotations.find(q => q.leadId === lead.id);
+  if (existing) return { quotationId: existing.id };
+
+  const quotation = await createQuotation(
+    buildDraftQuotationPayload(lead, customer, createdBy, `Created from lead ${lead.refNumber}.`),
+    createdBy,
+    { autoSend: false }
+  );
+  return { quotationId: quotation.id };
 }

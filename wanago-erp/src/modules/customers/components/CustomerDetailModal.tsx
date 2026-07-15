@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle, History, Gift, Copy, Check } from "lucide-react";
+import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle, History, Gift, Copy, Check, FileText } from "lucide-react";
 import { CustomerTypeBadge, CustomerSegmentBadge } from "@/modules/customers/components/CustomerBadges";
 import { computeCustomerSegment } from "@/modules/customers/utils/segment";
 import { PhoneLink } from "@/components/shared/PhoneLink";
@@ -32,6 +32,7 @@ type Props = {
   onClose:   () => void;
   onEdit:    (customer: Customer) => void;
   onDelete:  (customer: Customer) => void;
+  onCreateQuotation: (customer: Customer) => void;
 };
 
 function paymentBadgeFor(booking: Booking, invoices: Invoice[]) {
@@ -68,7 +69,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDelete }: Props) {
+export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDelete, onCreateQuotation }: Props) {
   const [bookings, setBookings]         = useState<Booking[]>([]);
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -403,6 +404,12 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
                 <Trash2 size={13} /> Delete
               </button>
             </div>
+            <button
+              onClick={() => onCreateQuotation(customer)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors"
+            >
+              <FileText size={13} /> Create Quotation
+            </button>
           </div>
         )}
 

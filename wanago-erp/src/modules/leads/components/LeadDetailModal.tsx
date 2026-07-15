@@ -18,6 +18,7 @@ type Props = {
   onEdit:    (lead: Lead) => void;
   onDelete:  (lead: Lead) => void;
   onStage:   (lead: Lead, stage: string) => void;
+  onCreateQuotation: (lead: Lead) => Promise<{ error: string | null }>;
   onGenerateLink: (lead: Lead) => Promise<{ token: string | null; error: string | null }>;
 };
 
@@ -34,12 +35,13 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage, onGenerateLink }: Props) {
+export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage, onCreateQuotation, onGenerateLink }: Props) {
   const [callFormOpen, setCallFormOpen] = useState(false);
   const [callPrefill, setCallPrefill] = useState<{ method: CallMethod; direction: CallDirection } | null>(null);
   const [callLogRefreshKey, setCallLogRefreshKey] = useState(0);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [creatingQuotation, setCreatingQuotation] = useState(false);
   const { addCallLog } = useCallLogs({ leadId: lead?.id });
 
   if (!lead) return null;
@@ -52,6 +54,13 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage, onGe
     setGeneratingLink(true);
     await onGenerateLink(lead!);
     setGeneratingLink(false);
+  }
+
+  async function handleCreateQuotation() {
+    setCreatingQuotation(true);
+    const { error } = await onCreateQuotation(lead!);
+    setCreatingQuotation(false);
+    if (error) alert(error);
   }
 
   function copyLink() {
@@ -293,10 +302,11 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage, onGe
           <div className="flex items-center gap-2">
             {canQuote && (
               <button
-                onClick={() => onStage(lead, "quoted")}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors"
+                onClick={handleCreateQuotation}
+                disabled={creatingQuotation}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/70 disabled:opacity-60 transition-colors"
               >
-                <FileText size={13} /> Send Quotation
+                <FileText size={13} /> {creatingQuotation ? "Creating…" : "Create Quotation"}
               </button>
             )}
             {canMarkWon && (

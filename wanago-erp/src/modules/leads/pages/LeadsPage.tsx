@@ -55,7 +55,7 @@ const STAGE_FILTERS = [
 ];
 
 export function LeadsPage() {
-  const { leads, loading, addLead, editLead, changeStage, removeLead, generateLink, load } = useLeads();
+  const { leads, loading, addLead, editLead, changeStage, removeLead, createQuotation, generateLink, load } = useLeads();
   const { user } = useAuthStore();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -249,6 +249,14 @@ export function LeadsPage() {
     await removeLead(lead.id);
   }
 
+  async function handleCreateQuotation(lead: Lead): Promise<{ error: string | null }> {
+    const { quotationId, error } = await createQuotation(lead);
+    if (error) return { error };
+    setViewingLead(null);
+    if (quotationId) router.push(`/quotations?view=${quotationId}`);
+    return { error: null };
+  }
+
   return (
     <div className="space-y-5">
 
@@ -334,6 +342,7 @@ export function LeadsPage() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onStage={(lead, stage) => changeStage(lead.id, stage)}
+            onCreateQuotation={handleCreateQuotation}
           />
 
         </div>
@@ -346,6 +355,7 @@ export function LeadsPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStage={(lead, stage) => changeStage(lead.id, stage)}
+        onCreateQuotation={handleCreateQuotation}
         onGenerateLink={generateLink}
       />
 

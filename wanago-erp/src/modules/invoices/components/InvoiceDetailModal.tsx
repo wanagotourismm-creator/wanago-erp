@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { X, Edit2, Trash2, Send, Receipt, Building2, Download, Loader2 } from "lucide-react";
 import { InvoiceStatusBadge, formatAmount } from "@/modules/invoices/components/InvoiceBadges";
-import { cn, formatDate, initials } from "@/lib/utils/helpers";
+import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
-import { generateDocumentPdf } from "@/lib/pdf/document-pdf";
+import { downloadInvoicePdf, loadWanagoLogoDataUrlForInvoice } from "@/lib/pdf/invoice-pdf";
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import type { Invoice } from "@/modules/invoices/types";
 
@@ -78,38 +78,40 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
     if (!invoice) return;
     setDownloading(true);
     try {
-      const settings = await fetchCompanySettings();
-      const taxAmount = invoice.taxAmount ?? 0;
-      const subtotal = invoice.totalAmount - taxAmount;
-      await generateDocumentPdf({
-        type: "invoice",
+      const [settings, logoDataUrl] = await Promise.all([
+        fetchCompanySettings(),
+        loadWanagoLogoDataUrlForInvoice(),
+      ]);
+      const description = invoice.bookingRef ? `Booking ${invoice.bookingRef}` : "Services rendered";
+      await downloadInvoicePdf({
         refNumber: invoice.refNumber,
-        date: invoice.issueDate,
-        dueDateOrValidUntil: invoice.dueDate,
+        date: formatDate(invoice.issueDate, "dd/MM/yyyy"),
+        dueDate: invoice.dueDate ? formatDate(invoice.dueDate, "dd/MM/yyyy") : null,
         company: {
           businessName: settings.businessName,
-          address: settings.address,
-          city: settings.city,
-          phone: settings.phone,
-          email: settings.email,
-          gstNumber: settings.gstNumber,
-          gstEnabled: settings.gstEnabled,
+          addressLine: joinAddressCity(settings.address, settings.city),
+          phone: settings.phone || undefined,
+          gstNumber: settings.gstEnabled ? settings.gstNumber || undefined : undefined,
         },
         customer: {
           name: invoice.customerName,
           phone: invoice.customerPhone,
         },
-        lineItems: [{
-          description: invoice.bookingRef ? `Booking ${invoice.bookingRef}` : "Services rendered",
-          amount: subtotal,
-        }],
-        subtotal,
-        taxRate: invoice.taxRate,
-        taxAmount: invoice.taxAmount,
-        totalAmount: invoice.totalAmount,
+        lineItems: [{ description, pax: null, price: invoice.totalAmount, total: invoice.totalAmount }],
+        subtotal: invoice.totalAmount - (invoice.taxAmount ?? 0),
+        grandTotal: invoice.totalAmount,
         amountPaid: invoice.amountPaid,
         balanceDue: invoice.balanceDue,
-        notes: invoice.notes,
+        bank: {
+          accountName: settings.bankAccountName || settings.businessName,
+          accountNumber: settings.bankAccountNumber,
+          ifsc: settings.bankIfscCode,
+          bankName: settings.bankName,
+          qrDataUrl: settings.paymentQrUrl || null,
+        },
+        logoDataUrl: logoDataUrl ?? "",
+        websiteUrl: "www.wanago.in",
+        socialHandle: "@wana.go",
       });
     } finally {
       setDownloading(false);

@@ -1,6 +1,7 @@
 "use client";
 
-import { Edit2, Pencil, Trash2, Phone, Mail } from "lucide-react";
+import { useState } from "react";
+import { Edit2, Pencil, Trash2, Phone, Mail, FileText, Loader2 } from "lucide-react";
 import { PriorityBadge, StageBadge } from "@/modules/leads/components/LeadBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
@@ -18,9 +19,26 @@ type Props = {
   onEdit:     (lead: Lead) => void;
   onDelete:   (lead: Lead) => void;
   onStage:    (lead: Lead, stage: string) => void;
+  onCreateQuotation: (lead: Lead) => Promise<{ error: string | null }>;
 };
 
-export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage }: Props) {
+// A lead can only start a fresh quotation while it's still open pipeline —
+// once it's quoted/in negotiation/won/lost, use the existing quotation
+// (or the lead is already closed) instead of starting another one.
+function canQuoteLead(lead: Lead): boolean {
+  return !["quoted", "negotiation", "won", "lost"].includes(lead.stage);
+}
+
+export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage, onCreateQuotation }: Props) {
+  const [creatingId, setCreatingId] = useState<string | null>(null);
+
+  async function handleCreateQuotation(lead: Lead) {
+    setCreatingId(lead.id);
+    const { error } = await onCreateQuotation(lead);
+    setCreatingId(null);
+    if (error) alert(error);
+  }
+
   if (loading) return <SkeletonTable rows={6} />;
 
   if (leads.length === 0) {
@@ -131,6 +149,16 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage }
                   {/* Actions — inline, same line, revealed on row hover */}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      {canQuoteLead(lead) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleCreateQuotation(lead); }}
+                          disabled={creatingId === lead.id}
+                          title="Create Quotation"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60 transition-colors"
+                        >
+                          {creatingId === lead.id ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); onEdit(lead); }}
                         title="Edit"
@@ -165,6 +193,13 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage }
               label:     "Call",
               onClick:   () => { if (lead.phone) window.location.href = `tel:${lead.phone}`; },
               className: "bg-green-600",
+            }] : []),
+            ...(canQuoteLead(lead) ? [{
+              key:       "quote",
+              icon:      <FileText size={16} />,
+              label:     "Quote",
+              onClick:   () => handleCreateQuotation(lead),
+              className: "bg-primary",
             }] : []),
             {
               key:       "edit",

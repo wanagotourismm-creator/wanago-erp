@@ -17,6 +17,11 @@ import type { Quotation } from "@/modules/quotations/types";
 type Props = {
   open:       boolean;
   quotation?: Quotation | null;
+  // Pre-fills fields (e.g. customerId/customerName/customerPhone) when
+  // opening a brand-new quotation from another module's "Create Quotation"
+  // action — e.g. a Customer's detail view. Ignored when editing an
+  // existing quotation.
+  prefill?:   Partial<QuotationSchema>;
   onClose:    () => void;
   onSubmit:   (data: QuotationSchema) => Promise<void>;
 };
@@ -49,7 +54,7 @@ const DEFAULT_VALUES: Partial<QuotationSchema> = {
   lineItems:  [{ description: "", amount: 0 }],
 };
 
-export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
+export function QuotationForm({ open, quotation, prefill, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [packages,  setPackages]  = useState<Package[]>([]);
@@ -91,10 +96,11 @@ export function QuotationForm({ open, quotation, onClose, onSubmit }: Props) {
           ...DEFAULT_VALUES,
           officeId:   user?.officeId   ?? "main",
           officeName: user?.officeName ?? "Head Office",
+          ...prefill,
         });
       }
     }
-  }, [open, quotation, reset, user]);
+  }, [open, quotation, reset, user, prefill]);
 
   const selectedCustomerId = watch("customerId");
   const selectedPackageId  = watch("packageId");

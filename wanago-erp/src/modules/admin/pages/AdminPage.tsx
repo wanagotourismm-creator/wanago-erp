@@ -160,12 +160,7 @@ export function AdminPage() {
   const headerRight = (
     <>
       {tab === "users" && (
-        <>
-          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadUsers()}>Refresh</Button>
-          {canManageUsers && (
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingUser(null); setUserFormOpen(true); }}>Add User</Button>
-          )}
-        </>
+        <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadUsers()}>Refresh</Button>
       )}
       {tab === "offices" && (
         <>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   fetchLeads, createLead, updateLead,
   updateLeadStage, deleteLead, convertLeadToCustomer,
-  createDraftQuotationFromWonLead, generateBookingLink,
+  createDraftQuotationFromWonLead, createQuotationFromLead, generateBookingLink,
 } from "@/modules/leads/services/lead.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentEmployee } from "@/modules/dashboard/hooks/useCurrentEmployee";
@@ -125,6 +125,24 @@ export function useLeads() {
     }
   }
 
+  async function createQuotation(lead: Lead): Promise<{ quotationId: string | null; error: string | null }> {
+    try {
+      const { quotationId } = await createQuotationFromLead(lead, user?.uid ?? "");
+      if (lead.stage !== "quoted") {
+        await updateLeadStage(lead.id, "quoted");
+        setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, stage: "quoted" } : l));
+      }
+      logActivity({
+        entityType: "Lead", entityName: lead.name, action: "status_changed",
+        detail: `Created quotation from lead ${lead.refNumber}`,
+        actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
+      });
+      return { quotationId, error: null };
+    } catch {
+      return { quotationId: null, error: "Failed to create quotation" };
+    }
+  }
+
   async function generateLink(lead: Lead): Promise<{ token: string | null; error: string | null }> {
     try {
       const token = await generateBookingLink(lead);
@@ -135,5 +153,5 @@ export function useLeads() {
     }
   }
 
-  return { leads: scopedLeads, loading, error, load, addLead, editLead, changeStage, removeLead, generateLink };
+  return { leads: scopedLeads, loading, error, load, addLead, editLead, changeStage, removeLead, createQuotation, generateLink };
 }

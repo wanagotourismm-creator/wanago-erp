@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils/helpers";
 import type { Quotation, QuotationFormData } from "@/modules/quotations/types";
 import type { QuotationSchema } from "@/modules/quotations/schemas";
 
+type QuotationPrefill = Partial<QuotationSchema>;
+
 // Firestore rules: super_admin/admin/sales may create & update quotations,
 // only admin (which includes super_admin) may delete them.
 const MANAGE_ROLES = ["super_admin", "admin", "sales"];
@@ -41,6 +43,7 @@ export function QuotationsPage() {
   const [viewingQuotation,  setViewingQuotation]  = useState<Quotation | null>(null);
   const [statusFilter,      setStatusFilter]      = useState("");
   const [search,            setSearch]            = useState("");
+  const [formPrefill,       setFormPrefill]       = useState<QuotationPrefill | undefined>(undefined);
 
   // Supports deep-linking straight into a quotation's detail view, e.g.
   // from Global Search (/quotations?view=<id>).
@@ -51,6 +54,22 @@ export function QuotationsPage() {
     if (match) setViewingQuotation(match);
     router.replace("/quotations");
   }, [searchParams, quotations, router]);
+
+  // Supports jumping straight into a pre-filled "New Quotation" form for a
+  // specific customer, e.g. from a Customer's detail view's "Create
+  // Quotation" action (/quotations?newForCustomer=<id>&name=&phone=).
+  useEffect(() => {
+    const customerId = searchParams.get("newForCustomer");
+    if (!customerId) return;
+    setFormPrefill({
+      customerId,
+      customerName: searchParams.get("name")  ?? "",
+      customerPhone: searchParams.get("phone") ?? "",
+    });
+    setEditingQuotation(null);
+    setFormOpen(true);
+    router.replace("/quotations");
+  }, [searchParams, router]);
 
   const filtered = useMemo(() => {
     return quotations.filter((q) => {
@@ -134,7 +153,7 @@ export function QuotationsPage() {
               <Button
                 size="sm"
                 icon={<Plus size={14} />}
-                onClick={() => { setEditingQuotation(null); setFormOpen(true); }}
+                onClick={() => { setEditingQuotation(null); setFormPrefill(undefined); setFormOpen(true); }}
                 data-tour-id="tour-quotations-add"
               >
                 New Quotation
@@ -225,7 +244,8 @@ export function QuotationsPage() {
       <QuotationForm
         open={formOpen}
         quotation={editingQuotation}
-        onClose={() => { setFormOpen(false); setEditingQuotation(null); }}
+        prefill={formPrefill}
+        onClose={() => { setFormOpen(false); setEditingQuotation(null); setFormPrefill(undefined); }}
         onSubmit={handleSubmit}
       />
 

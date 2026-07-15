@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit2, Trash2, Phone, Mail } from "lucide-react";
+import { Edit2, Trash2, Phone, Mail, FileText } from "lucide-react";
 import { CustomerTypeBadge, CustomerSegmentBadge } from "@/modules/customers/components/CustomerBadges";
 import type { CustomerSegment } from "@/modules/customers/utils/segment";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -18,9 +18,10 @@ type Props = {
   onView:    (customer: Customer) => void;
   onEdit:    (customer: Customer) => void;
   onDelete:  (customer: Customer) => void;
+  onCreateQuotation: (customer: Customer) => void;
 };
 
-export function CustomersTable({ customers, loading, canManage, segments = {}, onView, onEdit, onDelete }: Props) {
+export function CustomersTable({ customers, loading, canManage, segments = {}, onView, onEdit, onDelete, onCreateQuotation }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (customers.length === 0) {
@@ -114,6 +115,13 @@ export function CustomersTable({ customers, loading, canManage, segments = {}, o
                     {canManage && (
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <button
+                          onClick={(e) => { e.stopPropagation(); onCreateQuotation(customer); }}
+                          title="Create Quotation"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <FileText size={13} />
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); onEdit(customer); }}
                           title="Edit"
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
@@ -154,6 +162,13 @@ export function CustomersTable({ customers, loading, canManage, segments = {}, o
           }
           if (canManage) {
             actions.push(
+              {
+                key:       "quote",
+                icon:      <FileText size={16} />,
+                label:     "Quote",
+                onClick:   () => onCreateQuotation(customer),
+                className: "bg-primary",
+              },
               {
                 key:       "edit",
                 icon:      <Edit2 size={16} />,

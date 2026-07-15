@@ -245,6 +245,19 @@ export function CustomersPage() {
     setFormOpen(true);
   }
 
+  // Jumps to the Quotations page with a pre-filled "New Quotation" form for
+  // this customer already open (see QuotationsPage's `newForCustomer` param)
+  // — skips re-picking the customer from the dropdown there.
+  function handleCreateQuotation(customer: Customer) {
+    setViewingCustomer(null);
+    const params = new URLSearchParams({
+      newForCustomer: customer.id,
+      name:           customer.fullName,
+      phone:          customer.phone,
+    });
+    router.push(`/quotations?${params.toString()}`);
+  }
+
   async function handleDelete(customer: Customer) {
     // Previously this deleted with no idea whether the customer had any
     // history — bookings/invoices/quotations don't get cleaned up or
@@ -368,6 +381,7 @@ export function CustomersPage() {
           onView={setViewingCustomer}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onCreateQuotation={handleCreateQuotation}
         />
       </PullToRefresh>
 
@@ -378,6 +392,7 @@ export function CustomersPage() {
         onClose={() => setViewingCustomer(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onCreateQuotation={handleCreateQuotation}
       />
 
       {/* Form drawer */}
