@@ -7,6 +7,7 @@
 // sales forecasting.
 import { toDate } from "@/lib/utils/helpers";
 import type { Booking } from "@/modules/bookings/types";
+import type { Timestamp } from "@/types/global";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -85,7 +86,12 @@ export function getQuotationRisk(q: { status: string; validUntil: string | null;
     }
   }
 
-  const updatedAt = toDate(q.updatedAt);
+  // updatedAt is typed `unknown` here because callers pass two different
+  // shapes: the client Quotation type's real Timestamp|Date|string, and
+  // the cron's admin-SDK doc where it's read as `unknown` — toDate()
+  // structurally handles both (checks for a `.seconds` field), this cast
+  // just satisfies its parameter type without narrowing either caller.
+  const updatedAt = toDate(q.updatedAt as Timestamp | Date | string | null | undefined);
   if (updatedAt) {
     const daysSince = (Date.now() - updatedAt.getTime()) / DAY_MS;
     if (daysSince >= QUOTATION_STALE_DAYS) return { type: "stale", label: `No response ${Math.floor(daysSince)}d` };
