@@ -3,20 +3,27 @@ import { packageRepository } from "@/modules/packages/services/package.repositor
 import { toDate } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import { syncItineraryFromPackage } from "@/lib/package-itinerary-sync";
+import { cached, invalidateCache } from "@/lib/firebase/data-cache";
 import type { Package, PackageFormData } from "@/modules/packages/types";
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
 // queries only need single-field indexes, which Firestore creates
 // automatically — no manual composite index deployment required.
+//
+// Cached (60s, per filter combination) — fetched in full on Bookings/
+// Invoices pages purely to resolve bulk-import CSV rows by title, so it's
+// re-run on nearly every page visit to those pages. See data-cache.ts.
 export async function fetchPackages(filters?: {
   packageStatus?: string;
   officeId?:      string;
 }): Promise<Package[]> {
-  const constraints: QueryConstraint[] = [];
-  if (filters?.packageStatus) constraints.push(where("packageStatus", "==", filters.packageStatus));
-  if (filters?.officeId)      constraints.push(where("officeId",      "==", filters.officeId));
-  const packages = await packageRepository.findMany({ constraints });
-  return packages.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
+  return cached(`packages:${JSON.stringify(filters ?? {})}`, 60_000, async () => {
+    const constraints: QueryConstraint[] = [];
+    if (filters?.packageStatus) constraints.push(where("packageStatus", "==", filters.packageStatus));
+    if (filters?.officeId)      constraints.push(where("officeId",      "==", filters.officeId));
+    const packages = await packageRepository.findMany({ constraints });
+    return packages.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
+  });
 }
 
 export async function fetchPackageById(id: string): Promise<Package | null> {
@@ -29,7 +36,7 @@ export async function createPackage(
 ): Promise<Package> {
   const refNumber = await nextRefNumber("PACKAGE");
 
-  return packageRepository.create({
+  const pkg = await packageRepository.create({
     ...data,
     refNumber,
     createdBy,
@@ -42,6 +49,8 @@ export async function createPackage(
     notes:         data.notes      || null,
     itineraryId:   null,
   });
+  invalidateCache("packages:");
+  return pkg;
 }
 
 // Used by itinerary.service.createItinerary/updateItinerary's "+ Create new
@@ -54,7 +63,7 @@ export async function createPackageFromItinerary(
   createdBy: string
 ): Promise<Package> {
   const refNumber = await nextRefNumber("PACKAGE");
-  return packageRepository.create({
+  const pkg = await packageRepository.create({
     title:          itin.title,
     destination:    itin.destination,
     category:       "General",
@@ -75,10 +84,13 @@ export async function createPackageFromItinerary(
     packageStatus:  "active",
     itineraryId:    null,
   });
+  invalidateCache("packages:");
+  return pkg;
 }
 
 export async function linkPackageToItinerary(packageId: string, itineraryId: string): Promise<void> {
   await packageRepository.update(packageId, { itineraryId });
+  invalidateCache("packages:");
 }
 
 export async function updatePackage(
@@ -86,10 +98,12 @@ export async function updatePackage(
   data: Partial<PackageFormData>
 ): Promise<void> {
   await packageRepository.update(id, data as Partial<Package>);
+  invalidateCache("packages:");
   const pkg = await packageRepository.findById(id);
   if (pkg) await syncItineraryFromPackage(pkg);
 }
 
 export async function deletePackage(id: string): Promise<void> {
-  return packageRepository.delete(id);
+  await packageRepository.delete(id);
+  invalidateCache("packages:");
 }

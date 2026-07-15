@@ -2,6 +2,7 @@ import { where, type QueryConstraint } from "firebase/firestore";
 import { customerRepository } from "@/modules/customers/services/customer.repository";
 import { toDate } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { cached, invalidateCache } from "@/lib/firebase/data-cache";
 import type { Customer, CustomerFormData } from "@/modules/customers/types";
 
 // Random 8-char code, not checked for uniqueness against existing customers
@@ -16,15 +17,22 @@ function generateReferralCode(): string {
 // Note: sorted client-side (not via Firestore orderBy) so filtered
 // queries only need single-field indexes, which Firestore creates
 // automatically — no manual composite index deployment required.
+//
+// Cached (60s, per filter combination) — fetched in full on Bookings/
+// Invoices/Customers pages for bulk-import row resolution and customer
+// segmentation, so it's re-run on nearly every visit to those pages.
+// See data-cache.ts.
 export async function fetchCustomers(filters?: {
   customerType?: string;
   officeId?:     string;
 }): Promise<Customer[]> {
-  const constraints: QueryConstraint[] = [];
-  if (filters?.customerType) constraints.push(where("customerType", "==", filters.customerType));
-  if (filters?.officeId)     constraints.push(where("officeId",     "==", filters.officeId));
-  const customers = await customerRepository.findMany({ constraints });
-  return customers.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
+  return cached(`customers:${JSON.stringify(filters ?? {})}`, 60_000, async () => {
+    const constraints: QueryConstraint[] = [];
+    if (filters?.customerType) constraints.push(where("customerType", "==", filters.customerType));
+    if (filters?.officeId)     constraints.push(where("officeId",     "==", filters.officeId));
+    const customers = await customerRepository.findMany({ constraints });
+    return customers.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
+  });
 }
 
 export async function fetchCustomerById(id: string): Promise<Customer | null> {
@@ -37,7 +45,7 @@ export async function createCustomer(
 ): Promise<Customer> {
   const refNumber = await nextRefNumber("CUSTOMER");
 
-  return customerRepository.create({
+  const customer = await customerRepository.create({
     ...data,
     refNumber,
     createdBy,
@@ -52,15 +60,19 @@ export async function createCustomer(
     referralCode:         generateReferralCode(),
     referredByCustomerId: data.referredByCustomerId ?? null,
   });
+  invalidateCache("customers:");
+  return customer;
 }
 
 export async function updateCustomer(
   id: string,
   data: Partial<CustomerFormData>
 ): Promise<void> {
-  return customerRepository.update(id, data as Partial<Customer>);
+  await customerRepository.update(id, data as Partial<Customer>);
+  invalidateCache("customers:");
 }
 
 export async function deleteCustomer(id: string): Promise<void> {
-  return customerRepository.delete(id);
+  await customerRepository.delete(id);
+  invalidateCache("customers:");
 }
