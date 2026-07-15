@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, Sparkles, TrendingUp, TrendingDown, AlertTriangle, Lightbulb } from "lucide-react";
+import { RefreshCw, Sparkles, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, LineChart } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatCurrency, cn } from "@/lib/utils/helpers";
 import { useLatestAiInsights } from "@/modules/digests/hooks/useLatestAiInsights";
+import { useLatestPredictions } from "@/modules/predictions/hooks/useLatestPredictions";
 import { useAuthStore } from "@/store/auth.store";
 import { auth } from "@/lib/firebase/client";
+
+const CONFIDENCE_COLORS: Record<string, string> = {
+  insufficient: "text-muted-foreground",
+  low: "text-muted-foreground",
+  medium: "text-amber-500",
+  high: "text-green-600",
+};
 
 function Tile({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
@@ -24,6 +32,7 @@ function Tile({ label, value, sub }: { label: string; value: React.ReactNode; su
 export function InsightsPage() {
   const { user } = useAuthStore();
   const { report, loading, reload } = useLatestAiInsights();
+  const { predictions, loading: predictionsLoading, reload: reloadPredictions } = useLatestPredictions();
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,16 +43,18 @@ export function InsightsPage() {
     setError(null);
     try {
       const idToken = await auth.currentUser?.getIdToken();
-      const res = await fetch("/api/cron/weekly-ai-insights/regenerate", {
-        method: "POST",
-        headers: { authorization: `Bearer ${idToken}` },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+      const [insightsRes, predictionsRes] = await Promise.all([
+        fetch("/api/cron/weekly-ai-insights/regenerate", { method: "POST", headers: { authorization: `Bearer ${idToken}` } }),
+        fetch("/api/cron/weekly-ml-predictions/regenerate", { method: "POST", headers: { authorization: `Bearer ${idToken}` } }),
+      ]);
+      if (!insightsRes.ok) {
+        const data = await insightsRes.json().catch(() => ({}));
         setError(data.error ?? "Failed to regenerate insights.");
-        return;
+      } else if (!predictionsRes.ok) {
+        const data = await predictionsRes.json().catch(() => ({}));
+        setError(data.error ?? "Failed to regenerate predictions.");
       }
-      await reload();
+      await Promise.all([reload(), reloadPredictions()]);
     } catch {
       setError("Couldn't reach the server. Try again.");
     } finally {
@@ -189,6 +200,54 @@ export function InsightsPage() {
               </ul>
             </Card>
           )}
+        </div>
+      )}
+
+      {!predictionsLoading && predictions && (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <Card>
+            <div className="flex items-center gap-2 mb-1">
+              <LineChart size={15} className="text-primary" />
+              <CardTitle>Revenue Forecast (ML)</CardTitle>
+            </div>
+            {predictions.revenueForecast.trained ? (
+              <>
+                <p className={cn("mb-3 text-[11px] font-medium", CONFIDENCE_COLORS[predictions.revenueForecast.confidence])}>
+                  {predictions.revenueForecast.confidence} confidence · based on {predictions.revenueForecast.sampleSize} weeks of history
+                </p>
+                <div className="space-y-2">
+                  {predictions.revenueForecast.weeklyForecast.map(w => (
+                    <div key={w.weekOf} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Week of {w.weekOf}</span>
+                      <span className="font-semibold text-foreground">{formatCurrency(w.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">{predictions.revenueForecast.note ?? "Not enough historical data yet to forecast."}</p>
+            )}
+          </Card>
+
+          <Card>
+            <div className="flex items-center gap-2 mb-1">
+              <LineChart size={15} className="text-primary" />
+              <CardTitle>Lead Conversion Model (ML)</CardTitle>
+            </div>
+            {predictions.leadConversion.trained ? (
+              <>
+                <p className="mb-3 text-[11px] font-medium text-muted-foreground">
+                  {Math.round((predictions.leadConversion.accuracy ?? 0) * 100)}% training accuracy · based on {predictions.leadConversion.sampleSize} labeled leads
+                </p>
+                {predictions.leadConversion.topDestinations.length > 0 && (
+                  <p className="text-sm text-foreground">Destinations correlating with winning: {predictions.leadConversion.topDestinations.join(", ")}</p>
+                )}
+                {predictions.leadConversion.note && <p className="mt-2 text-[11px] text-muted-foreground">{predictions.leadConversion.note}</p>}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">{predictions.leadConversion.note ?? "Not enough labeled leads yet to train a conversion model."}</p>
+            )}
+          </Card>
         </div>
       )}
     </div>

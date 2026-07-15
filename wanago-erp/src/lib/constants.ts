@@ -146,6 +146,7 @@ export const FIRESTORE_COLLECTIONS = {
   ITINERARY_BROCHURES: "itineraryBrochures",
   AI_USAGE_LOGS:   "aiUsageLogs",
   AI_ACTION_LOGS:  "aiActionLogs",
+  AI_PREDICTIONS:  "aiPredictions",
   DIGESTS:         "digests",
   WHATSAPP_CONVERSATIONS: "whatsappConversations",
   WHATSAPP_MESSAGES:      "whatsappMessages",

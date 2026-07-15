@@ -4,12 +4,16 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "regions": ["bom1"],
+  "functions": {
+    "api/ml/forecast.py": { "maxDuration": 30 }
+  },
   "crons": [
     { "path": "/api/cron/daily-reminders",    "schedule": "30 3 * * *" },
     { "path": "/api/cron/sync-supabase",      "schedule": "0 3 * * *"  },
     { "path": "/api/cron/weekly-sales-digest", "schedule": "0 4 * * 1" },
     { "path": "/api/cron/weekly-founder-briefing", "schedule": "0 5 * * 1" },
-    { "path": "/api/cron/weekly-ai-insights",      "schedule": "0 6 * * 1" }
+    { "path": "/api/cron/weekly-ai-insights",      "schedule": "0 6 * * 1" },
+    { "path": "/api/cron/weekly-ml-predictions",   "schedule": "0 7 * * 1" }
   ],
   "headers": [
     {

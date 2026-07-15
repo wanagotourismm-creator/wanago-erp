@@ -594,6 +594,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── AI ML predictions (revenue forecast, lead conversion model) ──
+    // Written only by /api/cron/weekly-ml-predictions via the Admin SDK,
+    // after validating api/ml/forecast.py's (Python) response — same
+    // admin-only-write boundary as aiUsageLogs/aiActionLogs above.
+    match /aiPredictions/{id} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
     // ── Team Pulse (anonymous check-in, Phase 5 of the AI/ML roadmap) ──
     // "Anonymous to viewers, traceable in the database" — the app's own
     // Team Pulse UI never reads or displays individual documents (only the
@@ -749,14 +758,14 @@ service cloud.firestore {
       // are — its dedicated isAdmin()-only read rule above would otherwise
       // be silently overridden by this catch-all's broader grant, breaking
       // the "individual responses are never visible to viewers" guarantee.
-      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses' && collection != 'referralPartners' && collection != 'aiUsageLogs' && collection != 'aiActionLogs';
-      // aiUsageLogs/aiActionLogs excluded here too — their dedicated
-      // `write: if false` rules above are meant to be server-only (Admin
-      // SDK bypasses rules entirely), but since rules are OR'd, leaving
-      // them out of this exclusion would let any authenticated user
-      // satisfy hasRequiredFields() and write directly into either
-      // collection, defeating that restriction entirely.
-      allow create: if isAuthenticated() && hasRequiredFields() && collection != 'aiUsageLogs' && collection != 'aiActionLogs';
+      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses' && collection != 'referralPartners' && collection != 'aiUsageLogs' && collection != 'aiActionLogs' && collection != 'aiPredictions';
+      // aiUsageLogs/aiActionLogs/aiPredictions excluded here too — their
+      // dedicated `write: if false` rules above are meant to be
+      // server-only (Admin SDK bypasses rules entirely), but since rules
+      // are OR'd, leaving them out of this exclusion would let any
+      // authenticated user satisfy hasRequiredFields() and write directly
+      // into any of these collections, defeating that restriction entirely.
+      allow create: if isAuthenticated() && hasRequiredFields() && collection != 'aiUsageLogs' && collection != 'aiActionLogs' && collection != 'aiPredictions';
       allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities';
       allow delete: if isAdmin();
     }
