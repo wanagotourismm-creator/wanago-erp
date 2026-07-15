@@ -1,6 +1,6 @@
 import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
 import { leadRepository } from "@/modules/leads/services/lead.repository";
-import { toDate, phoneMatchKey } from "@/lib/utils/helpers";
+import { toDate, phoneMatchKey, formatCurrency } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
 import { fetchCustomers, createCustomer, fetchCustomerById } from "@/modules/customers/services/customer.service";
@@ -168,6 +168,7 @@ function buildDraftQuotationPayload(lead: Lead, customer: Customer, createdBy: s
 
   const tripNotes = [
     notePrefix,
+    lead.budget     ? `Customer's stated budget: ${formatCurrency(lead.budget)} total (${formatCurrency(perPaxBudget)}/pax) — price the quotation below, then adjust to match what was actually discussed.` : null,
     lead.tripType   ? `Trip type: ${lead.tripType}.` : null,
     lead.travelDate ? `Travel date: ${lead.travelDate}.` : null,
     lead.duration   ? `Duration: ${lead.duration} night(s).` : null,
@@ -182,7 +183,12 @@ function buildDraftQuotationPayload(lead: Lead, customer: Customer, createdBy: s
     packageId:     null,
     packageName:   null,
     pax,
-    lineItems:     [{ description: `${lead.destination} package`, amount: perPaxBudget }],
+    lineItems:     [{
+      description: lead.budget
+        ? `${lead.destination} package (customer's stated budget: ${formatCurrency(lead.budget)} total)`
+        : `${lead.destination} package`,
+      amount: perPaxBudget,
+    }],
     taxRate:       null,
     validUntil:    null,
     officeId:      lead.officeId,
