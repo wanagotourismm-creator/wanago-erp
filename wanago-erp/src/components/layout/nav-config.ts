@@ -205,6 +205,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "chart-bar",
         roles: ["super_admin","admin","finance","operations","marketing"],
       },
+      {
+        label: "AI Insights",
+        href:  "/insights",
+        icon:  "sparkles",
+        roles: ["super_admin","admin","sales_head","finance"],
+      },
     ],
   },
   {

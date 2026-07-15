@@ -9,7 +9,7 @@ import {
   Package, Store, Map, FileText, CreditCard,
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Clock,
-  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle, Gauge,
+  ShieldCheck, UserPlus, Target, GraduationCap, UserCircle, Gauge, Sparkles,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -44,6 +44,7 @@ const ICONS: Record<string, React.ElementType> = {
   "graduation-cap":   GraduationCap,
   "user-circle":      UserCircle,
   "gauge":            Gauge,
+  "sparkles":         Sparkles,
 };
 
 function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {

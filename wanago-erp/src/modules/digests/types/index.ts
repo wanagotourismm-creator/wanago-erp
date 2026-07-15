@@ -48,3 +48,34 @@ export type FounderBriefingDigest = FirestoreRecord & {
   goingColdCount: number;
   narrative:     string;
 };
+
+// Weekly cross-functional business report (leads/quotations/bookings/
+// invoices), written by /api/cron/weekly-ai-insights (and its on-demand
+// /regenerate route). Every field except headline/keyTakeaways/risks/
+// recommendations is computed in plain code — see
+// ai-insights.service.ts's "Gemini narrates, code computes" comment.
+export type AiInsightsReport = FirestoreRecord & {
+  type: "ai-insights-report";
+  weekOf: string;
+  totalRevenue: number;
+  totalBookings: number;
+  revenueChangePct: number | null;
+  newLeadsCount: number;
+  leadsWonCount: number;
+  leadConversionRate: number;
+  quotationsCreated: number;
+  quotationsAccepted: number;
+  quotationsRejected: number;
+  quotationWinRate: number;
+  pendingFinanceApprovals: number;
+  topDestinationsByLeads: { destination: string; count: number }[];
+  topDestinationsByRevenue: { destination: string; count: number }[];
+  overdueInvoiceCount: number;
+  overdueInvoiceAmount: number;
+  goingColdCount: number;
+  anomalies: string[];
+  headline: string;
+  keyTakeaways: string[];
+  risks: string[];
+  recommendations: string[];
+};
