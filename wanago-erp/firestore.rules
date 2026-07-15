@@ -749,8 +749,14 @@ service cloud.firestore {
       // are — its dedicated isAdmin()-only read rule above would otherwise
       // be silently overridden by this catch-all's broader grant, breaking
       // the "individual responses are never visible to viewers" guarantee.
-      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses' && collection != 'referralPartners';
-      allow create: if isAuthenticated() && hasRequiredFields();
+      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses' && collection != 'referralPartners' && collection != 'aiUsageLogs' && collection != 'aiActionLogs';
+      // aiUsageLogs/aiActionLogs excluded here too — their dedicated
+      // `write: if false` rules above are meant to be server-only (Admin
+      // SDK bypasses rules entirely), but since rules are OR'd, leaving
+      // them out of this exclusion would let any authenticated user
+      // satisfy hasRequiredFields() and write directly into either
+      // collection, defeating that restriction entirely.
+      allow create: if isAuthenticated() && hasRequiredFields() && collection != 'aiUsageLogs' && collection != 'aiActionLogs';
       allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities';
       allow delete: if isAdmin();
     }
