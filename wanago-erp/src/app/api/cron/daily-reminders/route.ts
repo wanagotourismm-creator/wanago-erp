@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { notifyUserServer } from "@/lib/server/notify-server";
 import { fetchUsersByPermission } from "@/lib/notify-recipients";
-import { computeGoingColdCustomers, computeBookingAnomalies } from "@/modules/dashboard/services/insights.service";
+import { computeGoingColdCustomers, computeBookingAnomalies, getQuotationRisk } from "@/modules/dashboard/services/insights.service";
 import { LEAD_STAGES, INVOICE_STATUS, FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
 
 export const runtime = "nodejs";
 
 const STALE_DAYS = 5; // matches the convention already used in MySalesProgress.tsx
-const QUOTATION_STALE_DAYS = 5; // same threshold as stale leads, for consistency
-const QUOTATION_EXPIRY_WARNING_DAYS = 2;
 const FINANCE_APPROVAL_STUCK_DAYS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -140,51 +138,44 @@ export async function GET(req: NextRequest) {
     followUpsNotified++;
   }
 
-  // ── Quotation expiring/expired ───────────────────────────────────────
-  // Only "sent" quotations carry a live validUntil the customer is
-  // actually waiting on — draft/accepted/rejected/converted don't need this.
+  // ── Quotation expiring/expired/stale ────────────────────────────────
+  // getQuotationRisk (src/modules/dashboard/services/insights.service.ts)
+  // is the single shared definition — the Quotations table badges use the
+  // exact same function, so what this cron notifies and what the table
+  // shows can never quietly drift apart.
   let quotationsExpiringNotified = 0;
-  for (const q of quotations) {
-    if (q.status !== "sent" || !q.validUntil || !q.createdBy) continue;
-    const validUntilMs = new Date(q.validUntil).getTime();
-    if (Number.isNaN(validUntilMs)) continue;
-    const daysUntilExpiry = (validUntilMs - now) / DAY_MS;
-    if (daysUntilExpiry > QUOTATION_EXPIRY_WARNING_DAYS) continue;
-
-    const user = userById.get(q.createdBy);
-    const isExpired = daysUntilExpiry < 0;
-    await notifyUserServer({
-      userId:   q.createdBy,
-      email:    user?.email ?? null,
-      title:    isExpired ? `Quotation expired: ${q.refNumber}` : `Quotation expiring soon: ${q.refNumber}`,
-      body:     isExpired
-        ? `${q.customerName}'s quotation ${q.refNumber} expired on ${q.validUntil} — follow up or issue a fresh one.`
-        : `${q.customerName}'s quotation ${q.refNumber} expires on ${q.validUntil} — follow up before it lapses.`,
-      link:     "/quotations",
-      category: "followup",
-    });
-    quotationsExpiringNotified++;
-  }
-
-  // ── Quotation stale (sent, no response in QUOTATION_STALE_DAYS+) ────
   let quotationsStaleNotified = 0;
   for (const q of quotations) {
-    if (q.status !== "sent" || !q.createdBy) continue;
-    const updatedAtMs = toMillis(q.updatedAt);
-    if (updatedAtMs == null) continue;
-    const daysSince = (now - updatedAtMs) / DAY_MS;
-    if (daysSince < QUOTATION_STALE_DAYS) continue;
+    if (!q.createdBy) continue;
+    const risk = getQuotationRisk(q);
+    if (!risk) continue;
 
     const user = userById.get(q.createdBy);
-    await notifyUserServer({
-      userId:   q.createdBy,
-      email:    user?.email ?? null,
-      title:    `No response on quotation ${q.refNumber}`,
-      body:     `${q.customerName} hasn't responded to quotation ${q.refNumber} in ${Math.floor(daysSince)} days. Worth a follow-up call?`,
-      link:     "/quotations",
-      category: "followup",
-    });
-    quotationsStaleNotified++;
+    if (risk.type === "stale") {
+      const daysSince = Math.floor((now - (toMillis(q.updatedAt) ?? now)) / DAY_MS);
+      await notifyUserServer({
+        userId:   q.createdBy,
+        email:    user?.email ?? null,
+        title:    `No response on quotation ${q.refNumber}`,
+        body:     `${q.customerName} hasn't responded to quotation ${q.refNumber} in ${daysSince} days. Worth a follow-up call?`,
+        link:     "/quotations",
+        category: "followup",
+      });
+      quotationsStaleNotified++;
+    } else {
+      const isExpired = risk.type === "expired";
+      await notifyUserServer({
+        userId:   q.createdBy,
+        email:    user?.email ?? null,
+        title:    isExpired ? `Quotation expired: ${q.refNumber}` : `Quotation expiring soon: ${q.refNumber}`,
+        body:     isExpired
+          ? `${q.customerName}'s quotation ${q.refNumber} expired on ${q.validUntil} — follow up or issue a fresh one.`
+          : `${q.customerName}'s quotation ${q.refNumber} expires on ${q.validUntil} — follow up before it lapses.`,
+        link:     "/quotations",
+        category: "followup",
+      });
+      quotationsExpiringNotified++;
+    }
   }
 
   // ── Quotation stuck in pending Finance approval ─────────────────────

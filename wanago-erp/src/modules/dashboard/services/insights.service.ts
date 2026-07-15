@@ -64,6 +64,36 @@ export function computeGoingColdCustomers(bookings: Booking[], limit = 8): Going
   return results.slice(0, limit);
 }
 
+export type QuotationRisk = { type: "expiring" | "expired" | "stale"; label: string };
+
+const QUOTATION_EXPIRY_WARNING_DAYS = 2;
+const QUOTATION_STALE_DAYS = 5;
+
+// Same thresholds as the daily-reminders cron (which imports this directly
+// rather than keeping its own copy) — single definition shared between
+// what triggers a notification and what the Quotations table badges,
+// so the two can never quietly drift apart.
+export function getQuotationRisk(q: { status: string; validUntil: string | null; updatedAt: unknown }): QuotationRisk | null {
+  if (q.status !== "sent") return null;
+
+  if (q.validUntil) {
+    const validUntilMs = new Date(q.validUntil).getTime();
+    if (!Number.isNaN(validUntilMs)) {
+      const daysUntilExpiry = (validUntilMs - Date.now()) / DAY_MS;
+      if (daysUntilExpiry < 0) return { type: "expired", label: "Expired" };
+      if (daysUntilExpiry <= QUOTATION_EXPIRY_WARNING_DAYS) return { type: "expiring", label: "Expiring soon" };
+    }
+  }
+
+  const updatedAt = toDate(q.updatedAt);
+  if (updatedAt) {
+    const daysSince = (Date.now() - updatedAt.getTime()) / DAY_MS;
+    if (daysSince >= QUOTATION_STALE_DAYS) return { type: "stale", label: `No response ${Math.floor(daysSince)}d` };
+  }
+
+  return null;
+}
+
 export type Anomaly = { message: string; severity: "warning" | "info" };
 
 // Compares the trailing 7 days against the prior 7-30 day baseline —

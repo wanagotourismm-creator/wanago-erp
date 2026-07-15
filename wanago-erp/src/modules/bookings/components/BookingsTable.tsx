@@ -4,6 +4,7 @@ import { Edit2, Pencil, Phone, Trash2 } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { Badge } from "@/components/ui/Badge";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials } from "@/lib/utils/helpers";
@@ -15,6 +16,10 @@ type Props = {
   loading:             boolean;
   canManage:           boolean;
   canApprove:          boolean;
+  // Set of booking ids (one per going-cold customer's most recent booking —
+  // see computeGoingColdCustomers usage in BookingsPage.tsx) to flag with a
+  // "going cold" badge next to the customer name.
+  goingColdBookingIds: Set<string>;
   onView:              (booking: Booking) => void;
   onEdit:               (booking: Booking) => void;
   onDelete:             (booking: Booking) => void;
@@ -22,7 +27,7 @@ type Props = {
 };
 
 export function BookingsTable({
-  bookings, loading, canManage, canApprove,
+  bookings, loading, canManage, canApprove, goingColdBookingIds,
   onView, onEdit, onDelete, onStatus,
 }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
@@ -67,7 +72,14 @@ export function BookingsTable({
                       {initials(b.customerName)}
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">{b.customerName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-foreground">{b.customerName}</p>
+                        {goingColdBookingIds.has(b.id) && (
+                          <span title="This customer is overdue for a repeat booking based on their own rhythm">
+                            <Badge variant="info">❄ Going cold</Badge>
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-muted-foreground">{b.refNumber}</p>
                     </div>
                   </div>
@@ -199,7 +211,10 @@ export function BookingsTable({
                       {initials(b.customerName)}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{b.customerName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate font-medium text-foreground">{b.customerName}</p>
+                        {goingColdBookingIds.has(b.id) && <Badge variant="info">❄ Cold</Badge>}
+                      </div>
                       <p className="text-[11px] text-muted-foreground">{b.refNumber}</p>
                     </div>
                   </div>

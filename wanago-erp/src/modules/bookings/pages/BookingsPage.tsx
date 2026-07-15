@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Search, RefreshCw, Briefcase, Clock, CheckCircle2, Wallet, UploadCloud } from "lucide-react";
+import { Plus, Search, RefreshCw, Briefcase, Clock, CheckCircle2, Wallet, UploadCloud, AlertTriangle } from "lucide-react";
 import { useBookings } from "@/modules/bookings/hooks/useBookings";
 import { BookingsTable } from "@/modules/bookings/components/BookingsTable";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
@@ -13,7 +13,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
-import { cn } from "@/lib/utils/helpers";
+import { cn, toDate } from "@/lib/utils/helpers";
+import { computeGoingColdCustomers, computeBookingAnomalies } from "@/modules/dashboard/services/insights.service";
 import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 import { BulkImportModal, type TemplateColumn, type ParseRowResult } from "@/components/bulk/BulkImportModal";
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";
@@ -111,6 +112,27 @@ export function BookingsPage() {
     const pending   = bookings.filter(b => b.status === "pending_finance" || b.status === "ops_pending").length;
     const dueAmount = bookings.reduce((sum, b) => sum + b.balanceAmount, 0);
     return { total: bookings.length, confirmed, pending, dueAmount };
+  }, [bookings]);
+
+  // Always computed from the full unfiltered `bookings` array, never
+  // `filtered` — running these on a search/status-filtered subset would
+  // silently change results as someone types, and would disagree with what
+  // the daily-reminders cron (which also runs over the full data set) notifies.
+  const anomalies = useMemo(() => computeBookingAnomalies(bookings), [bookings]);
+
+  const goingColdBookingIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const cold of computeGoingColdCustomers(bookings, 50)) {
+      let mostRecent: Booking | null = null;
+      let mostRecentMs = -Infinity;
+      for (const b of bookings) {
+        if (b.customerId !== cold.customerId) continue;
+        const ms = toDate(b.createdAt)?.getTime() ?? 0;
+        if (ms > mostRecentMs) { mostRecentMs = ms; mostRecent = b; }
+      }
+      if (mostRecent) ids.add(mostRecent.id);
+    }
+    return ids;
   }, [bookings]);
 
   const exportRows = useMemo(() => filtered.map((b) => ({
@@ -312,6 +334,23 @@ export function BookingsPage() {
         />
       </div>
 
+      {/* Anomaly banner — same signals the weekly digest/founder briefing
+          surface, shown here the moment they're detected instead of
+          waiting for Monday. */}
+      {anomalies.length > 0 && (
+        <div className="space-y-2">
+          {anomalies.map((a, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-400"
+            >
+              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0" />
+              <p>{a.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Table */}
       <PullToRefresh onRefresh={load}>
         <BookingsTable
@@ -319,6 +358,7 @@ export function BookingsPage() {
           loading={loading}
           canManage={canManage}
           canApprove={canApprove}
+          goingColdBookingIds={goingColdBookingIds}
           onView={setViewingBooking}
           onEdit={handleEdit}
           onDelete={handleDelete}

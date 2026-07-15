@@ -4,9 +4,17 @@ import { Edit2, Trash2 } from "lucide-react";
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { Badge } from "@/components/ui/Badge";
 import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials } from "@/lib/utils/helpers";
+import { getQuotationRisk } from "@/modules/dashboard/services/insights.service";
 import type { Quotation } from "@/modules/quotations/types";
+
+function QuotationRiskBadge({ quotation }: { quotation: Quotation }) {
+  const risk = getQuotationRisk(quotation);
+  if (!risk) return null;
+  return <Badge variant={risk.type === "expired" ? "danger" : "warning"}>{risk.label}</Badge>;
+}
 
 type Props = {
   quotations: Quotation[];
@@ -86,7 +94,10 @@ export function QuotationsTable({ quotations, loading, canEdit, canDelete, onVie
 
                 {/* Status */}
                 <td className="px-4 py-3">
-                  <QuotationStatusBadge status={q.status} />
+                  <div className="flex flex-col items-start gap-1.5">
+                    <QuotationStatusBadge status={q.status} />
+                    <QuotationRiskBadge quotation={q} />
+                  </div>
                 </td>
 
                 {/* Actions — inline, same line, revealed on row hover */}
@@ -142,7 +153,10 @@ export function QuotationsTable({ quotations, loading, canEdit, canDelete, onVie
                     <p className="text-[11px] text-muted-foreground">{q.refNumber}</p>
                   </div>
                 </div>
-                <QuotationStatusBadge status={q.status} />
+                <div className="flex flex-col items-end gap-1">
+                  <QuotationStatusBadge status={q.status} />
+                  <QuotationRiskBadge quotation={q} />
+                </div>
               </div>
               <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
                 <p className="truncate text-xs text-muted-foreground">{q.destination}</p>
