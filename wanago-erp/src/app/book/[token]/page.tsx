@@ -225,7 +225,7 @@ export default function BookingLinkPage() {
 
         <div className="relative mx-auto flex max-w-5xl flex-col items-center gap-10 lg:flex-row lg:items-center lg:justify-between">
           <div className="text-center lg:text-left">
-            <img src="/images/logo-white-clean.png" alt="Wanago" className="mx-auto mb-8 h-8 w-auto lg:mx-0" />
+            <img src="/images/logo-white-clean.png" alt={data.company.businessName} className="mx-auto mb-8 h-8 w-auto lg:mx-0" />
 
             {!alreadyDone ? (
               <>

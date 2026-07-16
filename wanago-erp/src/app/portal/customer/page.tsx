@@ -14,17 +14,20 @@ import {
 } from "@/modules/portal/services/customer-portal.service";
 import { formatCurrency, formatDate, cn } from "@/lib/utils/helpers";
 import { getAppUrl } from "@/lib/app-url";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 
 function trackingLink(code: string): string {
   return `${getAppUrl()}/r/${code}`;
 }
 
-const REFERRAL_MILESTONES: BadgeMilestone[] = [
-  { value: 1,  label: "First Referral", icon: UserPlus },
-  { value: 3,  label: "Connector",      icon: Users },
-  { value: 5,  label: "Advocate",       icon: Award },
-  { value: 10, label: "Wanago Legend",  icon: Crown },
-];
+function referralMilestones(businessName: string): BadgeMilestone[] {
+  return [
+    { value: 1,  label: "First Referral",      icon: UserPlus },
+    { value: 3,  label: "Connector",           icon: Users },
+    { value: 5,  label: "Advocate",            icon: Award },
+    { value: 10, label: `${businessName} Legend`, icon: Crown },
+  ];
+}
 
 function CustomerDashboard() {
   const [me, setMe] = useState<CustomerPortalMe | null>(null);
@@ -40,6 +43,7 @@ function CustomerDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { settings: company } = useCompanySettings();
 
   function load() {
     setLoading(true);
@@ -150,13 +154,14 @@ function CustomerDashboard() {
             </button>
           </div>
 
-          <BadgeTrack current={me.referralStats.count} milestones={REFERRAL_MILESTONES} currentLabel="referrals" />
+          <BadgeTrack current={me.referralStats.count} milestones={referralMilestones(company.businessName)} currentLabel="referrals" />
 
           {me.referralStats.count > 0 && (
             <ShareStatsCard
-              headline={`I've sent Wanago ${me.referralStats.count} referral${me.referralStats.count === 1 ? "" : "s"}! ✈️`}
+              businessName={company.businessName}
+              headline={`I've sent ${company.businessName} ${me.referralStats.count} referral${me.referralStats.count === 1 ? "" : "s"}! ✈️`}
               subline="Refer your friends and earn a bonus for every trip they book."
-              shareText={`I've referred ${me.referralStats.count} friend${me.referralStats.count === 1 ? "" : "s"} to Wanago Tours & Travels and earned ${formatCurrency(me.referralStats.revenue)} in bonuses! Plan your next trip through my link: ${trackingLink(me.referralCode)}`}
+              shareText={`I've referred ${me.referralStats.count} friend${me.referralStats.count === 1 ? "" : "s"} to ${company.businessName} and earned ${formatCurrency(me.referralStats.revenue)} in bonuses! Plan your next trip through my link: ${trackingLink(me.referralCode)}`}
             />
           )}
         </div>

@@ -8,6 +8,7 @@ import { LoginForm } from "@/modules/auth/components/LoginForm";
 import { ForgotPasswordForm } from "@/modules/auth/components/ForgotPasswordForm";
 import { AboutUsModal } from "@/modules/auth/components/AboutUsModal";
 import { useThemeStore, THEMES } from "@/store/theme.store";
+import { usePublicBranding } from "@/modules/admin/settings/hooks/usePublicBranding";
 
 // Warm display serif, scoped to the login screen only — kept out of
 // tailwind.config's global font-sans so it never touches the dashboard.
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const { colorTheme, setColorTheme } = useThemeStore();
   const theme = THEMES.find(t => t.id === colorTheme) ?? THEMES[0];
+  const company = usePublicBranding();
 
   return (
     <LoginBackdrop>
@@ -52,7 +54,7 @@ export default function LoginPage() {
               {view === "login" ? "Welcome back" : "Reset Password"}
             </h1>
             <p className="mt-1 text-sm text-gray-400">
-              {view === "login" ? "Sign in to continue to Wanago ERP" : "We'll send a reset link to your email"}
+              {view === "login" ? `Sign in to continue to ${company.businessName} ERP` : "We'll send a reset link to your email"}
             </p>
           </div>
 
@@ -103,8 +105,8 @@ export default function LoginPage() {
             About Us
           </button>
           <p className="mt-4 text-xs text-white/50">
-            Wanago™ ERP · Travel Management System
-            <br />© {new Date().getFullYear()} Wanago. All rights reserved.
+            {company.businessName} ERP · Travel Management System
+            <br />© {new Date().getFullYear()} {company.businessName}. All rights reserved.
           </p>
         </motion.div>
 

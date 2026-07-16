@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { CheckCircle2, Loader2, MapPin } from "lucide-react";
+import { usePublicBranding } from "@/modules/admin/settings/hooks/usePublicBranding";
 
 export default function QuickInquiryPage() {
+  const company = usePublicBranding();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -38,8 +40,8 @@ export default function QuickInquiryPage() {
     <div className="min-h-screen bg-background px-4 py-10">
       <div className="mx-auto max-w-md">
         <div className="mb-6 text-center">
-          <img src="/images/logo-dark-clean.png" alt="Wanago" className="mx-auto h-8 w-auto dark:hidden" />
-          <img src="/images/logo-white-clean.png" alt="Wanago" className="mx-auto hidden h-8 w-auto dark:block" />
+          <img src="/images/logo-dark-clean.png" alt={company.businessName} className="mx-auto h-8 w-auto dark:hidden" />
+          <img src="/images/logo-white-clean.png" alt={company.businessName} className="mx-auto hidden h-8 w-auto dark:block" />
         </div>
 
         {submitted ? (

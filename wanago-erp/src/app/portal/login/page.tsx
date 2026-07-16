@@ -6,6 +6,7 @@ import { Loader2, User, Briefcase } from "lucide-react";
 import { portalLogin, type PortalType } from "@/modules/portal/services/portal-auth.service";
 import { usePortalAuth } from "@/modules/portal/hooks/usePortalAuth";
 import { cn } from "@/lib/utils/helpers";
+import { usePublicBranding } from "@/modules/admin/settings/hooks/usePublicBranding";
 
 // useSearchParams() (to read ?type=partner) requires a Suspense boundary
 // above it or Next.js can't statically prerender this page — the actual
@@ -27,6 +28,7 @@ function PortalLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signedIn, portalType: signedInType, loading: authLoading } = usePortalAuth();
+  const company = usePublicBranding();
 
   const [portalType, setPortalType] = useState<PortalType>(
     searchParams.get("type") === "partner" ? "partner" : "customer"
@@ -70,8 +72,8 @@ function PortalLoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <img src="/images/logo-dark-clean.png" alt="Wanago" className="mx-auto h-8 w-auto dark:hidden" />
-          <img src="/images/logo-white-clean.png" alt="Wanago" className="mx-auto hidden h-8 w-auto dark:block" />
+          <img src="/images/logo-dark-clean.png" alt={company.businessName} className="mx-auto h-8 w-auto dark:hidden" />
+          <img src="/images/logo-white-clean.png" alt={company.businessName} className="mx-auto hidden h-8 w-auto dark:block" />
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
@@ -117,7 +119,7 @@ function PortalLoginForm() {
                 placeholder="e.g. REF8K2N1X"
                 className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-mono outline-none focus:border-primary"
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">Don&apos;t have a code? Ask Wanago staff for yours.</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Don&apos;t have a code? Ask {company.businessName} staff for yours.</p>
             </div>
 
             {error && <p className="text-xs font-medium text-destructive">{error}</p>}

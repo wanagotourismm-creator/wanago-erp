@@ -78,7 +78,7 @@ export function ForgotPasswordForm({ onBack }: Props) {
           id="reset-email"
           type="email"
           autoComplete="email"
-          placeholder="you@wanago.com"
+          placeholder="you@company.com"
           {...register("email")}
           className={cn(
             "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none transition-colors",

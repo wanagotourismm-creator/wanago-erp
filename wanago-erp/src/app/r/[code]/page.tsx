@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { CheckCircle2, Loader2, Gift } from "lucide-react";
+import { usePublicBranding } from "@/modules/admin/settings/hooks/usePublicBranding";
 
 export default function ReferralLinkPage() {
   const params = useParams<{ code: string }>();
+  const company = usePublicBranding();
   const [referrerName, setReferrerName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -65,7 +67,7 @@ export default function ReferralLinkPage() {
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="text-center">
           <p className="text-lg font-semibold text-foreground">This link isn&apos;t valid</p>
-          <p className="mt-1 text-sm text-muted-foreground">Please check the link, or contact Wanago Tours &amp; Travels directly.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Please check the link, or contact {company.businessName} directly.</p>
         </div>
       </div>
     );
@@ -76,8 +78,8 @@ export default function ReferralLinkPage() {
       <div className="mx-auto max-w-md">
 
         <div className="mb-6 text-center">
-          <img src="/images/logo-dark-clean.png" alt="Wanago" className="mx-auto h-8 w-auto dark:hidden" />
-          <img src="/images/logo-white-clean.png" alt="Wanago" className="mx-auto hidden h-8 w-auto dark:block" />
+          <img src="/images/logo-dark-clean.png" alt={company.businessName} className="mx-auto h-8 w-auto dark:hidden" />
+          <img src="/images/logo-white-clean.png" alt={company.businessName} className="mx-auto hidden h-8 w-auto dark:block" />
         </div>
 
         {submitted ? (
@@ -95,7 +97,7 @@ export default function ReferralLinkPage() {
                 <Gift size={22} className="text-primary" />
               </div>
               <h1 className="text-xl font-bold text-foreground">
-                {referrerName ? `${referrerName} thinks you'd love this` : "Plan your next trip with Wanago"}
+                {referrerName ? `${referrerName} thinks you'd love this` : `Plan your next trip with ${company.businessName}`}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Leave your details and our travel team will reach out to help plan your trip.

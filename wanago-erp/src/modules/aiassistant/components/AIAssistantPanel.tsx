@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAIAssistant } from "@/modules/aiassistant/hooks/useAIAssistant";
 import { cn } from "@/lib/utils/helpers";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 import type { AIChatMessage } from "@/modules/aiassistant/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
 
@@ -98,6 +99,7 @@ export function AIAssistantPanel() {
   const [draft, setDraft] = useState("");
   const [speakEnabled, setSpeakEnabled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { settings: company } = useCompanySettings();
   const lastSpokenId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -145,7 +147,7 @@ export function AIAssistantPanel() {
       {/* FAB */}
       <button
         onClick={openPanel}
-        aria-label="Ask Wanago Assistant"
+        aria-label={`Ask ${company.businessName} Assistant`}
         className={cn(
           "fixed bottom-36 right-4 z-40 flex h-13 w-13 items-center justify-center rounded-full",
           "bg-primary text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all",
@@ -169,7 +171,7 @@ export function AIAssistantPanel() {
                   <Sparkles size={15} className="text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">Wanago Assistant</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{company.businessName} Assistant</p>
                   <p className="text-[11px] text-muted-foreground truncate">Ask about the ERP, HR, or your leads &amp; quotes</p>
                 </div>
               </div>
@@ -216,7 +218,7 @@ export function AIAssistantPanel() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-3">
                     <Sparkles size={20} className="text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-foreground">Ask me anything about Wanago</p>
+                  <p className="text-sm font-medium text-foreground">Ask me anything about {company.businessName}</p>
                   <p className="mt-1 text-xs text-muted-foreground">e.g. &ldquo;How do I apply for leave?&rdquo;, &ldquo;What&rsquo;s the status of lead LD-0012?&rdquo;, or &ldquo;Create a lead for John, Goa trip&rdquo; — type or use the mic, in English or Malayalam.</p>
                 </div>
               )}

@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { uploadFile } from "@/lib/storage/upload";
+import { cached, invalidateCache } from "@/lib/firebase/data-cache";
 
 export type CompanySettings = {
   businessName:      string;
@@ -71,10 +72,19 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   socialHandle: "",
 };
 
+const SETTINGS_TTL_MS = 60_000;
+
+// Cached — Phase 2 fetches this from the sidebar, login page, portal shell,
+// AI Assistant panel, and referral kit modals, all of which can render on
+// the same page load. Same 60s TTL as the server-side equivalent
+// (getCompanySettingsServer), self-healing if a caller ever forgets to
+// invalidate after a save.
 export async function fetchCompanySettings(): Promise<CompanySettings> {
-  const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, DOC_ID));
-  if (!snap.exists()) return DEFAULT_COMPANY_SETTINGS;
-  return { ...DEFAULT_COMPANY_SETTINGS, ...snap.data() } as CompanySettings;
+  return cached("company-settings", SETTINGS_TTL_MS, async () => {
+    const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, DOC_ID));
+    if (!snap.exists()) return DEFAULT_COMPANY_SETTINGS;
+    return { ...DEFAULT_COMPANY_SETTINGS, ...snap.data() } as CompanySettings;
+  });
 }
 
 export async function updateCompanySettings(
@@ -86,6 +96,7 @@ export async function updateCompanySettings(
     updatedAt: serverTimestamp(),
     updatedBy,
   }, { merge: true });
+  invalidateCache("company-settings");
 }
 
 export async function uploadCompanyLogo(file: File): Promise<string> {

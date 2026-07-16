@@ -11,7 +11,7 @@ import type { FormField } from "@/modules/forms/types";
 
 const fraunces = Fraunces({ subsets: ["latin"], weight: ["500", "600"], style: ["italic"], display: "swap" });
 
-type PublicForm = { title: string; description: string | null; fields: FormField[] };
+type PublicForm = { title: string; description: string | null; fields: FormField[]; businessName: string };
 
 const FLOATING_ICONS = [
   { Icon: Plane,    top: "10%", left: "6%",   size: 28, duration: 9,  delay: 0   },
@@ -86,7 +86,7 @@ export default function PublicFormPage() {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
 
         <div className="relative mx-auto max-w-xl text-center">
-          <img src="/images/logo-white-clean.png" alt="Wanago" className="mx-auto mb-8 h-8 w-auto" />
+          <img src="/images/logo-white-clean.png" alt={data.businessName} className="mx-auto mb-8 h-8 w-auto" />
           <h1 className={cn(fraunces.className, "text-4xl italic leading-tight text-white sm:text-5xl")} style={{ textShadow: "0 2px 20px rgba(0,0,0,0.35)" }}>
             {data.title}
           </h1>

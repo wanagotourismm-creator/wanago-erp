@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, LogOut } from "lucide-react";
 import { usePortalAuth } from "@/modules/portal/hooks/usePortalAuth";
 import { portalLogout, type PortalType } from "@/modules/portal/services/portal-auth.service";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 
 type Props = {
   requiredType: PortalType;
@@ -18,6 +19,7 @@ type Props = {
 export function PortalShell({ requiredType, title, children }: Props) {
   const router = useRouter();
   const { loading, signedIn, portalType } = usePortalAuth();
+  const { settings: company } = useCompanySettings();
 
   useEffect(() => {
     if (!loading && (!signedIn || portalType !== requiredType)) {
@@ -43,8 +45,8 @@ export function PortalShell({ requiredType, title, children }: Props) {
       <div className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <img src="/images/logo-dark-clean.png" alt="Wanago" className="h-6 w-auto dark:hidden" />
-            <img src="/images/logo-white-clean.png" alt="Wanago" className="hidden h-6 w-auto dark:block" />
+            <img src="/images/logo-dark-clean.png" alt={company.businessName} className="h-6 w-auto dark:hidden" />
+            <img src="/images/logo-white-clean.png" alt={company.businessName} className="hidden h-6 w-auto dark:block" />
             <span className="text-xs font-semibold text-muted-foreground">{title}</span>
           </div>
           <button

@@ -22,7 +22,7 @@ const SECTIONS: Section[] = [
     title: "Email (Gmail SMTP)", icon: Send,
     description: "Preferred — sends real email from your own Gmail address, no domain needed. Requires 2-Step Verification turned on for the Gmail account, then an App Password generated at myaccount.google.com/apppasswords.",
     fields: [
-      { key: "gmailUser", label: "Gmail Address", placeholder: "wanagotourismm@gmail.com", secret: false },
+      { key: "gmailUser", label: "Gmail Address", placeholder: "yourcompany@gmail.com", secret: false },
       { key: "gmailAppPassword", label: "App Password", placeholder: "16-character app password" },
     ],
   },
@@ -31,7 +31,7 @@ const SECTIONS: Section[] = [
     description: "Fallback — only used if Gmail SMTP above isn't configured. Sending to anyone other than your own address requires verifying a domain at resend.com/domains.",
     fields: [
       { key: "resendApiKey", label: "Resend API Key", placeholder: "re_..." },
-      { key: "resendFromEmail", label: "From Address", placeholder: "Wanago HR <hr@yourdomain.com>", secret: false },
+      { key: "resendFromEmail", label: "From Address", placeholder: "Your Company HR <hr@yourdomain.com>", secret: false },
     ],
   },
   {

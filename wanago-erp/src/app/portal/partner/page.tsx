@@ -12,6 +12,7 @@ import {
 } from "@/modules/portal/services/partner-portal.service";
 import { formatCurrency, cn } from "@/lib/utils/helpers";
 import { getAppUrl } from "@/lib/app-url";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 
 function trackingLink(code: string): string {
   return `${getAppUrl()}/r/${code}`;
@@ -49,6 +50,7 @@ function PartnerDashboard() {
   const [referSubmitting, setReferSubmitting] = useState(false);
   const [referError, setReferError] = useState<string | null>(null);
   const [referSuccess, setReferSuccess] = useState(false);
+  const { settings: company } = useCompanySettings();
 
   useEffect(() => {
     Promise.all([fetchPartnerMe(), fetchPartnerPosters(), fetchPartnerLeaderboard()])
@@ -114,9 +116,10 @@ function PartnerDashboard() {
 
       {me.stats.bookings > 0 && (
         <ShareStatsCard
-          headline={`I've helped Wanago close ${me.stats.bookings} booking${me.stats.bookings === 1 ? "" : "s"}! 🎉`}
-          subline="Become a Wanago Referral Executive and start earning too."
-          shareText={`I'm a Wanago Tours & Travels Referral Executive — ${me.stats.bookings} booking${me.stats.bookings === 1 ? "" : "s"} and ${formatCurrency(me.stats.bonusPaid + me.stats.bonusPending)} earned so far. Plan your trip through my link: ${trackingLink(me.referralCode)}`}
+          businessName={company.businessName}
+          headline={`I've helped ${company.businessName} close ${me.stats.bookings} booking${me.stats.bookings === 1 ? "" : "s"}! 🎉`}
+          subline={`Become a ${company.businessName} Referral Executive and start earning too.`}
+          shareText={`I'm a ${company.businessName} Referral Executive — ${me.stats.bookings} booking${me.stats.bookings === 1 ? "" : "s"} and ${formatCurrency(me.stats.bonusPaid + me.stats.bonusPending)} earned so far. Plan your trip through my link: ${trackingLink(me.referralCode)}`}
         />
       )}
 

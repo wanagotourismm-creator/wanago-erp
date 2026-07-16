@@ -43,7 +43,7 @@ export function LoginForm({ onForgotPassword }: Props) {
           <input
             type="email"
             autoComplete="email"
-            placeholder="you@wanago.com"
+            placeholder="you@company.com"
             {...register("email")}
             className="login-field w-full rounded-2xl border-[1.5px] border-gray-200 bg-gray-50 py-3.5 pl-10 pr-4 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400"
           />

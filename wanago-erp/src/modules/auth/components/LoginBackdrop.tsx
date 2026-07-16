@@ -6,6 +6,7 @@ import { Fraunces } from "next/font/google";
 import { motion } from "framer-motion";
 import { Plane, TreePalm, Compass, Mountain, Sunset, Sailboat } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
+import { usePublicBranding } from "@/modules/admin/settings/hooks/usePublicBranding";
 
 // Warm display serif, scoped to the login screen only.
 const fraunces = Fraunces({ subsets: ["latin"], weight: ["500", "600"], style: ["italic"], display: "swap" });
@@ -52,6 +53,7 @@ function useClock() {
 
 export function LoginBackdrop({ children }: { children: React.ReactNode }) {
   const { time, date } = useClock();
+  const company = usePublicBranding();
 
   return (
     <div className="travel-gradient-bg relative min-h-screen w-full overflow-hidden">
@@ -158,7 +160,7 @@ export function LoginBackdrop({ children }: { children: React.ReactNode }) {
       >
         <Image
           src="/images/logo-white-clean.png"
-          alt="Wanago"
+          alt={company.businessName}
           fill
           className="object-contain object-left"
           priority

@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { FIRESTORE_COLLECTIONS, REF_FORMATS } from "@/lib/constants";
 import { buildLeadDraftFromAnswers } from "@/modules/forms/utils/actions";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import type { FormActions } from "@/modules/forms/types";
 
 export const runtime = "nodejs";
@@ -56,11 +57,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const { token } = await params;
   const form = await findPublicForm(token);
   if (!form) return NextResponse.json({ error: "This form isn't available" }, { status: 404 });
+  const company = await getCompanySettingsServer();
 
   return NextResponse.json({
     title: form.title,
     description: form.description,
     fields: form.fields,
+    businessName: company.businessName,
   });
 }
 

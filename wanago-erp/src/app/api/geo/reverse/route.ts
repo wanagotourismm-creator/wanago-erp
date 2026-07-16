@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -17,9 +18,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const company = await getCompanySettingsServer();
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=0`,
-      { headers: { "User-Agent": "WanagoERP/1.0 (contact: wanagotourismm@gmail.com)" } }
+      { headers: { "User-Agent": `${company.businessName} ERP/1.0 (contact: ${company.email})` } }
     );
     if (!res.ok) return NextResponse.json({ error: "Reverse geocoding failed" }, { status: 502 });
     const data = await res.json();

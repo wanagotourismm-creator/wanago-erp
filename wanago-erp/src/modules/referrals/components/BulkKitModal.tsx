@@ -7,6 +7,7 @@ import { draftReferralCaption } from "@/modules/referrals/services/referral-capt
 import { sendBulkKitEmails } from "@/modules/referrals/services/referral-bulk-email.service";
 import { buildWhatsAppLink, cn } from "@/lib/utils/helpers";
 import { getAppUrl } from "@/lib/app-url";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 import type { ReferralPoster, ReferralPartner } from "@/modules/referrals/types";
 
 type Props = {
@@ -27,6 +28,7 @@ export function BulkKitModal({ open, partners, onClose }: Props) {
   const [emailSending, setEmailSending] = useState(false);
   const [emailResult, setEmailResult] = useState<{ sent: number; failed: number } | null>(null);
   const [whatsappSent, setWhatsappSent] = useState<Set<string>>(new Set());
+  const { settings: company } = useCompanySettings();
 
   useEffect(() => {
     if (!open) return;
@@ -60,7 +62,7 @@ export function BulkKitModal({ open, partners, onClose }: Props) {
     const result = await sendBulkKitEmails(
       withEmail.map(p => ({
         email: p.email as string,
-        subject: "Your Wanago referral kit",
+        subject: `Your ${company.businessName} referral kit`,
         body: `${caption}\n\n${selected.imageUrl}\n\n${trackingLink(p.referralCode)}`,
       }))
     );

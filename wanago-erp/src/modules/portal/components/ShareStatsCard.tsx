@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Share2, Copy, Check, Sparkles } from "lucide-react";
 
 type Props = {
-  headline: string;   // e.g. "I've sent Wanago 5 referrals — ₹2,500 earned!"
+  businessName: string;
+  headline: string;   // e.g. "I've sent {businessName} 5 referrals — ₹2,500 earned!"
   subline: string;    // e.g. "Join Refer & Earn and start earning too."
   shareText: string;  // full message for WhatsApp/copy — usually headline + subline + link
 };
@@ -14,7 +15,7 @@ type Props = {
 // The WhatsApp link has no recipient baked in (unlike the referral kit
 // share, which targets a specific person) — this opens WhatsApp's own
 // contact picker since "who to brag to" isn't something we know.
-export function ShareStatsCard({ headline, subline, shareText }: Props) {
+export function ShareStatsCard({ businessName, headline, subline, shareText }: Props) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -26,7 +27,7 @@ export function ShareStatsCard({ headline, subline, shareText }: Props) {
   return (
     <div className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary via-primary to-primary/80 p-5 text-white shadow-lg">
       <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/70">
-        <Sparkles size={12} /> Wanago Refer &amp; Earn
+        <Sparkles size={12} /> {businessName} Refer &amp; Earn
       </div>
       <p className="mt-2 text-lg font-bold leading-snug">{headline}</p>
       <p className="mt-1 text-sm text-white/80">{subline}</p>

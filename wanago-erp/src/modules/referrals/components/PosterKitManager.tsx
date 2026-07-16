@@ -8,12 +8,16 @@ import {
 } from "@/modules/referrals/services/referral-poster.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 import type { ReferralPoster } from "@/modules/referrals/types";
 
-const DEFAULT_CAPTION = "Thinking about your next trip? We've traveled with Wanago and loved it — worth checking out!";
+function defaultCaption(businessName: string): string {
+  return `Thinking about your next trip? We've traveled with ${businessName} and loved it — worth checking out!`;
+}
 
 export function PosterKitManager() {
   const { user } = useAuthStore();
+  const { settings: company } = useCompanySettings();
   const [posters, setPosters] = useState<ReferralPoster[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -21,7 +25,7 @@ export function PosterKitManager() {
 
   const [title, setTitle] = useState("");
   const [destination, setDestination] = useState("");
-  const [caption, setCaption] = useState(DEFAULT_CAPTION);
+  const [caption, setCaption] = useState(defaultCaption(company.businessName));
   const [file, setFile] = useState<File | null>(null);
 
   function load() {
@@ -42,11 +46,11 @@ export function PosterKitManager() {
       await createReferralPoster({
         title: title.trim(),
         imageUrl,
-        captionTemplate: caption.trim() || DEFAULT_CAPTION,
+        captionTemplate: caption.trim() || defaultCaption(company.businessName),
         destination: destination.trim() || null,
         posterStatus: "active",
       }, user?.uid ?? "");
-      setTitle(""); setDestination(""); setCaption(DEFAULT_CAPTION); setFile(null);
+      setTitle(""); setDestination(""); setCaption(defaultCaption(company.businessName)); setFile(null);
       load();
     } catch {
       setError("Upload failed — please try again.");

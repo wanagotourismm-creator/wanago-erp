@@ -6,6 +6,7 @@ import { fetchReferralPosters } from "@/modules/referrals/services/referral-post
 import { draftReferralCaption } from "@/modules/referrals/services/referral-caption-ai.service";
 import { buildWhatsAppLink, cn } from "@/lib/utils/helpers";
 import { getAppUrl } from "@/lib/app-url";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 import type { ReferralPoster } from "@/modules/referrals/types";
 
 type Props = {
@@ -33,6 +34,7 @@ export function ShareKitModal({ open, onClose, recipientName, recipientPhone, re
   const [drafting, setDrafting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { settings: company } = useCompanySettings();
 
   useEffect(() => {
     if (!open) return;
@@ -153,7 +155,7 @@ export function ShareKitModal({ open, onClose, recipientName, recipientPhone, re
                       <MessageCircle size={15} /> WhatsApp
                     </a>
                     <a
-                      href={`mailto:${recipientEmail ?? ""}?subject=${encodeURIComponent("Your Wanago referral kit")}&body=${encodeURIComponent(fullMessage)}`}
+                      href={`mailto:${recipientEmail ?? ""}?subject=${encodeURIComponent(`Your ${company.businessName} referral kit`)}&body=${encodeURIComponent(fullMessage)}`}
                       className={cn(
                         "inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:border-primary/40 hover:bg-muted transition-colors",
                         !recipientEmail && "pointer-events-none opacity-40"

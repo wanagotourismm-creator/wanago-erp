@@ -219,7 +219,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
                 <input className={inputClass} type="tel" placeholder="+91 98765 43210" {...register("mobileNumber")} />
               </Field>
               <Field label="Email" error={errors.email?.message}>
-                <input className={inputClass} type="email" placeholder="priya@wanago.com" {...register("email")} />
+                <input className={inputClass} type="email" placeholder="you@company.com" {...register("email")} />
               </Field>
               <div className="col-span-2">
                 <Field label="Address">

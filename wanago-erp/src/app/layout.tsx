@@ -4,31 +4,36 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeColorProvider } from "@/components/providers/ThemeColorProvider";
 import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegister";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import "@/styles/globals.css";
 import "leaflet/dist/leaflet.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
-export const metadata: Metadata = {
-  title: { default: "Wanago ERP", template: "%s | Wanago ERP" },
-  description: "Operations Management System for Wanago Tours & Travels",
-  manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
-      { url: "/icons/icon-192.png",   sizes: "192x192", type: "image/png" },
-    ],
-    apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Wanago ERP",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getCompanySettingsServer();
+  const appName = `${company.businessName} ERP`;
+  return {
+    title: { default: appName, template: `%s | ${appName}` },
+    description: `Operations Management System for ${company.businessName}`,
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
+        { url: "/icons/icon-192.png",   sizes: "192x192", type: "image/png" },
+      ],
+      apple: [
+        { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      ],
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: appName,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width", initialScale: 1,

@@ -1,10 +1,12 @@
 import type { MetadataRoute } from "next";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const company = await getCompanySettingsServer();
   return {
-    name: "Wanago ERP",
-    short_name: "Wanago ERP",
-    description: "Operations Management System for Wanago Tours & Travels",
+    name: `${company.businessName} ERP`,
+    short_name: company.businessName,
+    description: `Operations Management System for ${company.businessName}`,
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#ffffff",

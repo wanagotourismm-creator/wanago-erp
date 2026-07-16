@@ -174,10 +174,10 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
         <p className="text-xs text-muted-foreground">Shown on the &ldquo;Payable To&rdquo; and &ldquo;Terms and conditions&rdquo; boxes of every quotation/invoice PDF.</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Bank Account Name">
-            <input className={inputClass} value={form.bankAccountName} onChange={e => set("bankAccountName", e.target.value)} placeholder="WANAGO PRIVATE LIMITED" />
+            <input className={inputClass} value={form.bankAccountName} onChange={e => set("bankAccountName", e.target.value)} placeholder="YOUR COMPANY PRIVATE LIMITED" />
           </Field>
           <Field label="Bank Name">
-            <input className={inputClass} value={form.bankName} onChange={e => set("bankName", e.target.value)} placeholder="South Indian Bank Kalpetta" />
+            <input className={inputClass} value={form.bankName} onChange={e => set("bankName", e.target.value)} placeholder="Your Bank Name" />
           </Field>
           <Field label="Account Number">
             <input className={inputClass} value={form.bankAccountNumber} onChange={e => set("bankAccountNumber", e.target.value)} />
@@ -187,7 +187,7 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
           </Field>
           <div className="col-span-2">
             <Field label="UPI ID">
-              <input className={inputClass} value={form.upiId} onChange={e => set("upiId", e.target.value)} placeholder="wanagotourism@okhdfcbank" />
+              <input className={inputClass} value={form.upiId} onChange={e => set("upiId", e.target.value)} placeholder="yourbusiness@okhdfcbank" />
             </Field>
             <p className="mt-1 text-[11px] text-muted-foreground">
               Powers the &ldquo;Pay via UPI&rdquo; QR/link shown on invoices and booking advances — the exact

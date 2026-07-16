@@ -13,6 +13,7 @@ import { NAV_ICONS } from "@/components/layout/nav-icons";
 import type { NavItem } from "@/components/layout/nav-config";
 import { cn, initials } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 
 function MenuLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
   const pathname = usePathname();
@@ -42,7 +43,8 @@ export function MobileMenuSheet() {
   const { logout } = useAuth();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const ab = initials(user?.displayName ?? "Wanago Admin") || "WA";
+  const { settings: company } = useCompanySettings();
+  const ab = initials(user?.displayName ?? "Admin User") || "AU";
   const visibleGroups = useVisibleNavGroups();
 
   if (!mobileSidebarOpen) return null;
@@ -54,7 +56,7 @@ export function MobileMenuSheet() {
         <div className="relative h-9 w-[150px]">
           <Image
             src={isDark ? "/images/logo-white-clean.png" : "/images/logo-dark-clean.png"}
-            alt="Wanago Tours & Travels"
+            alt={company.businessName}
             fill
             className="object-contain object-left"
             priority

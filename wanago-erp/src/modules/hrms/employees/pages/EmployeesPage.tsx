@@ -19,6 +19,7 @@ import { resolveOffice } from "@/lib/bulk/resolveOffice";
 import { createEmployee } from "@/modules/hrms/employees/services/employee.service";
 import { employeeSchema } from "@/modules/hrms/employees/schemas";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 import type { Office } from "@/modules/admin/offices/types";
 import type { Employee } from "@/modules/hrms/shared/types";
 import type { EmployeeFormData } from "@/modules/hrms/employees/types";
@@ -27,6 +28,7 @@ import type { EmployeeSchema } from "@/modules/hrms/employees/schemas";
 export function EmployeesPage() {
   const { employees, loading, addEmployee, editEmployee, removeEmployee, load } = useEmployees();
   const { user } = useAuthStore();
+  const { settings: company } = useCompanySettings();
   const canManage = !!user && hasPermission(user.systemRole, "hrms:manage");
 
   const [formOpen,        setFormOpen]        = useState(false);
@@ -94,7 +96,7 @@ export function EmployeesPage() {
       alert("No employees have an email on file — nothing to send.");
       return;
     }
-    if (!confirm(`Send the "Welcome to Team Wanago" email to all ${recipients.length} employee${recipients.length !== 1 ? "s" : ""} with an email on file?${skipped ? ` (${skipped} skipped — no email on file.)` : ""}`)) {
+    if (!confirm(`Send the "Welcome to Team ${company.businessName}" email to all ${recipients.length} employee${recipients.length !== 1 ? "s" : ""} with an email on file?${skipped ? ` (${skipped} skipped — no email on file.)` : ""}`)) {
       return;
     }
 

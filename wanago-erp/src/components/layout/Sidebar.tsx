@@ -18,6 +18,7 @@ import { canAccessPage } from "@/lib/rbac";
 import { NAV_CONFIG, type NavItem } from "@/components/layout/nav-config";
 import { cn, initials } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
+import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
 import type { SystemRole } from "@/types/rbac";
 
 const ICONS: Record<string, React.ElementType> = {
@@ -76,7 +77,8 @@ export function Sidebar() {
   const { logout } = useAuth();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const ab = initials(user?.displayName ?? "Wanago Admin") || "WA";
+  const { settings: company } = useCompanySettings();
+  const ab = initials(user?.displayName ?? "Admin User") || "AU";
 
   const visibleGroups = NAV_CONFIG.map((group) => ({
     ...group,
@@ -95,13 +97,13 @@ export function Sidebar() {
     )}>
       {collapsed ? (
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white font-bold text-base shadow-sm">
-          W
+          {company.businessName.charAt(0).toUpperCase() || "W"}
         </div>
       ) : (
         <div className="relative h-11 w-[180px]">
           <Image
             src={isDark ? "/images/logo-white-clean.png" : "/images/logo-dark-clean.png"}
-            alt="Wanago Tours & Travels"
+            alt={company.businessName}
             fill
             className="object-contain object-left"
             priority

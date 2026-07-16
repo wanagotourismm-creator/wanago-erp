@@ -147,7 +147,7 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
               </Field>
             </div>
             <Field label="Email" required>
-              <input className={inputClass} type="email" placeholder="anjali@wanago.com" value={email} onChange={e => setEmail(e.target.value)} disabled={!!user} />
+              <input className={inputClass} type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} disabled={!!user} />
             </Field>
             {!user && (
               <Field label="Password" required>
