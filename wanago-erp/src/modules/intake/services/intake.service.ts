@@ -1,5 +1,5 @@
 import { BaseRepository } from "@/lib/firebase/repository";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { FIRESTORE_COLLECTIONS, WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
 import { createLead } from "@/modules/leads/services/lead.service";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
@@ -36,6 +36,8 @@ export async function markBookingRequestStatus(id: string, requestStatus: Intake
         notifyUser({
           email: customer.email ?? null,
           phone: customer.phone ?? null,
+          whatsappPurpose: WHATSAPP_TEMPLATE_PURPOSES.BOOKING_REQUEST_CONTACTED,
+          whatsappVariables: [customer.fullName, request.packageName],
           title: "We're reaching out about your trip request",
           body: `Thanks for your interest in ${request.packageName} — our team is reviewing it and will contact you shortly to finalize the details.`,
           category: "followup",

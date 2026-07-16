@@ -5,6 +5,8 @@ import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { getAppUrl } from "@/lib/app-url";
 import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
+import { sendWhatsAppMessage } from "@/lib/whatsapp/meta-client";
+import { sendWhatsAppSmart } from "@/lib/whatsapp/template-router";
 import type { NotificationCategory } from "@/modules/notifications/types";
 
 const TRAVEL_QUOTES: { text: string; author: string }[] = [
@@ -441,6 +443,9 @@ export async function sendQuotationEmail(params: {
 export async function notifyUserServer(params: {
   userId?:  string | null;
   email?:   string | null;
+  phone?:   string | null;
+  whatsappPurpose?:   string;
+  whatsappVariables?: string[];
   title:    string;
   body:     string;
   link?:    string;
@@ -467,6 +472,15 @@ export async function notifyUserServer(params: {
   }
   if (params.email) {
     tasks.push(sendEmail({ to: params.email, subject: params.title, body: params.body, link: params.link, category: params.category }).catch(() => {}));
+  }
+  if (params.phone) {
+    const fallbackBody = `${params.title}\n${params.body}`;
+    tasks.push(
+      (params.whatsappPurpose
+        ? sendWhatsAppSmart({ to: params.phone, purpose: params.whatsappPurpose, variables: params.whatsappVariables ?? [], fallbackBody })
+        : sendWhatsAppMessage(params.phone, fallbackBody)
+      ).catch(() => {})
+    );
   }
 
   await Promise.allSettled(tasks);

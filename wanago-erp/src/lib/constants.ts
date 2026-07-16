@@ -150,6 +150,7 @@ export const FIRESTORE_COLLECTIONS = {
   DIGESTS:         "digests",
   WHATSAPP_CONVERSATIONS: "whatsappConversations",
   WHATSAPP_MESSAGES:      "whatsappMessages",
+  WHATSAPP_TEMPLATES:     "whatsappTemplates",
   TEAM_PULSE_RESPONSES:   "teamPulseResponses",
   REFERRAL_BONUSES:       "referralBonuses",
   REFERRAL_PARTNERS:      "referralPartners",
@@ -160,6 +161,17 @@ export const FIRESTORE_COLLECTIONS = {
   HR_POLICY_DOCUMENTS:    "hrPolicyDocuments",
   FORMS:                  "forms",
   FORM_RESPONSES:         "formResponses",
+} as const;
+
+// Internal lookup keys business logic uses to ask "give me the approved
+// WhatsApp template for X" — see WhatsAppTemplate.purpose. This list just
+// seeds the Admin panel's purpose picker; the field itself is free text so
+// a template can be pre-registered for a purpose not wired into code yet.
+export const WHATSAPP_TEMPLATE_PURPOSES = {
+  REFERRAL_BONUS_PAID:         "referral_bonus_paid",
+  BOOKING_REQUEST_CONTACTED:   "booking_request_contacted",
+  STAFF_REQUEST_DECISION:      "staff_request_decision",
+  INTERNATIONAL_TRIP_FOLLOWUP: "international_trip_followup",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

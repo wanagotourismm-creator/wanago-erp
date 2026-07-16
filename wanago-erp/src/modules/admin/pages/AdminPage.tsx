@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
   Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound, BookOpen,
+  MessageCircle,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -25,6 +26,7 @@ import { RolePermissionsEditor } from "@/modules/admin/permissions/components/Ro
 import { DataExportPanel } from "@/modules/admin/export/components/DataExportPanel";
 import { AnnouncementComposer } from "@/modules/admin/announcements/components/AnnouncementComposer";
 import { HolidayCalendar } from "@/modules/admin/holidays/components/HolidayCalendar";
+import { WhatsAppTemplatesPanel } from "@/modules/admin/whatsapp-templates/components/WhatsAppTemplatesPanel";
 import { AssetsPanel } from "@/modules/assets/components/AssetsPanel";
 import { HelpCenterPanel } from "@/modules/helpcenter/components/HelpCenterPanel";
 import { TicketsPanel } from "@/modules/tickets/components/TicketsPanel";
@@ -122,7 +124,8 @@ export function AdminPage() {
         { key: "announcements", label: "Announcements", icon: Megaphone },
         { key: "holidays",      label: "Holidays",       icon: CalendarDays },
         { key: "helpcenter",    label: "Help Center",    icon: BookOpen },
-      ],
+        isSuperAdmin && { key: "whatsapp-templates", label: "WhatsApp Templates", icon: MessageCircle },
+      ].filter(Boolean) as HrNavGroup["items"],
     },
     {
       label: "HR Operations",
@@ -256,6 +259,8 @@ export function AdminPage() {
         {tab === "holidays" && <HolidayCalendar />}
 
         {tab === "helpcenter" && <HelpCenterPanel />}
+
+        {tab === "whatsapp-templates" && isSuperAdmin && <WhatsAppTemplatesPanel />}
 
         {tab === "assets" && <AssetsPanel />}
 

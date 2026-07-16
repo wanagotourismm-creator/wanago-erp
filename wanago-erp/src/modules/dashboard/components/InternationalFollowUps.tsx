@@ -6,7 +6,7 @@ import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { bookingRepository } from "@/modules/bookings/services/booking.repository";
 import { fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
 import { notifyUser } from "@/lib/notify";
-import { TRIP_TYPES, BOOKING_STATUS } from "@/lib/constants";
+import { TRIP_TYPES, BOOKING_STATUS, WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { formatDate, toDate } from "@/lib/utils/helpers";
 import { Bell } from "lucide-react";
@@ -134,6 +134,8 @@ async function notifyAssignee(booking: Booking, daysLeft: number): Promise<void>
     userId:   employee.userId ?? null,
     email:    employee.email,
     phone:    employee.mobileNumber,
+    whatsappPurpose:   WHATSAPP_TEMPLATE_PURPOSES.INTERNATIONAL_TRIP_FOLLOWUP,
+    whatsappVariables: [booking.customerName, booking.destination, daysText],
     title:    "Follow up: international trip departing soon",
     body:     `${booking.customerName}'s trip to ${booking.destination} departs ${daysText} — please follow up.`,
     link:     "/bookings",

@@ -9,6 +9,8 @@ export async function notifyUser(params: {
   userId?:   string | null;
   email?:    string | null;
   phone?:    string | null;
+  whatsappPurpose?:   string;
+  whatsappVariables?: string[];
   title:     string;
   body:      string;
   link?:     string;
@@ -35,7 +37,11 @@ export async function notifyUser(params: {
         fetch("/api/notify/whatsapp", {
           method: "POST",
           headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
-          body: JSON.stringify({ to: params.phone, body: `${params.title}\n${params.body}` }),
+          body: JSON.stringify({
+            to: params.phone,
+            body: `${params.title}\n${params.body}`,
+            ...(params.whatsappPurpose ? { purpose: params.whatsappPurpose, variables: params.whatsappVariables ?? [] } : {}),
+          }),
         }).catch(() => {})
       );
     }

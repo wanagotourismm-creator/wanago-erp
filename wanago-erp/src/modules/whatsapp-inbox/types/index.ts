@@ -19,6 +19,13 @@ export type WhatsAppConversation = FirestoreRecord & {
   lastMessageDirection: WhatsAppMessageDirection | null;
   unreadCount: number;
 
+  // Unlike lastMessageAt (overwritten on both inbound and outbound sends),
+  // this only ever moves forward on an inbound message — the one signal
+  // that answers "is this conversation inside Meta's 24h free-text window
+  // right now," used by src/lib/whatsapp/template-router.ts. null until
+  // the first inbound message.
+  lastInboundMessageAt: FirestoreRecord["createdAt"] | null;
+
   // Set by the webhook after each inbound message (see
   // whatsapp-classify.service.ts) — reflects the customer's latest message,
   // not the whole thread's history. null until the first inbound message

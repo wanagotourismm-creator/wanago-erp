@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/firebase/admin";
 import { isRateLimited } from "@/lib/server/rate-limit";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/meta-client";
+import { sendWhatsAppSmart } from "@/lib/whatsapp/template-router";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests — please wait a minute and try again." }, { status: 429 });
   }
 
-  let payload: { to?: string; body?: string };
+  let payload: { to?: string; body?: string; purpose?: string; variables?: string[] };
   try {
     payload = await req.json();
   } catch {
@@ -33,7 +34,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing to/body" }, { status: 400 });
   }
 
-  const result = await sendWhatsAppMessage(normalizePhone(payload.to), payload.body.slice(0, 1500));
+  const to = normalizePhone(payload.to);
+  const body = payload.body.slice(0, 1500);
+  const result = payload.purpose
+    ? await sendWhatsAppSmart({ to, purpose: payload.purpose, variables: payload.variables ?? [], fallbackBody: body })
+    : await sendWhatsAppMessage(to, body);
   if (!result.ok) {
     const status = result.error.startsWith("WhatsApp isn't set up") ? 501 : 502;
     return NextResponse.json({ error: result.error }, { status });

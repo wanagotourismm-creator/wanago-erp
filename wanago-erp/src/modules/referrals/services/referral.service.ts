@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc, serverTimestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { FIRESTORE_COLLECTIONS, WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { fetchCustomers, fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { findReferralPartnerByCode, fetchReferralPartnerById } from "@/modules/referrals/services/referral-partner.service";
@@ -61,10 +61,10 @@ export async function markReferralBonusPaid(id: string, paidBy: string): Promise
   } as unknown as Partial<ReferralBonus>);
 
   // Best-effort — the payout itself is already recorded above regardless
-  // of whether the referrer can be reached. WhatsApp may fail silently if
-  // they haven't messaged the business number in the last 24h (Meta
-  // requires a pre-approved template outside that window); email is the
-  // more reliable fallback when they have one on file.
+  // of whether the referrer can be reached. Outside a 24h WhatsApp window,
+  // notifyUser() falls back to an approved template if one's registered
+  // for this purpose (see Admin -> WhatsApp Templates); email is the more
+  // reliable fallback when they have one on file either way.
   if (bonus) {
     const referrer = bonus.referrerType === "partner"
       ? await fetchReferralPartnerById(bonus.referrerPartnerId ?? "")
@@ -74,6 +74,8 @@ export async function markReferralBonusPaid(id: string, paidBy: string): Promise
       notifyUser({
         email: referrer.email ?? null,
         phone: referrer.phone ?? null,
+        whatsappPurpose: WHATSAPP_TEMPLATE_PURPOSES.REFERRAL_BONUS_PAID,
+        whatsappVariables: [referrer.fullName, formatCurrency(bonus.bonusAmount), bonus.referredCustomerName],
         title: "Your referral bonus has been paid",
         body: `${formatCurrency(bonus.bonusAmount)} for referring ${bonus.referredCustomerName} (${bonus.bookingRefNumber}) has been paid out. Thanks for referring ${company.businessName}!`,
         category: "system",

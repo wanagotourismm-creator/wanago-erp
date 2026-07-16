@@ -731,6 +731,20 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── WhatsApp message templates ────────────────────────────
+    // Templates are created/approved manually in Meta's WhatsApp
+    // Manager; this collection just records the approved template's
+    // name/language/variables so business logic can look up "the
+    // approved template for purpose X" generically. Not sensitive —
+    // read stays open to any authenticated user; write restricted to
+    // Admin/Super Admin (matches the Admin-panel-only surface that
+    // manages these). The smart-send helper reads it server-side via
+    // the Admin SDK, which bypasses these rules entirely.
+    match /whatsappTemplates/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // ── All other collections ─────────────────────────────────
     // create/update validate the standard fields; delete has no
     // incoming request.resource to validate, so hasRequiredFields()
@@ -765,8 +779,12 @@ service cloud.firestore {
       // are OR'd, leaving them out of this exclusion would let any
       // authenticated user satisfy hasRequiredFields() and write directly
       // into any of these collections, defeating that restriction entirely.
-      allow create: if isAuthenticated() && hasRequiredFields() && collection != 'aiUsageLogs' && collection != 'aiActionLogs' && collection != 'aiPredictions';
-      allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities';
+      // whatsappTemplates excluded from create/update the same way — its
+      // dedicated isAdmin()-only write rule above would otherwise be
+      // silently overridden by this catch-all's broader grant to any
+      // authenticated user who satisfies hasRequiredFields().
+      allow create: if isAuthenticated() && hasRequiredFields() && collection != 'aiUsageLogs' && collection != 'aiActionLogs' && collection != 'aiPredictions' && collection != 'whatsappTemplates';
+      allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities' && collection != 'whatsappTemplates';
       allow delete: if isAdmin();
     }
   }

@@ -17,6 +17,7 @@ import { detectSuspiciousLocation } from "@/lib/geo-fraud";
 import { logSuspiciousAttempt } from "@/modules/hrms/attendance/services/suspicious-attendance.service";
 import { notifyUser } from "@/lib/notify";
 import { auth } from "@/lib/firebase/client";
+import { WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
@@ -448,7 +449,14 @@ export function useEss() {
     }
   }
 
-  async function notifyRequesterOfDecision(employeeId: string, title: string, body: string, category: "leave" | "regularization" | "asset" | "location") {
+  const DECISION_CATEGORY_LABELS: Record<"leave" | "regularization" | "asset" | "location", string> = {
+    leave: "leave", regularization: "attendance correction", asset: "asset", location: "check-in/out location",
+  };
+
+  async function notifyRequesterOfDecision(
+    employeeId: string, title: string, body: string,
+    category: "leave" | "regularization" | "asset" | "location", decision: "approve" | "reject"
+  ) {
     try {
       const requester = await fetchEmployeeById(employeeId);
       if (!requester) return;
@@ -457,6 +465,8 @@ export function useEss() {
       // doesn't get two emails for the same decision.
       await notifyUser({
         userId: requester.userId ?? null, email: category === "leave" ? null : requester.email, phone: requester.mobileNumber,
+        whatsappPurpose: WHATSAPP_TEMPLATE_PURPOSES.STAFF_REQUEST_DECISION,
+        whatsappVariables: [DECISION_CATEGORY_LABELS[category], decision === "approve" ? "approved" : "rejected"],
         title, body, link: "/ess", category,
       });
     } catch { /* best-effort */ }
@@ -491,27 +501,27 @@ export function useEss() {
         else await rejectLeaveRequest(item.id, user.uid);
         setTeamLeaves((p) => p.filter((l) => l.id !== item.id));
         notifyRequesterOfDecision(item.leave.employeeId, `Your leave request was ${verb}`,
-          `Your ${item.leave.leaveType} leave from ${item.leave.fromDate} to ${item.leave.toDate} was ${verb}.`, "leave");
+          `Your ${item.leave.leaveType} leave from ${item.leave.fromDate} to ${item.leave.toDate} was ${verb}.`, "leave", decision);
         sendLeaveDecisionEmailFor(item.leave, decision);
       } else if (item.kind === "regularization") {
         if (decision === "approve") await approveRegularization(item.id, user.uid);
         else await rejectRegularization(item.id, user.uid);
         setTeamRegularizations((p) => p.filter((r) => r.id !== item.id));
         notifyRequesterOfDecision(item.regularization.employeeId, `Your attendance correction was ${verb}`,
-          `Your correction request for ${item.regularization.date} was ${verb}.`, "regularization");
+          `Your correction request for ${item.regularization.date} was ${verb}.`, "regularization", decision);
       } else if (item.kind === "asset") {
         if (decision === "approve") await approveAssetRequest(item.id, user.uid);
         else await rejectAssetRequest(item.id, user.uid);
         setTeamAssetRequests((p) => p.filter((r) => r.id !== item.id));
         notifyRequesterOfDecision(item.assetRequest.employeeId, `Your asset request was ${verb}`,
-          `Your request for ${item.assetRequest.assetCategory} was ${verb}.`, "asset");
+          `Your request for ${item.assetRequest.assetCategory} was ${verb}.`, "asset", decision);
       } else {
         await decideLocationApproval(item.id, decision === "approve" ? "approved" : "rejected", user.uid);
         setTeamLocationApprovals((p) => p.filter((a) => a.id !== item.id));
         const km = item.attendance.distanceFromOfficeMeters != null
           ? (item.attendance.distanceFromOfficeMeters / 1000).toFixed(1) + " km" : "an unknown distance";
         notifyRequesterOfDecision(item.attendance.employeeId, `Your check-in/out location was ${verb}`,
-          `Your attendance from ${km} away from the office on ${item.attendance.date} was ${verb}.`, "location");
+          `Your attendance from ${km} away from the office on ${item.attendance.date} was ${verb}.`, "location", decision);
       }
       return { error: null };
     } catch (e) {

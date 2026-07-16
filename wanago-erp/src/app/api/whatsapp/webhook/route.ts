@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
           lastMessagePreview:   body.slice(0, 200),
           lastMessageAt:        now,
           lastMessageDirection: "inbound",
+          lastInboundMessageAt: now,
           unreadCount:  FieldValue.increment(1),
           customerName: convoDoc.data()?.customerName ?? profileName,
           updatedAt: now,
