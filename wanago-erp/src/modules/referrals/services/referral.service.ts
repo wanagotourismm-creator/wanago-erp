@@ -6,6 +6,7 @@ import { fetchCustomers, fetchCustomerById } from "@/modules/customers/services/
 import { findReferralPartnerByCode, fetchReferralPartnerById } from "@/modules/referrals/services/referral-partner.service";
 import { toDate, formatCurrency } from "@/lib/utils/helpers";
 import { notifyUser } from "@/lib/notify";
+import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import type { ReferralSettings, ReferralBonus } from "@/modules/referrals/types";
 import type { Booking } from "@/modules/bookings/types";
 import type { Customer } from "@/modules/customers/types";
@@ -69,11 +70,12 @@ export async function markReferralBonusPaid(id: string, paidBy: string): Promise
       ? await fetchReferralPartnerById(bonus.referrerPartnerId ?? "")
       : await fetchCustomerById(bonus.referrerCustomerId ?? "");
     if (referrer) {
+      const company = await fetchCompanySettings();
       notifyUser({
         email: referrer.email ?? null,
         phone: referrer.phone ?? null,
         title: "Your referral bonus has been paid",
-        body: `${formatCurrency(bonus.bonusAmount)} for referring ${bonus.referredCustomerName} (${bonus.bookingRefNumber}) has been paid out. Thanks for referring Wanago!`,
+        body: `${formatCurrency(bonus.bonusAmount)} for referring ${bonus.referredCustomerName} (${bonus.bookingRefNumber}) has been paid out. Thanks for referring ${company.businessName}!`,
         category: "system",
       }).catch(() => {});
     }

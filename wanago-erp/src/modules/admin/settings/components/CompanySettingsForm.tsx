@@ -139,6 +139,12 @@ export function CompanySettingsForm({ settings, saving, isSuperAdmin, onSave }: 
               <option value="EUR">EUR (€)</option>
             </select>
           </Field>
+          <Field label="Website">
+            <input className={inputClass} value={form.websiteUrl} onChange={e => set("websiteUrl", e.target.value)} placeholder="www.yourcompany.com" />
+          </Field>
+          <Field label="Social Handle">
+            <input className={inputClass} value={form.socialHandle} onChange={e => set("socialHandle", e.target.value)} placeholder="@yourhandle" />
+          </Field>
         </div>
       </div>
 

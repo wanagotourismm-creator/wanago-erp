@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -15,10 +16,10 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are drafting a short WhatsApp caption for Wanago Tours & Travels' referral program.",
-    "A referrer is about to share a travel poster with friends/family, inviting them to book through Wanago.",
+    `You are drafting a short WhatsApp caption for ${companyName}'s referral program.`,
+    `A referrer is about to share a travel poster with friends/family, inviting them to book through ${companyName}.`,
     "Write 2-3 warm, casual sentences (like a real person forwarding a poster, not an ad) that mention the destination if given, and end by inviting the reader to reach out.",
     "Do NOT include a link or referral code — that gets appended separately after your text.",
     "Respond with ONLY the caption text — no quotes, no preamble.",
@@ -46,9 +47,10 @@ export async function POST(req: NextRequest) {
     .filter(Boolean).join("\n") || "A general travel poster, no specific destination.";
 
   try {
+    const company = await getCompanySettingsServer();
     const { text } = await generateText({
       feature: "referral-caption-draft",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       createdBy,
       maxOutputTokens: 200,

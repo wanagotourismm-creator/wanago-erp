@@ -5,6 +5,7 @@ import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall
 import { StageBadge, PriorityBadge, ReturningCustomerBadge } from "@/modules/leads/components/LeadBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatDateTime, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
+import { getAppUrl } from "@/lib/app-url";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
@@ -23,7 +24,7 @@ type Props = {
 };
 
 function appOrigin(): string {
-  return typeof window !== "undefined" ? window.location.origin : "https://wanago-erp.vercel.app";
+  return typeof window !== "undefined" ? window.location.origin : getAppUrl();
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {

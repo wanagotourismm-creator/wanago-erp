@@ -6,7 +6,7 @@ import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/compone
 import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
-import { downloadQuotationPdf, loadWanagoLogoDataUrl } from "@/lib/pdf/quotation-pdf";
+import { downloadQuotationPdf, loadCompanyLogoDataUrl } from "@/lib/pdf/quotation-pdf";
 import type { Quotation } from "@/modules/quotations/types";
 
 type Props = {
@@ -71,11 +71,11 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
   async function handleDownloadPdf() {
     setDownloading(true);
     try {
-      const [company, customer, logoDataUrl] = await Promise.all([
+      const [company, customer] = await Promise.all([
         fetchCompanySettings(),
         fetchCustomerById(q.customerId),
-        loadWanagoLogoDataUrl(),
       ]);
+      const logoDataUrl = await loadCompanyLogoDataUrl(company.logoUrl);
       await downloadQuotationPdf({
         refNumber: q.refNumber,
         date:      formatDate(q.createdAt, "dd/MM/yyyy"),
@@ -102,8 +102,8 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
         },
         terms: company.quotationTerms.split("\n").map((t) => t.trim()).filter(Boolean),
         logoDataUrl: logoDataUrl ?? "",
-        websiteUrl: "www.wanago.in",
-        socialHandle: "@wana.go",
+        websiteUrl: company.websiteUrl,
+        socialHandle: company.socialHandle,
       });
     } finally {
       setDownloading(false);

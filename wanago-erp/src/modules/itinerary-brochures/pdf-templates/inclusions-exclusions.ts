@@ -1,12 +1,13 @@
 import { escapeHtml, renderHeaderFooter } from "@/modules/itinerary-brochures/pdf-templates/shared";
 
 export function renderInclusionsExclusionsPage(params: {
-  logoDataUri: string;
-  photoUrl:    string;
-  inclusions:  string[];
-  exclusions:  string[];
+  logoDataUri:  string;
+  websiteLabel: string;
+  photoUrl:     string;
+  inclusions:   string[];
+  exclusions:   string[];
 }): string {
-  const { footer } = renderHeaderFooter(params.logoDataUri);
+  const { footer } = renderHeaderFooter(params.logoDataUri, params.websiteLabel);
 
   const list = (items: string[]) =>
     items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");

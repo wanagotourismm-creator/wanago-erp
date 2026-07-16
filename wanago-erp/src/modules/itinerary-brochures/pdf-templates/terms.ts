@@ -24,11 +24,12 @@ function parseClauses(text: string): { title: string; body: string }[] {
 }
 
 export function renderTermsPage(params: {
-  logoDataUri: string;
-  photoUrl:    string;
+  logoDataUri:  string;
+  websiteLabel: string;
+  photoUrl:     string;
   termsAndConditions: string;
 }): string {
-  const { footer } = renderHeaderFooter(params.logoDataUri);
+  const { footer } = renderHeaderFooter(params.logoDataUri, params.websiteLabel);
   const clauses = parseClauses(params.termsAndConditions);
 
   const clauseHtml = clauses.map((c) => `

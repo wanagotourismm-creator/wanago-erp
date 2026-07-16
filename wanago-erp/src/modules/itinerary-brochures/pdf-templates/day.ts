@@ -2,10 +2,11 @@ import { escapeHtml, renderHeaderFooter } from "@/modules/itinerary-brochures/pd
 import type { BrochureDay } from "@/modules/itinerary-brochures/types";
 
 export function renderDayPage(params: {
-  logoDataUri: string;
-  day:         BrochureDay;
+  logoDataUri:  string;
+  websiteLabel: string;
+  day:          BrochureDay;
 }): string {
-  const { footer } = renderHeaderFooter(params.logoDataUri);
+  const { footer } = renderHeaderFooter(params.logoDataUri, params.websiteLabel);
   const { day } = params;
 
   const bullets = day.bulletPoints.map((point) => {

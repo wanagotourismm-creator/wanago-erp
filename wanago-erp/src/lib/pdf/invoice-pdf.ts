@@ -1,4 +1,4 @@
-// Wanago's branded Invoice PDF — matches the reference template: letter-
+// The company's branded Invoice PDF — matches the reference template: letter-
 // spaced "I N V O I C E" heading with the logo top-right, Issued To / Pay To
 // columns, a dark-green item table (Description/Pax/Price/Total), a
 // Grand Total / Advance Received / Pending Amount summary with the pending
@@ -76,9 +76,14 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
-// Same Wanago wordmark used across quotations/portals/booking pages —
-// there is no separate "invoice logo", this is the one shared asset.
-export async function loadWanagoLogoDataUrlForInvoice(): Promise<string | null> {
+// Same shared wordmark loader used across quotations/portals/booking pages
+// — prefers the tenant's own uploaded logo (CompanySettings.logoUrl), falls
+// back to the bundled asset only when none has been uploaded.
+export async function loadCompanyLogoDataUrlForInvoice(logoUrl?: string | null): Promise<string | null> {
+  if (logoUrl) {
+    const custom = await loadImageAsDataUrl(logoUrl);
+    if (custom) return custom;
+  }
   return loadImageAsDataUrl("/images/logo-dark-clean.png");
 }
 

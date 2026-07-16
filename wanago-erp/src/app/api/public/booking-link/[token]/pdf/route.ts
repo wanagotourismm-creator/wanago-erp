@@ -5,6 +5,7 @@ import { generateQuotationPdfBlob } from "@/lib/pdf/quotation-pdf";
 import { generateInvoicePdfBuffer } from "@/lib/pdf/invoice-pdf";
 import { joinAddressCity, formatDate } from "@/lib/utils/helpers";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -36,11 +37,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   const lead = await findLeadByToken(token);
   if (!lead?.matchedCustomerId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const [docs, companySnap] = await Promise.all([
+  const [docs, company] = await Promise.all([
     fetchCustomerTrackingDocs(db, lead.matchedCustomerId),
-    db.collection(FIRESTORE_COLLECTIONS.SETTINGS).doc("company").get(),
+    getCompanySettingsServer(),
   ]);
-  const company = companySnap.exists ? companySnap.data()! : {};
 
   if (type === "quotation") {
     const q = docs.quotation as {
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       refNumber: q.refNumber,
       date: q.createdAt?.toDate ? formatDate(q.createdAt.toDate(), "dd/MM/yyyy") : formatDate(new Date(), "dd/MM/yyyy"),
       company: {
-        businessName: company.businessName ?? "Wanago Tours & Travels",
+        businessName: company.businessName,
         addressLine: joinAddressCity(company.address, company.city),
         phone: company.phone || undefined,
         gstNumber: company.gstEnabled ? company.gstNumber || undefined : undefined,
@@ -76,10 +76,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
         accountName: company.bankAccountName || company.businessName, accountNumber: company.bankAccountNumber,
         ifsc: company.bankIfscCode, bankName: company.bankName, qrDataUrl: company.paymentQrUrl || null,
       },
-      terms: (company.quotationTerms ?? "").split("\n").map((t: string) => t.trim()).filter(Boolean),
+      terms: company.quotationTerms.split("\n").map((t: string) => t.trim()).filter(Boolean),
       logoDataUrl,
-      websiteUrl: "www.wanago.in",
-      socialHandle: "@wana.go",
+      websiteUrl: company.websiteUrl,
+      socialHandle: company.socialHandle,
     });
     const buffer = Buffer.from(await blob.arrayBuffer());
     return new NextResponse(buffer, {
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     date: formatDate(inv.issueDate, "dd/MM/yyyy"),
     dueDate: inv.dueDate ? formatDate(inv.dueDate, "dd/MM/yyyy") : null,
     company: {
-      businessName: company.businessName ?? "Wanago Tours & Travels",
+      businessName: company.businessName,
       addressLine: joinAddressCity(company.address, company.city),
       phone: company.phone || undefined,
       gstNumber: company.gstEnabled ? company.gstNumber || undefined : undefined,
@@ -120,8 +120,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       ifsc: company.bankIfscCode, bankName: company.bankName, qrDataUrl: company.paymentQrUrl || null,
     },
     logoDataUrl: logoDataUrl ?? "",
-    websiteUrl: "www.wanago.in",
-    socialHandle: "@wana.go",
+    websiteUrl: company.websiteUrl,
+    socialHandle: company.socialHandle,
   });
 
   return new NextResponse(Buffer.from(buffer), {

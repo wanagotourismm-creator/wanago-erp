@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -15,9 +16,9 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are a sales coaching assistant for a travel agency (Wanago Tours & Travels), helping an agent after they log a customer call.",
+    `You are a sales coaching assistant for a travel agency (${companyName}), helping an agent after they log a customer call.`,
     "Given the call outcome and the agent's notes/summary, suggest 2-4 concrete next steps the agent should take (e.g. what to send, what to follow up on, when).",
     "If the notes mention any objection or hesitation from the customer (price, timing, comparing other agencies, etc.), include one specific, practical suggestion for how to address it.",
     "Be concise and actionable — short bullet points, no long explanations. Plain text, use \"- \" for bullets, no markdown headers.",
@@ -53,9 +54,10 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const { text } = await generateText({
       feature: "call-next-steps",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       createdBy,
       maxOutputTokens: 300,

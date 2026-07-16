@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -23,9 +24,9 @@ type Mode = "suggest-reply" | "summarize" | "translate";
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 1000;
 
-function formatThread(messages: ThreadMessage[], customerName: string | null): string {
+function formatThread(messages: ThreadMessage[], customerName: string | null, staffLabel: string): string {
   return messages
-    .map((m) => `${m.direction === "inbound" ? (customerName ?? "Customer") : "Wanago Staff"}: ${m.body}`)
+    .map((m) => `${m.direction === "inbound" ? (customerName ?? "Customer") : staffLabel}: ${m.body}`)
     .join("\n");
 }
 
@@ -53,6 +54,8 @@ export async function POST(req: NextRequest) {
   const mode = body.mode;
 
   try {
+    const company = await getCompanySettingsServer();
+
     if (mode === "suggest-reply" || mode === "summarize") {
       const messages = (body.messages ?? [])
         .slice(-MAX_MESSAGES)
@@ -64,17 +67,17 @@ export async function POST(req: NextRequest) {
       }
 
       const customerName = body.customerName ?? null;
-      const thread = formatThread(messages, customerName);
+      const thread = formatThread(messages, customerName, `${company.businessName} Staff`);
 
       const system = mode === "suggest-reply"
         ? [
-            "You are a customer service agent for Wanago Tours & Travels, replying to a customer over WhatsApp.",
+            `You are a customer service agent for ${company.businessName}, replying to a customer over WhatsApp.`,
             "Given the conversation so far, draft ONE short, warm, helpful reply the human agent can review and edit before sending — not a menu of options.",
             "Match the customer's language (English or Malayalam) and tone. Keep it concise, like a real WhatsApp message, not an email.",
             "Respond with ONLY the reply text — no quotes, no preamble, no explanation.",
           ].join("\n")
         : [
-            "Summarize this WhatsApp conversation between a Wanago Tours & Travels agent and a customer, in 2-3 short sentences a colleague can read to instantly catch up.",
+            `Summarize this WhatsApp conversation between a ${company.businessName} agent and a customer, in 2-3 short sentences a colleague can read to instantly catch up.`,
             "Focus on what the customer wants, what's been agreed/promised, and what's still pending. Plain text, no markdown.",
           ].join("\n");
 

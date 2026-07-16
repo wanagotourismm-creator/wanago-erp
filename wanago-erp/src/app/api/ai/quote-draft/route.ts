@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateStructured, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 import { quoteDraftSchema, quoteDraftResponseSchema } from "@/modules/quotations/schemas/ai-draft.schema";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -16,9 +17,9 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are drafting line items for a travel quotation from Wanago Tours & Travels.",
+    `You are drafting line items for a travel quotation from ${companyName}.`,
     "Given a destination, number of pax, and (optionally) a package name, suggest the typical line items a quote for this trip would include (e.g. \"Return flights\", \"4-night hotel stay\", \"Airport transfers\", \"Daily breakfast\", \"Local sightseeing tours\").",
     "Suggest 4-8 line items, specific to the destination where possible (e.g. named activities/transfers typical for that place), but DO NOT invent prices — only descriptions. The agent fills in real amounts separately.",
     "Respond only with the requested JSON — no commentary.",
@@ -54,9 +55,10 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const draft = await generateStructured({
       feature: "quote-draft",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       schema: quoteDraftSchema,
       responseSchema: quoteDraftResponseSchema,

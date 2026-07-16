@@ -5,6 +5,7 @@ import { X, Loader2, Sparkles, MessageCircle, Mail, Copy, Check, ImageOff } from
 import { fetchReferralPosters } from "@/modules/referrals/services/referral-poster.service";
 import { draftReferralCaption } from "@/modules/referrals/services/referral-caption-ai.service";
 import { buildWhatsAppLink, cn } from "@/lib/utils/helpers";
+import { getAppUrl } from "@/lib/app-url";
 import type { ReferralPoster } from "@/modules/referrals/types";
 
 type Props = {
@@ -21,8 +22,7 @@ type Props = {
 };
 
 function trackingLink(code: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
-  return `${base}/r/${code}`;
+  return `${getAppUrl()}/r/${code}`;
 }
 
 export function ShareKitModal({ open, onClose, recipientName, recipientPhone, recipientEmail, referralCode }: Props) {

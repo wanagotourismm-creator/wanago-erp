@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateStructured, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 import { onboardingChecklistDraftSchema, onboardingChecklistResponseSchema } from "@/modules/onboarding/schemas/ai-draft.schema";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -16,9 +17,9 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are drafting a new-hire onboarding checklist for Wanago Tours & Travels, a travel agency.",
+    `You are drafting a new-hire onboarding checklist for ${companyName}, a travel agency.`,
     "Given a job title/department, suggest 8-14 onboarding tasks spread across these four stages: documentation, it_setup, orientation, complete.",
     "documentation: paperwork/ID/bank details/offer letter. it_setup: email, systems access, equipment. orientation: introductions, policy walkthroughs, role-specific training. complete: final sign-offs.",
     "Keep each task label short and concrete (e.g. \"Submit signed offer letter\", \"Set up company email account\", \"Shadow a senior agent on customer calls\").",
@@ -49,9 +50,10 @@ export async function POST(req: NextRequest) {
   const prompt = [`Role: ${role}`, department ? `Department: ${department}` : null].filter(Boolean).join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const draft = await generateStructured({
       feature: "onboarding-checklist-draft",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       schema: onboardingChecklistDraftSchema,
       responseSchema: onboardingChecklistResponseSchema,

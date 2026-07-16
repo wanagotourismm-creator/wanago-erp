@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateStructured, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 import { jobDraftSchema, jobDraftResponseSchema } from "@/modules/recruitment/jobs/schemas/ai-draft.schema";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -16,9 +17,9 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are drafting a job posting for Wanago Tours & Travels, a travel agency.",
+    `You are drafting a job posting for ${companyName}, a travel agency.`,
     "Given a job title, department, location, and employment type, write:",
     "description: a 3-5 sentence role summary an applicant would read first.",
     "requirements: 4-8 bullet points (one per line, starting with \"- \"), covering typical skills/experience/qualifications for this role at a travel agency.",
@@ -57,9 +58,10 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const draft = await generateStructured({
       feature: "job-description-draft",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       schema: jobDraftSchema,
       responseSchema: jobDraftResponseSchema,

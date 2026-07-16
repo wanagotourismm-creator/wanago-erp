@@ -87,7 +87,7 @@ export function useTrainingWalkthrough() {
         try {
           const cert = await withTimeout(issueCertificate({
             employeeUserId: user.uid,
-            employeeName:   user.displayName ?? user.email ?? "Team Wanago",
+            employeeName:   user.displayName ?? user.email ?? "Team Member",
             employeeEmail:  user.email ?? "",
             moduleId:       store.moduleId,
             moduleTitle:    store.moduleTitle,

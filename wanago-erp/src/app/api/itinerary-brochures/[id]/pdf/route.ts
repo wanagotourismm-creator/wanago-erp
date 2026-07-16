@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { renderBrochureHtml } from "@/modules/itinerary-brochures/pdf-templates";
 import { launchBrowser } from "@/lib/pdf/browser";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { getAppUrl } from "@/lib/app-url";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import type { ItineraryBrochure } from "@/modules/itinerary-brochures/types";
 
 export const runtime = "nodejs";
@@ -20,16 +22,16 @@ function bearerToken(req: NextRequest): string | null {
   return header.slice(7);
 }
 
-function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
-}
-
 // Fetched over HTTP (not read off disk) because Next.js doesn't guarantee
 // `public/` is present in the deployed serverless function's filesystem —
 // the CDN-served URL is always reachable regardless of bundling, so this
-// works identically in dev and on Vercel.
+// works identically in dev and on Vercel. Prefers the tenant's own uploaded
+// logo (CompanySettings.logoUrl), falls back to the bundled asset when none
+// is set.
 async function logoDataUri(): Promise<string> {
-  const res = await fetch(`${appUrl()}/images/logo-white-clean.png`);
+  const company = await getCompanySettingsServer();
+  const url = company.logoUrl || `${getAppUrl()}/images/logo-white-clean.png`;
+  const res = await fetch(url);
   const buffer = Buffer.from(await res.arrayBuffer());
   return `data:image/png;base64,${buffer.toString("base64")}`;
 }
@@ -49,7 +51,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   let browser;
   try {
-    const html = renderBrochureHtml(brochure, await logoDataUri());
+    const [logo, company] = await Promise.all([logoDataUri(), getCompanySettingsServer()]);
+    const html = renderBrochureHtml(brochure, logo, company.websiteUrl);
 
     browser = await launchBrowser();
     const page = await browser.newPage();

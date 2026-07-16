@@ -11,10 +11,10 @@ import {
   type PartnerPortalMe, type PartnerPortalPoster, type PartnerLeaderboard,
 } from "@/modules/portal/services/partner-portal.service";
 import { formatCurrency, cn } from "@/lib/utils/helpers";
+import { getAppUrl } from "@/lib/app-url";
 
 function trackingLink(code: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
-  return `${base}/r/${code}`;
+  return `${getAppUrl()}/r/${code}`;
 }
 
 const BOOKING_MILESTONES: BadgeMilestone[] = [

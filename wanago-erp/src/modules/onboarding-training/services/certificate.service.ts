@@ -3,6 +3,7 @@ import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
 import { uploadFile } from "@/lib/storage/upload";
+import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import type { TrainingCertificate } from "@/modules/onboarding-training/types";
 
 class TrainingCertificateRepository extends BaseRepository<TrainingCertificate> {
@@ -16,10 +17,10 @@ function generateCertificateId(): string {
   return `WNG-${stamp}-${rand}`;
 }
 
-// "Wanago Tours & Travels — Certificate of Completion" — employee name,
-// module title, completion date, and a verification ID, on a simple
-// bordered A4-landscape layout. Returns a Blob ready to upload.
-async function generateCertificatePdf(employeeName: string, moduleTitle: string, certificateId: string): Promise<Blob> {
+// "{Company} — Certificate of Completion" — employee name, module title,
+// completion date, and a verification ID, on a simple bordered
+// A4-landscape layout. Returns a Blob ready to upload.
+async function generateCertificatePdf(businessName: string, employeeName: string, moduleTitle: string, certificateId: string): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -36,7 +37,7 @@ async function generateCertificatePdf(employeeName: string, moduleTitle: string,
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(22, 74, 50);
-  doc.text("WANAGO TOURS & TRAVELS", centerX, 36, { align: "center" });
+  doc.text(businessName.toUpperCase(), centerX, 36, { align: "center" });
 
   doc.setFontSize(28);
   doc.setTextColor(20, 20, 20);
@@ -89,7 +90,8 @@ export async function issueCertificate(params: {
   moduleId: string; moduleTitle: string;
 }): Promise<TrainingCertificate> {
   const certificateId = generateCertificateId();
-  const pdfBlob = await generateCertificatePdf(params.employeeName, params.moduleTitle, certificateId);
+  const company = await fetchCompanySettings();
+  const pdfBlob = await generateCertificatePdf(company.businessName, params.employeeName, params.moduleTitle, certificateId);
   const pdfUrl = await uploadCertificatePdf(certificateId, pdfBlob);
 
   return certRepo.create({

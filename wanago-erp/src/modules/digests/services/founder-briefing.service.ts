@@ -9,6 +9,7 @@ import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { computeWeeklySalesLeaderboard } from "@/modules/digests/services/weekly-sales-digest.service";
 import { computeGoingColdCustomers, computeBookingAnomalies } from "@/modules/dashboard/services/insights.service";
 import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import type { Booking } from "@/modules/bookings/types";
 
 export type FounderBriefingResult = {
@@ -88,10 +89,11 @@ async function generateNarrative(input: {
   ].join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const { text } = await generateText({
       feature: "founder-briefing-narrative",
       system: [
-        "You are writing a short weekly briefing for the founder of Wanago Tours & Travels, based ONLY on the numbers given below.",
+        `You are writing a short weekly briefing for the founder of ${company.businessName}, based ONLY on the numbers given below.`,
         "Write 3-4 sentences: company performance this week, the standout team member if any, and anything needing attention (anomalies, cooling customers).",
         "Do not invent any number, name, or detail not given below. Plain, direct, executive tone — no fluff.",
       ].join("\n"),

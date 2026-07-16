@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateStructured, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 import { itineraryDraftSchema, itineraryDraftResponseSchema } from "@/modules/itineraries/schemas/ai-draft.schema";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -19,9 +20,9 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are a travel itinerary writer for Wanago Tours & Travels, a travel agency.",
+    `You are a travel itinerary writer for ${companyName}, a travel agency.`,
     "Given a destination, trip duration, and (optionally) trip type, draft a day-by-day itinerary a sales agent can review and edit before sending to a customer.",
     "Write specific, realistic day plans (real-sounding activities/sights for that destination), not generic placeholders like 'explore the city'.",
     "Keep each day's description to 2-3 sentences. Inclusions/exclusions should be short bullet phrases (e.g. \"Airport transfers\", \"International flights\"), 4-8 of each, typical for a package at that destination.",
@@ -59,9 +60,10 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const draft = await generateStructured({
       feature: "itinerary-draft",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       schema: itineraryDraftSchema,
       responseSchema: itineraryDraftResponseSchema,

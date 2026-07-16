@@ -5,7 +5,7 @@ import { X, Edit2, Trash2, Send, Receipt, Building2, Download, Loader2 } from "l
 import { InvoiceStatusBadge, formatAmount } from "@/modules/invoices/components/InvoiceBadges";
 import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
-import { downloadInvoicePdf, loadWanagoLogoDataUrlForInvoice } from "@/lib/pdf/invoice-pdf";
+import { downloadInvoicePdf, loadCompanyLogoDataUrlForInvoice } from "@/lib/pdf/invoice-pdf";
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import type { Invoice } from "@/modules/invoices/types";
 
@@ -78,10 +78,8 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
     if (!invoice) return;
     setDownloading(true);
     try {
-      const [settings, logoDataUrl] = await Promise.all([
-        fetchCompanySettings(),
-        loadWanagoLogoDataUrlForInvoice(),
-      ]);
+      const settings = await fetchCompanySettings();
+      const logoDataUrl = await loadCompanyLogoDataUrlForInvoice(settings.logoUrl);
       const description = invoice.bookingRef ? `Booking ${invoice.bookingRef}` : "Services rendered";
       await downloadInvoicePdf({
         refNumber: invoice.refNumber,
@@ -110,8 +108,8 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
           qrDataUrl: settings.paymentQrUrl || null,
         },
         logoDataUrl: logoDataUrl ?? "",
-        websiteUrl: "www.wanago.in",
-        socialHandle: "@wana.go",
+        websiteUrl: settings.websiteUrl,
+        socialHandle: settings.socialHandle,
       });
     } finally {
       setDownloading(false);

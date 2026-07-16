@@ -94,15 +94,15 @@ ${pagesHtml.join("\n")}
 </html>`;
 }
 
-export function renderHeaderFooter(logoDataUri: string, websiteLabel = "www.wanago.in"): { header: string; footer: string } {
+export function renderHeaderFooter(logoDataUri: string, websiteLabel: string): { header: string; footer: string } {
   const header = `
     <div class="header-row">
-      <img class="logo" src="${logoDataUri}" alt="Wanago" />
+      <img class="logo" src="${logoDataUri}" alt="Logo" />
       <span class="site-label">${escapeHtml(websiteLabel)}</span>
     </div>`;
   const footer = `
     <div class="footer-row">
-      <img class="logo" src="${logoDataUri}" alt="Wanago" />
+      <img class="logo" src="${logoDataUri}" alt="Logo" />
       <span class="site-label">${escapeHtml(websiteLabel)}</span>
     </div>`;
   return { header, footer };

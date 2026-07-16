@@ -10,7 +10,7 @@ import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
-import { generateQuotationPdfBlob, loadWanagoLogoDataUrl } from "@/lib/pdf/quotation-pdf";
+import { generateQuotationPdfBlob, loadCompanyLogoDataUrl } from "@/lib/pdf/quotation-pdf";
 
 // Notification helpers below are best-effort — a failure here must never
 // break the actual quotation creation/approval/rejection flow.
@@ -64,7 +64,8 @@ export async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<
     const customer = await fetchCustomerById(quotation.customerId);
     if (!customer?.email) return;
 
-    const [company, logoDataUrl] = await Promise.all([fetchCompanySettings(), loadWanagoLogoDataUrl()]);
+    const company = await fetchCompanySettings();
+    const logoDataUrl = await loadCompanyLogoDataUrl(company.logoUrl);
 
     const blob = await generateQuotationPdfBlob({
       refNumber: quotation.refNumber,
@@ -91,8 +92,8 @@ export async function sendQuotationPdfToCustomer(quotation: Quotation): Promise<
       },
       terms: company.quotationTerms.split("\n").map((t) => t.trim()).filter(Boolean),
       logoDataUrl: logoDataUrl ?? "",
-      websiteUrl: "www.wanago.in",
-      socialHandle: "@wana.go",
+      websiteUrl: company.websiteUrl,
+      socialHandle: company.socialHandle,
     });
 
     const pdfUrl = await uploadFile(`quotations/${quotation.refNumber}.pdf`, blob);

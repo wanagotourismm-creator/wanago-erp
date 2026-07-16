@@ -2,11 +2,12 @@ import { escapeHtml, renderHeaderFooter } from "@/modules/itinerary-brochures/pd
 
 export function renderThankYouPage(params: {
   logoDataUri:     string;
+  websiteLabel:    string;
   photoUrl:        string;
   contactPhones:   string[];
   officeAddresses: string[];
 }): string {
-  const { header } = renderHeaderFooter(params.logoDataUri);
+  const { header } = renderHeaderFooter(params.logoDataUri, params.websiteLabel);
 
   const phonesHtml = params.contactPhones
     .map((phone) => `<p style="font-size:14px; font-weight:700;">${escapeHtml(phone)}</p>`)

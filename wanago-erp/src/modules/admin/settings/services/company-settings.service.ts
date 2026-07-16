@@ -37,6 +37,11 @@ export type CompanySettings = {
   // manual (staff records it via the existing Payments flow); this only
   // replaces "customer has to type in the amount and a note by hand."
   upiId: string;
+  // Printed on the branded quotation/invoice PDF footer — previously
+  // hardcoded literals ("www.wanago.in", "@wana.go") with no settings field
+  // to source them from, blocking white-labeling for a second tenant.
+  websiteUrl:   string;
+  socialHandle: string;
 };
 
 const DOC_ID = "company";
@@ -62,6 +67,8 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   paymentQrUrl:      "",
   quotationTerms:    "All rates quoted are valid for 15 days.\n50% payment should be done in advance.\nThe remaining amount should be paid before 7 days of package.",
   upiId: "",
+  websiteUrl:   "",
+  socialHandle: "",
 };
 
 export async function fetchCompanySettings(): Promise<CompanySettings> {

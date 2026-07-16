@@ -3,6 +3,7 @@ import { getAdminDb, requireHrOrAdmin } from "@/lib/firebase/admin";
 import { notifyUserServer } from "@/lib/server/notify-server";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { isRateLimited } from "@/lib/server/rate-limit";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -43,9 +44,10 @@ export async function POST(req: NextRequest) {
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: "Server isn't configured for this yet" }, { status: 501 });
 
-  const [employeesSnap, usersSnap] = await Promise.all([
+  const [employeesSnap, usersSnap, company] = await Promise.all([
     db.collection(FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES).get(),
     db.collection(FIRESTORE_COLLECTIONS.USERS).get(),
+    getCompanySettingsServer(),
   ]);
   const userById = new Map(usersSnap.docs.map(d => [d.id, ({ id: d.id, ...d.data() }) as UserDoc]));
 
@@ -60,8 +62,8 @@ export async function POST(req: NextRequest) {
       await notifyUserServer({
         userId:   teammate.userId,
         email:    user?.email ?? teammate.email ?? null,
-        title:    `🎉 Please welcome ${payload.fullName} to Team Wanago!`,
-        body:     `${payload.fullName} just joined Wanago Tours & Travels as our new ${payload.designation}. Say hi and make them feel at home!`,
+        title:    `🎉 Please welcome ${payload.fullName} to Team ${company.businessName}!`,
+        body:     `${payload.fullName} just joined ${company.businessName} as our new ${payload.designation}. Say hi and make them feel at home!`,
         link:     "/hrms/employees",
         category: "system",
       });

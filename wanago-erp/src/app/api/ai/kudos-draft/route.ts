@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -15,9 +16,9 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are drafting a short recognition/kudos message a manager at Wanago Tours & Travels can send to a team member, based ONLY on the real activity numbers given below.",
+    `You are drafting a short recognition/kudos message a manager at ${companyName} can send to a team member, based ONLY on the real activity numbers given below.`,
     "Write 2-3 warm, specific sentences referencing those actual numbers (revenue, bookings, leads won, conversion rate) — do not invent any deal, customer, or detail not present in the data.",
     "Avoid generic praise like 'great job' with no specifics. This is meant to feel earned and concrete, not like automated flattery.",
     "Plain text, ready to send as-is or lightly edited.",
@@ -57,9 +58,10 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const { text } = await generateText({
       feature: "kudos-draft",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       createdBy,
       maxOutputTokens: 250,

@@ -2,6 +2,7 @@ import { escapeHtml, renderHeaderFooter } from "@/modules/itinerary-brochures/pd
 
 export function renderCoverPage(params: {
   logoDataUri:    string;
+  websiteLabel:   string;
   coverImageUrl:  string;
   destination:    string;
   tagline:        string | null;
@@ -10,7 +11,7 @@ export function renderCoverPage(params: {
   durationNights: number;
   contactPhones:  string[];
 }): string {
-  const { header } = renderHeaderFooter(params.logoDataUri);
+  const { header } = renderHeaderFooter(params.logoDataUri, params.websiteLabel);
   const primaryPhone = params.contactPhones[0] ?? "";
 
   return `

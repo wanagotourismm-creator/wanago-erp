@@ -1,4 +1,4 @@
-// Wanago's actual branded quotation/invoice PDF — logo + date header, two
+// The company's actual branded quotation/invoice PDF — logo + date header, two
 // green "Quotation by / to" info boxes, a dark-green item table with a
 // light-green totals panel (watermarked), a Payable-To/bank box next to
 // Terms & Conditions, and a dark-green footer bar. Built once as a jsPDF
@@ -76,9 +76,16 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
-// Loads the standard Wanago wordmark as a data URL, ready to pass into
-// QuotationPdfInput.logoDataUrl — callers just await this once.
-export async function loadWanagoLogoDataUrl(): Promise<string | null> {
+// Loads the branded wordmark as a data URL, ready to pass into
+// QuotationPdfInput.logoDataUrl — callers just await this once. Prefers the
+// tenant's own uploaded logo (CompanySettings.logoUrl) so a white-labeled
+// deployment doesn't print Wanago's own logo; falls back to the bundled
+// asset only when no custom logo has been uploaded.
+export async function loadCompanyLogoDataUrl(logoUrl?: string | null): Promise<string | null> {
+  if (logoUrl) {
+    const custom = await loadImageAsDataUrl(logoUrl);
+    if (custom) return custom;
+  }
   return loadImageAsDataUrl("/images/logo-dark-clean.png");
 }
 

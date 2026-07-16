@@ -13,10 +13,10 @@ import {
   type CustomerPortalMe, type CustomerPortalPackage, type CustomerBookingRequest,
 } from "@/modules/portal/services/customer-portal.service";
 import { formatCurrency, formatDate, cn } from "@/lib/utils/helpers";
+import { getAppUrl } from "@/lib/app-url";
 
 function trackingLink(code: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
-  return `${base}/r/${code}`;
+  return `${getAppUrl()}/r/${code}`;
 }
 
 const REFERRAL_MILESTONES: BadgeMilestone[] = [

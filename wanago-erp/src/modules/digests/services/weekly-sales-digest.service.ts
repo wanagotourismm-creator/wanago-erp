@@ -6,6 +6,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { generateStructured, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import type { SalesLeaderboardEntry } from "@/modules/digests/types";
 
 type AdminTimestamp = { seconds: number };
@@ -185,10 +186,11 @@ async function attachTopHighlights(rankings: SalesLeaderboardEntry[]): Promise<v
   ).join("\n\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const result = await generateStructured({
       feature: "weekly-leaderboard-highlights",
       system: [
-        "You are writing one-sentence weekly leaderboard highlights for a sales team at Wanago Tours & Travels.",
+        `You are writing one-sentence weekly leaderboard highlights for a sales team at ${company.businessName}.`,
         "For each agent below, write ONE specific, warm, and factual sentence celebrating their week — reference their actual numbers (revenue, bookings, leads won) given below. Do not invent any detail not present in the data (no deal names, no customer names, no context you weren't given).",
         "Avoid generic praise like 'great job' with no specifics — ground every sentence in the numbers.",
       ].join("\n"),

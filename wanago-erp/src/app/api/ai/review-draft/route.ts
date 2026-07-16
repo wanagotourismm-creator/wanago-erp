@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateStructured, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 import { reviewDraftSchema, reviewDraftResponseSchema } from "@/modules/performance/reviews/schemas/ai-draft.schema";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -16,9 +17,9 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(companyName: string): string {
   return [
-    "You are helping a manager at Wanago Tours & Travels polish their rough performance review notes into clear, professional, specific language.",
+    `You are helping a manager at ${companyName} polish their rough performance review notes into clear, professional, specific language.`,
     "You will be given the manager's own rough/short notes for strengths, areas for improvement, and additional comments (some may be empty).",
     "Rewrite ONLY what's given into 2-3 well-formed sentences each — fix grammar, make it specific and professional in tone.",
     "CRITICAL: Do NOT invent, add, or assume any achievement, metric, or specific detail that isn't already present in the manager's notes. If a field is empty or missing, return an empty string for that field — do not fabricate content for it.",
@@ -64,9 +65,10 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     const draft = await generateStructured({
       feature: "review-draft",
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(company.businessName),
       prompt,
       schema: reviewDraftSchema,
       responseSchema: reviewDraftResponseSchema,

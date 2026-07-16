@@ -13,11 +13,12 @@ import type { ItineraryBrochure } from "@/modules/itinerary-brochures/types";
 // their background — there's no separate "back page photo" field in the
 // data model, and reusing the cover keeps every page visually tied to the
 // same destination without asking the user to upload yet another image.
-export function renderBrochureHtml(brochure: ItineraryBrochure, logoDataUri: string): string {
+export function renderBrochureHtml(brochure: ItineraryBrochure, logoDataUri: string, websiteLabel: string): string {
   const pages: string[] = [];
 
   pages.push(renderCoverPage({
     logoDataUri,
+    websiteLabel,
     coverImageUrl:  brochure.coverImageUrl,
     destination:    brochure.destination,
     tagline:        brochure.tagline,
@@ -28,11 +29,12 @@ export function renderBrochureHtml(brochure: ItineraryBrochure, logoDataUri: str
   }));
 
   for (const day of [...brochure.days].sort((a, b) => a.dayNumber - b.dayNumber)) {
-    pages.push(renderDayPage({ logoDataUri, day }));
+    pages.push(renderDayPage({ logoDataUri, websiteLabel, day }));
   }
 
   pages.push(renderInclusionsExclusionsPage({
     logoDataUri,
+    websiteLabel,
     photoUrl:   brochure.coverImageUrl,
     inclusions: brochure.inclusions,
     exclusions: brochure.exclusions,
@@ -40,12 +42,14 @@ export function renderBrochureHtml(brochure: ItineraryBrochure, logoDataUri: str
 
   pages.push(renderTermsPage({
     logoDataUri,
+    websiteLabel,
     photoUrl: brochure.coverImageUrl,
     termsAndConditions: brochure.termsAndConditions,
   }));
 
   pages.push(renderThankYouPage({
     logoDataUri,
+    websiteLabel,
     photoUrl:        brochure.coverImageUrl,
     contactPhones:   brochure.contactPhones,
     officeAddresses: brochure.officeAddresses,

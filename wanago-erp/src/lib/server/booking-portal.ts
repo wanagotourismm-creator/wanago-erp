@@ -1,5 +1,7 @@
 import type { Firestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { getAppUrl } from "@/lib/app-url";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 // Shared by the public booking-link status route and its PDF-download
 // route — both need "the most recent Quotation/Booking/Invoice tied to
@@ -36,13 +38,15 @@ export async function fetchCustomerTrackingDocs(db: Firestore, customerId: strin
   };
 }
 
-// Reads an image off the deployed site's own CDN and returns it as a data
-// URI — Node has no FileReader, so this can't reuse the browser-only
-// loadImageAsDataUrl in quotation-pdf.ts. Same pattern already used by the
-// itinerary-brochures PDF route.
+// Reads an image and returns it as a data URI — Node has no FileReader, so
+// this can't reuse the browser-only loadImageAsDataUrl in quotation-pdf.ts.
+// Same pattern already used by the itinerary-brochures PDF route. Prefers
+// the tenant's own uploaded logo (CompanySettings.logoUrl), falls back to
+// the bundled asset off the deployed site's own CDN when none is set.
 export async function loadLogoDataUriServer(): Promise<string> {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
-  const res = await fetch(`${base}/images/logo-dark-clean.png`);
+  const company = await getCompanySettingsServer();
+  const url = company.logoUrl || `${getAppUrl()}/images/logo-dark-clean.png`;
+  const res = await fetch(url);
   const buffer = Buffer.from(await res.arrayBuffer());
   return `data:image/png;base64,${buffer.toString("base64")}`;
 }

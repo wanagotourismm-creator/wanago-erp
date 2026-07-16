@@ -4,6 +4,7 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { notifyUserServer } from "@/lib/server/notify-server";
 import { fetchCustomerTrackingDocs } from "@/lib/server/booking-portal";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -42,9 +43,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const lead = await findLeadByToken(token);
   if (!lead) return NextResponse.json({ error: "This link isn't valid" }, { status: 404 });
 
-  const [packagesSnap, companySnap] = await Promise.all([
+  const [packagesSnap, company] = await Promise.all([
     db.collection(FIRESTORE_COLLECTIONS.PACKAGES).where("packageStatus", "==", "active").get(),
-    db.collection(FIRESTORE_COLLECTIONS.SETTINGS).doc("company").get(),
+    getCompanySettingsServer(),
   ]);
 
   // Deliberately excludes costPrice (profit-sensitive, internal-only) and
@@ -58,8 +59,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       basePrice: p.basePrice, inclusions: p.inclusions,
     };
   });
-
-  const company = companySnap.exists ? companySnap.data() : null;
 
   // Only resolvable once this lead has been matched to a Customer record
   // (see leads/services/lead.service.ts) — Quotations/Bookings/Invoices are
@@ -97,9 +96,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     alreadySubmitted:     !!lead.customerRequestedAt,
     submittedPackageName: lead.customerSelectedPackageName ?? null,
     company: {
-      businessName: company?.businessName ?? "Wanago Tours & Travels",
-      phone:        company?.phone ?? null,
-      email:        company?.email ?? null,
+      businessName: company.businessName,
+      phone:        company.phone || null,
+      email:        company.email || null,
     },
     tracking,
   });

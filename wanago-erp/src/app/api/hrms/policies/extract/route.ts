@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb, requireAuth } from "@/lib/firebase/admin";
 import { generateMultimodal, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -14,12 +15,14 @@ function bearerToken(req: NextRequest): string | null {
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024; // generous for a policy document, guards against something unexpected
 
-const SYSTEM_PROMPT = [
-  "You are extracting the full text content of an HR policy document for Wanago Tours & Travels, so it can ground an internal HR assistant's answers.",
-  "Transcribe the document's actual text content as accurately and completely as possible — every policy, number, and rule stated in it. Preserve section headings.",
-  "Do not summarize, shorten, or add commentary. Do not add anything not in the document. If a page is a cover page or blank, skip it.",
-  "Plain text output, no markdown formatting.",
-].join("\n");
+function buildSystemPrompt(companyName: string): string {
+  return [
+    `You are extracting the full text content of an HR policy document for ${companyName}, so it can ground an internal HR assistant's answers.`,
+    "Transcribe the document's actual text content as accurately and completely as possible — every policy, number, and rule stated in it. Preserve section headings.",
+    "Do not summarize, shorten, or add commentary. Do not add anything not in the document. If a page is a cover page or blank, skip it.",
+    "Plain text output, no markdown formatting.",
+  ].join("\n");
+}
 
 // Triggered once by hr-policy.service.ts right after upload — not on every
 // Ask HR question, which is what keeps this affordable (one extraction per
@@ -53,9 +56,10 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await fileRes.arrayBuffer());
     if (buffer.byteLength > MAX_PDF_BYTES) throw new Error("File is too large to process");
 
+    const company = await getCompanySettingsServer();
     const text = await generateMultimodal({
       feature: "hr-policy-extraction",
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(company.businessName),
       prompt: "Extract the full text of this document.",
       images: [{ mimeType: "application/pdf", base64Data: buffer.toString("base64") }],
       createdBy: caller.uid,

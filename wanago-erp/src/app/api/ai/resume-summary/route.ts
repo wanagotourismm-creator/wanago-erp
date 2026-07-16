@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateMultimodal, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
@@ -15,12 +16,14 @@ function isRateLimited(key: string): boolean {
   return hits.length > RATE_LIMIT_MAX;
 }
 
-const SYSTEM_PROMPT = [
-  "You are summarizing a job candidate's resume for a recruiter at Wanago Tours & Travels, to help them scan applications faster.",
-  "Summarize ONLY job-relevant qualifications: work experience (roles, duration, employers), skills, education, and certifications relevant to employability.",
-  "Do NOT comment on, infer, or mention the candidate's name, age, gender, ethnicity, marital status, photo, address, or any other personal characteristic not relevant to job qualifications — extract facts about their work history and skills only.",
-  "Keep it to 4-6 sentences. Plain text, no markdown.",
-].join("\n");
+function buildSystemPrompt(companyName: string): string {
+  return [
+    `You are summarizing a job candidate's resume for a recruiter at ${companyName}, to help them scan applications faster.`,
+    "Summarize ONLY job-relevant qualifications: work experience (roles, duration, employers), skills, education, and certifications relevant to employability.",
+    "Do NOT comment on, infer, or mention the candidate's name, age, gender, ethnicity, marital status, photo, address, or any other personal characteristic not relevant to job qualifications — extract facts about their work history and skills only.",
+    "Keep it to 4-6 sentences. Plain text, no markdown.",
+  ].join("\n");
+}
 
 const MAX_RESUME_BYTES = 8 * 1024 * 1024; // 8MB — comfortably above any real resume, guards against fetching something unexpected
 
@@ -69,9 +72,10 @@ export async function POST(req: NextRequest) {
     }
     const base64Data = buffer.toString("base64");
 
+    const company = await getCompanySettingsServer();
     const text = await generateMultimodal({
       feature: "resume-summary",
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(company.businessName),
       prompt: "Summarize this resume.",
       images: [{ mimeType, base64Data }],
       createdBy,

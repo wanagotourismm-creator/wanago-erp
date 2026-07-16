@@ -13,6 +13,7 @@
 import { generateStructured, generateText, AiGenerationError, type ChatTurn } from "@/modules/ai-core/services/geminiService";
 import { assistantDecisionSchema, assistantDecisionResponseSchema } from "@/modules/ai-core/schemas/assistant-decision.schema";
 import { getTool, describeToolsForPrompt } from "@/modules/ai-core/services/ai-tools";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 const MAX_ITERATIONS = 4;
 const FEATURE = "unified-assistant";
@@ -23,13 +24,13 @@ export type AssistantTurnResult =
 
 const LANGUAGE_NAMES: Record<"en" | "ml", string> = { en: "English", ml: "Malayalam" };
 
-function buildSystemPrompt(language: "en" | "ml"): string {
+function buildSystemPrompt(language: "en" | "ml", companyName: string): string {
   return [
-    "You are the unified Wanago Assistant for Wanago Tours & Travels' internal ERP.",
+    `You are the unified ${companyName} Assistant for ${companyName}'s internal ERP.`,
     "You help staff with three things: (1) how to use this ERP software, (2) HR and company policy questions, and (3) the business's live leads, quotations, invoices and customers — and you can create new leads or quotations when asked.",
     "",
-    "Grounding rule: prefer calling a tool to look up real Wanago data whenever the question could plausibly be about Wanago's own records, documentation, or policy. If a tool returns nothing relevant, or the question is general knowledge unrelated to Wanago's own data (e.g. 'what's a good icebreaker for a sales call', 'how do I calculate margin'), answer from your own general knowledge instead — just make clear the answer isn't sourced from company data.",
-    "Never claim something is true about Wanago's data without having called a tool to check it first.",
+    `Grounding rule: prefer calling a tool to look up real ${companyName} data whenever the question could plausibly be about ${companyName}'s own records, documentation, or policy. If a tool returns nothing relevant, or the question is general knowledge unrelated to ${companyName}'s own data (e.g. 'what's a good icebreaker for a sales call', 'how do I calculate margin'), answer from your own general knowledge instead — just make clear the answer isn't sourced from company data.`,
+    `Never claim something is true about ${companyName}'s data without having called a tool to check it first.`,
     "",
     "Available tools:",
     describeToolsForPrompt(),
@@ -65,7 +66,8 @@ export async function runAssistantTurn(input: {
   language?: "en" | "ml";
 }): Promise<AssistantTurnResult> {
   const language = input.language ?? "en";
-  const system = buildSystemPrompt(language);
+  const company = await getCompanySettingsServer();
+  const system = buildSystemPrompt(language, company.businessName);
   const transcript: string[] = [];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -156,7 +158,7 @@ export async function runAssistantTurn(input: {
   // question that didn't resolve to a clean tool/answer path.
   const { text } = await generateText({
     feature: `${FEATURE}-fallback`,
-    system: `You are the Wanago Assistant for Wanago Tours & Travels' ERP. Answer as best you can in plain text, concisely, ONLY in ${LANGUAGE_NAMES[language]}.`,
+    system: `You are the ${company.businessName} Assistant for ${company.businessName}'s ERP. Answer as best you can in plain text, concisely, ONLY in ${LANGUAGE_NAMES[language]}.`,
     prompt: input.question,
     history: input.history,
     createdBy: input.createdBy,

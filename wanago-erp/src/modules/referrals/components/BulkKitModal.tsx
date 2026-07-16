@@ -6,6 +6,7 @@ import { fetchReferralPosters } from "@/modules/referrals/services/referral-post
 import { draftReferralCaption } from "@/modules/referrals/services/referral-caption-ai.service";
 import { sendBulkKitEmails } from "@/modules/referrals/services/referral-bulk-email.service";
 import { buildWhatsAppLink, cn } from "@/lib/utils/helpers";
+import { getAppUrl } from "@/lib/app-url";
 import type { ReferralPoster, ReferralPartner } from "@/modules/referrals/types";
 
 type Props = {
@@ -15,8 +16,7 @@ type Props = {
 };
 
 function trackingLink(code: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
-  return `${base}/r/${code}`;
+  return `${getAppUrl()}/r/${code}`;
 }
 
 export function BulkKitModal({ open, partners, onClose }: Props) {

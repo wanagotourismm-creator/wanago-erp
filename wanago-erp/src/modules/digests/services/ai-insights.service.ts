@@ -9,6 +9,7 @@ import { FIRESTORE_COLLECTIONS, INVOICE_STATUS } from "@/lib/constants";
 import { computeWeeklySalesLeaderboard } from "@/modules/digests/services/weekly-sales-digest.service";
 import { computeGoingColdCustomers, computeBookingAnomalies } from "@/modules/dashboard/services/insights.service";
 import { generateStructured, AiGenerationError } from "@/modules/ai-core/services/geminiService";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import { z } from "zod";
 import type { Booking } from "@/modules/bookings/types";
 
@@ -243,10 +244,11 @@ async function generateNarrative(m: AiInsightsMetrics): Promise<{
   ].join("\n");
 
   try {
+    const company = await getCompanySettingsServer();
     return await generateStructured({
       feature: "ai-insights-report",
       system: [
-        "You are writing a weekly business insights report for the management team of Wanago Tours & Travels, a travel agency, based ONLY on the numbers given below.",
+        `You are writing a weekly business insights report for the management team of ${company.businessName}, a travel agency, based ONLY on the numbers given below.`,
         "Produce: a one-sentence headline capturing the week; 2-4 keyTakeaways (specific, numbers-grounded); 0-3 risks (only include real concerns visible in the data — overdue invoices, cooling customers, anomalies, low win rates; omit if nothing stands out); 1-3 recommendations (concrete, actionable next steps a manager could actually do this week).",
         "Do not invent any number, name, or detail not given below. Plain, direct, executive tone — no fluff, no markdown.",
       ].join("\n"),

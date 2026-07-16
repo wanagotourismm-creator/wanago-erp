@@ -3,11 +3,9 @@ import nodemailer from "nodemailer";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { getAppUrl } from "@/lib/app-url";
+import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import type { NotificationCategory } from "@/modules/notifications/types";
-
-function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "https://wanago-erp.vercel.app";
-}
 
 const TRAVEL_QUOTES: { text: string; author: string }[] = [
   { text: "The world is a book, and those who do not travel read only one page.", author: "Saint Augustine" },
@@ -50,12 +48,12 @@ const GENERAL_QUOTES: { text: string; author: string }[] = [
   { text: "Success is best when it's shared.", author: "Howard Schultz" },
 ];
 
-const CATEGORY_META: Record<NotificationCategory, { icon: string; label: string }> = {
+const CATEGORY_META: Record<NotificationCategory, { icon: string; label: string | null }> = {
   leave:          { icon: "🌴", label: "Leave" },
   regularization: { icon: "🕒", label: "Attendance" },
   asset:          { icon: "💻", label: "Asset Request" },
   ticket:         { icon: "🎫", label: "Support Ticket" },
-  system:         { icon: "🎉", label: "Team Wanago" },
+  system:         { icon: "🎉", label: null },
   followup:       { icon: "⏰", label: "Reminder" },
   approval:       { icon: "📄", label: "Approval" },
   location:       { icon: "📍", label: "Location Approval" },
@@ -67,19 +65,20 @@ const CATEGORY_META: Record<NotificationCategory, { icon: string; label: string 
 // paragraph of text. Tone (green vs. red header) is inferred from the
 // subject line, since every caller already writes "...approved"/
 // "...rejected" into it.
-function renderEmailHtml(subject: string, body: string, link?: string, category?: NotificationCategory) {
+function renderEmailHtml(subject: string, body: string, businessName: string, link?: string, category?: NotificationCategory) {
   const lower = subject.toLowerCase();
   const isApproved = lower.includes("approved") || lower.includes("confirmed");
   const isRejected = lower.includes("rejected");
   const headerGradient = isRejected ? "linear-gradient(135deg,#dc2626,#b91c1c)" : "linear-gradient(135deg,#16a34a,#15803d)";
   const meta = category ? CATEGORY_META[category] : undefined;
+  const headerLabel = meta?.label ?? businessName;
   const headline = isApproved ? "✅" : isRejected ? "📋" : (meta?.icon ?? "📣");
   const quote = GENERAL_QUOTES[Math.floor(Math.random() * GENERAL_QUOTES.length)];
-  const logoUrl = `${appUrl()}/images/logo-dark-clean.png`;
+  const logoUrl = `${getAppUrl()}/images/logo-dark-clean.png`;
 
   const cta = link
     ? `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#16a34a;">
-        <a href="${appUrl()}${link}" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">Open Wanago ERP</a>
+        <a href="${getAppUrl()}${link}" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">Open ${businessName} ERP</a>
       </td></tr></table>`
     : "";
 
@@ -88,8 +87,8 @@ function renderEmailHtml(subject: string, body: string, link?: string, category?
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
       <tr>
         <td style="background:${headerGradient};padding:36px 24px;text-align:center;">
-          <img src="${logoUrl}" alt="Wanago" width="130" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;margin-bottom:14px;" />
-          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">${meta?.label ?? "Wanago Tours & Travels"}</p>
+          <img src="${logoUrl}" alt="${businessName}" width="130" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;margin-bottom:14px;" />
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">${headerLabel}</p>
         </td>
       </tr>
       <tr>
@@ -102,21 +101,21 @@ function renderEmailHtml(subject: string, body: string, link?: string, category?
             <p style="font-size:12px;color:#16a34a;margin:8px 0 0;font-weight:600;">— ${quote.author}</p>
           </div>
           ${cta}
-          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team Wanago</strong></p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
         </td>
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
         </td>
       </tr>
     </table>
   </div>`;
 }
 
-function renderWelcomeEmailHtml(fullName: string, designation: string) {
+function renderWelcomeEmailHtml(fullName: string, designation: string, businessName: string) {
   const quote = TRAVEL_QUOTES[Math.floor(Math.random() * TRAVEL_QUOTES.length)];
-  const logoUrl = `${appUrl()}/images/logo-dark-clean.png`;
+  const logoUrl = `${getAppUrl()}/images/logo-dark-clean.png`;
   // Full-bleed table layout (100% width, no outer margin/background) so the
   // email fills the client's viewport edge-to-edge instead of floating as a
   // small card inside visible gray/white margins.
@@ -125,15 +124,15 @@ function renderWelcomeEmailHtml(fullName: string, designation: string) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
       <tr>
         <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
-          <img src="${logoUrl}" alt="Wanago" width="150" style="display:inline-block;background:#fff;padding:12px 18px;border-radius:10px;" />
+          <img src="${logoUrl}" alt="${businessName}" width="150" style="display:inline-block;background:#fff;padding:12px 18px;border-radius:10px;" />
         </td>
       </tr>
       <tr>
         <td style="padding:36px 32px;background:#ffffff;">
-          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#16a34a;margin:0 0 12px;">Welcome to Team Wanago</p>
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#16a34a;margin:0 0 12px;">Welcome to Team ${businessName}</p>
           <h1 style="font-size:24px;margin:0 0 16px;color:#111;">Hi ${fullName}! 👋</h1>
           <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
-            We're thrilled to welcome you to <strong>Wanago Tours &amp; Travels</strong> as our new <strong>${designation}</strong>.
+            We're thrilled to welcome you to <strong>${businessName}</strong> as our new <strong>${designation}</strong>.
             Your journey with us starts now, and we can't wait to see the places we'll go together.
           </p>
           <div style="border-left:3px solid #16a34a;background:#f0fdf4;padding:16px 20px;border-radius:0 10px 10px 0;margin:0 0 24px;">
@@ -141,17 +140,17 @@ function renderWelcomeEmailHtml(fullName: string, designation: string) {
             <p style="font-size:12px;color:#16a34a;margin:8px 0 0;font-weight:600;">— ${quote.author}</p>
           </div>
           <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 28px;">
-            Log in to Wanago ERP to explore your dashboard, meet the team, and get started.
+            Log in to ${businessName} ERP to explore your dashboard, meet the team, and get started.
           </p>
           <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#16a34a;">
-            <a href="${appUrl()}/dashboard" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">Go to Wanago ERP</a>
+            <a href="${getAppUrl()}/dashboard" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">Go to ${businessName} ERP</a>
           </td></tr></table>
-          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team Wanago</strong> — welcoming you aboard! ✈️</p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team ${businessName}</strong> — welcoming you aboard! ✈️</p>
         </td>
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
         </td>
       </tr>
     </table>
@@ -167,14 +166,14 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
 // tone genuinely needs to differ: sick leave shouldn't say "enjoy your day,"
 // and a rejection shouldn't carry a celebratory quote at all.
 function renderLeaveDecisionEmailHtml(params: {
-  fullName: string; leaveType: string; fromDate: string; toDate: string; decision: "approve" | "reject";
+  fullName: string; leaveType: string; fromDate: string; toDate: string; decision: "approve" | "reject"; businessName: string;
 }) {
-  const { fullName, leaveType, fromDate, toDate, decision } = params;
+  const { fullName, leaveType, fromDate, toDate, decision, businessName } = params;
   const typeLabel = LEAVE_TYPE_LABELS[leaveType] ?? leaveType;
   const dateRange = fromDate === toDate ? fromDate : `${fromDate} to ${toDate}`;
   const isSick = leaveType === "sick";
   const approved = decision === "approve";
-  const logoUrl = `${appUrl()}/images/logo-dark-clean.png`;
+  const logoUrl = `${getAppUrl()}/images/logo-dark-clean.png`;
 
   const headerGradient = approved ? "linear-gradient(135deg,#16a34a,#15803d)" : "linear-gradient(135deg,#dc2626,#b91c1c)";
   const icon = approved ? (isSick ? "🤍" : "🌴") : "📋";
@@ -201,7 +200,7 @@ function renderLeaveDecisionEmailHtml(params: {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
       <tr>
         <td style="background:${headerGradient};padding:36px 24px;text-align:center;">
-          <img src="${logoUrl}" alt="Wanago" width="130" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;" />
+          <img src="${logoUrl}" alt="${businessName}" width="130" style="display:inline-block;background:#fff;padding:10px 16px;border-radius:10px;" />
         </td>
       </tr>
       <tr>
@@ -214,14 +213,14 @@ function renderLeaveDecisionEmailHtml(params: {
             <p style="font-size:12px;color:${accent.author};margin:8px 0 0;font-weight:600;">— ${quote.author}</p>
           </div>
           <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#16a34a;">
-            <a href="${appUrl()}/ess" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">View in Wanago ERP</a>
+            <a href="${getAppUrl()}/ess" style="display:inline-block;color:#fff;text-decoration:none;padding:13px 32px;font-size:14px;font-weight:600;">View in ${businessName} ERP</a>
           </td></tr></table>
-          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team Wanago</strong></p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:32px 0 0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
         </td>
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
         </td>
       </tr>
     </table>
@@ -244,7 +243,7 @@ async function urlToBase64(url: string): Promise<string> {
   return buf.toString("base64");
 }
 
-async function sendViaGmail(params: { to: string; subject: string; html: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string } | null> {
+async function sendViaGmail(params: { to: string; subject: string; html: string; businessName: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string } | null> {
   const user = await getIntegrationSecret("gmailUser", "GMAIL_USER");
   const pass = await getIntegrationSecret("gmailAppPassword", "GMAIL_APP_PASSWORD");
   if (!user || !pass) return null; // not configured — caller falls back to Resend
@@ -256,7 +255,7 @@ async function sendViaGmail(params: { to: string; subject: string; html: string;
 
   try {
     await gmailTransport.sendMail({
-      from: `Wanago Tours & Travels <${user}>`,
+      from: `${params.businessName} <${user}>`,
       to: params.to,
       subject: params.subject,
       html: params.html,
@@ -270,7 +269,7 @@ async function sendViaGmail(params: { to: string; subject: string; html: string;
   }
 }
 
-async function sendViaResend(params: { to: string; subject: string; html: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string }> {
+async function sendViaResend(params: { to: string; subject: string; html: string; businessName: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = await getIntegrationSecret("resendApiKey", "RESEND_API_KEY");
   if (!apiKey) {
     return { ok: false, error: "Email isn't set up yet — configure Gmail SMTP or a Resend API key in Admin → Integrations." };
@@ -287,7 +286,7 @@ async function sendViaResend(params: { to: string; subject: string; html: string
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      from: fromEmail || "Wanago HR <onboarding@resend.dev>",
+      from: fromEmail || `${params.businessName} <onboarding@resend.dev>`,
       to: params.to,
       subject: params.subject,
       html: params.html,
@@ -305,7 +304,7 @@ async function sendViaResend(params: { to: string; subject: string; html: string
 // Shared low-level sender — every email (generic notification or a named
 // template like the welcome email) funnels through here. Tries Gmail SMTP
 // first (if configured), falls back to Resend.
-async function sendRawEmail(params: { to: string; subject: string; html: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string }> {
+async function sendRawEmail(params: { to: string; subject: string; html: string; businessName: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string }> {
   const viaGmail = await sendViaGmail(params);
   if (viaGmail) return viaGmail;
   return sendViaResend(params);
@@ -318,23 +317,31 @@ async function sendRawEmail(params: { to: string; subject: string; html: string;
 export async function sendEmail(params: {
   to: string; subject: string; body: string; link?: string; category?: NotificationCategory;
 }): Promise<{ ok: boolean; error?: string }> {
-  return sendRawEmail({ to: params.to, subject: params.subject, html: renderEmailHtml(params.subject, params.body, params.link, params.category) });
+  const company = await getCompanySettingsServer();
+  return sendRawEmail({
+    to: params.to,
+    subject: params.subject,
+    html: renderEmailHtml(params.subject, params.body, company.businessName, params.link, params.category),
+    businessName: company.businessName,
+  });
 }
 
-// Premium "Welcome to Team Wanago" email — sent once per new hire
+// Premium "Welcome to Team {Company}" email — sent once per new hire
 // (createEmployee) and on-demand for the whole existing team via the
 // Employees page's "Send Welcome Email to All" button.
 export async function sendWelcomeEmail(params: {
   to: string; fullName: string; designation: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
   return sendRawEmail({
     to: params.to,
-    subject: `Welcome to Team Wanago, ${params.fullName}! ✈️`,
-    html: renderWelcomeEmailHtml(params.fullName, params.designation),
+    subject: `Welcome to Team ${company.businessName}, ${params.fullName}! ✈️`,
+    html: renderWelcomeEmailHtml(params.fullName, params.designation, company.businessName),
+    businessName: company.businessName,
   });
 }
 
-function renderCertificateEmailHtml(employeeName: string, moduleTitle: string, certificateId: string) {
+function renderCertificateEmailHtml(employeeName: string, moduleTitle: string, certificateId: string, businessName: string) {
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
@@ -348,15 +355,15 @@ function renderCertificateEmailHtml(employeeName: string, moduleTitle: string, c
         <td style="padding:36px 32px;background:#ffffff;">
           <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Congratulations, ${employeeName}! 🎉</h1>
           <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
-            You've completed the <strong>${moduleTitle}</strong> training module on Wanago ERP. Your certificate is attached to this email as a PDF — keep it for your records.
+            You've completed the <strong>${moduleTitle}</strong> training module on ${businessName} ERP. Your certificate is attached to this email as a PDF — keep it for your records.
           </p>
           <p style="font-size:12px;color:#999;margin:0 0 24px;">Certificate ID: <strong>${certificateId}</strong></p>
-          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team Wanago</strong></p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
         </td>
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
         </td>
       </tr>
     </table>
@@ -370,15 +377,17 @@ function renderCertificateEmailHtml(employeeName: string, moduleTitle: string, c
 export async function sendCertificateEmail(params: {
   to: string; employeeName: string; moduleTitle: string; certificateId: string; pdfUrl: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
   return sendRawEmail({
     to: params.to,
     subject: `Your Certificate: ${params.moduleTitle} ✈️`,
-    html: renderCertificateEmailHtml(params.employeeName, params.moduleTitle, params.certificateId),
+    html: renderCertificateEmailHtml(params.employeeName, params.moduleTitle, params.certificateId, company.businessName),
+    businessName: company.businessName,
     attachments: [{ filename: `${params.certificateId}.pdf`, url: params.pdfUrl }],
   });
 }
 
-function renderQuotationEmailHtml(customerName: string, refNumber: string, grandTotal: number) {
+function renderQuotationEmailHtml(customerName: string, refNumber: string, grandTotal: number, businessName: string) {
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
@@ -393,12 +402,12 @@ function renderQuotationEmailHtml(customerName: string, refNumber: string, grand
           <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
             Thanks for your interest in traveling with us. Your quotation <strong>${refNumber}</strong> for <strong>₹${Math.round(grandTotal).toLocaleString("en-IN")}</strong> is attached to this email as a PDF — it includes the full breakdown, payment details, and terms.
           </p>
-          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team Wanago</strong></p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
         </td>
       </tr>
       <tr>
         <td style="background:#166534;padding:18px 32px;text-align:center;">
-          <p style="font-size:11px;color:#dcfce7;margin:0;">Team Wanago · Wanago Tours &amp; Travels</p>
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
         </td>
       </tr>
     </table>
@@ -412,10 +421,12 @@ function renderQuotationEmailHtml(customerName: string, refNumber: string, grand
 export async function sendQuotationEmail(params: {
   to: string; customerName: string; refNumber: string; grandTotal: number; pdfUrl: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
   return sendRawEmail({
     to: params.to,
-    subject: `Your Quotation ${params.refNumber} — Wanago Tours & Travels ✈️`,
-    html: renderQuotationEmailHtml(params.customerName, params.refNumber, params.grandTotal),
+    subject: `Your Quotation ${params.refNumber} — ${company.businessName} ✈️`,
+    html: renderQuotationEmailHtml(params.customerName, params.refNumber, params.grandTotal, company.businessName),
+    businessName: company.businessName,
     attachments: [{ filename: `Quotation-${params.refNumber}.pdf`, url: params.pdfUrl }],
   });
 }
@@ -467,7 +478,13 @@ export async function notifyUserServer(params: {
 export async function sendLeaveDecisionEmail(params: {
   to: string; fullName: string; leaveType: string; fromDate: string; toDate: string; decision: "approve" | "reject";
 }): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
   const typeLabel = LEAVE_TYPE_LABELS[params.leaveType] ?? params.leaveType;
   const subject = params.decision === "approve" ? `Your ${typeLabel} is approved ✅` : `Update on your ${typeLabel} request`;
-  return sendRawEmail({ to: params.to, subject, html: renderLeaveDecisionEmailHtml(params) });
+  return sendRawEmail({
+    to: params.to,
+    subject,
+    html: renderLeaveDecisionEmailHtml({ ...params, businessName: company.businessName }),
+    businessName: company.businessName,
+  });
 }
