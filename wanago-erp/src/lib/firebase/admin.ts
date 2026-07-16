@@ -99,7 +99,12 @@ export async function requireOperationsOrSales(idToken: string | null): Promise<
 // legitimately trigger (sending a notification email/WhatsApp, a leave
 // decision, a quotation email), where the only thing that needs checking
 // server-side is "this is a real logged-in account," not a specific role.
-export async function requireAuth(idToken: string | null): Promise<{ uid: string } | null> {
+// `role` comes from the same read that already confirms the account is
+// real/active — callers that don't need it (most of them) just ignore the
+// field, so this stays the one shared entry point instead of every AI-ish
+// route paying for a second users/{uid} round trip via a since-removed
+// getUserRole() helper.
+export async function requireAuth(idToken: string | null): Promise<{ uid: string; role: string | null } | null> {
   if (!idToken) return null;
   const adminAuth = getAdminAuth();
   const adminDb = getAdminDb();
@@ -108,23 +113,7 @@ export async function requireAuth(idToken: string | null): Promise<{ uid: string
     const decoded = await adminAuth.verifyIdToken(idToken);
     const userDoc = await adminDb.collection("users").doc(decoded.uid).get();
     if (!userDoc.exists || userDoc.data()?.isActive === false) return null;
-    return { uid: decoded.uid };
-  } catch {
-    return null;
-  }
-}
-
-// Reads a verified caller's systemRole after requireAuth() has already
-// confirmed they're a real, active account — kept separate rather than
-// folded into requireAuth() so routes that only need "is this a real user"
-// don't pay for a role they don't use, while the AI assistant (which needs
-// the role to gate write-tool proposals) can fetch it in one extra read.
-export async function getUserRole(uid: string): Promise<string | null> {
-  const adminDb = getAdminDb();
-  if (!adminDb) return null;
-  try {
-    const userDoc = await adminDb.collection("users").doc(uid).get();
-    return (userDoc.data()?.systemRole as string | undefined) ?? null;
+    return { uid: decoded.uid, role: (userDoc.data()?.systemRole as string | undefined) ?? null };
   } catch {
     return null;
   }

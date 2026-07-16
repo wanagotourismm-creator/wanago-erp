@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, getUserRole } from "@/lib/firebase/admin";
+import { requireAuth } from "@/lib/firebase/admin";
 import { runAssistantTurn } from "@/modules/ai-core/services/ai-assistant-orchestrator";
 import { AiGenerationError } from "@/modules/ai-core/services/geminiService";
 import type { ChatTurn } from "@/modules/ai-core/services/geminiService";
@@ -55,11 +55,10 @@ export async function POST(req: NextRequest) {
     .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_LENGTH) }));
 
-  const callerRole = await getUserRole(caller.uid);
   const language: "en" | "ml" = body.language === "ml" ? "ml" : "en";
 
   try {
-    const result = await runAssistantTurn({ question, history, createdBy: caller.uid, callerRole, language });
+    const result = await runAssistantTurn({ question, history, createdBy: caller.uid, callerRole: caller.role, language });
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof AiGenerationError) {

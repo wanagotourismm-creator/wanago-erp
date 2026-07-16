@@ -5,6 +5,7 @@
 // one place. Generalizes the Gemini->Groq->fail pattern that
 // src/lib/ai/getAIAnswer.ts proved out for the help assistant.
 import { z } from "zod";
+import { after } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { logAiUsage } from "@/modules/ai-core/services/ai-usage-log.service";
@@ -61,6 +62,24 @@ async function getSettings(): Promise<AiSettings> {
   }
 }
 
+// Neither provider call had a timeout before this — a Gemini request that's
+// reachable but slow (rate-limited-but-not-yet-erroring, a network hiccup)
+// would just hang indefinitely, since the Gemini->Groq fallback below only
+// triggers on a thrown error, never on slowness. Aborting past this ceiling
+// turns "hang forever" into "fall back to Groq," which is what a user
+// staring at a spinner actually wants.
+const PROVIDER_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function buildContents(history: ChatTurn[] | undefined, prompt: string, images: GenerateImagePart[] = []) {
   const promptParts: Record<string, unknown>[] = images.map((img) => ({
     inlineData: { mimeType: img.mimeType, data: img.base64Data },
@@ -94,7 +113,7 @@ async function callGeminiRaw(params: {
     generationConfig.responseSchema = params.responseSchema;
   }
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`,
     {
       method: "POST",
@@ -125,7 +144,7 @@ async function callGroqRaw(params: {
   apiKey: string; model: string; system?: string; history: ChatTurn[]; prompt: string;
   temperature: number; maxOutputTokens: number; jsonMode?: boolean;
 }): Promise<string> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${params.apiKey}` },
     body: JSON.stringify({
@@ -171,19 +190,25 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateTextR
         contents: buildContents(opts.history, opts.prompt),
         temperature, maxOutputTokens,
       });
-      await logAiUsage({
+      // Fire-and-forget via after() rather than awaited — logging is
+      // best-effort analytics (logAiUsage never throws), not something the
+      // caller should wait on before getting their answer back. after()
+      // (not a bare dropped promise) is what keeps this from being killed
+      // mid-write if the serverless function freezes right after the
+      // response is sent.
+      after(() => logAiUsage({
         feature: opts.feature, provider: "gemini", model: settings.geminiModel, outcome: "success",
         promptChars: opts.prompt.length, responseChars: text.length, latencyMs: Date.now() - startedAt,
         createdBy: opts.createdBy,
-      });
+      }));
       return { text, provider: "gemini" };
     } catch (err) {
-      await logAiUsage({
+      after(() => logAiUsage({
         feature: opts.feature, provider: "gemini", model: settings.geminiModel, outcome: "error",
         errorMessage: err instanceof Error ? err.message : "unknown error",
         promptChars: opts.prompt.length, responseChars: 0, latencyMs: Date.now() - startedAt,
         createdBy: opts.createdBy,
-      });
+      }));
     }
   }
 
@@ -194,19 +219,19 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateTextR
         apiKey: groqKey, model: settings.groqModel, system: opts.system,
         history: opts.history ?? [], prompt: opts.prompt, temperature, maxOutputTokens,
       });
-      await logAiUsage({
+      after(() => logAiUsage({
         feature: opts.feature, provider: "groq", model: settings.groqModel, outcome: "success",
         promptChars: opts.prompt.length, responseChars: text.length, latencyMs: Date.now() - groqStartedAt,
         createdBy: opts.createdBy,
-      });
+      }));
       return { text, provider: "groq" };
     } catch (err) {
-      await logAiUsage({
+      after(() => logAiUsage({
         feature: opts.feature, provider: "groq", model: settings.groqModel, outcome: "error",
         errorMessage: err instanceof Error ? err.message : "unknown error",
         promptChars: opts.prompt.length, responseChars: 0, latencyMs: Date.now() - groqStartedAt,
         createdBy: opts.createdBy,
-      });
+      }));
     }
   }
 
@@ -255,21 +280,21 @@ export async function generateStructured<T>(opts: GenerateStructuredOptions<T>):
   }
 
   if (!raw) {
-    await logAiUsage({
+    after(() => logAiUsage({
       feature: opts.feature, provider, model, outcome: "error",
       errorMessage: "No AI provider available", promptChars: opts.prompt.length,
       responseChars: 0, latencyMs: Date.now() - startedAt, createdBy: opts.createdBy,
-    });
+    }));
     throw new AiGenerationError("No AI provider available — check GEMINI_API_KEY / GROQ_API_KEY.");
   }
 
   const parsed = opts.schema.safeParse(JSON.parse(raw));
-  await logAiUsage({
+  after(() => logAiUsage({
     feature: opts.feature, provider, model, outcome: parsed.success ? "success" : "error",
     errorMessage: parsed.success ? null : "Response failed schema validation",
     promptChars: opts.prompt.length, responseChars: raw.length, latencyMs: Date.now() - startedAt,
     createdBy: opts.createdBy,
-  });
+  }));
 
   if (!parsed.success) throw new AiGenerationError(`AI response failed schema validation: ${parsed.error.message}`);
   return parsed.data;
@@ -295,19 +320,19 @@ export async function generateMultimodal(opts: GenerateMultimodalOptions): Promi
       temperature: opts.temperature ?? settings.temperature,
       maxOutputTokens: opts.maxOutputTokens ?? settings.maxOutputTokens,
     });
-    await logAiUsage({
+    after(() => logAiUsage({
       feature: opts.feature, provider: "gemini", model: settings.geminiModel, outcome: "success",
       promptChars: opts.prompt.length, responseChars: text.length, latencyMs: Date.now() - startedAt,
       createdBy: opts.createdBy,
-    });
+    }));
     return text;
   } catch (err) {
-    await logAiUsage({
+    after(() => logAiUsage({
       feature: opts.feature, provider: "gemini", model: settings.geminiModel, outcome: "error",
       errorMessage: err instanceof Error ? err.message : "unknown error",
       promptChars: opts.prompt.length, responseChars: 0, latencyMs: Date.now() - startedAt,
       createdBy: opts.createdBy,
-    });
+    }));
     throw err;
   }
 }
