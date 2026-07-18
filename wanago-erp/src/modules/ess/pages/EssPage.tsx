@@ -21,6 +21,7 @@ import { LeaveBalanceChips } from "@/modules/ess/components/LeaveBalanceChips";
 import { AttendanceCalendar } from "@/modules/ess/components/AttendanceCalendar";
 import { AttendanceMonthSummary } from "@/modules/ess/components/AttendanceMonthSummary";
 import { MyCorrectionsList } from "@/modules/ess/components/MyCorrectionsList";
+import { MyRequestsInbox } from "@/modules/ess/components/MyRequestsInbox";
 import { MyPayslipsList } from "@/modules/ess/components/MyPayslipsList";
 import { MyActivityList } from "@/modules/ess/components/MyActivityList";
 import { MyAssetsList } from "@/modules/ess/components/MyAssetsList";
@@ -119,6 +120,7 @@ export function EssPage() {
     {
       label: "Self Service",
       items: [
+        { key: "requests", label: "Requests Inbox", icon: Inbox },
         { key: "attendance", label: "Attendance", icon: Clock },
         { key: "leaves", label: "My Leaves", icon: CalendarDays },
         { key: "assets", label: "My Assets", icon: Laptop },
@@ -249,6 +251,10 @@ export function EssPage() {
         {section === "team" && isManager && <TeamRosterPanel roster={roster} loading={rosterLoading} />}
 
         {section === "approvals" && isManager && <InboxCard items={teamInbox} onDecide={decideInboxItem} />}
+
+        {section === "requests" && (
+          <MyRequestsInbox leaves={leaves} regularizations={regularizations} assetRequests={assetRequests} attendance={attendance} />
+        )}
 
         {section === "attendance" && (
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
