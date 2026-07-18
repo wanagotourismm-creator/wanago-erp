@@ -21,6 +21,7 @@ import { WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import { fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, isLateArrival, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
+import { todayIST } from "@/lib/utils/helpers";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
 import type { Asset, AssetRequest } from "@/modules/assets/types";
 import type { Ticket } from "@/modules/tickets/types";
@@ -30,15 +31,9 @@ import type { EssAssetRequestSchema } from "@/modules/assets/schemas";
 import type { EssTicketReportSchema } from "@/modules/tickets/schemas";
 import type { Holiday } from "@/modules/admin/holidays/types";
 
-// Must match /api/hrms/attendance/clock's serverDateAndTime() — that route
-// stamps a check-in's `date` using Asia/Kolkata (this is an India-only
-// deployment), but this used to compute "today" from the browser's UTC
-// offset (toISOString() is always UTC). Between 00:00–05:29 IST the UTC
-// date is still "yesterday," so a record clocked in during that window
-// wouldn't match here as `today` — isClockedIn would show false right
-// after clocking in, and the forgotten-checkout banner would fire against
-// the record just created.
-const todayStr = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+// Must match /api/hrms/attendance/clock's serverDateAndTime() — see
+// todayIST()'s own comment for why (this used to be UTC-based here).
+const todayStr = todayIST;
 const nowTime  = () => new Date().toTimeString().slice(0, 5);
 
 // Clock-in/out writes go through this server route (Firebase Admin SDK,
@@ -159,7 +154,16 @@ export function useEss() {
         const reports = allEmployees.filter((e) => e.reportingManagerId === emp.id);
         setDirectReports(reports);
 
-        if (reports.length > 0) {
+        // Location approvals additionally include this manager's
+        // functional reports (matches isOwnerOrEitherManagerOfEmployee in
+        // firestore.rules) — a functional manager with zero direct reports
+        // would otherwise never see a pending request land in their inbox,
+        // even though notifyManagerOfLocationRequest already emails/pings
+        // them about it. Leave/regularization/asset stay reporting-only.
+        const functionalReports = allEmployees.filter((e) => e.functionalManagerId === emp.id);
+        const locationReportIds = new Set([...reports, ...functionalReports].map((r) => r.id));
+
+        if (reports.length > 0 || functionalReports.length > 0) {
           const reportIds = new Set(reports.map((r) => r.id));
           const [allLeaves, allRegs, allAssetReqs, allAttendance] = await Promise.all([
             fetchLeaves(), fetchRegularizations(), fetchAssetRequests(), fetchAttendanceRecords(),
@@ -167,7 +171,7 @@ export function useEss() {
           setTeamLeaves(allLeaves.filter((l) => reportIds.has(l.employeeId) && l.status === "pending"));
           setTeamRegularizations(allRegs.filter((r) => reportIds.has(r.employeeId) && r.regularizationStatus === "pending"));
           setTeamAssetRequests(allAssetReqs.filter((r) => reportIds.has(r.employeeId) && r.requestStatus === "pending"));
-          setTeamLocationApprovals(allAttendance.filter((a) => reportIds.has(a.employeeId) && a.locationApprovalStatus === "pending"));
+          setTeamLocationApprovals(allAttendance.filter((a) => locationReportIds.has(a.employeeId) && a.locationApprovalStatus === "pending"));
         } else {
           setTeamLeaves([]);
           setTeamRegularizations([]);
@@ -381,13 +385,14 @@ export function useEss() {
     }
   }
 
-  // Best-effort: notifies the employee's reporting manager (in-app + email +
-  // WhatsApp) that a new request is waiting on them. Silently does nothing
-  // if there's no manager on file — this never blocks the request itself.
-  async function notifyManagerOfRequest(title: string, body: string, category: "leave" | "regularization" | "asset" | "location") {
-    if (!employee?.reportingManagerId) return;
+  // Best-effort: notifies one specific manager (in-app + email + WhatsApp)
+  // that a new request is waiting on them. Silently does nothing if the id
+  // is missing or doesn't resolve to a real employee — this never blocks
+  // the request itself.
+  async function notifyEmployeeManager(managerId: string | null | undefined, title: string, body: string, category: "leave" | "regularization" | "asset" | "location") {
+    if (!managerId) return;
     try {
-      const manager = await fetchEmployeeById(employee.reportingManagerId);
+      const manager = await fetchEmployeeById(managerId);
       if (!manager) return;
       await notifyUser({
         userId: manager.userId ?? null, email: manager.email, phone: manager.mobileNumber,
@@ -396,8 +401,22 @@ export function useEss() {
     } catch { /* best-effort */ }
   }
 
+  // Leaves/regularizations/assets stay reporting-manager-only — see
+  // functionalManagerId's own comment in hrms/shared/types.ts for why.
+  async function notifyManagerOfRequest(title: string, body: string, category: "leave" | "regularization" | "asset" | "location") {
+    await notifyEmployeeManager(employee?.reportingManagerId, title, body, category);
+  }
+
+  // Location-approval requests specifically go to BOTH the reporting
+  // manager and the functional manager (unlike leave/regularization/asset,
+  // which stay reporting-manager-only) — skips the second notification
+  // when they're the same person.
   function notifyManagerOfLocationRequest(body: string) {
-    notifyManagerOfRequest("Attendance needs location approval", body, "location");
+    const title = "Attendance needs location approval";
+    notifyEmployeeManager(employee?.reportingManagerId, title, body, "location");
+    if (employee?.functionalManagerId && employee.functionalManagerId !== employee.reportingManagerId) {
+      notifyEmployeeManager(employee.functionalManagerId, title, body, "location");
+    }
   }
 
   async function applyLeave(data: EssLeaveApplySchema) {

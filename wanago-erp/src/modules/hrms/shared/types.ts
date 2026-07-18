@@ -31,9 +31,12 @@ export type Employee = FirestoreRecord & {
   reportingManagerId:    string | null;
   reportingManagerName:  string | null;
   // A more senior manager above the Reporting Manager (e.g. a department
-  // head/skip-level) — org-chart/record-keeping only, distinct from
-  // reportingManagerId's day-to-day team head. Doesn't drive any
-  // notification/approval routing (that stays on reportingManagerId).
+  // head/skip-level) — distinct from reportingManagerId's day-to-day team
+  // head. Mostly org-chart/record-keeping, EXCEPT attendance
+  // location-approval requests: those route to both the reporting manager
+  // and the functional manager (see notifyManagerOfLocationRequest in
+  // useEss.ts and isOwnerOrEitherManagerOfEmployee in firestore.rules).
+  // Leave/regularization/asset-request approvals stay reporting-manager-only.
   functionalManagerId:   string | null;
   functionalManagerName: string | null;
   employmentType:        EmploymentType;

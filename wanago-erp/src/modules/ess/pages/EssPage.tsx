@@ -31,8 +31,9 @@ import { TeamRosterPanel } from "@/modules/ess/components/TeamRosterPanel";
 import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui.store";
 import { hasPermission } from "@/lib/rbac";
+import { todayIST } from "@/lib/utils/helpers";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = todayIST;
 
 export function EssPage() {
   const { user } = useAuthStore();

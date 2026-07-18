@@ -3,9 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchAttendanceRecords } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchLeaves } from "@/modules/hrms/leaves/services/leave.service";
+import { todayIST } from "@/lib/utils/helpers";
 import type { Employee, AttendanceRecord, LeaveRequest } from "@/modules/hrms/shared/types";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// Compared against AttendanceRecord.date, which the server clock route
+// stamps in Asia/Kolkata — see todayIST()'s own comment for why this can't
+// be UTC-based (a team member's just-recorded check-in could show as
+// "unmarked" here for up to ~5.5 hours a day otherwise).
+const todayStr = todayIST;
 
 export type TeamMemberStatus = {
   employee: Employee;

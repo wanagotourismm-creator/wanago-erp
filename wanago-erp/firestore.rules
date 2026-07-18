@@ -173,6 +173,19 @@ service cloud.firestore {
              (emp.reportingManagerId != null &&
               employeeById(emp.reportingManagerId).userId == request.auth.uid);
     }
+    // Attendance location-approval requests specifically route to BOTH the
+    // reporting manager and the functional manager (see notifyManagerOfLocationRequest
+    // in useEss.ts) — functionalManagerId otherwise never drives approval
+    // routing (see its own comment in hrms/shared/types.ts), so this is
+    // deliberately its own function rather than widening
+    // isOwnerOrManagerOfEmployee itself, which stays reporting-manager-only
+    // for leaves/regularizations/assetRequests.
+    function isOwnerOrEitherManagerOfEmployee(employeeId) {
+      let emp = employeeById(employeeId);
+      return isOwnerOrManagerOfEmployee(employeeId) ||
+             (emp.functionalManagerId != null &&
+              employeeById(emp.functionalManagerId).userId == request.auth.uid);
+    }
     function isEmployeeOwner(employeeId) {
       return employeeById(employeeId).userId == request.auth.uid;
     }
@@ -507,11 +520,15 @@ service cloud.firestore {
     match /hrmsCheckIns/{id} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (
-        isOwnerOrManagerOfEmployee(request.resource.data.employeeId) ||
+        isOwnerOrEitherManagerOfEmployee(request.resource.data.employeeId) ||
         getUserRole() in ['super_admin', 'admin', 'hr']
       );
+      // Either manager may decide a pending location-approval request
+      // (decideLocationApproval in attendance.service.ts) — see
+      // isOwnerOrEitherManagerOfEmployee's own comment for why this one
+      // collection includes the functional manager and the others don't.
       allow update: if isAuthenticated() && (
-        isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
+        isOwnerOrEitherManagerOfEmployee(resource.data.employeeId) ||
         getUserRole() in ['super_admin', 'admin', 'hr']
       );
       allow delete: if getUserRole() in ['super_admin', 'admin', 'hr'];

@@ -7,7 +7,7 @@ import { fetchLeaves } from "@/modules/hrms/leaves/services/leave.service";
 import { fetchRegularizations } from "@/modules/hrms/regularization/services/regularization.service";
 import { fetchJobOpenings } from "@/modules/recruitment/jobs/services/job.service";
 import { fetchReviews } from "@/modules/performance/reviews/services/review.service";
-import { toDate } from "@/lib/utils/helpers";
+import { toDate, dateIST, todayIST } from "@/lib/utils/helpers";
 import type { Timestamp } from "@/types/global";
 import type { Employee, AttendanceRecord, LeaveRequest, AttendanceRegularization } from "@/modules/hrms/shared/types";
 
@@ -18,7 +18,12 @@ function safeToDate(value: Timestamp | Date | string | null | undefined | unknow
   return toDate(value as Timestamp | Date | string | null | undefined);
 }
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// This "today" is compared against AttendanceRecord.date, which
+// /api/hrms/attendance/clock stamps in Asia/Kolkata — see todayIST()'s own
+// comment. This used to be UTC-based, which could show a real check-in as
+// "unmarked" (or yesterday's as still "today's") for up to ~5.5 hours a
+// day depending on which side of midnight IST vs UTC the viewer landed on.
+const todayStr = todayIST;
 
 export type EmployeeToday = {
   employee: Employee;
@@ -135,7 +140,7 @@ export function useHrOverview() {
   useEffect(() => { load(); }, [load]);
 
   const today = todayStr();
-  const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
+  const yesterday = dateIST(new Date(Date.now() - 24 * 60 * 60 * 1000));
   const todayAttendance = attendance.filter((a) => a.date === today);
   const todayAttendanceByEmployee = new Map(todayAttendance.map((a) => [a.employeeId, a]));
 

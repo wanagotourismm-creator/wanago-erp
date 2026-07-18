@@ -8,6 +8,22 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+// This is an India-only deployment, so "today"/a given moment's calendar
+// date is always meant in Asia/Kolkata terms — matching how
+// /api/hrms/attendance/clock derives the `date` it stamps on a check-in.
+// `new Date().toISOString().slice(0,10)` (UTC) disagrees with this for
+// roughly 5.5 hours every day (IST 00:00-05:29, when it's already
+// "tomorrow" locally but UTC's date hasn't rolled over yet), which used to
+// make a just-created attendance/leave record silently not match "today"
+// in several places (ESS clock-in state, the HR Overview "present today"
+// stat, a manager's team roster) until compared with this instead.
+export function dateIST(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+export function todayIST(): string {
+  return dateIST(new Date());
+}
+
 // Normalizes a phone number for duplicate-detection matching (not for
 // display or sending) — strips all non-digit characters and keeps just the
 // last 10, so "+91 98765 43210", "919876543210", and "9876543210" all match
