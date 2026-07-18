@@ -46,5 +46,9 @@ export async function createPayment(
 }
 
 export async function deletePayment(id: string): Promise<void> {
-  return paymentRepository.delete(id);
+  const payment = await paymentRepository.findById(id);
+  await paymentRepository.delete(id);
+  if (payment?.invoiceId) {
+    await applyPaymentToInvoice(payment.invoiceId, -payment.amount);
+  }
 }

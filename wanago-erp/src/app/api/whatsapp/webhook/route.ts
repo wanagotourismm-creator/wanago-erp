@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { FieldValue, type Firestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { FieldValue, type Firestore, type DocumentReference } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
@@ -63,32 +63,50 @@ async function findCustomerByPhone(db: Firestore, phone: string) {
   return match ? { id: match.id, fullName: match.data().fullName as string | undefined } : null;
 }
 
+type ConversationHandle = {
+  id: string;
+  ref: DocumentReference;
+  data: () => { customerName: string | null };
+};
+
+// Wrapped in a transaction (Admin SDK transactions, unlike the client SDK,
+// can tx.get() a query) — the plain query-then-create this used to be let
+// two webhook deliveries for the same new phone number arriving close
+// together (Meta retries/batches) both see "no existing conversation" and
+// each create their own, splitting that customer's thread in two.
 async function findOrCreateConversation(
   db: Firestore, phoneNumber: string, waProfileName: string | null
-): Promise<QueryDocumentSnapshot> {
-  const existing = await db.collection(FIRESTORE_COLLECTIONS.WHATSAPP_CONVERSATIONS)
-    .where("phoneNumber", "==", phoneNumber).limit(1).get();
-  if (!existing.empty) return existing.docs[0];
+): Promise<ConversationHandle> {
+  const conversations = db.collection(FIRESTORE_COLLECTIONS.WHATSAPP_CONVERSATIONS);
 
-  const customer = await findCustomerByPhone(db, phoneNumber);
-  const now = FieldValue.serverTimestamp();
-  const ref = await db.collection(FIRESTORE_COLLECTIONS.WHATSAPP_CONVERSATIONS).add({
-    phoneNumber,
-    customerId:   customer?.id ?? null,
-    customerName: customer?.fullName ?? waProfileName ?? null,
-    lastMessagePreview:   null,
-    lastMessageAt:        now,
-    lastMessageDirection: null,
-    unreadCount: 0,
-    sentiment: null,
-    intent:    null,
-    createdAt: now,
-    updatedAt: now,
-    createdBy: "system",
-    status:    "active",
+  return db.runTransaction(async (tx) => {
+    const existing = await tx.get(conversations.where("phoneNumber", "==", phoneNumber).limit(1));
+    if (!existing.empty) {
+      const doc = existing.docs[0];
+      return { id: doc.id, ref: doc.ref, data: () => ({ customerName: (doc.data().customerName as string | null) ?? null }) };
+    }
+
+    const customer = await findCustomerByPhone(db, phoneNumber);
+    const customerName = customer?.fullName ?? waProfileName ?? null;
+    const now = FieldValue.serverTimestamp();
+    const ref = conversations.doc();
+    tx.set(ref, {
+      phoneNumber,
+      customerId:   customer?.id ?? null,
+      customerName,
+      lastMessagePreview:   null,
+      lastMessageAt:        now,
+      lastMessageDirection: null,
+      unreadCount: 0,
+      sentiment: null,
+      intent:    null,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: "system",
+      status:    "active",
+    });
+    return { id: ref.id, ref, data: () => ({ customerName }) };
   });
-  const snap = await ref.get();
-  return snap as unknown as QueryDocumentSnapshot;
 }
 
 export async function POST(req: NextRequest) {

@@ -5,7 +5,7 @@ import { X, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck } from "lucide-reac
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
-import { BOOKING_STATUS_LABELS } from "@/lib/constants";
+import { BOOKING_STATUS_LABELS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
 import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import type { Booking } from "@/modules/bookings/types";
@@ -209,8 +209,8 @@ export function BookingDetailModal({
               onChange={(e) => onStatus(booking, e.target.value)}
               className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground focus:ring-2 focus:ring-primary/20 cursor-pointer"
             >
-              {Object.entries(BOOKING_STATUS_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              {[...new Set([booking.status, ...MANUALLY_SETTABLE_BOOKING_STATUSES])].map((k) => (
+                <option key={k} value={k}>{BOOKING_STATUS_LABELS[k]}</option>
               ))}
             </select>
           )}

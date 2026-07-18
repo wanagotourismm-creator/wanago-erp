@@ -30,7 +30,15 @@ import type { EssAssetRequestSchema } from "@/modules/assets/schemas";
 import type { EssTicketReportSchema } from "@/modules/tickets/schemas";
 import type { Holiday } from "@/modules/admin/holidays/types";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// Must match /api/hrms/attendance/clock's serverDateAndTime() — that route
+// stamps a check-in's `date` using Asia/Kolkata (this is an India-only
+// deployment), but this used to compute "today" from the browser's UTC
+// offset (toISOString() is always UTC). Between 00:00–05:29 IST the UTC
+// date is still "yesterday," so a record clocked in during that window
+// wouldn't match here as `today` — isClockedIn would show false right
+// after clocking in, and the forgotten-checkout banner would fire against
+// the record just created.
+const todayStr = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const nowTime  = () => new Date().toTimeString().slice(0, 5);
 
 // Clock-in/out writes go through this server route (Firebase Admin SDK,

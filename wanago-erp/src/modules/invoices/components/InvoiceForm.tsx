@@ -101,8 +101,15 @@ export function InvoiceForm({ open, invoice, onClose, onSubmit }: Props) {
   const selectedBookingId  = watch("bookingId");
   const watchedTotalAmount = watch("totalAmount");
   const watchedTaxRate     = watch("taxRate");
+  // totalAmount is the tax-INCLUSIVE grand total (the authoritative figure
+  // balanceDue/payments rely on — see the comment on Invoice.taxAmount),
+  // so the tax portion of it is back-calculated as total × rate/(100+rate),
+  // not total × rate/100 — the latter would treat totalAmount as a pre-tax
+  // subtotal instead, producing a subtotal/tax breakdown (InvoiceDetailModal's
+  // `totalAmount - taxAmount`) that doesn't actually reconcile against the
+  // stated tax rate.
   const computedTaxAmount  = gstEnabled && watchedTaxRate
-    ? Number(((Number(watchedTotalAmount) || 0) * (Number(watchedTaxRate) / 100)).toFixed(2))
+    ? Number(((Number(watchedTotalAmount) || 0) * (Number(watchedTaxRate) / (100 + Number(watchedTaxRate)))).toFixed(2))
     : 0;
 
   useEffect(() => {

@@ -129,7 +129,7 @@ service cloud.firestore {
       return collectionName in [
         'users', 'offices', 'quotations', 'invoices', 'payments', 'expenses',
         'packages', 'suppliers', 'itineraries', 'itineraryBrochures', 'campaigns',
-        'hrmsEmployees', 'trainingPrograms', 'trainingEnrollments', 'hrmsPayroll',
+        'hrmsEmployees', 'hrmsCheckIns', 'trainingPrograms', 'trainingEnrollments', 'hrmsPayroll',
         'onboardingTasks', 'onboardingTrainingModules', 'onboardingTrainingSteps',
         'onboardingTrainingProgress', 'trainingCertificates', 'trainingPracticeSubmissions',
         'helpArticles', 'hrPolicyDocuments',
@@ -144,9 +144,9 @@ service cloud.firestore {
 
     function isUpdateRestricted(collectionName) {
       return collectionName in [
-        'users', 'offices', 'customers', 'bookings', 'quotations', 'invoices',
+        'users', 'offices', 'leads', 'customers', 'bookings', 'quotations', 'invoices',
         'payments', 'expenses', 'packages', 'suppliers', 'itineraries',
-        'itineraryBrochures', 'campaigns', 'hrmsEmployees',
+        'itineraryBrochures', 'campaigns', 'hrmsEmployees', 'hrmsCheckIns',
         'hrmsLeaves', 'hrmsRegularizations', 'tickets',
         'trainingPrograms', 'trainingEnrollments', 'hrmsPayroll', 'hrmsSuspiciousAttendance',
         'onboardingTasks', 'onboardingTrainingModules', 'onboardingTrainingSteps',
@@ -172,6 +172,39 @@ service cloud.firestore {
       return request.auth.uid == emp.userId ||
              (emp.reportingManagerId != null &&
               employeeById(emp.reportingManagerId).userId == request.auth.uid);
+    }
+    function isEmployeeOwner(employeeId) {
+      return employeeById(employeeId).userId == request.auth.uid;
+    }
+    // isOwnerOrManagerOfEmployee's "owner" half exists so an employee can
+    // cancel/edit their own request — but without this, it also let them
+    // approve/reject their OWN request by writing the decision fields
+    // directly (the manager half of that same OR is meant to be the only
+    // path that can). Each *OwnerWriteIsSafe() below is ANDed onto the
+    // relevant collection's update rule: a no-op for the manager/HR/Admin
+    // path, but blocks the owner from touching the approval trail (and,
+    // for leaves, from setting status to anything but 'cancelled' — its one
+    // legitimate owner-triggered transition, see cancelLeaveRequest).
+    function leaveOwnerWriteIsSafe(employeeId) {
+      return !isEmployeeOwner(employeeId) || (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+          ['approvedBy', 'approvedAt', 'rejectedBy', 'rejectedAt']
+        ) &&
+        (request.resource.data.status == resource.data.status || request.resource.data.status == 'cancelled')
+      );
+    }
+    // Regularizations/asset requests have no owner-triggered update at all
+    // today (no cancel/withdraw flow exists client-side) — so unlike
+    // leaves, the owner is blocked from touching the status field too.
+    function regularizationOwnerWriteIsSafe(employeeId) {
+      return !isEmployeeOwner(employeeId) || !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+        ['regularizationStatus', 'approvedBy', 'approvedAt', 'rejectedBy', 'rejectedAt']
+      );
+    }
+    function assetRequestOwnerWriteIsSafe(employeeId) {
+      return !isEmployeeOwner(employeeId) || !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+        ['requestStatus', 'approvedBy', 'approvedAt', 'rejectedBy']
+      );
     }
 
     // Bookings: only Finance/Ops/Admin may touch the approval trail fields.
@@ -281,10 +314,18 @@ service cloud.firestore {
     }
 
     // ── Leads ────────────────────────────────────────────────
+    // Reassignment must be gated the same way customers/bookings already
+    // are — previously any authenticated user could update a lead's
+    // assignedTo/agentName directly (LeadForm.tsx only *hides* the field
+    // once a lead is claimed; it never actually blocked the underlying
+    // write), so any sales agent could silently steal a colleague's lead
+    // via a direct write bypassing the form.
     match /leads/{leadId} {
       allow read: if isAuthenticated() && canViewAssigned('leads:view_all');
       allow create: if isAuthenticated() && hasRequiredFields();
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        !touchesAssignmentFields(['assignedTo', 'agentName']) || canReassign()
+      );
       allow delete: if isAdmin();
     }
 
@@ -401,7 +442,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
         getUserRole() in ['super_admin', 'admin', 'hr']
-      );
+      ) && leaveOwnerWriteIsSafe(resource.data.employeeId);
       allow delete: if getUserRole() in ['super_admin', 'admin', 'hr'];
     }
 
@@ -415,7 +456,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
         getUserRole() in ['super_admin', 'admin', 'hr']
-      );
+      ) && regularizationOwnerWriteIsSafe(resource.data.employeeId);
       allow delete: if getUserRole() in ['super_admin', 'admin', 'hr'];
     }
 
@@ -454,9 +495,26 @@ service cloud.firestore {
                       getUserRole() in ['super_admin','admin','hr'];
     }
 
+    // Clock-in/out itself goes through /api/hrms/attendance/clock (Admin
+    // SDK, bypasses these rules entirely) — but HR's manual "Add
+    // Attendance" form and break start/end still write here directly via
+    // the client SDK, so this needs the same owner-or-manager-or-HR gate
+    // every other employee-record collection has. Previously any
+    // authenticated user could read/write ANY employee's attendance
+    // record directly, which is exactly the class of bug the server route
+    // above was built to close — a direct Firestore write bypassed it
+    // completely.
     match /hrmsCheckIns/{id} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        isOwnerOrManagerOfEmployee(request.resource.data.employeeId) ||
+        getUserRole() in ['super_admin', 'admin', 'hr']
+      );
+      allow update: if isAuthenticated() && (
+        isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
+        getUserRole() in ['super_admin', 'admin', 'hr']
+      );
+      allow delete: if getUserRole() in ['super_admin', 'admin', 'hr'];
     }
 
     // Suspicious-location check-in/out attempts (heuristic fraud flags).
@@ -801,7 +859,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isOwnerOrManagerOfEmployee(resource.data.employeeId) ||
         getUserRole() in ['super_admin', 'admin', 'hr']
-      );
+      ) && assetRequestOwnerWriteIsSafe(resource.data.employeeId);
       allow delete: if isAdmin();
     }
 

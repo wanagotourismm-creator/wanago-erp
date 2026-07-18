@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate, initials } from "@/lib/utils/helpers";
-import { BOOKING_STATUS_LABELS } from "@/lib/constants";
+import { BOOKING_STATUS_LABELS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
@@ -134,8 +134,8 @@ export function BookingsTable({
                         onChange={(e) => onStatus(b, e.target.value)}
                         className="rounded-lg border-0 bg-transparent p-0 text-xs font-medium focus:ring-0 cursor-pointer"
                       >
-                        {Object.entries(BOOKING_STATUS_LABELS).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
+                        {[...new Set([b.status, ...MANUALLY_SETTABLE_BOOKING_STATUSES])].map((k) => (
+                          <option key={k} value={k}>{BOOKING_STATUS_LABELS[k]}</option>
                         ))}
                       </select>
                     )}

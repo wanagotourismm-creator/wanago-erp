@@ -48,6 +48,18 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   cancelled:        "Cancelled",
 };
 
+// Every status except these two is only ever reached through the guarded
+// approve/reject functions in booking.service.ts (approveBookingAsFinance/
+// approveBookingAsOperations/rejectBookingAsFinance/rejectBookingAsOperations)
+// — those also stamp the required approval-trail fields (financeApprovedBy,
+// opsApprovedBy, profitAmount) and run their own current-status guard.
+// BookingsTable/BookingDetailModal's manual status dropdown must only ever
+// offer these two, or Operations/Admin could jump a booking straight to
+// e.g. "Confirmed" with profitAmount/opsApprovedBy never set — silently
+// skipping the approval pipeline (and the referral-bonus/notification side
+// effects that only run inside those guarded functions).
+export const MANUALLY_SETTABLE_BOOKING_STATUSES: BookingStatus[] = ["completed", "cancelled"];
+
 export const PAYMENT_STATUS = {
   PAID:    "paid",
   PARTIAL: "partial",

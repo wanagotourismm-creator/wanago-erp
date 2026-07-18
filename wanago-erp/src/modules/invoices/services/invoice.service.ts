@@ -210,13 +210,20 @@ export async function deleteInvoice(id: string): Promise<void> {
 // overwrite the first's contribution. A transaction re-reads inside the
 // commit and retries on conflict, so concurrent payments always accumulate
 // correctly.
-export async function applyPaymentToInvoice(invoiceId: string, amount: number): Promise<void> {
+//
+// `amountDelta` is signed: createPayment passes the positive payment amount;
+// deletePayment (payment.service.ts) passes it negated to reverse a deleted
+// payment's contribution — without that reversal, deleting a payment left
+// the invoice's amountPaid/balanceDue/status exactly as if the money were
+// still collected. Clamped at 0 so a stray double-reversal can't ever push
+// amountPaid negative.
+export async function applyPaymentToInvoice(invoiceId: string, amountDelta: number): Promise<void> {
   const ref = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) return;
     const invoice = snap.data() as Invoice;
-    const amountPaid = (invoice.amountPaid ?? 0) + amount;
+    const amountPaid = Math.max(0, (invoice.amountPaid ?? 0) + amountDelta);
     const balanceDue = invoice.totalAmount - amountPaid;
     const status = computeStatus(invoice.status, invoice.totalAmount, amountPaid, invoice.dueDate);
     tx.update(ref, { amountPaid, balanceDue, status, updatedAt: serverTimestamp() });

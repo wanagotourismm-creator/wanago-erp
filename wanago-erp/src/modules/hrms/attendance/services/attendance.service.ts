@@ -1,4 +1,4 @@
-import { orderBy, where, getDocs, query, collection, serverTimestamp } from "firebase/firestore";
+import { orderBy, where, getDocs, query, collection, serverTimestamp, doc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
@@ -59,7 +59,7 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
   if (exists) throw new Error("Attendance already marked for this employee on this date");
 
   const { hoursWorked, needsReview } = calcHours(data.clockIn, data.clockOut, data.breakMinutes ?? 0);
-  return repo.create({
+  const payload = {
     ...data,
     clockIn:     data.clockIn || null,
     clockOut:    data.clockOut || null,
@@ -83,7 +83,24 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
     locationApprovedBy:       data.locationApprovedBy ?? null,
     locationApprovedAt:       null,
     createdBy,
+  };
+
+  // The attendanceExists() check above is a plain read-then-write (same
+  // gap the /api/hrms/attendance/clock route's comment describes) — it
+  // can't itself close the race between two near-simultaneous submissions
+  // for the same employee/date (e.g. a double-clicked "Add Attendance"
+  // save, or approveRegularization firing twice). A deterministic doc ID
+  // means Firestore serializes concurrent transactions targeting it
+  // instead of both succeeding — the client SDK can't run the query-based
+  // check itself inside a transaction (unlike the Admin SDK route), so this
+  // re-checks existence against that specific doc as the atomic guard.
+  const ref = doc(db, FIRESTORE_COLLECTIONS.HRMS_CHECK_INS, `${data.employeeId}_${data.date}`);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists()) throw new Error("Attendance already marked for this employee on this date");
+    tx.set(ref, { ...payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   });
+  return { ...payload, id: ref.id } as AttendanceRecord;
 }
 
 // Manager approves/rejects a check-in/out that was outside the office

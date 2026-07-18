@@ -55,6 +55,10 @@ export function TeamSpacePanel() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Guards handleSend against a re-entrant call (e.g. holding Enter, or an
+  // Enter press followed by a fast click) — set synchronously before any
+  // await, so a second near-simultaneous call always sees it and bails.
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -89,15 +93,20 @@ export function TeamSpacePanel() {
   }
 
   async function handleSend() {
-    if (!draft.trim() || !canPost) return;
+    if (!draft.trim() || !canPost || sendingRef.current) return;
+    sendingRef.current = true;
     const text = draft;
     setDraft("");
-    const { error } = await send(text);
-    if (error) {
-      // Restore the draft so a failed send (network blip, permission
-      // denied) doesn't silently lose what the user typed.
-      setDraft(text);
-      setAttachError(error);
+    try {
+      const { error } = await send(text);
+      if (error) {
+        // Restore the draft so a failed send (network blip, permission
+        // denied) doesn't silently lose what the user typed.
+        setDraft(text);
+        setAttachError(error);
+      }
+    } finally {
+      sendingRef.current = false;
     }
   }
 

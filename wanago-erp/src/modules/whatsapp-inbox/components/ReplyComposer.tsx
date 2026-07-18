@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Send, Loader2, AlertTriangle, X, Sparkles, Languages } from "lucide-react";
 import { suggestReply, translateText } from "@/modules/whatsapp-inbox/services/whatsapp-ai.service";
 import type { WhatsAppMessage } from "@/modules/whatsapp-inbox/types";
@@ -17,17 +17,28 @@ export function ReplyComposer({ disabled, sending, onSend, messages, customerNam
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState<"suggest" | "translate" | null>(null);
+  // Guards against a re-entrant send — the `sending` prop only reflects a
+  // parent state update, which isn't necessarily in effect yet by the time
+  // a second Enter/click fires (e.g. holding Enter, or an Enter press
+  // followed by a fast click on Send) — this ref is set synchronously
+  // before any await, so a second near-simultaneous call always sees it.
+  const sendingRef = useRef(false);
 
   async function handleSend() {
     const text = draft.trim();
-    if (!text || disabled) return;
+    if (!text || disabled || sending || sendingRef.current) return;
+    sendingRef.current = true;
     setDraft("");
     setError(null);
-    const { error } = await onSend(text);
-    if (error) {
-      // Restore the draft so a failed send doesn't silently lose it.
-      setDraft(text);
-      setError(error);
+    try {
+      const { error } = await onSend(text);
+      if (error) {
+        // Restore the draft so a failed send doesn't silently lose it.
+        setDraft(text);
+        setError(error);
+      }
+    } finally {
+      sendingRef.current = false;
     }
   }
 

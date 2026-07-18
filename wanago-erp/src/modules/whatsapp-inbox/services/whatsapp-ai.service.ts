@@ -5,10 +5,11 @@ type AiResult = { text: string } | { error: string };
 
 async function callAssist(payload: Record<string, unknown>): Promise<AiResult> {
   try {
+    const idToken = await auth.currentUser?.getIdToken();
     const res = await fetch("/api/ai/whatsapp-assist", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...payload, createdBy: auth.currentUser?.uid ?? "unknown" }),
+      headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error ?? "AI assist isn't available right now." };

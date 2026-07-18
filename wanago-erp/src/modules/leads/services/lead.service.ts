@@ -1,9 +1,10 @@
 import { where, serverTimestamp, type QueryConstraint } from "firebase/firestore";
 import { leadRepository } from "@/modules/leads/services/lead.repository";
-import { toDate, phoneMatchKey, formatCurrency } from "@/lib/utils/helpers";
+import { toDate, formatCurrency } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { auth } from "@/lib/firebase/client";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
-import { fetchCustomers, createCustomer, fetchCustomerById } from "@/modules/customers/services/customer.service";
+import { createCustomer, fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { fetchQuotations, createQuotation } from "@/modules/quotations/services/quotation.service";
 import type { Customer } from "@/modules/customers/types";
 
@@ -29,11 +30,27 @@ export async function fetchLeads(filters?: {
 // differences like "+91 98765 43210" vs "9876543210" don't miss a real
 // match) — shared by createLead (flag it immediately) and
 // convertLeadToCustomer (reuse instead of duplicating).
+//
+// Goes through a server route (Admin SDK) rather than fetchCustomers() —
+// the client SDK read is scoped by firestore.rules' canViewAssigned() to
+// only the caller's own + unassigned customers, so a plain sales/marketing
+// user's search would silently miss a real match owned by a different
+// agent and create a duplicate Customer record instead of reusing theirs.
 async function findMatchingCustomer(phone: string): Promise<Customer | null> {
-  const key = phoneMatchKey(phone);
-  if (!key) return null;
-  const customers = await fetchCustomers();
-  return customers.find(c => phoneMatchKey(c.phone) === key) ?? null;
+  try {
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) return null;
+    const res = await fetch("/api/customers/find-by-phone", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.customer ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchLeadById(id: string): Promise<Lead | null> {

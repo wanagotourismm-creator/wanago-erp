@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/firebase/admin";
 import { generateText, AiGenerationError } from "@/modules/ai-core/services/geminiService";
 import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 
 export const runtime = "nodejs";
 
-// Same defensive pattern as the other public AI routes — no server-side
-// session infra, IP rate limiting is the only guard against cost abuse.
+// This assists staff replying in the (internal, login-required) WhatsApp
+// Inbox — it was previously guarded only by IP rate limiting (the pattern
+// genuinely public routes like quick-inquiry use), with no auth check at
+// all, so any unauthenticated caller on the internet could drive Gemini
+// calls against this route for free and the `createdBy` audit field was
+// just a client-supplied string, trivially spoofable. Now verified the
+// same way /api/ai-assistant is.
 const requestLog = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 20;
@@ -36,13 +42,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests — please wait a minute and try again." }, { status: 429 });
   }
 
+  const idToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
+  const caller = await requireAuth(idToken);
+  if (!caller) {
+    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  }
+
   let body: {
     mode?: Mode;
     messages?: ThreadMessage[];
     customerName?: string | null;
     text?: string;
     targetLanguage?: "en" | "ml";
-    createdBy?: string;
   };
   try {
     body = await req.json();
@@ -50,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const createdBy = String(body.createdBy ?? "unknown").slice(0, 128);
+  const createdBy = caller.uid;
   const mode = body.mode;
 
   try {
