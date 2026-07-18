@@ -41,6 +41,7 @@ export function EssPage() {
     loading, loadError, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances, leavePolicy, enabledLeaveTypes,
+    attendancePolicy, forgottenCheckout,
     clockIn, clockOut, resolveCheckInContext, startBreak, endBreak, applyLeave, cancelMyLeave,
     requestCorrection, requestAsset, reportIssue, decideInboxItem, reload,
   } = useEss();
@@ -230,6 +231,9 @@ export function EssPage() {
                 isClockedOut={isClockedOut}
                 isOnBreak={isOnBreak}
                 attendance={attendance}
+                attendancePolicy={attendancePolicy}
+                forgottenCheckout={forgottenCheckout}
+                onFileCorrection={(date) => { setCorrectionDate(date); setCorrectionOpen(true); }}
                 onClockIn={clockIn}
                 onClockOut={clockOut}
                 onResolveContext={resolveCheckInContext}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
   Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound, BookOpen,
-  MessageCircle,
+  MessageCircle, Lock,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -23,6 +23,8 @@ import { OfficeDetailModal } from "@/modules/admin/offices/components/OfficeDeta
 import { ActivityLogTable } from "@/modules/admin/activity/components/ActivityLogTable";
 import { CompanySettingsForm } from "@/modules/admin/settings/components/CompanySettingsForm";
 import { RolePermissionsEditor } from "@/modules/admin/permissions/components/RolePermissionsEditor";
+import { SecuritySettingsForm } from "@/modules/security/components/SecuritySettingsForm";
+import { useSecuritySettings } from "@/modules/security/hooks/useSecuritySettings";
 import { DataExportPanel } from "@/modules/admin/export/components/DataExportPanel";
 import { AnnouncementComposer } from "@/modules/admin/announcements/components/AnnouncementComposer";
 import { HolidayCalendar } from "@/modules/admin/holidays/components/HolidayCalendar";
@@ -36,6 +38,7 @@ import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealt
 import { UsagePanel } from "@/modules/admin/usage/components/UsagePanel";
 import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
 import { CollectionExplorer } from "@/modules/admin/explorer/components/CollectionExplorer";
+import { backfillEmployeeUserLinks } from "@/modules/hrms/employees/services/employee.service";
 import { AdminOverview, type AdminTabKey } from "@/modules/admin/overview/components/AdminOverview";
 import { HrShell, type HrNavGroup } from "@/modules/ess/components/HrShell";
 import { Button } from "@/components/ui/Button";
@@ -65,6 +68,7 @@ export function AdminPage() {
   const { activity, loading: activityLoading, load: loadActivity } = useActivityLog();
   const { settings, loading: settingsLoading, saving: settingsSaving, save: saveSettings } = useCompanySettings();
   const { map: permissionMap, loading: permissionsLoading, saving: permissionsSaving, save: savePermissions } = useRolePermissions();
+  const { settings: securitySettings, loading: securityLoading, saving: securitySaving, save: saveSecurity } = useSecuritySettings();
   const { entries: trashEntries } = useTrash();
   const { collections: healthCollections } = useSystemHealth();
 
@@ -75,6 +79,23 @@ export function AdminPage() {
   const [editingOffice,  setEditingOffice]  = useState<Office | null>(null);
   const [viewingOffice,  setViewingOffice]  = useState<Office | null>(null);
   const [selectedUsers,  setSelectedUsers]  = useState<string[]>([]);
+  const [syncingLinks,   setSyncingLinks]   = useState(false);
+
+  // One-time migration: employees whose login account was linked before
+  // employeeId denormalization existed won't be scoped correctly by the new
+  // leads/customers/bookings visibility rules until this runs once (going
+  // forward, saving an employee keeps it in sync automatically).
+  async function handleSyncEmployeeLinks() {
+    setSyncingLinks(true);
+    try {
+      const { synced, total } = await backfillEmployeeUserLinks();
+      alert(`Synced ${synced} of ${total} employee login links.`);
+    } catch {
+      alert("Failed to sync employee login links.");
+    } finally {
+      setSyncingLinks(false);
+    }
+  }
 
   function handleEditUser(u: UserProfile) {
     setViewingUser(null);
@@ -140,6 +161,7 @@ export function AdminPage() {
       items: [
         canManageSettings && { key: "settings",     label: "Company Settings",    icon: Settings2 },
         isSuperAdmin       && { key: "permissions",  label: "Roles & Permissions", icon: ShieldCheck },
+        isSuperAdmin       && { key: "security",     label: "Security",           icon: Lock },
         isSuperAdmin       && { key: "integrations", label: "Integrations",       icon: KeyRound },
       ].filter(Boolean) as HrNavGroup["items"],
     },
@@ -163,7 +185,19 @@ export function AdminPage() {
   const headerRight = (
     <>
       {tab === "users" && (
-        <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadUsers()}>Refresh</Button>
+        <>
+          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => loadUsers()}>Refresh</Button>
+          {isSuperAdmin && (
+            <Button
+              variant="outline" size="sm"
+              icon={syncingLinks ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+              disabled={syncingLinks}
+              onClick={handleSyncEmployeeLinks}
+            >
+              Sync Employee Links
+            </Button>
+          )}
+        </>
       )}
       {tab === "offices" && (
         <>
@@ -248,6 +282,10 @@ export function AdminPage() {
 
         {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
           <RolePermissionsEditor map={permissionMap} saving={permissionsSaving} onSave={savePermissions} />
+        )}
+
+        {tab === "security" && isSuperAdmin && !securityLoading && (
+          <SecuritySettingsForm settings={securitySettings} saving={securitySaving} onSave={saveSecurity} />
         )}
 
         {tab === "integrations" && isSuperAdmin && <IntegrationsPanel />}

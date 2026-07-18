@@ -3,7 +3,7 @@
 import { Fragment, useState, useEffect } from "react";
 import { Loader2, Save, Check } from "lucide-react";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
-import { cn } from "@/lib/utils/helpers";
+import { Switch } from "@/components/ui/Switch";
 import type { Permission, PermissionMap, SystemRole } from "@/types/rbac";
 
 type Props = {
@@ -87,9 +87,8 @@ export function RolePermissionsEditor({ map, saving, onSave }: Props) {
                       <td className="px-4 py-2 text-xs text-foreground font-mono">{perm}</td>
                       {EDITABLE_ROLES.map(role => (
                         <td key={role} className="px-3 py-2 text-center">
-                          <input
-                            type="checkbox"
-                            className={cn("h-4 w-4 rounded border-input cursor-pointer")}
+                          <Switch
+                            className="justify-center"
                             checked={(draft[role] ?? []).includes(perm)}
                             onChange={() => toggle(role, perm)}
                           />

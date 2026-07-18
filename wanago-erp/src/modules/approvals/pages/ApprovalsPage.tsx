@@ -147,6 +147,7 @@ export function ApprovalsPage() {
       <BookingDetailModal
         booking={viewingItem?.kind === "booking-finance" ? (viewingItem.data as Booking) : null}
         canManage={false}
+        canDelete={false}
         canApprove={false}
         onClose={() => setViewingItem(null)}
         onEdit={() => {}}

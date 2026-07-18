@@ -1,5 +1,5 @@
-import { orderBy, where } from "firebase/firestore";
-import { auth } from "@/lib/firebase/client";
+import { orderBy, where, doc, updateDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
@@ -12,8 +12,33 @@ class EmployeeRepository extends BaseRepository<Employee> {
 }
 const repo = new EmployeeRepository();
 
+// Denormalizes this employee's id onto their linked login account
+// (users/{userId}.employeeId) so Firestore security rules — which only
+// ever see request.auth.uid, never an Employee.id — can resolve "which
+// employee is this request" with one cheap get() when scoping
+// leads/customers/bookings reads to assignedTo. Best-effort: a login
+// account not existing yet (or the write racing a not-yet-created users
+// doc) must never block saving the employee record itself.
+async function syncEmployeeIdOnUser(userId: string, employeeId: string): Promise<void> {
+  try {
+    await updateDoc(doc(db, FIRESTORE_COLLECTIONS.USERS, userId), { employeeId });
+  } catch { /* best-effort */ }
+}
+
 export async function fetchEmployees(): Promise<Employee[]> {
   return repo.findMany({ constraints: [orderBy("fullName", "asc")] });
+}
+
+// One-time migration for accounts linked to an employee before employeeId
+// denormalization existed — createEmployee/updateEmployee sync it going
+// forward, but an employee whose userId link was set previously and hasn't
+// been re-saved since needs this run once. Safe to run repeatedly (it's
+// just re-applying the same sync), so no "already migrated" bookkeeping.
+export async function backfillEmployeeUserLinks(): Promise<{ synced: number; total: number }> {
+  const all = await repo.findMany({});
+  const linked = all.filter((e) => e.userId);
+  await Promise.all(linked.map((e) => syncEmployeeIdOnUser(e.userId as string, e.id)));
+  return { synced: linked.length, total: all.length };
 }
 
 export async function fetchEmployeeById(id: string): Promise<Employee | null> {
@@ -32,6 +57,7 @@ export async function fetchEmployeeByUserId(uid: string, email?: string | null):
     if (byEmail.length > 0) {
       const match = byEmail[0];
       if (!match.userId) await repo.update(match.id, { userId: uid } as Partial<Employee>);
+      syncEmployeeIdOnUser(uid, match.id);
       return { ...match, userId: uid };
     }
   }
@@ -76,6 +102,8 @@ export async function createEmployee(
     status:             "active",
     profilePictureUrl:  null,
     reportingManagerName: data.reportingManagerName ?? null,
+    functionalManagerId: data.functionalManagerId || null,
+    functionalManagerName: data.functionalManagerName ?? null,
     documents:          [],
     gender:             data.gender || null,
     dateOfBirth:        data.dateOfBirth || null,
@@ -95,6 +123,7 @@ export async function createEmployee(
 
   sendWelcomeEmail(employee);
   announceNewHire(employee);
+  if (employee.userId) syncEmployeeIdOnUser(employee.userId, employee.id);
   return employee;
 }
 
@@ -104,7 +133,8 @@ export async function updateEmployee(
 ): Promise<void> {
   const patch: Partial<Employee> = { ...data };
   if (data.userId !== undefined) patch.userId = data.userId || null;
-  return repo.update(id, patch);
+  await repo.update(id, patch);
+  if (data.userId) syncEmployeeIdOnUser(data.userId, id);
 }
 
 export async function deleteEmployee(id: string): Promise<void> {

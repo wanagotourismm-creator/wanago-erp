@@ -31,9 +31,12 @@ export const PERMISSION_MAP: PermissionMap = {
     "reports:view", "reports:export",
   ],
 
+  // Only sees leads/customers assigned to them (or unassigned) — Operations
+  // and Sales Head remain the only non-admin roles with full visibility;
+  // see roleCanViewAll() in firestore.rules for the matching enforcement.
   marketing: [
-    "leads:view_all", "leads:view_own", "leads:create", "leads:edit",
-    "customers:view_all",
+    "leads:view_own", "leads:create", "leads:edit",
+    "customers:view_own",
     "reports:view",
   ],
 

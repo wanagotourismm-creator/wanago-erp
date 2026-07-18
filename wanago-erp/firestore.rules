@@ -53,6 +53,113 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll(['createdAt', 'updatedAt', 'createdBy', 'status']);
     }
 
+    // ── Assignment-based visibility (leads/customers/bookings) ────
+    // assignedTo stores an Employee.id, not a uid, so resolving "which
+    // employee is this signed-in user" needs the employeeId denormalized
+    // onto users/{uid} at account-link time (see employee.service.ts's
+    // syncEmployeeIdOnUser). Missing/unsynced accounts just get null here,
+    // which safely falls through to "can't see assigned-to-someone-else
+    // records" rather than throwing.
+    function getUserEmployeeId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('employeeId', null);
+    }
+
+    // Mirrors PERMISSION_MAP in src/lib/rbac.ts: an admin-set override for
+    // this role (settings/rolePermissions) wins if present; otherwise fall
+    // back to the static defaults below. KEEP THESE IN SYNC WITH
+    // PERMISSION_MAP — duplicated here because rules can't import the TS
+    // source of truth. Today's defaults: Operations and Sales Head see
+    // every lead/customer/booking; Finance additionally sees every
+    // booking (needed to approve bookings it isn't assigned to) but has
+    // no leads/customers access at all. Super Admin/Admin bypass via
+    // isAdmin() at each call site; everyone else only sees unassigned
+    // records plus their own.
+    function defaultViewAllRoles(permission) {
+      return permission == 'bookings:view_all'
+        ? ['operations', 'sales_head', 'finance']
+        : ['operations', 'sales_head'];
+    }
+    function roleCanViewAll(permission) {
+      let role = getUserRole();
+      // get() on a doc that doesn't exist yet (no admin has saved an
+      // override) throws when you touch .data, so guard with exists()
+      // first — same reason fetchRolePermissions() falls back to
+      // PERMISSION_MAP client-side when the doc is missing.
+      let override = exists(/databases/$(database)/documents/settings/rolePermissions)
+        ? get(/databases/$(database)/documents/settings/rolePermissions).data.get('roles', {}).get(role, null)
+        : null;
+      return override != null ? (permission in override) : (role in defaultViewAllRoles(permission));
+    }
+
+    // The shared read condition for leads/customers/bookings: Admin/Super
+    // Admin and any role with the view_all permission see everything;
+    // everyone else only sees a record that's unassigned (anyone can still
+    // claim it) or assigned specifically to them.
+    function canViewAssigned(permission) {
+      return isAdmin() || roleCanViewAll(permission) ||
+        resource.data.get('assignedTo', null) == null ||
+        resource.data.get('assignedTo', null) == getUserEmployeeId();
+    }
+
+    // ── Catch-all exclusion lists ─────────────────────────────
+    // IMPORTANT: Firestore evaluates every `match` block whose path pattern
+    // matches a request and grants access if ANY of them allow it (rules are
+    // OR'd, not "most-specific wins" — confirmed live against this project).
+    // That means the generic catch-all at the bottom of this file (its own
+    // comment explains the mechanism in more detail) silently RE-GRANTS
+    // broad access to every collection below unless explicitly excluded here
+    // — a dedicated stricter rule above does nothing on its own. Any
+    // collection with a dedicated rule stricter than plain
+    // isAuthenticated()+hasRequiredFields() for a given verb MUST be listed
+    // in that verb's function below, or its restriction is a no-op.
+    function isReadRestricted(collectionName) {
+      return collectionName in [
+        'activities', 'systemUsage', 'teamPulseResponses', 'referralPartners',
+        'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
+        'hrmsPayroll', 'hrmsSuspiciousAttendance',
+        'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
+        // Each has its own dedicated, stricter read rule above
+        // (canViewAssigned) — without this exclusion the catch-all's plain
+        // isAuthenticated() grant silently re-opens them to everyone.
+        'leads', 'customers', 'bookings'
+      ];
+    }
+
+    function isCreateRestricted(collectionName) {
+      return collectionName in [
+        'users', 'offices', 'quotations', 'invoices', 'payments', 'expenses',
+        'packages', 'suppliers', 'itineraries', 'itineraryBrochures', 'campaigns',
+        'hrmsEmployees', 'trainingPrograms', 'trainingEnrollments', 'hrmsPayroll',
+        'onboardingTasks', 'onboardingTrainingModules', 'onboardingTrainingSteps',
+        'onboardingTrainingProgress', 'trainingCertificates', 'trainingPracticeSubmissions',
+        'helpArticles', 'hrPolicyDocuments',
+        'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
+        'companyGoals', 'objectives', 'goalCheckIns',
+        'referralPartners', 'referralPosters', 'referralClicks',
+        'assets', 'settings', 'bookingRequests', 'quickInquiries', 'holidays',
+        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
+        'whatsappTemplates', 'teamPulseResponses', 'digests'
+      ];
+    }
+
+    function isUpdateRestricted(collectionName) {
+      return collectionName in [
+        'users', 'offices', 'customers', 'bookings', 'quotations', 'invoices',
+        'payments', 'expenses', 'packages', 'suppliers', 'itineraries',
+        'itineraryBrochures', 'campaigns', 'hrmsEmployees',
+        'hrmsLeaves', 'hrmsRegularizations', 'tickets',
+        'trainingPrograms', 'trainingEnrollments', 'hrmsPayroll', 'hrmsSuspiciousAttendance',
+        'onboardingTasks', 'onboardingTrainingModules', 'onboardingTrainingSteps',
+        'onboardingTrainingProgress', 'trainingCertificates', 'trainingPracticeSubmissions',
+        'notifications', 'settings', 'referralBonuses', 'referralPartners', 'referralPosters',
+        'referralClicks', 'assets', 'assetRequests', 'holidays',
+        'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
+        'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
+        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
+        'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash'
+      ];
+    }
+
     // Shared by hrmsLeaves and assetRequests: a request may be updated by
     // HR/Admin, by the employee it belongs to (e.g. cancelling their own
     // request), or by that employee's direct reporting manager (the ESS
@@ -168,7 +275,7 @@ service cloud.firestore {
 
     // ── Leads ────────────────────────────────────────────────
     match /leads/{leadId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && canViewAssigned('leads:view_all');
       allow create: if isAuthenticated() && hasRequiredFields();
       allow update: if isAuthenticated();
       allow delete: if isAdmin();
@@ -176,7 +283,7 @@ service cloud.firestore {
 
     // ── Customers ────────────────────────────────────────────
     match /customers/{customerId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && canViewAssigned('customers:view_all');
       allow create: if isAuthenticated() && hasRequiredFields();
       allow update: if isAuthenticated() && (
         !touchesAssignmentFields(['assignedTo']) || canReassign()
@@ -192,7 +299,7 @@ service cloud.firestore {
     // reject actions can't be replayed by an arbitrary authenticated user
     // (they were previously gated only by hiding the button in the UI).
     match /bookings/{bookingId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && canViewAssigned('bookings:view_all');
       allow create: if isAuthenticated() && hasRequiredFields();
       allow update: if isAuthenticated() && (
         (
@@ -754,37 +861,21 @@ service cloud.firestore {
     // user to delete documents in any collection with no dedicated rule
     // (e.g. the audit-log `activities` collection), which is exactly the
     // gap the Admin-only Collection Explorer screen relied on the UI (not
-    // the rules) to prevent.
+    // the rules) to prevent. Delete never needs a per-collection exclusion
+    // like read/create/update do below: this isAdmin() grant is already the
+    // strictest delete permission any dedicated rule above asks for, so
+    // OR'ing it in can only ever match what a dedicated rule already allows
+    // (or, for a few HR collections that intentionally let 'hr' delete too,
+    // add to what's already explicitly granted there) — never more.
     //
-    // IMPORTANT: Firestore evaluates every `match` block whose path pattern
-    // matches a request and grants access if ANY of them allow it (rules
-    // are OR'd, not "most specific wins") — confirmed live against this
-    // project. That means a stricter dedicated rule above can never
-    // actually restrict what this catch-all already grants; it can only
-    // add more access. `activities` is excluded by name below so its
-    // dedicated Admin-only read/update block isn't silently overridden by
-    // this catch-all's broader `isAuthenticated()` grant. This same
-    // interaction likely affects other dedicated rules in this file
-    // (anywhere a specific block is stricter than this catch-all) — out of
-    // scope for this change, flagged separately.
+    // See isReadRestricted/isCreateRestricted/isUpdateRestricted above for
+    // why read/create/update all need an explicit per-collection exclusion
+    // list instead: a stricter dedicated rule above can never actually
+    // restrict what this catch-all grants on its own, only add to it.
     match /{collection}/{id} {
-      // teamPulseResponses excluded the same way activities/systemUsage
-      // are — its dedicated isAdmin()-only read rule above would otherwise
-      // be silently overridden by this catch-all's broader grant, breaking
-      // the "individual responses are never visible to viewers" guarantee.
-      allow read:   if isAuthenticated() && collection != 'activities' && collection != 'systemUsage' && collection != 'teamPulseResponses' && collection != 'referralPartners' && collection != 'aiUsageLogs' && collection != 'aiActionLogs' && collection != 'aiPredictions';
-      // aiUsageLogs/aiActionLogs/aiPredictions excluded here too — their
-      // dedicated `write: if false` rules above are meant to be
-      // server-only (Admin SDK bypasses rules entirely), but since rules
-      // are OR'd, leaving them out of this exclusion would let any
-      // authenticated user satisfy hasRequiredFields() and write directly
-      // into any of these collections, defeating that restriction entirely.
-      // whatsappTemplates excluded from create/update the same way — its
-      // dedicated isAdmin()-only write rule above would otherwise be
-      // silently overridden by this catch-all's broader grant to any
-      // authenticated user who satisfies hasRequiredFields().
-      allow create: if isAuthenticated() && hasRequiredFields() && collection != 'aiUsageLogs' && collection != 'aiActionLogs' && collection != 'aiPredictions' && collection != 'whatsappTemplates';
-      allow update: if isAuthenticated() && hasRequiredFields() && collection != 'activities' && collection != 'whatsappTemplates';
+      allow read:   if isAuthenticated() && !isReadRestricted(collection);
+      allow create: if isAuthenticated() && hasRequiredFields() && !isCreateRestricted(collection);
+      allow update: if isAuthenticated() && hasRequiredFields() && !isUpdateRestricted(collection);
       allow delete: if isAdmin();
     }
   }

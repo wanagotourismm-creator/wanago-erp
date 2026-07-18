@@ -29,6 +29,7 @@ import type { CallMethod, CallDirection } from "@/modules/call-logs/types";
 type Props = {
   customer:  Customer | null;
   canManage: boolean;
+  canDelete: boolean;
   onClose:   () => void;
   onEdit:    (customer: Customer) => void;
   onDelete:  (customer: Customer) => void;
@@ -69,7 +70,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDelete, onCreateQuotation }: Props) {
+export function CustomerDetailModal({ customer, canManage, canDelete, onClose, onEdit, onDelete, onCreateQuotation }: Props) {
   const [bookings, setBookings]         = useState<Booking[]>([]);
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -397,12 +398,14 @@ export function CustomerDetailModal({ customer, canManage, onClose, onEdit, onDe
               >
                 <Edit2 size={13} /> Edit
               </button>
-              <button
-                onClick={() => onDelete(customer)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 size={13} /> Delete
-              </button>
+              {canDelete && (
+                <button
+                  onClick={() => onDelete(customer)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              )}
             </div>
             <button
               onClick={() => onCreateQuotation(customer)}

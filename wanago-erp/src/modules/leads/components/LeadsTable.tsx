@@ -15,6 +15,7 @@ import type { Lead } from "@/modules/leads/types";
 type Props = {
   leads:      Lead[];
   loading:    boolean;
+  canDelete:  boolean;
   onView:     (lead: Lead) => void;
   onEdit:     (lead: Lead) => void;
   onDelete:   (lead: Lead) => void;
@@ -29,7 +30,7 @@ function canQuoteLead(lead: Lead): boolean {
   return !["quoted", "negotiation", "won", "lost"].includes(lead.stage);
 }
 
-export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage, onCreateQuotation }: Props) {
+export function LeadsTable({ leads, loading, canDelete, onView, onEdit, onDelete, onStage, onCreateQuotation }: Props) {
   const [creatingId, setCreatingId] = useState<string | null>(null);
 
   async function handleCreateQuotation(lead: Lead) {
@@ -59,7 +60,7 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage, 
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {["Lead", "Contact", "Destination", "Stage", "Priority", "Source", "Date", ""].map((h) => (
+                {["Lead", "Contact", "Destination", "Agent", "Stage", "Priority", "Source", "Date", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -115,6 +116,15 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage, 
                     </div>
                   </td>
 
+                  {/* Assigned Agent */}
+                  <td className="px-4 py-3">
+                    {lead.agentName ? (
+                      <span className="text-xs text-foreground">{lead.agentName}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                    )}
+                  </td>
+
                   {/* Stage */}
                   <td className="px-4 py-3">
                     <select
@@ -166,13 +176,15 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage, 
                       >
                         <Edit2 size={13} />
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(lead); }}
-                        title="Delete"
-                        className={cn("flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors")}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(lead); }}
+                          title="Delete"
+                          className={cn("flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors")}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </td>
 
@@ -208,13 +220,13 @@ export function LeadsTable({ leads, loading, onView, onEdit, onDelete, onStage, 
               onClick:   () => onEdit(lead),
               className: "bg-blue-600",
             },
-            {
+            ...(canDelete ? [{
               key:       "delete",
               icon:      <Trash2 size={16} />,
               label:     "Delete",
               onClick:   () => onDelete(lead),
               className: "bg-red-600",
-            },
+            }] : []),
           ];
 
           return (

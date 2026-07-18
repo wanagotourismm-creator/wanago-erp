@@ -10,7 +10,9 @@ import { LeadDetailModal } from "@/modules/leads/components/LeadDetailModal";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { PinConfirmDialog } from "@/components/shared/PinConfirmDialog";
 import { useAuthStore } from "@/store/auth.store";
+import { hasPermission } from "@/lib/rbac";
 import { cn } from "@/lib/utils/helpers";
 import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";
@@ -57,6 +59,7 @@ const STAGE_FILTERS = [
 export function LeadsPage() {
   const { leads, loading, addLead, editLead, changeStage, removeLead, createQuotation, generateLink, load } = useLeads();
   const { user } = useAuthStore();
+  const canDelete = !!user && hasPermission(user.systemRole, "leads:delete");
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -67,6 +70,7 @@ export function LeadsPage() {
   const [search,      setSearch]      = useState("");
   const [importOpen,  setImportOpen]  = useState(false);
   const [offices,     setOffices]     = useState<Office[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<Lead | null>(null);
 
   useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
@@ -243,10 +247,16 @@ export function LeadsPage() {
     setFormOpen(true);
   }
 
-  async function handleDelete(lead: Lead) {
-    if (!confirm(`Delete lead "${lead.name}"? This cannot be undone.`)) return;
+  function handleDelete(lead: Lead) {
+    if (!canDelete) return;
     setViewingLead(null);
-    await removeLead(lead.id);
+    setPendingDelete(lead);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    await removeLead(pendingDelete.id);
+    setPendingDelete(null);
   }
 
   async function handleCreateQuotation(lead: Lead): Promise<{ error: string | null }> {
@@ -338,6 +348,7 @@ export function LeadsPage() {
           <LeadsTable
             leads={filtered}
             loading={loading}
+            canDelete={canDelete}
             onView={setViewingLead}
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -351,12 +362,21 @@ export function LeadsPage() {
       {/* Detail popup */}
       <LeadDetailModal
         lead={viewingLead ? filtered.find(l => l.id === viewingLead.id) ?? viewingLead : null}
+        canDelete={canDelete}
         onClose={() => setViewingLead(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStage={(lead, stage) => changeStage(lead.id, stage)}
         onCreateQuotation={handleCreateQuotation}
         onGenerateLink={generateLink}
+      />
+
+      <PinConfirmDialog
+        open={!!pendingDelete}
+        title="Delete lead"
+        message={pendingDelete ? `Delete lead "${pendingDelete.name}"? This cannot be undone.` : undefined}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
       />
 
       {/* Form drawer */}

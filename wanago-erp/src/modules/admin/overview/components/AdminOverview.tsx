@@ -12,7 +12,7 @@ import type { CollectionHealth } from "@/modules/admin/health/services/health.se
 import type { ActivityLogEntry } from "@/lib/activity-log";
 
 export type AdminTabKey =
-  | "users" | "offices" | "activity" | "settings" | "permissions" | "integrations"
+  | "users" | "offices" | "activity" | "settings" | "permissions" | "security" | "integrations"
   | "export" | "announcements" | "holidays" | "assets" | "tickets" | "goals" | "health" | "trash" | "explorer"
   | "helpcenter" | "whatsapp-templates";
 

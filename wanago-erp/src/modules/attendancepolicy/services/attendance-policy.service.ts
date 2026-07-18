@@ -1,0 +1,56 @@
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+
+export type AttendancePolicy = {
+  workStartTime:      string; // "HH:mm", office start time
+  workEndTime:        string; // "HH:mm", office end time
+  gracePeriodMinutes: number; // minutes after workStartTime before a check-in counts as late
+  halfDayHours:       number; // hoursWorked below this counts as a half day
+  fullDayHours:       number; // hoursWorked at/above this counts as a full day
+};
+
+const DOC_ID = "attendancePolicy";
+
+export const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
+  workStartTime:      "09:30",
+  workEndTime:        "18:30",
+  gracePeriodMinutes: 15,
+  halfDayHours:       4,
+  fullDayHours:       8,
+};
+
+export async function fetchAttendancePolicy(): Promise<AttendancePolicy> {
+  const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, DOC_ID));
+  if (!snap.exists()) return DEFAULT_ATTENDANCE_POLICY;
+  const data = snap.data() as Partial<AttendancePolicy>;
+  return { ...DEFAULT_ATTENDANCE_POLICY, ...data };
+}
+
+export async function updateAttendancePolicy(data: AttendancePolicy, updatedBy: string): Promise<void> {
+  await setDoc(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, DOC_ID), {
+    ...data,
+    updatedAt: serverTimestamp(),
+    updatedBy,
+  }, { merge: true });
+}
+
+// clockIn/workStartTime are both "HH:mm" — a record is late once it's past
+// the start time plus the grace period. Returns false for a missing
+// clock-in (nothing to flag yet).
+export function isLateArrival(clockIn: string | null | undefined, policy: AttendancePolicy): boolean {
+  if (!clockIn) return false;
+  const [inH, inM] = clockIn.split(":").map(Number);
+  const [startH, startM] = policy.workStartTime.split(":").map(Number);
+  const inMinutes = inH * 60 + inM;
+  const cutoffMinutes = startH * 60 + startM + policy.gracePeriodMinutes;
+  return inMinutes > cutoffMinutes;
+}
+
+// A checkout before the office's end time counts as leaving early.
+export function isEarlyDeparture(clockOut: string | null | undefined, policy: AttendancePolicy): boolean {
+  if (!clockOut) return false;
+  const [outH, outM] = clockOut.split(":").map(Number);
+  const [endH, endM] = policy.workEndTime.split(":").map(Number);
+  return (outH * 60 + outM) < (endH * 60 + endM);
+}

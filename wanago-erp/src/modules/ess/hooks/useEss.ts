@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchEmployeeByUserId, fetchEmployees, fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
-import { fetchAttendanceByEmployee, fetchAttendanceRecords, createAttendanceRecord, updateAttendanceRecord, uploadAttendanceSelfie, decideLocationApproval } from "@/modules/hrms/attendance/services/attendance.service";
+import { fetchAttendanceByEmployee, fetchAttendanceRecords, updateAttendanceRecord, uploadAttendanceSelfie, decideLocationApproval } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchLeaves, fetchLeavesByEmployee, createLeaveRequest, cancelLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
 import { fetchRegularizations, fetchRegularizationsByEmployee, createRegularizationRequest, approveRegularization, rejectRegularization } from "@/modules/hrms/regularization/services/regularization.service";
 import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service";
@@ -19,6 +19,7 @@ import { notifyUser } from "@/lib/notify";
 import { auth } from "@/lib/firebase/client";
 import { WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
+import { fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, isLateArrival, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
 import type { Asset, AssetRequest } from "@/modules/assets/types";
@@ -31,6 +32,25 @@ import type { Holiday } from "@/modules/admin/holidays/types";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const nowTime  = () => new Date().toTimeString().slice(0, 5);
+
+// Clock-in/out writes go through this server route (Firebase Admin SDK,
+// see /api/hrms/attendance/clock) instead of straight to Firestore from
+// the client — the server derives the date/time itself (a wrong device
+// clock/timezone can no longer misrecord it) and runs the
+// check-then-create/update inside one transaction (closing the race where
+// two near-simultaneous check-ins could both land).
+async function postAttendanceClock(body: Record<string, unknown>): Promise<{ hoursWorked?: number | null }> {
+  const idToken = await auth.currentUser?.getIdToken();
+  if (!idToken) throw new Error("Not signed in");
+  const res = await fetch("/api/hrms/attendance/clock", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${idToken}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Failed to record attendance");
+  return data;
+}
 
 export const BREAK_ALLOWANCE_MINUTES = 60;
 
@@ -77,20 +97,24 @@ export function useEss() {
   const [myTickets, setMyTickets] = useState<Ticket[]>([]);
   const [office, setOffice] = useState<Office | null>(null);
   const [leavePolicy, setLeavePolicy] = useState<LeavePolicy>(DEFAULT_LEAVE_POLICY);
+  const [attendancePolicy, setAttendancePolicy] = useState<AttendancePolicy>(DEFAULT_ATTENDANCE_POLICY);
+  const [forgottenCheckout, setForgottenCheckout] = useState<AttendanceRecord | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setLoadError(null);
     try {
-      const [emp, hols, policy] = await Promise.all([
+      const [emp, hols, policy, attPolicy] = await Promise.all([
         fetchEmployeeByUserId(user.uid, user.email),
         fetchHolidays(),
         fetchLeavePolicy(),
+        fetchAttendancePolicy(),
       ]);
       setEmployee(emp);
       setHolidays(hols);
       setLeavePolicy(policy);
+      setAttendancePolicy(attPolicy);
 
       if (emp) {
         const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity, empAssets, myAssetReqs, myTix, offices] = await Promise.all([
@@ -108,6 +132,15 @@ export function useEss() {
         setAttendance(att);
         setLeaves(myLeaves);
         setRegularizations(myRegs);
+
+        // No auto-checkout job runs in this project (no scheduled
+        // Cloud Functions deployed), so a forgotten checkout would
+        // otherwise just sit open forever with no visible sign of it.
+        // Surface the most recent one (that hasn't already had a
+        // correction filed for it) as a banner instead.
+        const openPriorDay = att.find((a) => a.date !== todayStr() && !!a.clockIn && !a.clockOut) ?? null;
+        const alreadyFiled = openPriorDay ? myRegs.some((r) => r.date === openPriorDay.date) : false;
+        setForgottenCheckout(alreadyFiled ? null : openPriorDay);
         setPayroll(myPayroll);
         setActivity(recentActivity.filter((a) => a.actorId === user.uid));
         setMyAssets(empAssets);
@@ -248,17 +281,17 @@ export function useEss() {
         selfieUrl = await uploadAttendanceSelfie(employee.id, today, "check_in", selfieFile);
       }
 
-      const rec = await createAttendanceRecord({
+      await postAttendanceClock({
+        type: "in",
         employeeId: employee.id, employeeName: employee.fullName,
-        date: today, status: "present", clockIn: nowTime(), clockOut: "", notes: "",
-        officeId: employee.officeId, breakStartTime: null, breakMinutes: 0,
+        officeId: employee.officeId,
         clockInLat: ctx.pos?.lat ?? null, clockInLng: ctx.pos?.lng ?? null, withinGeofence: ctx.withinGeofence,
         clockInAddress: ctx.address,
         clockInSelfieUrl: selfieUrl,
         distanceFromOfficeMeters: outOfRange ? ctx.distanceMeters : null,
         locationApprovalStatus: outOfRange ? "pending" : null,
-      }, user.uid);
-      setAttendance((p) => [rec, ...p]);
+      });
+      await load();
 
       if (outOfRange) {
         const km = ctx.distanceMeters != null ? (ctx.distanceMeters / 1000).toFixed(1) : "an unknown distance";
@@ -289,8 +322,9 @@ export function useEss() {
         selfieUrl = await uploadAttendanceSelfie(employee?.id ?? "unknown", today, "check_out", selfieFile);
       }
 
-      await updateAttendanceRecord(todayRecord.id, {
-        clockOut: nowTime(),
+      await postAttendanceClock({
+        type: "out",
+        recordId: todayRecord.id, employeeId: employee?.id,
         clockOutLat: ctx.pos?.lat ?? null,
         clockOutLng: ctx.pos?.lng ?? null,
         withinGeofenceOut: ctx.withinGeofence,
@@ -536,7 +570,7 @@ export function useEss() {
     loading, loadError, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
-    leavePolicy, enabledLeaveTypes,
+    leavePolicy, enabledLeaveTypes, attendancePolicy, forgottenCheckout,
     clockIn, clockOut, resolveCheckInContext, startBreak, endBreak, applyLeave, cancelMyLeave,
     requestCorrection, requestAsset, reportIssue, decideInboxItem, reload: load,
   };

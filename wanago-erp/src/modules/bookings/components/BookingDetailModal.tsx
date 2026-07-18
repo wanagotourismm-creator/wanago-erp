@@ -13,6 +13,7 @@ import type { Booking } from "@/modules/bookings/types";
 type Props = {
   booking:           Booking | null;
   canManage:         boolean;
+  canDelete:         boolean;
   canApprove:        boolean;
   onClose:           () => void;
   onEdit:            (booking: Booking) => void;
@@ -30,7 +31,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function BookingDetailModal({
-  booking, canManage, canApprove,
+  booking, canManage, canDelete, canApprove,
   onClose, onEdit, onDelete, onStatus,
 }: Props) {
   const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
@@ -186,20 +187,20 @@ export function BookingDetailModal({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-primary/15 bg-muted/30 px-6 py-4">
           <div className="flex items-center gap-2">
             {canManage && (
-              <>
-                <button
-                  onClick={() => onEdit(booking)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
-                >
-                  <Edit2 size={13} /> Edit
-                </button>
-                <button
-                  onClick={() => onDelete(booking)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  <Trash2 size={13} /> Delete
-                </button>
-              </>
+              <button
+                onClick={() => onEdit(booking)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+              >
+                <Edit2 size={13} /> Edit
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => onDelete(booking)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
             )}
           </div>
           {canApprove && (

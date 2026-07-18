@@ -11,6 +11,7 @@ import { BookingForm } from "@/modules/bookings/components/BookingForm";
 import { formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { PinConfirmDialog } from "@/components/shared/PinConfirmDialog";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { cn, toDate } from "@/lib/utils/helpers";
@@ -58,8 +59,10 @@ export function BookingsPage() {
   const canCreate  = !!user && hasPermission(user.systemRole, "bookings:create");
   const canManage  = !!user && hasPermission(user.systemRole, "bookings:edit");
   const canApprove = !!user && hasPermission(user.systemRole, "bookings:approve");
+  const canDelete  = !!user && hasPermission(user.systemRole, "bookings:delete");
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [pendingDelete, setPendingDelete] = useState<Booking | null>(null);
 
   const [formOpen,       setFormOpen]       = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -244,10 +247,16 @@ export function BookingsPage() {
     setFormOpen(true);
   }
 
-  async function handleDelete(booking: Booking) {
-    if (!confirm(`Delete booking "${booking.refNumber}"? This cannot be undone.`)) return;
+  function handleDelete(booking: Booking) {
+    if (!canDelete) return;
     setViewingBooking(null);
-    await removeBooking(booking.id);
+    setPendingDelete(booking);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    await removeBooking(pendingDelete.id);
+    setPendingDelete(null);
   }
 
   return (
@@ -357,6 +366,7 @@ export function BookingsPage() {
           bookings={filtered}
           loading={loading}
           canManage={canManage}
+          canDelete={canDelete}
           canApprove={canApprove}
           goingColdBookingIds={goingColdBookingIds}
           onView={setViewingBooking}
@@ -370,11 +380,20 @@ export function BookingsPage() {
       <BookingDetailModal
         booking={viewingBooking ? filtered.find(b => b.id === viewingBooking.id) ?? viewingBooking : null}
         canManage={canManage}
+        canDelete={canDelete}
         canApprove={canApprove}
         onClose={() => setViewingBooking(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStatus={(booking, status) => changeStatus(booking.id, status)}
+      />
+
+      <PinConfirmDialog
+        open={!!pendingDelete}
+        title="Delete booking"
+        message={pendingDelete ? `Delete booking "${pendingDelete.refNumber}"? This cannot be undone.` : undefined}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
       />
 
       {/* Form drawer */}

@@ -30,6 +30,12 @@ export type Employee = FirestoreRecord & {
   designation:           string;
   reportingManagerId:    string | null;
   reportingManagerName:  string | null;
+  // A more senior manager above the Reporting Manager (e.g. a department
+  // head/skip-level) — org-chart/record-keeping only, distinct from
+  // reportingManagerId's day-to-day team head. Doesn't drive any
+  // notification/approval routing (that stays on reportingManagerId).
+  functionalManagerId:   string | null;
+  functionalManagerName: string | null;
   employmentType:        EmploymentType;
   dateOfJoining:         string | null;
   probationStatus:       ProbationStatus;
@@ -106,6 +112,10 @@ export type AttendanceRecord = FirestoreRecord & {
   clockIn: string | null;
   clockOut: string | null;
   hoursWorked: number | null;
+  // Set when calcHours() can't trust the wrapped overnight duration (e.g.
+  // implausibly long, likely a forgotten checkout) — hoursWorked is left
+  // null in that case rather than showing a wrong number.
+  needsReview?: boolean;
   notes: string | null;
   officeId: string;
   breakStartTime: string | null;

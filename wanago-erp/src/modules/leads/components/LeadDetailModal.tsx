@@ -15,6 +15,7 @@ import type { Lead } from "@/modules/leads/types";
 
 type Props = {
   lead:      Lead | null;
+  canDelete: boolean;
   onClose:   () => void;
   onEdit:    (lead: Lead) => void;
   onDelete:  (lead: Lead) => void;
@@ -36,7 +37,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage, onCreateQuotation, onGenerateLink }: Props) {
+export function LeadDetailModal({ lead, canDelete, onClose, onEdit, onDelete, onStage, onCreateQuotation, onGenerateLink }: Props) {
   const [callFormOpen, setCallFormOpen] = useState(false);
   const [callPrefill, setCallPrefill] = useState<{ method: CallMethod; direction: CallDirection } | null>(null);
   const [callLogRefreshKey, setCallLogRefreshKey] = useState(0);
@@ -293,12 +294,14 @@ export function LeadDetailModal({ lead, onClose, onEdit, onDelete, onStage, onCr
             >
               <Edit2 size={13} /> Edit
             </button>
-            <button
-              onClick={() => onDelete(lead)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 size={13} /> Delete
-            </button>
+            {canDelete && (
+              <button
+                onClick={() => onDelete(lead)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {canQuote && (

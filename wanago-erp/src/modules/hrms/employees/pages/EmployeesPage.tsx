@@ -60,6 +60,7 @@ export function EmployeesPage() {
 
   async function handleSubmit(data: EmployeeSchema) {
     const manager = employees.find(e => e.id === data.reportingManagerId);
+    const functionalManager = employees.find(e => e.id === data.functionalManagerId);
     const payload = {
       ...data,
       gender:             data.gender || null,
@@ -68,6 +69,8 @@ export function EmployeesPage() {
       address:            data.address || null,
       reportingManagerId: data.reportingManagerId || null,
       reportingManagerName: manager?.fullName ?? null,
+      functionalManagerId: data.functionalManagerId || null,
+      functionalManagerName: functionalManager?.fullName ?? null,
       dateOfJoining:      data.dateOfJoining || null,
       bankAccountNumber:  data.bankAccountNumber || null,
       bankName:           data.bankName || null,
@@ -136,6 +139,7 @@ export function EmployeesPage() {
     Department:             e.department,
     Designation:            e.designation,
     "Reporting Manager":    e.reportingManagerName ?? "",
+    "Functional Manager":   e.functionalManagerName ?? "",
     "Employment Type":      e.employmentType,
     "Date of Joining":      e.dateOfJoining ?? "",
     "Probation Status":     e.probationStatus,
@@ -162,6 +166,7 @@ export function EmployeesPage() {
     { key: "department", label: "Department", required: true, example: "Sales" },
     { key: "designation", label: "Designation", required: true, example: "Executive" },
     { key: "reportingManager", label: "Reporting Manager", example: "EMPLOYEE-0001 or full name" },
+    { key: "functionalManager", label: "Functional Manager", example: "EMPLOYEE-0001 or full name" },
     { key: "employmentType", label: "Employment Type", required: true, example: "full_time" },
     { key: "dateOfJoining", label: "Date of Joining", example: "2026-01-01" },
     { key: "probationStatus", label: "Probation Status", required: true, example: "probation" },
@@ -197,6 +202,14 @@ export function EmployeesPage() {
         )
       : undefined;
 
+    const functionalManagerRaw = raw["Functional Manager"]?.trim().toLowerCase();
+    const functionalManager = functionalManagerRaw
+      ? employees.find(e =>
+          e.employeeCode.toLowerCase() === functionalManagerRaw ||
+          e.fullName.toLowerCase() === functionalManagerRaw
+        )
+      : undefined;
+
     const candidate = {
       fullName:            raw["Full Name"] ?? "",
       gender:              (raw["Gender"]?.trim().toLowerCase() || undefined) as EmployeeSchema["gender"],
@@ -207,6 +220,7 @@ export function EmployeesPage() {
       department:          raw["Department"] ?? "",
       designation:         raw["Designation"] ?? "",
       reportingManagerId:  manager?.id ?? "",
+      functionalManagerId: functionalManager?.id ?? "",
       employmentType:      (raw["Employment Type"]?.trim() || "") as EmployeeSchema["employmentType"],
       dateOfJoining:       raw["Date of Joining"] ?? "",
       probationStatus:     (raw["Probation Status"]?.trim() || "") as EmployeeSchema["probationStatus"],
@@ -230,14 +244,15 @@ export function EmployeesPage() {
       data: {
         ...check.data,
         reportingManagerName: manager?.fullName ?? "",
-      } as EmployeeSchema & { reportingManagerName: string },
+        functionalManagerName: functionalManager?.fullName ?? "",
+      } as EmployeeSchema & { reportingManagerName: string; functionalManagerName: string },
     };
   }
 
-  async function onImport(rows: (EmployeeSchema & { reportingManagerName: string })[]) {
+  async function onImport(rows: (EmployeeSchema & { reportingManagerName: string; functionalManagerName: string })[]) {
     let created = 0, failed = 0;
     for (const row of rows) {
-      const { reportingManagerName, ...rest } = row;
+      const { reportingManagerName, functionalManagerName, ...rest } = row;
       const payload: EmployeeFormData = {
         ...rest,
         gender:             rest.gender || null,
@@ -246,6 +261,8 @@ export function EmployeesPage() {
         address:            rest.address || null,
         reportingManagerId: rest.reportingManagerId || null,
         reportingManagerName: reportingManagerName || null,
+        functionalManagerId: rest.functionalManagerId || null,
+        functionalManagerName: functionalManagerName || null,
         dateOfJoining:      rest.dateOfJoining || null,
         bankAccountNumber:  rest.bankAccountNumber || null,
         bankName:           rest.bankName || null,

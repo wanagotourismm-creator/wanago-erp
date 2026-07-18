@@ -13,6 +13,7 @@ import { computeCustomerSegment, type CustomerSegment } from "@/modules/customer
 import { BOOKING_STATUS } from "@/lib/constants";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { PinConfirmDialog } from "@/components/shared/PinConfirmDialog";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { cn, toDate } from "@/lib/utils/helpers";
@@ -50,8 +51,10 @@ export function CustomersPage() {
   const { user } = useAuthStore();
   const canManage = !!user && hasPermission(user.systemRole, "customers:edit");
   const canCreate = !!user && hasPermission(user.systemRole, "customers:create");
+  const canDelete = !!user && hasPermission(user.systemRole, "customers:delete");
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [pendingDelete, setPendingDelete] = useState<{ customer: Customer; message: string } | null>(null);
 
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -259,6 +262,7 @@ export function CustomersPage() {
   }
 
   async function handleDelete(customer: Customer) {
+    if (!canDelete) return;
     // Previously this deleted with no idea whether the customer had any
     // history — bookings/invoices/quotations don't get cleaned up or
     // relinked, so any of those left behind would just silently point at
@@ -278,9 +282,14 @@ export function CustomersPage() {
       ? `"${customer.fullName}" has ${linked} on record. Deleting the customer won't remove or relink those — they'll be left pointing at a customer that no longer exists. Delete anyway?`
       : `Delete customer "${customer.fullName}"? This cannot be undone.`;
 
-    if (!confirm(message)) return;
     setViewingCustomer(null);
-    await removeCustomer(customer.id);
+    setPendingDelete({ customer, message });
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    await removeCustomer(pendingDelete.customer.id);
+    setPendingDelete(null);
   }
 
   return (
@@ -377,6 +386,7 @@ export function CustomersPage() {
           customers={filtered}
           loading={loading}
           canManage={canManage}
+          canDelete={canDelete}
           segments={segments}
           onView={setViewingCustomer}
           onEdit={handleEdit}
@@ -389,10 +399,19 @@ export function CustomersPage() {
       <CustomerDetailModal
         customer={viewingCustomer ? filtered.find(c => c.id === viewingCustomer.id) ?? viewingCustomer : null}
         canManage={canManage}
+        canDelete={canDelete}
         onClose={() => setViewingCustomer(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onCreateQuotation={handleCreateQuotation}
+      />
+
+      <PinConfirmDialog
+        open={!!pendingDelete}
+        title="Delete customer"
+        message={pendingDelete?.message}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
       />
 
       {/* Form drawer */}

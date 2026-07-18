@@ -15,6 +15,7 @@ type Props = {
   bookings:            Booking[];
   loading:             boolean;
   canManage:           boolean;
+  canDelete:           boolean;
   canApprove:          boolean;
   // Set of booking ids (one per going-cold customer's most recent booking —
   // see computeGoingColdCustomers usage in BookingsPage.tsx) to flag with a
@@ -27,7 +28,7 @@ type Props = {
 };
 
 export function BookingsTable({
-  bookings, loading, canManage, canApprove, goingColdBookingIds,
+  bookings, loading, canManage, canDelete, canApprove, goingColdBookingIds,
   onView, onEdit, onDelete, onStatus,
 }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
@@ -50,7 +51,7 @@ export function BookingsTable({
           <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              {["Customer", "Trip", "Travel Date", "Amount", "Balance", "Status", "Date", ""].map((h) => (
+              {["Customer", "Trip", "Agent", "Travel Date", "Amount", "Balance", "Status", "Date", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                   {h}
                 </th>
@@ -93,6 +94,15 @@ export function BookingsTable({
                       {b.pax} pax {b.packageName ? `· ${b.packageName}` : ""}
                     </p>
                   </div>
+                </td>
+
+                {/* Assigned Agent */}
+                <td className="px-4 py-3">
+                  {b.agentName ? (
+                    <span className="text-xs text-foreground">{b.agentName}</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                  )}
                 </td>
 
                 {/* Travel Date */}
@@ -141,22 +151,26 @@ export function BookingsTable({
 
                 {/* Actions — inline, revealed on row hover */}
                 <td className="px-4 py-3">
-                  {canManage && (
+                  {(canManage || canDelete) && (
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onEdit(b); }}
-                        title="Edit"
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(b); }}
-                        title="Delete"
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {canManage && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onEdit(b); }}
+                          title="Edit"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(b); }}
+                          title="Delete"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </td>
@@ -179,22 +193,20 @@ export function BookingsTable({
               onClick:   () => { window.location.href = `tel:${b.customerPhone}`; },
               className: "bg-green-600",
             }] : []),
-            ...(canManage ? [
-              {
-                key:       "edit",
-                icon:      <Pencil size={16} />,
-                label:     "Edit",
-                onClick:   () => onEdit(b),
-                className: "bg-blue-600",
-              },
-              {
-                key:       "delete",
-                icon:      <Trash2 size={16} />,
-                label:     "Delete",
-                onClick:   () => onDelete(b),
-                className: "bg-red-600",
-              },
-            ] : []),
+            ...(canManage ? [{
+              key:       "edit",
+              icon:      <Pencil size={16} />,
+              label:     "Edit",
+              onClick:   () => onEdit(b),
+              className: "bg-blue-600",
+            }] : []),
+            ...(canDelete ? [{
+              key:       "delete",
+              icon:      <Trash2 size={16} />,
+              label:     "Delete",
+              onClick:   () => onDelete(b),
+              className: "bg-red-600",
+            }] : []),
           ];
 
           return (

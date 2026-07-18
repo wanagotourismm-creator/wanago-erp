@@ -17,10 +17,10 @@ export function useCustomers() {
   const { user } = useAuthStore();
   const { employee } = useCurrentEmployee();
 
-  // A `sales` user only sees customers assigned to them; every other role
-  // (including sales_head) sees the full unfiltered list.
+  // A role without customers:view_all only sees customers assigned to them
+  // (or unassigned); roles with it see the full list.
   const scopedCustomers = useMemo(
-    () => scopeByAssignee(customers, user?.systemRole ?? "sales", employee?.id ?? null),
+    () => scopeByAssignee(customers, user?.systemRole ?? "sales", employee?.id ?? null, "customers:view_all"),
     [customers, user?.systemRole, employee?.id]
   );
 

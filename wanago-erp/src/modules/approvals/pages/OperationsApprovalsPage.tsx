@@ -129,6 +129,7 @@ export function OperationsApprovalsPage() {
       <BookingDetailModal
         booking={viewingItem ? (viewingItem.data as Booking) : null}
         canManage={false}
+        canDelete={false}
         canApprove={false}
         onClose={() => setViewingItem(null)}
         onEdit={() => {}}

@@ -13,6 +13,7 @@ export const employeeSchema = z.object({
   department:            z.string().min(1, "Department is required"),
   designation:           z.string().min(1, "Designation is required"),
   reportingManagerId:    z.string().optional().or(z.literal("")),
+  functionalManagerId:   z.string().optional().or(z.literal("")),
   employmentType:        z.enum(["full_time", "part_time", "contract", "intern"]),
   dateOfJoining:         z.string().optional().or(z.literal("")),
   probationStatus:       z.enum(["probation", "confirmed"]),

@@ -22,10 +22,11 @@ export function useBookings() {
   const { user } = useAuthStore();
   const { employee } = useCurrentEmployee();
 
-  // A `sales` user only sees bookings assigned to them; every other role
-  // (including sales_head) sees the full unfiltered list.
+  // A role without bookings:view_all only sees bookings assigned to them
+  // (or unassigned); roles with it (including Finance, for approvals) see
+  // the full list.
   const scopedBookings = useMemo(
-    () => scopeByAssignee(bookings, user?.systemRole ?? "sales", employee?.id ?? null),
+    () => scopeByAssignee(bookings, user?.systemRole ?? "sales", employee?.id ?? null, "bookings:view_all"),
     [bookings, user?.systemRole, employee?.id]
   );
 

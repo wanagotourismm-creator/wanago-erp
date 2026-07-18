@@ -61,6 +61,7 @@ export function EmployeeProfile({ open, employee, employees, onClose, onUpdated 
   // same logic My HR uses to decide who's a manager and who reports to
   // whom, so it doubles as a diagnostic for "why can't X see their team".
   const manager = employees.find(e => e.id === employee.reportingManagerId) ?? null;
+  const functionalManager = employees.find(e => e.id === employee.functionalManagerId) ?? null;
   const directReports = employees.filter(e => e.reportingManagerId === employee.id);
 
   async function handlePhotoUpload(file: File) {
@@ -177,6 +178,7 @@ export function EmployeeProfile({ open, employee, employees, onClose, onUpdated 
                   <Row label="Department" value={employee.department} />
                   <Row label="Designation" value={employee.designation} />
                   <Row label="Reporting Manager" value={manager?.fullName} />
+                  <Row label="Functional Manager" value={functionalManager?.fullName} />
                   <Row label="Employment Type" value={EMPLOYMENT_TYPE_LABELS[employee.employmentType]} />
                   <Row label="Date of Joining" value={employee.dateOfJoining ? formatDate(employee.dateOfJoining) : null} />
                   <Row label="Office" value={employee.officeName} />

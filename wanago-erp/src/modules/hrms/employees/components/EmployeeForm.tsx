@@ -86,6 +86,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
           email:               employee.email ?? "",
           address:             employee.address ?? "",
           reportingManagerId:  employee.reportingManagerId ?? "",
+          functionalManagerId: employee.functionalManagerId ?? "",
           userId:              employee.userId ?? "",
           dateOfJoining:       employee.dateOfJoining ?? "",
           bankAccountNumber:   employee.bankAccountNumber ?? "",
@@ -249,6 +250,14 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
               </Field>
               <Field label="Reporting Manager">
                 <select className={inputClass} {...register("reportingManagerId")}>
+                  <option value="">None</option>
+                  {otherEmployees.map(e => (
+                    <option key={e.id} value={e.id}>{e.fullName}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Functional Manager">
+                <select className={inputClass} {...register("functionalManagerId")}>
                   <option value="">None</option>
                   {otherEmployees.map(e => (
                     <option key={e.id} value={e.id}>{e.fullName}</option>

@@ -24,6 +24,7 @@ import { PerformancePage } from "@/modules/performance/pages/PerformancePage";
 import { TrainingPage } from "@/modules/training/pages/TrainingPage";
 import { OnboardingPage } from "@/modules/onboarding/pages/OnboardingPage";
 import { LeavePolicyForm } from "@/modules/leavepolicy/components/LeavePolicyForm";
+import { AttendancePolicyForm } from "@/modules/attendancepolicy/components/AttendancePolicyForm";
 import { AnnouncementsPage } from "@/modules/hrms/announcements-view/pages/AnnouncementsPage";
 import { DocumentsHubPage } from "@/modules/hrms/documents-hub/pages/DocumentsHubPage";
 import { HelpCenterPanel } from "@/modules/helpcenter/components/HelpCenterPanel";
@@ -73,7 +74,8 @@ export function HrAdminPage() {
     {
       label: "Policy",
       items: [
-        can("hrms-leaves") && { key: "leave-policy", label: "Leave Policy", icon: Settings2 },
+        can("hrms-leaves")     && { key: "leave-policy", label: "Leave Policy", icon: Settings2 },
+        can("hrms-attendance") && { key: "attendance-policy", label: "Attendance Policy", icon: Clock },
       ].filter(Boolean) as HrNavGroup["items"],
     },
     {
@@ -121,6 +123,7 @@ export function HrAdminPage() {
       {section === "training"    && can("training")        && <TrainingPage />}
       {section === "onboarding"  && <OnboardingPage />}
       {section === "leave-policy" && can("hrms-leaves")    && <LeavePolicyForm />}
+      {section === "attendance-policy" && can("hrms-attendance") && <AttendancePolicyForm />}
       {section === "announcements" && <AnnouncementsPage />}
       {section === "documents"   && <DocumentsHubPage />}
       {section === "help"        && <HelpCenterPanel />}

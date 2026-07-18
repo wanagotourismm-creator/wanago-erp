@@ -14,6 +14,7 @@ type Props = {
   customers: Customer[];
   loading:   boolean;
   canManage: boolean;
+  canDelete: boolean;
   segments?: Record<string, CustomerSegment>;
   onView:    (customer: Customer) => void;
   onEdit:    (customer: Customer) => void;
@@ -21,7 +22,7 @@ type Props = {
   onCreateQuotation: (customer: Customer) => void;
 };
 
-export function CustomersTable({ customers, loading, canManage, segments = {}, onView, onEdit, onDelete, onCreateQuotation }: Props) {
+export function CustomersTable({ customers, loading, canManage, canDelete, segments = {}, onView, onEdit, onDelete, onCreateQuotation }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (customers.length === 0) {
@@ -42,7 +43,7 @@ export function CustomersTable({ customers, loading, canManage, segments = {}, o
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {["Customer", "Contact", "Type", "City", "Source", "Date", ""].map((h) => (
+                {["Customer", "Contact", "Type", "Agent", "City", "Source", "Date", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -93,6 +94,15 @@ export function CustomersTable({ customers, loading, canManage, segments = {}, o
                     </div>
                   </td>
 
+                  {/* Assigned Agent */}
+                  <td className="px-4 py-3">
+                    {customer.agentName ? (
+                      <span className="text-xs text-foreground">{customer.agentName}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                    )}
+                  </td>
+
                   {/* City */}
                   <td className="px-4 py-3">
                     <span className="text-xs text-muted-foreground">{customer.city || "—"}</span>
@@ -128,13 +138,15 @@ export function CustomersTable({ customers, loading, canManage, segments = {}, o
                         >
                           <Edit2 size={13} />
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onDelete(customer); }}
-                          title="Delete"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(customer); }}
+                            title="Delete"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
@@ -175,15 +187,17 @@ export function CustomersTable({ customers, loading, canManage, segments = {}, o
                 label:     "Edit",
                 onClick:   () => onEdit(customer),
                 className: "bg-blue-600",
-              },
-              {
-                key:       "delete",
-                icon:      <Trash2 size={16} />,
-                label:     "Delete",
-                onClick:   () => onDelete(customer),
-                className: "bg-red-600",
               }
             );
+          }
+          if (canDelete) {
+            actions.push({
+              key:       "delete",
+              icon:      <Trash2 size={16} />,
+              label:     "Delete",
+              onClick:   () => onDelete(customer),
+              className: "bg-red-600",
+            });
           }
 
           return (

@@ -1,11 +1,12 @@
 "use client";
 
-import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff } from "lucide-react";
+import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { formatDate } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
 import { BREAK_ALLOWANCE_MINUTES } from "@/modules/ess/hooks/useEss";
 import { CheckInLocationModal } from "@/modules/ess/components/CheckInLocationModal";
+import { isLateArrival, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
 import type { CheckInContext } from "@/modules/ess/hooks/useEss";
 
@@ -15,6 +16,9 @@ type Props = {
   isClockedOut: boolean;
   isOnBreak: boolean;
   attendance: AttendanceRecord[];
+  attendancePolicy?: AttendancePolicy;
+  forgottenCheckout?: AttendanceRecord | null;
+  onFileCorrection?: (date: string) => void;
   onClockIn: (ctx: CheckInContext, selfie: File | null) => Promise<{ error: string | null; pendingApproval?: boolean }>;
   onClockOut: (ctx: CheckInContext, selfie: File | null) => Promise<{ error: string | null; pendingApproval?: boolean }>;
   onResolveContext: () => Promise<CheckInContext>;
@@ -29,6 +33,7 @@ type Props = {
 // an office that never opted into geofencing, just confirms directly.
 export function ClockCard({
   todayRecord, isClockedIn, isClockedOut, isOnBreak, attendance,
+  attendancePolicy = DEFAULT_ATTENDANCE_POLICY, forgottenCheckout, onFileCorrection,
   onClockIn, onClockOut, onResolveContext, onStartBreak, onEndBreak,
 }: Props) {
   const [busy, setBusy] = useState(false);
@@ -86,6 +91,23 @@ export function ClockCard({
         <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
       )}
 
+      {forgottenCheckout && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+          <div>
+            You checked in on {formatDate(forgottenCheckout.date, "dd MMM yyyy")} but never checked out.
+            {onFileCorrection && (
+              <button
+                onClick={() => onFileCorrection(forgottenCheckout.date)}
+                className="ml-1 font-semibold underline underline-offset-2 hover:no-underline"
+              >
+                File a correction
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {info && (
         <div className="mb-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">{info}</div>
       )}
@@ -107,7 +129,12 @@ export function ClockCard({
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-xs text-muted-foreground">Check In</p>
-            <p className="text-lg font-bold text-foreground">{todayRecord?.clockIn || "—"}</p>
+            <p className="text-lg font-bold text-foreground">
+              {todayRecord?.clockIn || "—"}
+              {isLateArrival(todayRecord?.clockIn, attendancePolicy) && (
+                <span className="ml-1.5 align-middle text-[10px] font-semibold uppercase text-amber-600">Late</span>
+              )}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Check Out</p>

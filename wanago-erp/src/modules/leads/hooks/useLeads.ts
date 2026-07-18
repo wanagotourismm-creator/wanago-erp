@@ -20,10 +20,11 @@ export function useLeads() {
   const { employee } = useCurrentEmployee();
   const wonInFlight = useRef<Set<string>>(new Set());
 
-  // A `sales` user only sees leads assigned to them; every other role
-  // (including sales_head) sees the full unfiltered list.
+  // A role without leads:view_all only sees leads assigned to them (or
+  // unassigned); roles with it (Admin/Operations/Sales Head by default,
+  // adjustable from Roles & Permissions) see the full list.
   const scopedLeads = useMemo(
-    () => scopeByAssignee(leads, user?.systemRole ?? "sales", employee?.id ?? null),
+    () => scopeByAssignee(leads, user?.systemRole ?? "sales", employee?.id ?? null, "leads:view_all"),
     [leads, user?.systemRole, employee?.id]
   );
 

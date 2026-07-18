@@ -1,7 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { X, Edit2, Trash2, Clock, MapPin, User, Camera } from "lucide-react";
 import { AttendanceStatusBadge } from "@/modules/hrms/attendance/components/AttendanceBadges";
+import {
+  fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, isLateArrival, isEarlyDeparture, type AttendancePolicy,
+} from "@/modules/attendancepolicy/services/attendance-policy.service";
 import { formatDate, initials } from "@/lib/utils/helpers";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
 
@@ -22,7 +26,17 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function AttendanceDetailModal({ record, onClose, onEdit, onDelete }: Props) {
+  const [policy, setPolicy] = useState<AttendancePolicy>(DEFAULT_ATTENDANCE_POLICY);
+
+  useEffect(() => {
+    if (!record) return;
+    fetchAttendancePolicy().then(setPolicy).catch(() => {});
+  }, [record]);
+
   if (!record) return null;
+
+  const late  = isLateArrival(record.clockIn, policy);
+  const early = isEarlyDeparture(record.clockOut, policy);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -54,6 +68,21 @@ export function AttendanceDetailModal({ record, onClose, onEdit, onDelete }: Pro
 
           <div className="flex flex-wrap items-center gap-2">
             <AttendanceStatusBadge status={record.status} />
+            {late && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                Late Arrival
+              </span>
+            )}
+            {early && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                Early Departure
+              </span>
+            )}
+            {record.needsReview && (
+              <span className="inline-flex items-center rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
+                Needs Review — implausible duration
+              </span>
+            )}
           </div>
 
           <div>

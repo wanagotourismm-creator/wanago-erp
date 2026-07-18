@@ -3,6 +3,7 @@ import { db } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { uploadFile } from "@/lib/storage/upload";
+import { calcHours } from "@/lib/attendance-hours";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
 import type { AttendanceRecordSchema } from "@/modules/hrms/attendance/schemas";
 
@@ -10,23 +11,6 @@ class AttendanceRepository extends BaseRepository<AttendanceRecord> {
   constructor() { super(FIRESTORE_COLLECTIONS.HRMS_CHECK_INS); }
 }
 const repo = new AttendanceRepository();
-
-function calcHours(clockIn?: string, clockOut?: string, breakMinutes = 0): number | null {
-  if (!clockIn || !clockOut) return null;
-  const [inH, inM] = clockIn.split(":").map(Number);
-  const [outH, outM] = clockOut.split(":").map(Number);
-  let minutes = (outH * 60 + outM) - (inH * 60 + inM);
-  // Overnight shift (e.g. clockIn 22:00, clockOut 06:00) — clockOut's
-  // time-of-day is numerically earlier than clockIn's, so the raw
-  // subtraction goes negative even though the employee worked a real,
-  // positive duration overnight. Previously this fell straight through to
-  // the minutes<=0 check below and the shift was recorded as
-  // hoursWorked: null. Assume a single midnight crossing.
-  if (minutes < 0) minutes += 24 * 60;
-  minutes -= breakMinutes;
-  if (minutes <= 0) return null;
-  return Math.round((minutes / 60) * 100) / 100;
-}
 
 export async function fetchAttendanceRecords(): Promise<AttendanceRecord[]> {
   return repo.findMany({ constraints: [orderBy("date", "desc")] });
@@ -74,11 +58,13 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
   const exists = await attendanceExists(data.employeeId, data.date);
   if (exists) throw new Error("Attendance already marked for this employee on this date");
 
+  const { hoursWorked, needsReview } = calcHours(data.clockIn, data.clockOut, data.breakMinutes ?? 0);
   return repo.create({
     ...data,
     clockIn:     data.clockIn || null,
     clockOut:    data.clockOut || null,
-    hoursWorked: calcHours(data.clockIn, data.clockOut, data.breakMinutes ?? 0),
+    hoursWorked,
+    needsReview,
     notes:       data.notes || null,
     breakStartTime: data.breakStartTime || null,
     breakMinutes:   data.breakMinutes ?? 0,
@@ -126,7 +112,9 @@ export async function updateAttendanceRecord(id: string, data: Partial<Attendanc
       const clockIn  = data.clockIn  !== undefined ? data.clockIn  : (existing.clockIn ?? undefined);
       const clockOut = data.clockOut !== undefined ? data.clockOut : (existing.clockOut ?? undefined);
       const breakMinutes = data.breakMinutes !== undefined ? data.breakMinutes : (existing.breakMinutes ?? 0);
-      patch.hoursWorked = calcHours(clockIn ?? undefined, clockOut ?? undefined, breakMinutes);
+      const { hoursWorked, needsReview } = calcHours(clockIn, clockOut, breakMinutes);
+      patch.hoursWorked = hoursWorked;
+      patch.needsReview = needsReview;
     }
   }
   if (data.notes !== undefined) patch.notes = data.notes || null;

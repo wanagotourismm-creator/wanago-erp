@@ -9,6 +9,11 @@ export type UserProfile = {
   phone: string | null;
   systemRole: SystemRole;
   teamRole: TeamRole;
+  // Denormalized from the linked Employee record (see
+  // employee.service.ts's syncEmployeeIdOnUser) so Firestore security
+  // rules can resolve "which employee is this signed-in uid" without a
+  // client-supplied claim. Null for accounts with no linked employee yet.
+  employeeId?: string | null;
   officeId: string;
   officeName: string;
   department: string;

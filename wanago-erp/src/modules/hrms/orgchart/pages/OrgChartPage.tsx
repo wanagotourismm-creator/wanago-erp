@@ -9,13 +9,19 @@ import { initials } from "@/lib/utils/helpers";
 function OrgNodeItem({ node }: { node: OrgNode }) {
   return (
     <div>
-      <div className="fluid-card flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm">
+      <div
+        className="fluid-card flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm"
+        title={node.employee.functionalManagerName ? `Functional Manager: ${node.employee.functionalManagerName}` : undefined}
+      >
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
           {initials(node.employee.fullName)}
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">{node.employee.fullName}</p>
           <p className="truncate text-xs text-muted-foreground">{node.employee.designation}</p>
+          {node.employee.functionalManagerName && (
+            <p className="truncate text-[10px] text-muted-foreground/70">FM: {node.employee.functionalManagerName}</p>
+          )}
         </div>
       </div>
 
