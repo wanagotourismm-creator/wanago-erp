@@ -122,6 +122,14 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
 
   const selectedDepartment = watch("department");
 
+  // HR can create a login for the new hire, but not an admin-level one —
+  // firestore.rules blocks an 'hr' write that sets systemRole to admin/
+  // super_admin, so those options are hidden rather than offered and failing.
+  const isCurrentUserAdmin = user?.systemRole === "super_admin" || user?.systemRole === "admin";
+  const assignableRoles = Object.entries(SYSTEM_ROLE_LABELS).filter(
+    ([role]) => isCurrentUserAdmin || (role !== "super_admin" && role !== "admin")
+  );
+
   if (!open) return null;
 
   const otherEmployees = employees.filter(e => e.id !== employee?.id);
@@ -316,7 +324,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
                     <Field label="System Role" required>
                       <select className={inputClass} value={loginRole} onChange={e => setLoginRole(e.target.value)}>
                         <option value="">Select role</option>
-                        {Object.entries(SYSTEM_ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        {assignableRoles.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </select>
                     </Field>
                     <p className="mt-1.5 text-xs text-muted-foreground">
