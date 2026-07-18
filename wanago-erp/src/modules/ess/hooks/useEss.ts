@@ -396,7 +396,10 @@ export function useEss() {
       if (!manager) return;
       await notifyUser({
         userId: manager.userId ?? null, email: manager.email, phone: manager.mobileNumber,
-        title, body, link: "/ess", category,
+        // Deep-links straight to the Team Inbox (EssPage reads ?section=
+        // on load) instead of dropping the manager on the Overview tab and
+        // making them hunt for the Approvals section themselves.
+        title, body, link: "/ess?section=approvals", category,
       });
     } catch { /* best-effort */ }
   }
@@ -528,7 +531,10 @@ export function useEss() {
         userId: requester.userId ?? null, email: category === "leave" ? null : requester.email, phone: requester.mobileNumber,
         whatsappPurpose: WHATSAPP_TEMPLATE_PURPOSES.STAFF_REQUEST_DECISION,
         whatsappVariables: [DECISION_CATEGORY_LABELS[category], decision === "approve" ? "approved" : "rejected"],
-        title, body, link: "/ess", category,
+        // Deep-links to the Requests Inbox (EssPage reads ?section= on
+        // load) so the employee lands straight on their own request/reason,
+        // not the generic Overview tab.
+        title, body, link: "/ess?section=requests", category,
       });
     } catch { /* best-effort */ }
   }

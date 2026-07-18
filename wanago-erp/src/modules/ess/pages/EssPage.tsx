@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutGrid, Users2, Inbox, Clock, CalendarDays, Laptop, LifeBuoy, Wallet, Activity, Sparkles,
   CalendarPlus, PencilLine, Gauge, ArrowRight, UserCircle, CheckCircle2, CalendarCheck,
@@ -36,9 +36,17 @@ import { todayIST } from "@/lib/utils/helpers";
 
 const todayStr = todayIST;
 
+// Every section key EssPage can render — used to validate the ?section=
+// deep link below so an unrecognized/stale value falls back to Overview
+// instead of silently rendering nothing.
+const VALID_SECTIONS = new Set([
+  "overview", "team", "approvals", "requests", "attendance", "leaves", "assets", "support", "payslips", "activity",
+]);
+
 export function EssPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     loading, loadError, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
@@ -53,7 +61,14 @@ export function EssPage() {
   const isHrOrAdmin = !!user && hasPermission(user.systemRole, "hrms:manage");
   const openAIAssistant = useUIStore((s) => s.openAIAssistant);
 
-  const [section, setSection] = useState("overview");
+  // Notifications (e.g. "Attendance needs location approval") deep-link
+  // here as /ess?section=approvals — a notification-driven click should
+  // land the user directly on the relevant tab, not the generic Overview
+  // one they'd then have to go hunt through themselves.
+  const [section, setSection] = useState(() => {
+    const s = searchParams.get("section");
+    return s && VALID_SECTIONS.has(s) ? s : "overview";
+  });
   const [applyOpen, setApplyOpen] = useState(false);
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionDate, setCorrectionDate] = useState<string | null>(null);
