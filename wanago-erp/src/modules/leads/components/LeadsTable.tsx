@@ -269,6 +269,11 @@ export function LeadsTable({ leads, loading, canDelete, onView, onEdit, onDelete
                     {formatDate(lead.createdAt)}
                   </span>
                 </div>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="truncate text-[11px] text-muted-foreground">
+                    Agent: {lead.agentName || <span className="italic">Unassigned</span>}
+                  </span>
+                </div>
               </div>
             </SwipeableRow>
           );

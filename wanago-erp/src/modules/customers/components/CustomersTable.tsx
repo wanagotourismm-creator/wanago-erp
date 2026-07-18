@@ -234,12 +234,15 @@ export function CustomersTable({ customers, loading, canManage, canDelete, segme
                   )}
                 </div>
 
-                <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                   <span>{customer.city || "—"}</span>
                   <span>·</span>
                   <span>{customer.source}</span>
                   <span>·</span>
                   <span className="whitespace-nowrap">{formatDate(customer.createdAt)}</span>
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  Agent: {customer.agentName || <span className="italic">Unassigned</span>}
                 </div>
               </div>
             </SwipeableRow>

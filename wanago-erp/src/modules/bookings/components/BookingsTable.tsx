@@ -251,6 +251,9 @@ export function BookingsTable({
                     {b.balanceAmount > 0 ? formatAmount(b.balanceAmount) : "Paid"}
                   </span>
                 </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  Agent: {b.agentName || <span className="italic">Unassigned</span>}
+                </div>
               </div>
             </SwipeableRow>
           );

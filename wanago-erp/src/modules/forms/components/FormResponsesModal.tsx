@@ -39,7 +39,7 @@ export function FormResponsesModal({ form, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="modal-enter relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+      <div className="modal-enter relative w-full max-w-3xl max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
           <div className="flex items-center gap-3 min-w-0">
