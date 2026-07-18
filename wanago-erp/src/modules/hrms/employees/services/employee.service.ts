@@ -132,7 +132,9 @@ export async function createEmployee(
 // firestore.rules only lets an isAdmin() caller or the account's own owner
 // write to users/{uid}, so an HR-role edit couldn't otherwise reach it.
 // Best-effort: a failed sync must never block the employee save itself.
-async function syncEmployeeFieldsToUser(uid: string, data: Partial<EmployeeFormData>): Promise<void> {
+async function syncEmployeeFieldsToUser(
+  uid: string, data: Partial<EmployeeFormData>, customPageAccess?: string[] | null
+): Promise<void> {
   try {
     const idToken = await auth.currentUser?.getIdToken();
     await fetch("/api/hrms/employees/sync-linked-user", {
@@ -145,6 +147,7 @@ async function syncEmployeeFieldsToUser(uid: string, data: Partial<EmployeeFormD
         department: data.department,
         officeId: data.officeId,
         officeName: data.officeName,
+        ...(customPageAccess !== undefined ? { customPageAccess } : {}),
       }),
     });
   } catch { /* best-effort */ }
@@ -152,14 +155,15 @@ async function syncEmployeeFieldsToUser(uid: string, data: Partial<EmployeeFormD
 
 export async function updateEmployee(
   id: string,
-  data: Partial<EmployeeFormData>
+  data: Partial<EmployeeFormData>,
+  customPageAccess?: string[] | null
 ): Promise<void> {
   const patch: Partial<Employee> = { ...data };
   if (data.userId !== undefined) patch.userId = data.userId || null;
   await repo.update(id, patch);
   if (data.userId) {
     syncEmployeeIdOnUser(data.userId, id);
-    syncEmployeeFieldsToUser(data.userId, data);
+    syncEmployeeFieldsToUser(data.userId, data, customPageAccess);
   }
 }
 

@@ -86,7 +86,7 @@ export function Sidebar() {
       if (!item.roles) return true;
       if (!user) return false;
       return item.roles.includes(user.systemRole as SystemRole) ||
-        canAccessPage(user.systemRole as SystemRole, item.href.replace("/", ""));
+        canAccessPage(user, item.href.replace("/", ""));
     }),
   })).filter((g) => g.items.length > 0);
 

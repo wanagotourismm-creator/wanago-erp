@@ -14,6 +14,14 @@ export type UserProfile = {
   // rules can resolve "which employee is this signed-in uid" without a
   // client-supplied claim. Null for accounts with no linked employee yet.
   employeeId?: string | null;
+  // Per-employee restriction, set from the Add/Edit Employee or Add/Edit
+  // User form's "customize which tools this employee can use" toggle — a
+  // subset of this account's SystemRole's own PAGE_ACCESS list (see
+  // canAccessPage() in rbac.ts). null/absent means no override: the account
+  // gets its role's full page list, same as every other account with that
+  // role. Can only ever narrow access within the role, never grant a page
+  // the role itself doesn't already have.
+  customPageAccess?: string[] | null;
   officeId: string;
   officeName: string;
   department: string;

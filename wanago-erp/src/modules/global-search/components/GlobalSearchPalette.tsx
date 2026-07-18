@@ -53,7 +53,7 @@ export function GlobalSearchPalette() {
     if (!user) return [];
     const role = user.systemRole as SystemRole;
     return NAV_CONFIG.flatMap((group) => group.items)
-      .filter((item) => !item.roles || item.roles.includes(role) || canAccessPage(role, item.href.replace("/", "")))
+      .filter((item) => !item.roles || item.roles.includes(role) || canAccessPage(user, item.href.replace("/", "")))
       .map((item): SearchResult => ({
         id: item.href, entityType: "page",
         title: item.label, subtitle: item.href,

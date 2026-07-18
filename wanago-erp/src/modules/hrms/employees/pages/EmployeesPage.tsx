@@ -58,7 +58,7 @@ export function EmployeesPage() {
     inactive:   employees.filter(e => e.employeeStatus !== "active").length,
   }), [employees]);
 
-  async function handleSubmit(data: EmployeeSchema) {
+  async function handleSubmit(data: EmployeeSchema, customPageAccess?: string[] | null) {
     const manager = employees.find(e => e.id === data.reportingManagerId);
     const functionalManager = employees.find(e => e.id === data.functionalManagerId);
     const payload = {
@@ -81,7 +81,7 @@ export function EmployeesPage() {
       createdBy:          user?.uid ?? "",
     };
 
-    if (editingEmployee) await editEmployee(editingEmployee.id, payload);
+    if (editingEmployee) await editEmployee(editingEmployee.id, payload, customPageAccess);
     else await addEmployee(payload);
     setFormOpen(false);
     setEditingEmployee(null);

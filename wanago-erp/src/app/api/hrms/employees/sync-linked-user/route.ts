@@ -17,6 +17,7 @@ type SyncBody = {
   department?: string;
   officeId?: string;
   officeName?: string;
+  customPageAccess?: string[] | null;
 };
 
 // Cascade for updateEmployee(): keeps the linked login account's profile
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
   if (fields.department !== undefined) patch.department = fields.department;
   if (fields.officeId !== undefined) patch.officeId = fields.officeId;
   if (fields.officeName !== undefined) patch.officeName = fields.officeName;
+  if (fields.customPageAccess !== undefined) patch.customPageAccess = fields.customPageAccess;
 
   if (Object.keys(patch).length > 0) {
     await adminDb.collection(FIRESTORE_COLLECTIONS.USERS).doc(uid).set(patch, { merge: true });

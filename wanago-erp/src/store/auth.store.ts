@@ -13,6 +13,9 @@ export type AuthUser = {
   officeName: string;
   department: string;
   isActive:   boolean;
+  // See UserProfile.customPageAccess (modules/auth/types) — this is the
+  // same field, just copied onto the client session at sign-in.
+  customPageAccess?: string[] | null;
 };
 
 type AuthState = {

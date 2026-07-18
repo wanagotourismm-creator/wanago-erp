@@ -92,6 +92,49 @@ export const PAGE_ACCESS: PageAccess = {
   support:     ["dashboard", "ess", "team-pulse", "forms", "leads", "customers", "bookings", "whatsapp-inbox", "settings"],
 };
 
+// Readable labels for the pages above — used by PageAccessEditor so an
+// admin/HR user customizing an employee's access sees "Itinerary Brochures"
+// rather than the raw "itinerary-brochures" route slug.
+export const PAGE_LABELS: Record<string, string> = {
+  "dashboard": "Dashboard",
+  "ess": "ESS (My HR)",
+  "team-pulse": "Team Pulse",
+  "forms": "Forms",
+  "leads": "Leads",
+  "customers": "Customers",
+  "bookings": "Bookings",
+  "operations": "Operations",
+  "packages": "Packages",
+  "suppliers": "Suppliers",
+  "itineraries": "Itineraries",
+  "itinerary-brochures": "Itinerary Brochures",
+  "ops-approvals": "Operations Approvals",
+  "settings": "Settings",
+  "invoices": "Invoices",
+  "payments": "Payments",
+  "expenses": "Expenses",
+  "reports": "Reports",
+  "insights": "Insights",
+  "hrms-payroll": "Payroll",
+  "incentives": "Incentives",
+  "approvals": "Approvals",
+  "marketing": "Marketing",
+  "campaigns": "Campaigns",
+  "referral-program": "Referral Program",
+  "whatsapp-inbox": "WhatsApp Inbox",
+  "intake": "Intake",
+  "hrms-overview": "HR Overview",
+  "hrms-employees": "Employees",
+  "hrms-attendance": "Attendance",
+  "hrms-leaves": "Leaves",
+  "hrms-policies": "HR Policies",
+  "recruitment": "Recruitment",
+  "performance": "Performance",
+  "training": "Training",
+  "quotations": "Quotations",
+  "sales-team": "Sales Team",
+};
+
 // ── Dynamic permission overrides ─────────────────────────────
 // Admins can customize per-role permissions from the Admin panel.
 // When set, these take precedence over the static PERMISSION_MAP
@@ -113,10 +156,25 @@ export function hasPermission(role: SystemRole, permission: Permission): boolean
   return (perms as string[]).includes("*") || (perms as string[]).includes(permission);
 }
 
-export function canAccessPage(role: SystemRole, page: string): boolean {
+// Accepts either a bare role (existing behavior, unchanged) or a user-shaped
+// object carrying a `customPageAccess` override — a per-employee restriction
+// that can only narrow a role's own PAGE_ACCESS list, never grant it a page
+// the role doesn't already have. super_admin always gets everything, no
+// exceptions, even if a customPageAccess value somehow got set on one.
+export function canAccessPage(
+  roleOrUser: SystemRole | { systemRole: SystemRole; customPageAccess?: string[] | null },
+  page: string
+): boolean {
+  const role = typeof roleOrUser === "string" ? roleOrUser : roleOrUser.systemRole;
+  if (role === SYSTEM_ROLES.SUPER_ADMIN) return true;
+
   const pages = PAGE_ACCESS[role];
   if (!pages) return false;
-  return pages.includes("*") || pages.includes(page);
+  const roleAllows = pages.includes("*") || pages.includes(page);
+
+  const customPageAccess = typeof roleOrUser === "string" ? undefined : roleOrUser.customPageAccess;
+  if (customPageAccess) return roleAllows && customPageAccess.includes(page);
+  return roleAllows;
 }
 
 export function isAdminRole(role: SystemRole): boolean {

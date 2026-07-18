@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import type { SystemRole } from "@/types/rbac";
 import { canAccessPage } from "@/lib/rbac";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { LogoLoader } from "@/components/ui/LogoLoader";
@@ -32,7 +31,7 @@ export function RouteGuard({ children, requiredPage }: Props) {
 
     if (requiredPage) {
       const pages = Array.isArray(requiredPage) ? requiredPage : [requiredPage];
-      const allowed = pages.some((p) => canAccessPage(user.systemRole as SystemRole, p));
+      const allowed = pages.some((p) => canAccessPage(user, p));
       if (!allowed) router.replace("/dashboard");
     }
   }, [user, initialized, router, requiredPage]);

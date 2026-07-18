@@ -264,7 +264,7 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         isOwner(userId) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-          ['systemRole', 'teamRole', 'officeId', 'isActive']
+          ['systemRole', 'teamRole', 'officeId', 'isActive', 'customPageAccess']
         )
       );
       allow delete: if isSuperAdmin();

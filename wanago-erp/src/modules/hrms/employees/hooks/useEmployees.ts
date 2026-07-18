@@ -42,10 +42,10 @@ export function useEmployees() {
   }
 
   async function editEmployee(
-    id: string, data: Partial<EmployeeFormData>
+    id: string, data: Partial<EmployeeFormData>, customPageAccess?: string[] | null
   ): Promise<{ error: string | null }> {
     try {
-      await updateEmployee(id, data);
+      await updateEmployee(id, data, customPageAccess);
       setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
       const target = employees.find(e => e.id === id);
       if (target && data.employeeStatus && data.employeeStatus !== target.employeeStatus) {

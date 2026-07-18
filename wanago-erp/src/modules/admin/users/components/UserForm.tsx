@@ -5,6 +5,7 @@ import { X, Loader2, UserPlus } from "lucide-react";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { SYSTEM_ROLE_LABELS, TEAM_ROLE_LABELS } from "@/lib/constants";
 import { RoleAccessPreview } from "@/components/shared/RoleAccessPreview";
+import { PageAccessEditor } from "@/components/shared/PageAccessEditor";
 import { cn } from "@/lib/utils/helpers";
 import type { Office } from "@/modules/admin/offices/types";
 import type { UserProfile } from "@/modules/auth/types";
@@ -53,6 +54,7 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
   const [officeId,     setOfficeId]    = useState("");
   const [department,   setDepartment]  = useState("");
   const [isActive,     setIsActive]    = useState(true);
+  const [customPageAccess, setCustomPageAccess] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -67,11 +69,13 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
       setOfficeId(user.officeId);
       setDepartment(user.department);
       setIsActive(user.isActive);
+      setCustomPageAccess(user.customPageAccess ?? null);
       setPassword("");
     } else {
       setEmail(""); setDisplayName(""); setPhone(""); setPassword("");
       setSystemRole("sales"); setTeamRole("agent"); setOfficeId(""); setDepartment("");
       setIsActive(true);
+      setCustomPageAccess(null);
     }
   }, [open, user]);
 
@@ -93,6 +97,7 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
           officeName: selectedOffice?.name ?? user.officeName,
           department,
           isActive,
+          customPageAccess,
         });
         if (result.error) { setError(result.error); return; }
       } else {
@@ -108,6 +113,7 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
           officeId,
           officeName: selectedOffice?.name ?? "",
           department,
+          customPageAccess,
         });
         if (result.error) { setError(result.error); return; }
       }
@@ -163,7 +169,7 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
               <input className={inputClass} placeholder="e.g. Sales" value={department} onChange={e => setDepartment(e.target.value)} />
             </Field>
             <Field label="System Role" required>
-              <select className={inputClass} value={systemRole} onChange={e => setSystemRole(e.target.value)}>
+              <select className={inputClass} value={systemRole} onChange={e => { setSystemRole(e.target.value); setCustomPageAccess(null); }}>
                 {Object.entries(SYSTEM_ROLE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
@@ -171,6 +177,13 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
             </Field>
             <div className="col-span-2">
               <RoleAccessPreview role={systemRole as SystemRole} />
+            </div>
+            <div className="col-span-2">
+              <PageAccessEditor
+                role={systemRole as SystemRole}
+                value={customPageAccess}
+                onChange={setCustomPageAccess}
+              />
             </div>
             <Field label="Team Role" required>
               <select className={inputClass} value={teamRole} onChange={e => setTeamRole(e.target.value)}>

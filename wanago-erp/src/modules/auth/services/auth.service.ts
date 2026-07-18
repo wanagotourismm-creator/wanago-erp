@@ -69,6 +69,7 @@ export async function signInUser(
       officeName:  profile.officeName,
       department:  profile.department,
       isActive:    profile.isActive,
+      customPageAccess: profile.customPageAccess ?? null,
     };
 
     logActivity({

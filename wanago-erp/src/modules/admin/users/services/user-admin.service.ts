@@ -30,6 +30,7 @@ export type NewUserInput = {
   officeId:    string;
   officeName:  string;
   department:  string;
+  customPageAccess?: string[] | null;
 };
 
 export async function createUserAccount(
@@ -52,6 +53,7 @@ export async function createUserAccount(
     officeId:    data.officeId,
     officeName:  data.officeName,
     department:  data.department,
+    customPageAccess: data.customPageAccess ?? null,
     isActive:    true,
     createdBy,
     status:      "active",
@@ -73,7 +75,7 @@ export function generateTempPassword(): string {
 
 export async function updateUserProfile(
   uid: string,
-  data: Partial<Pick<UserProfile, "systemRole" | "teamRole" | "officeId" | "officeName" | "department" | "isActive" | "displayName" | "phone">>
+  data: Partial<Pick<UserProfile, "systemRole" | "teamRole" | "officeId" | "officeName" | "department" | "isActive" | "displayName" | "phone" | "customPageAccess">>
 ): Promise<void> {
   await updateDoc(doc(db, FIRESTORE_COLLECTIONS.USERS, uid), {
     ...data,

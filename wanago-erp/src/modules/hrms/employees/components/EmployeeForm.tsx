@@ -9,6 +9,7 @@ import { EMPLOYMENT_TYPE_LABELS, DEPARTMENTS } from "@/modules/hrms/employees/co
 import { fetchUsers, createUserAccount, generateTempPassword } from "@/modules/admin/users/services/user-admin.service";
 import { sendResetEmail } from "@/modules/auth/services/auth.service";
 import { RoleAccessPreview } from "@/components/shared/RoleAccessPreview";
+import { PageAccessEditor } from "@/components/shared/PageAccessEditor";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
@@ -21,7 +22,7 @@ type Props = {
   employee?: Employee | null;
   employees: Employee[];
   onClose:   () => void;
-  onSubmit:  (data: EmployeeSchema) => Promise<void>;
+  onSubmit:  (data: EmployeeSchema, customPageAccess?: string[] | null) => Promise<void>;
 };
 
 function Field({ label, error, required, children }: {
@@ -54,6 +55,8 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
   const [loginRole, setLoginRole] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginBusy, setLoginBusy] = useState(false);
+  const [newLoginCustomPageAccess, setNewLoginCustomPageAccess] = useState<string[] | null>(null);
+  const [editCustomPageAccess, setEditCustomPageAccess] = useState<string[] | null>(null);
 
   const {
     register, handleSubmit, reset, setValue, watch,
@@ -75,6 +78,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
     setLoginError(null);
     setCreateLogin(!employee);
     setLoginRole("");
+    setNewLoginCustomPageAccess(null);
   }, [open, employee]);
 
   useEffect(() => {
@@ -122,6 +126,16 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
   }, [open, employee, setValue]);
 
   const selectedDepartment = watch("department");
+  const linkedUserId = watch("userId");
+  const linkedUser = users.find((u) => u.uid === linkedUserId);
+
+  // Syncs the "customize tools" toggles from the linked account's own
+  // stored value once it resolves (fetchUsers() above is async, so this
+  // can't just be an initial useState). Only re-runs when the linked
+  // account itself changes, not on every keystroke of an admin's edits.
+  useEffect(() => {
+    setEditCustomPageAccess(linkedUser?.customPageAccess ?? null);
+  }, [linkedUser]);
 
   // HR can create a login for the new hire, but not an admin-level one —
   // firestore.rules blocks an 'hr' write that sets systemRole to admin/
@@ -167,6 +181,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
           officeId:    data.officeId,
           officeName:  data.officeName,
           department:  data.department,
+          customPageAccess: newLoginCustomPageAccess,
         }, user?.uid ?? "");
         await sendResetEmail(data.email);
         data.userId = uid;
@@ -177,7 +192,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
       }
       setLoginBusy(false);
     }
-    await onSubmit(data);
+    await onSubmit(data, !isNewEmployee && linkedUser ? editCustomPageAccess : undefined);
   }
 
   return (
@@ -329,8 +344,13 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
                       </select>
                     </Field>
                     {loginRole && (
-                      <div className="mt-2">
+                      <div className="mt-2 space-y-2">
                         <RoleAccessPreview role={loginRole as SystemRole} />
+                        <PageAccessEditor
+                          role={loginRole as SystemRole}
+                          value={newLoginCustomPageAccess}
+                          onChange={setNewLoginCustomPageAccess}
+                        />
                       </div>
                     )}
                     <p className="mt-1.5 text-xs text-muted-foreground">
@@ -357,6 +377,15 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   Controls which login account this employee record belongs to — used for My HR, clock in/out, and manager approval routing.
                 </p>
+                {linkedUser && (
+                  <div className="mt-2">
+                    <PageAccessEditor
+                      role={linkedUser.systemRole}
+                      value={editCustomPageAccess}
+                      onChange={setEditCustomPageAccess}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>

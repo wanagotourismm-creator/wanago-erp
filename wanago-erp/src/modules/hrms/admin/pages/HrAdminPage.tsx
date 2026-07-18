@@ -39,7 +39,7 @@ export function HrAdminPage() {
 
   const [section, setSection] = useState("overview");
 
-  const can = (page: string) => canAccessPage(role, page);
+  const can = (page: string) => (user ? canAccessPage(user, page) : canAccessPage(role, page));
 
   const navGroups: HrNavGroup[] = [
     {
