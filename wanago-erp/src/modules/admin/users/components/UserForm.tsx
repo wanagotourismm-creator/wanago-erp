@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { X, Loader2, UserPlus } from "lucide-react";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { SYSTEM_ROLE_LABELS, TEAM_ROLE_LABELS } from "@/lib/constants";
+import { RoleAccessPreview } from "@/components/shared/RoleAccessPreview";
 import { cn } from "@/lib/utils/helpers";
 import type { Office } from "@/modules/admin/offices/types";
 import type { UserProfile } from "@/modules/auth/types";
+import type { SystemRole } from "@/types/rbac";
 import type { NewUserInput } from "@/modules/admin/users/services/user-admin.service";
 
 type Props = {
@@ -167,6 +169,9 @@ export function UserForm({ open, user, onClose, onSubmitNew, onSubmitEdit }: Pro
                 ))}
               </select>
             </Field>
+            <div className="col-span-2">
+              <RoleAccessPreview role={systemRole as SystemRole} />
+            </div>
             <Field label="Team Role" required>
               <select className={inputClass} value={teamRole} onChange={e => setTeamRole(e.target.value)}>
                 {Object.entries(TEAM_ROLE_LABELS).map(([k, v]) => (

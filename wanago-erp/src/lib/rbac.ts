@@ -1,6 +1,18 @@
 import type { Permission, PermissionMap, PageAccess, SystemRole } from "@/types/rbac";
 import { SYSTEM_ROLES } from "@/lib/constants";
 
+// Shared grouping used by both the Roles & Permissions editor and any
+// read-only "what can this role access" preview (e.g. when adding a user).
+export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
+  { label: "Leads",     permissions: ["leads:view_all", "leads:view_own", "leads:create", "leads:edit", "leads:delete"] },
+  { label: "Customers", permissions: ["customers:view_all", "customers:view_own", "customers:create", "customers:edit", "customers:delete"] },
+  { label: "Bookings",  permissions: ["bookings:view_all", "bookings:view_own", "bookings:create", "bookings:edit", "bookings:delete", "bookings:approve"] },
+  { label: "Finance",   permissions: ["finance:view", "finance:create", "finance:edit", "finance:export"] },
+  { label: "HRMS",      permissions: ["hrms:view_all", "hrms:view_own", "hrms:manage"] },
+  { label: "Admin",     permissions: ["admin:settings", "admin:users", "admin:offices"] },
+  { label: "Reports",   permissions: ["reports:view", "reports:export"] },
+];
+
 // ── Permission definitions per role ──────────────────────────
 export const PERMISSION_MAP: PermissionMap = {
   super_admin: ["*"] as unknown as Permission[],

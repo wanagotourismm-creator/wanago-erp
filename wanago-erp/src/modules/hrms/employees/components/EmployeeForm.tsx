@@ -8,6 +8,7 @@ import { employeeSchema, type EmployeeSchema } from "@/modules/hrms/employees/sc
 import { EMPLOYMENT_TYPE_LABELS, DEPARTMENTS } from "@/modules/hrms/employees/components/EmployeeBadges";
 import { fetchUsers, createUserAccount, generateTempPassword } from "@/modules/admin/users/services/user-admin.service";
 import { sendResetEmail } from "@/modules/auth/services/auth.service";
+import { RoleAccessPreview } from "@/components/shared/RoleAccessPreview";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
@@ -327,6 +328,11 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
                         {assignableRoles.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </select>
                     </Field>
+                    {loginRole && (
+                      <div className="mt-2">
+                        <RoleAccessPreview role={loginRole as SystemRole} />
+                      </div>
+                    )}
                     <p className="mt-1.5 text-xs text-muted-foreground">
                       Uses the Email above as the login. A password reset email is sent immediately so they set their own password — nobody needs to share or type one in here.
                     </p>

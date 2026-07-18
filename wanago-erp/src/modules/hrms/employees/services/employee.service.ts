@@ -127,6 +127,29 @@ export async function createEmployee(
   return employee;
 }
 
+// Keeps the linked login account's profile fields (name/phone/department/
+// office) in step with the employee record via a dedicated server route —
+// firestore.rules only lets an isAdmin() caller or the account's own owner
+// write to users/{uid}, so an HR-role edit couldn't otherwise reach it.
+// Best-effort: a failed sync must never block the employee save itself.
+async function syncEmployeeFieldsToUser(uid: string, data: Partial<EmployeeFormData>): Promise<void> {
+  try {
+    const idToken = await auth.currentUser?.getIdToken();
+    await fetch("/api/hrms/employees/sync-linked-user", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+      body: JSON.stringify({
+        uid,
+        displayName: data.fullName,
+        phone: data.mobileNumber ?? null,
+        department: data.department,
+        officeId: data.officeId,
+        officeName: data.officeName,
+      }),
+    });
+  } catch { /* best-effort */ }
+}
+
 export async function updateEmployee(
   id: string,
   data: Partial<EmployeeFormData>
@@ -134,7 +157,10 @@ export async function updateEmployee(
   const patch: Partial<Employee> = { ...data };
   if (data.userId !== undefined) patch.userId = data.userId || null;
   await repo.update(id, patch);
-  if (data.userId) syncEmployeeIdOnUser(data.userId, id);
+  if (data.userId) {
+    syncEmployeeIdOnUser(data.userId, id);
+    syncEmployeeFieldsToUser(data.userId, data);
+  }
 }
 
 // Cascades to the employee's linked login account (if any) via a

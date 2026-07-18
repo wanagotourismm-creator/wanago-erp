@@ -3,6 +3,7 @@
 import { Fragment, useState, useEffect } from "react";
 import { Loader2, Save, Check } from "lucide-react";
 import { SYSTEM_ROLE_LABELS } from "@/lib/constants";
+import { PERMISSION_GROUPS } from "@/lib/rbac";
 import { Switch } from "@/components/ui/Switch";
 import type { Permission, PermissionMap, SystemRole } from "@/types/rbac";
 
@@ -11,16 +12,6 @@ type Props = {
   saving: boolean;
   onSave: (map: PermissionMap) => Promise<{ error: string | null }>;
 };
-
-const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
-  { label: "Leads",     permissions: ["leads:view_all", "leads:view_own", "leads:create", "leads:edit", "leads:delete"] },
-  { label: "Customers", permissions: ["customers:view_all", "customers:view_own", "customers:create", "customers:edit", "customers:delete"] },
-  { label: "Bookings",  permissions: ["bookings:view_all", "bookings:view_own", "bookings:create", "bookings:edit", "bookings:delete", "bookings:approve"] },
-  { label: "Finance",   permissions: ["finance:view", "finance:create", "finance:edit", "finance:export"] },
-  { label: "HRMS",      permissions: ["hrms:view_all", "hrms:view_own", "hrms:manage"] },
-  { label: "Admin",     permissions: ["admin:settings", "admin:users", "admin:offices"] },
-  { label: "Reports",   permissions: ["reports:view", "reports:export"] },
-];
 
 const EDITABLE_ROLES: SystemRole[] = ["admin", "operations", "marketing", "finance", "hr", "sales", "support"];
 
