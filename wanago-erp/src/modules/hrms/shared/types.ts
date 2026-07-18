@@ -146,6 +146,9 @@ export type AttendanceRecord = FirestoreRecord & {
   locationApprovalStatus: "pending" | "approved" | "rejected" | null;
   locationApprovedBy: string | null;
   locationApprovedAt: Timestamp | Date | string | FieldValue | null;
+  // The manager's note on their location-approval decision — required when
+  // rejecting (see decideInboxItem in useEss.ts), optional when approving.
+  locationDecisionComments: string | null;
 };
 
 // A check-in/check-out blocked for a suspicious-location reason (impossible
@@ -182,4 +185,7 @@ export type AttendanceRegularization = FirestoreRecord & {
   approvedBy: string | null;
   approvedAt: Timestamp | Date | string | FieldValue | null;
   rejectedBy: string | null;
+  // The manager's note on their decision — required when rejecting (see
+  // decideInboxItem in useEss.ts), optional when approving.
+  comments: string | null;
 };

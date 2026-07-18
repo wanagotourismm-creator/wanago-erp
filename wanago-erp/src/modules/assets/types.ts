@@ -26,6 +26,9 @@ export type AssetRequest = FirestoreRecord & {
   approvedBy:    string | null;
   approvedAt:    Timestamp | Date | string | FieldValue | null;
   rejectedBy:    string | null;
+  // The manager's note on their decision — required when rejecting (see
+  // decideInboxItem in useEss.ts), optional when approving.
+  comments:      string | null;
 };
 
 export const ASSET_CATEGORIES = ["Laptop", "Desktop", "ID Card", "SIM Card", "Phone", "Monitor", "Other"];

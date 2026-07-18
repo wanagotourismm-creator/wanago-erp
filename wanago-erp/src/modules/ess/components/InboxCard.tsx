@@ -9,7 +9,7 @@ import type { InboxItem } from "@/modules/ess/hooks/useEss";
 
 type Props = {
   items: InboxItem[];
-  onDecide: (item: InboxItem, decision: "approve" | "reject") => Promise<{ error: string | null }>;
+  onDecide: (item: InboxItem, decision: "approve" | "reject", reason?: string) => Promise<{ error: string | null }>;
 };
 
 const FILTERS = ["All", "Leave", "Regularization", "Assets", "Location"] as const;
@@ -18,6 +18,10 @@ export function InboxCard({ items, onDecide }: Props) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
+  // Rejecting requires a reason — this tracks which item's reject prompt is
+  // currently open, distinct from busyId (which item is mid-submit).
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const filtered = useMemo(() => items.filter((i) => {
     if (filter === "All") return true;
@@ -27,12 +31,27 @@ export function InboxCard({ items, onDecide }: Props) {
     return i.kind === "asset";
   }), [items, filter]);
 
-  async function handle(item: InboxItem, decision: "approve" | "reject") {
+  async function handle(item: InboxItem, decision: "approve" | "reject", reason?: string) {
     setBusyId(item.id);
     setDecisionError(null);
-    const { error } = await onDecide(item, decision);
+    const { error } = await onDecide(item, decision, reason);
     if (error) setDecisionError(error);
+    else if (decision === "reject") { setRejectingId(null); setRejectReason(""); }
     setBusyId(null);
+  }
+
+  function startReject(item: InboxItem) {
+    setDecisionError(null);
+    setRejectReason("");
+    setRejectingId(item.id);
+  }
+
+  function confirmReject(item: InboxItem) {
+    if (!rejectReason.trim()) {
+      setDecisionError("Please enter a reason for rejecting this request.");
+      return;
+    }
+    handle(item, "reject", rejectReason);
   }
 
   return (
@@ -80,7 +99,8 @@ export function InboxCard({ items, onDecide }: Props) {
             const address = item.kind === "location"
               ? (item.attendance.clockOutAddress ?? item.attendance.clockInAddress) : null;
             return (
-              <div key={item.id} className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5">
+              <div key={item.id} className="rounded-xl border border-border px-3 py-2.5">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {selfieUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- Firebase Storage URL, no next/image domain config needed for a tiny inbox thumbnail
@@ -133,19 +153,43 @@ export function InboxCard({ items, onDecide }: Props) {
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {busyId === item.id ? (
                     <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                  ) : (
+                  ) : rejectingId !== item.id ? (
                     <>
                       <button onClick={() => handle(item, "approve")} title="Approve"
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors">
                         <Check size={15} />
                       </button>
-                      <button onClick={() => handle(item, "reject")} title="Reject"
+                      <button onClick={() => startReject(item)} title="Reject"
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
                         <XIcon size={15} />
                       </button>
                     </>
-                  )}
+                  ) : null}
                 </div>
+              </div>
+              {rejectingId === item.id && busyId !== item.id && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") confirmReject(item);
+                      if (e.key === "Escape") setRejectingId(null);
+                    }}
+                    placeholder="Reason for rejecting (required)..."
+                    className="flex-1 rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                  />
+                  <button onClick={() => confirmReject(item)} title="Confirm rejection"
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                    <Check size={13} />
+                  </button>
+                  <button onClick={() => setRejectingId(null)} title="Cancel"
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors">
+                    <XIcon size={13} />
+                  </button>
+                </div>
+              )}
               </div>
             );
           })}

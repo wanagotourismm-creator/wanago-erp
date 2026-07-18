@@ -110,12 +110,13 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
 // still sees exactly what was recorded either way and can follow up
 // (e.g. via a regularization) if a rejected check-in needs correcting.
 export async function decideLocationApproval(
-  id: string, decision: "approved" | "rejected", decidedBy: string
+  id: string, decision: "approved" | "rejected", decidedBy: string, comments?: string
 ): Promise<void> {
   return repo.update(id, {
     locationApprovalStatus: decision,
     locationApprovedBy: decidedBy,
     locationApprovedAt: serverTimestamp(),
+    locationDecisionComments: comments || null,
   } as Partial<AttendanceRecord>);
 }
 

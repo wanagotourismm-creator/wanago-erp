@@ -27,6 +27,7 @@ export async function createRegularizationRequest(data: RegularizationRequestSch
     approvedBy: null,
     approvedAt: null,
     rejectedBy: null,
+    comments:   null,
     status:     "active",
     createdBy,
   });
@@ -59,12 +60,13 @@ export async function approveRegularization(id: string, approvedBy: string): Pro
   });
 }
 
-export async function rejectRegularization(id: string, rejectedBy: string): Promise<void> {
+export async function rejectRegularization(id: string, rejectedBy: string, comments?: string): Promise<void> {
   return repo.update(id, {
     regularizationStatus: "rejected",
     rejectedBy,
     approvedBy: null,
     approvedAt: null,
+    comments: comments || null,
   });
 }
 

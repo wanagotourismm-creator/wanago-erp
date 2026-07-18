@@ -24,6 +24,7 @@ export async function createAssetRequest(data: AssetRequestSchema, createdBy: st
     approvedBy: null,
     approvedAt: null,
     rejectedBy: null,
+    comments: null,
     createdBy,
     status: "active",
   });
@@ -33,8 +34,8 @@ export async function approveAssetRequest(id: string, approvedBy: string): Promi
   return repo.update(id, { requestStatus: "approved", approvedBy, approvedAt: serverTimestamp(), rejectedBy: null });
 }
 
-export async function rejectAssetRequest(id: string, rejectedBy: string): Promise<void> {
-  return repo.update(id, { requestStatus: "rejected", rejectedBy, approvedBy: null, approvedAt: null });
+export async function rejectAssetRequest(id: string, rejectedBy: string, comments?: string): Promise<void> {
+  return repo.update(id, { requestStatus: "rejected", rejectedBy, approvedBy: null, approvedAt: null, comments: comments || null });
 }
 
 export async function deleteAssetRequest(id: string): Promise<void> {

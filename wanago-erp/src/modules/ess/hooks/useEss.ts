@@ -553,36 +553,40 @@ export function useEss() {
     } catch { /* best-effort */ }
   }
 
-  async function decideInboxItem(item: InboxItem, decision: "approve" | "reject") {
+  async function decideInboxItem(item: InboxItem, decision: "approve" | "reject", reason?: string) {
     if (!user) return { error: "Not signed in" };
+    if (decision === "reject" && !reason?.trim()) {
+      return { error: "Please provide a reason for rejecting this request." };
+    }
     const verb = decision === "approve" ? "approved" : "rejected";
+    const reasonSuffix = decision === "reject" && reason ? ` Reason: "${reason.trim()}"` : "";
     try {
       if (item.kind === "leave") {
         if (decision === "approve") await approveLeaveRequest(item.id, user.uid);
-        else await rejectLeaveRequest(item.id, user.uid);
+        else await rejectLeaveRequest(item.id, user.uid, { comments: reason?.trim() });
         setTeamLeaves((p) => p.filter((l) => l.id !== item.id));
         notifyRequesterOfDecision(item.leave.employeeId, `Your leave request was ${verb}`,
-          `Your ${item.leave.leaveType} leave from ${item.leave.fromDate} to ${item.leave.toDate} was ${verb}.`, "leave", decision);
+          `Your ${item.leave.leaveType} leave from ${item.leave.fromDate} to ${item.leave.toDate} was ${verb}.${reasonSuffix}`, "leave", decision);
         sendLeaveDecisionEmailFor(item.leave, decision);
       } else if (item.kind === "regularization") {
         if (decision === "approve") await approveRegularization(item.id, user.uid);
-        else await rejectRegularization(item.id, user.uid);
+        else await rejectRegularization(item.id, user.uid, reason?.trim());
         setTeamRegularizations((p) => p.filter((r) => r.id !== item.id));
         notifyRequesterOfDecision(item.regularization.employeeId, `Your attendance correction was ${verb}`,
-          `Your correction request for ${item.regularization.date} was ${verb}.`, "regularization", decision);
+          `Your correction request for ${item.regularization.date} was ${verb}.${reasonSuffix}`, "regularization", decision);
       } else if (item.kind === "asset") {
         if (decision === "approve") await approveAssetRequest(item.id, user.uid);
-        else await rejectAssetRequest(item.id, user.uid);
+        else await rejectAssetRequest(item.id, user.uid, reason?.trim());
         setTeamAssetRequests((p) => p.filter((r) => r.id !== item.id));
         notifyRequesterOfDecision(item.assetRequest.employeeId, `Your asset request was ${verb}`,
-          `Your request for ${item.assetRequest.assetCategory} was ${verb}.`, "asset", decision);
+          `Your request for ${item.assetRequest.assetCategory} was ${verb}.${reasonSuffix}`, "asset", decision);
       } else {
-        await decideLocationApproval(item.id, decision === "approve" ? "approved" : "rejected", user.uid);
+        await decideLocationApproval(item.id, decision === "approve" ? "approved" : "rejected", user.uid, reason?.trim());
         setTeamLocationApprovals((p) => p.filter((a) => a.id !== item.id));
         const km = item.attendance.distanceFromOfficeMeters != null
           ? (item.attendance.distanceFromOfficeMeters / 1000).toFixed(1) + " km" : "an unknown distance";
         notifyRequesterOfDecision(item.attendance.employeeId, `Your check-in/out location was ${verb}`,
-          `Your attendance from ${km} away from the office on ${item.attendance.date} was ${verb}.`, "location", decision);
+          `Your attendance from ${km} away from the office on ${item.attendance.date} was ${verb}.${reasonSuffix}`, "location", decision);
       }
       return { error: null };
     } catch (e) {
