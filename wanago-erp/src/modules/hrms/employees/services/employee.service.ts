@@ -137,8 +137,25 @@ export async function updateEmployee(
   if (data.userId) syncEmployeeIdOnUser(data.userId, id);
 }
 
-export async function deleteEmployee(id: string): Promise<void> {
-  return repo.delete(id);
+// Cascades to the employee's linked login account (if any) via a
+// dedicated server route (Admin SDK) — client SDKs can't delete another
+// user's Firebase Auth account. Best-effort: a failed cascade must never
+// leave the employee record un-deleted, since the employee delete itself
+// already succeeded by the time this runs.
+async function deleteLinkedUserAccount(uid: string): Promise<void> {
+  try {
+    const idToken = await auth.currentUser?.getIdToken();
+    await fetch("/api/hrms/employees/delete-linked-user", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+      body: JSON.stringify({ uid }),
+    });
+  } catch { /* best-effort */ }
+}
+
+export async function deleteEmployee(id: string, linkedUserId?: string | null): Promise<void> {
+  await repo.delete(id);
+  if (linkedUserId) await deleteLinkedUserAccount(linkedUserId);
 }
 
 export async function uploadProfilePicture(employeeId: string, file: File): Promise<string> {

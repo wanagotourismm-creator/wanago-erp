@@ -88,7 +88,10 @@ export function EmployeesPage() {
   }
 
   async function handleDelete(employee: Employee) {
-    if (!confirm(`Delete employee "${employee.fullName}"? This cannot be undone.`)) return;
+    const message = employee.userId
+      ? `Delete employee "${employee.fullName}"? Their login account will be removed too — this cannot be undone.`
+      : `Delete employee "${employee.fullName}"? This cannot be undone.`;
+    if (!confirm(message)) return;
     await removeEmployee(employee.id);
   }
 

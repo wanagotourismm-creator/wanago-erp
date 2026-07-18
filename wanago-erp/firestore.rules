@@ -253,7 +253,14 @@ service cloud.firestore {
     // {systemRole:'super_admin'} straight to their own document.
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
+      // HR needs to create a login account as part of adding a new employee
+      // (EmployeeForm's "Create a My HR login" step) — but must not be able
+      // to grant admin-level access through that side door, so the systemRole
+      // being written is capped to non-admin roles for that path.
+      allow create: if isAdmin() || (
+        getUserRole() == 'hr' &&
+        !(request.resource.data.systemRole in ['super_admin', 'admin'])
+      );
       allow update: if isAdmin() || (
         isOwner(userId) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(

@@ -70,12 +70,12 @@ export function useEmployees() {
   async function removeEmployee(id: string): Promise<{ error: string | null }> {
     try {
       const target = employees.find(e => e.id === id);
-      await deleteEmployee(id);
+      await deleteEmployee(id, target?.userId);
       setEmployees(prev => prev.filter(e => e.id !== id));
       if (target) {
         logActivity({
           entityType: "Employee", entityName: target.fullName, action: "deleted",
-          detail: `Deleted employee ${target.employeeCode}`,
+          detail: `Deleted employee ${target.employeeCode}${target.userId ? " (login account removed too)" : ""}`,
           actorId: user?.uid ?? "", actorName: user?.displayName ?? "Unknown",
         });
       }
