@@ -19,45 +19,52 @@ function embedUrl(fileUrl: string): string {
 }
 
 // Read-only for every employee — HR manages upload/archive/delete from the
-// separate admin-only HR Policy Documents screen (/hrms/policies).
+// separate admin-only HR Policy Documents screen (/hrms/policies). The
+// modal is a SIBLING of the card below, not nested inside it — .fluid-card
+// applies a translate transform on :hover, and any transformed ancestor
+// becomes the containing block for a `position: fixed` descendant, which
+// broke this modal's centering and caused it to jitter as the hover state
+// toggled while the cursor moved over it.
 export function MyPoliciesList({ policyDocuments }: Props) {
   const [viewing, setViewing] = useState<HrPolicyDocument | null>(null);
 
   return (
-    <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-          <FileText size={16} className="text-primary" />
+    <>
+      <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+            <FileText size={16} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Company Policies</p>
+            <p className="text-xs text-muted-foreground">Leave, attendance, and other HR policy documents</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">Company Policies</p>
-          <p className="text-xs text-muted-foreground">Leave, attendance, and other HR policy documents</p>
-        </div>
-      </div>
 
-      {policyDocuments.length === 0 ? (
-        <EmptyState
-          icon={<FileText size={22} />}
-          title="No policies published yet"
-          description="HR hasn't added any policy documents here yet."
-        />
-      ) : (
-        <div className="space-y-2">
-          {policyDocuments.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setViewing(d)}
-              className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{d.title}</p>
-                <p className="text-xs text-muted-foreground">Updated {formatDate(d.updatedAt)}</p>
-              </div>
-              <span className="flex-shrink-0 text-xs font-semibold text-primary">View</span>
-            </button>
-          ))}
-        </div>
-      )}
+        {policyDocuments.length === 0 ? (
+          <EmptyState
+            icon={<FileText size={22} />}
+            title="No policies published yet"
+            description="HR hasn't added any policy documents here yet."
+          />
+        ) : (
+          <div className="space-y-2">
+            {policyDocuments.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => setViewing(d)}
+                className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{d.title}</p>
+                  <p className="text-xs text-muted-foreground">Updated {formatDate(d.updatedAt)}</p>
+                </div>
+                <span className="flex-shrink-0 text-xs font-semibold text-primary">View</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -88,6 +95,6 @@ export function MyPoliciesList({ policyDocuments }: Props) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
