@@ -4,7 +4,6 @@ import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff, AlertTriangle }
 import { useState } from "react";
 import { formatDate } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
-import { BREAK_ALLOWANCE_MINUTES } from "@/modules/ess/hooks/useEss";
 import { CheckInLocationModal } from "@/modules/ess/components/CheckInLocationModal";
 import { isLateArrival, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
@@ -74,13 +73,14 @@ export function ClockCard({
 
   const recent = attendance.slice(0, 5);
   const breakMinutes = todayRecord?.breakMinutes ?? 0;
-  const breakRemaining = Math.max(0, BREAK_ALLOWANCE_MINUTES - breakMinutes);
+  const breakRemaining = Math.max(0, attendancePolicy.breakAllowanceMinutes - breakMinutes);
   // Approximated against the device's current time when the Check In modal
   // opens — the server derives the actual clockIn timestamp a few seconds
   // later, so this can't be exact, but it's within the same grace-period
-  // window the policy cares about. HR-ATT-001 §5 requires a written
-  // explanation for arriving after the grace period.
-  const wouldBeLate = isLateArrival(new Date().toTimeString().slice(0, 5), attendancePolicy);
+  // window the policy cares about. Admin-configurable via Attendance Policy
+  // settings (lateReasonRequired) — HR-ATT-001 §5 requires a written
+  // explanation for arriving after the grace period by default.
+  const wouldBeLate = attendancePolicy.lateReasonRequired && isLateArrival(new Date().toTimeString().slice(0, 5), attendancePolicy);
 
   return (
     <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">

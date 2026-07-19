@@ -8,19 +8,24 @@ export type AttendancePolicy = {
   gracePeriodMinutes: number; // minutes after workStartTime before a check-in counts as late
   halfDayHours:       number; // hoursWorked below this counts as a half day
   fullDayHours:       number; // hoursWorked at/above this counts as a full day
+  breakAllowanceMinutes: number; // total break time (e.g. lunch + tea) shown/tracked per day
+  lateReasonRequired:    boolean; // prompt for a written reason when checking in past the grace period
 };
 
 const DOC_ID = "attendancePolicy";
 
 // Matches the company's official Attendance Policy (HR-ATT-001): office
-// hours 10:00 AM-6:00 PM, and a 5-minute grace period since employees
-// reporting after 10:05 AM must submit a written explanation.
+// hours 10:00 AM-6:00 PM, a 5-minute grace period since employees reporting
+// after 10:05 AM must submit a written explanation, and a 1h05m break
+// allowance (Lunch 45m + Tea 20m).
 export const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
   workStartTime:      "10:00",
   workEndTime:        "18:00",
   gracePeriodMinutes: 5,
   halfDayHours:       4,
   fullDayHours:       8,
+  breakAllowanceMinutes: 65,
+  lateReasonRequired:    true,
 };
 
 export async function fetchAttendancePolicy(): Promise<AttendancePolicy> {

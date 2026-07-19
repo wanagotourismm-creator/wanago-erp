@@ -55,10 +55,6 @@ async function postAttendanceClock(body: Record<string, unknown>): Promise<{ hou
   return data;
 }
 
-// Matches the company's Attendance Policy: Lunch Break (45m) + Tea Break
-// (20m) = 1h05m total allotted break time per day.
-export const BREAK_ALLOWANCE_MINUTES = 65;
-
 export type LeaveBalance = { type: string; entitlement: number; used: number; remaining: number };
 
 export type InboxItem =

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays, Loader2, Save } from "lucide-react";
+import { CalendarDays, Loader2, Save, ShieldAlert } from "lucide-react";
 import { useLeavePolicy } from "@/modules/leavepolicy/hooks/useLeavePolicy";
 import {
-  LEAVE_TYPE_ORDER, LEAVE_TYPE_LABELS, WEEKDAY_LABELS, type LeavePolicy,
+  LEAVE_TYPE_ORDER, LEAVE_TYPE_LABELS, WEEKDAY_LABELS, type LeavePolicy, type LeaveTypeKey,
 } from "@/modules/leavepolicy/services/leave-policy.service";
 import { cn } from "@/lib/utils/helpers";
+
+const inputClass = "w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-0";
 
 export function LeavePolicyForm() {
   const { policy, loading, saving, save } = useLeavePolicy();
@@ -31,6 +33,14 @@ export function LeavePolicyForm() {
     });
   }
 
+  function toggleTypeInList(listKey: "advanceNoticeRequiredTypes" | "probationAllowedTypes", type: LeaveTypeKey) {
+    setDraft((p) => {
+      const list = p[listKey];
+      const has = list.includes(type);
+      return { ...p, [listKey]: has ? list.filter((t) => t !== type) : [...list, type] };
+    });
+  }
+
   async function handleSave() {
     setSaved(false);
     setError(null);
@@ -43,6 +53,10 @@ export function LeavePolicyForm() {
         setError(`${LEAVE_TYPE_LABELS[key]}'s annual days must be a number of 0 or more.`);
         return;
       }
+    }
+    if (!Number.isFinite(draft.advanceNoticeWorkingDays) || draft.advanceNoticeWorkingDays < 0) {
+      setError("Advance notice (working days) must be a number of 0 or more.");
+      return;
     }
     const { error: saveError } = await save(draft);
     if (saveError) setError(saveError);
@@ -101,6 +115,77 @@ export function LeavePolicyForm() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <ShieldAlert size={16} className="text-primary" />
+          <p className="text-sm font-semibold text-foreground">Advance Notice Rule</p>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Blocks an employee&apos;s own Apply Leave submission (in ESS) if it doesn&apos;t meet this notice period. Doesn&apos;t affect leave
+          HR logs directly on someone&apos;s behalf.
+        </p>
+
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer mb-3">
+          <input type="checkbox" className="h-4 w-4 rounded border-input"
+            checked={draft.advanceNoticeEnabled}
+            onChange={(e) => setDraft((p) => ({ ...p, advanceNoticeEnabled: e.target.checked }))} />
+          Require advance notice for planned leave
+        </label>
+
+        {draft.advanceNoticeEnabled && (
+          <>
+            <div className="mb-4 max-w-xs">
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Working days notice required</label>
+              <input type="number" min={0} value={draft.advanceNoticeWorkingDays}
+                onChange={(e) => setDraft((p) => ({ ...p, advanceNoticeWorkingDays: Number(e.target.value) }))}
+                className={inputClass} />
+            </div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Leave types that require notice</p>
+            <div className="flex flex-wrap gap-2">
+              {LEAVE_TYPE_ORDER.map((key) => (
+                <button key={key} type="button" onClick={() => toggleTypeInList("advanceNoticeRequiredTypes", key)}
+                  className={cn("rounded-xl px-3.5 py-2 text-sm font-medium transition-colors border",
+                    draft.advanceNoticeRequiredTypes.includes(key) ? "bg-primary text-white border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40")}>
+                  {LEAVE_TYPE_LABELS[key]}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <ShieldAlert size={16} className="text-primary" />
+          <p className="text-sm font-semibold text-foreground">Probation Restriction</p>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Same exemption as above — only blocks an employee&apos;s own ESS submission while their Employee record is set to Probation.
+        </p>
+
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer mb-3">
+          <input type="checkbox" className="h-4 w-4 rounded border-input"
+            checked={draft.probationRestrictionEnabled}
+            onChange={(e) => setDraft((p) => ({ ...p, probationRestrictionEnabled: e.target.checked }))} />
+          Restrict leave types during probation
+        </label>
+
+        {draft.probationRestrictionEnabled && (
+          <>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Leave types allowed during probation</p>
+            <div className="flex flex-wrap gap-2">
+              {LEAVE_TYPE_ORDER.map((key) => (
+                <button key={key} type="button" onClick={() => toggleTypeInList("probationAllowedTypes", key)}
+                  className={cn("rounded-xl px-3.5 py-2 text-sm font-medium transition-colors border",
+                    draft.probationAllowedTypes.includes(key) ? "bg-primary text-white border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40")}>
+                  {LEAVE_TYPE_LABELS[key]}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {error && (

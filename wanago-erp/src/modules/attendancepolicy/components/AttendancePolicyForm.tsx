@@ -26,7 +26,7 @@ export function AttendancePolicyForm() {
 
   async function handleSave() {
     setError(null);
-    if (draft.gracePeriodMinutes < 0 || draft.halfDayHours < 0 || draft.fullDayHours < 0) {
+    if (draft.gracePeriodMinutes < 0 || draft.halfDayHours < 0 || draft.fullDayHours < 0 || draft.breakAllowanceMinutes < 0) {
       setError("Thresholds must be 0 or more.");
       return;
     }
@@ -100,6 +100,37 @@ export function AttendancePolicyForm() {
             />
           </Field>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm font-semibold text-foreground mb-1">Breaks</p>
+        <p className="text-xs text-muted-foreground mb-4">
+          Total minutes an employee can log via Start Break/End Break per day (e.g. Lunch 45m + Tea 20m = 65m) — shown as a running
+          countdown on their ESS attendance card.
+        </p>
+        <div className="max-w-xs">
+          <Field label="Break Allowance (minutes)">
+            <input
+              type="number" min={0} value={draft.breakAllowanceMinutes}
+              onChange={(e) => setDraft((p) => ({ ...p, breakAllowanceMinutes: Number(e.target.value) }))}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm font-semibold text-foreground mb-1">Late Check-In</p>
+        <p className="text-xs text-muted-foreground mb-4">
+          When on, checking in past the grace period prompts the employee for a written reason, which is saved on their attendance
+          record for HR to review.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <input type="checkbox" className="h-4 w-4 rounded border-input"
+            checked={draft.lateReasonRequired}
+            onChange={(e) => setDraft((p) => ({ ...p, lateReasonRequired: e.target.checked }))} />
+          Require a written reason for late check-in
+        </label>
       </div>
 
       {error && (

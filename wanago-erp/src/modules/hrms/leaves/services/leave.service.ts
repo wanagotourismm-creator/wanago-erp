@@ -24,12 +24,6 @@ function rangesOverlap(aFrom: string, aTo: string, bFrom: string, bTo: string): 
   return aFrom <= bTo && bFrom <= aTo;
 }
 
-// Leave Policy (HR-LV-001) §4/§5/§6: Casual/Earned/WFH/Loss-of-Pay are
-// "Planned Leave" and need 3 working days' notice; Sick and Emergency have
-// their own ASAP/immediate-notice processes instead and are exempt.
-const PLANNED_LEAVE_TYPES = new Set<string>(["casual", "earned", "wfh", "loss_of_pay"]);
-const ADVANCE_NOTICE_WORKING_DAYS = 3;
-
 // Parses a "YYYY-MM-DD" string into a local-time Date via explicit
 // numeric parts (not `new Date(dateStr)`, which parses as UTC and can land
 // on the wrong calendar day/weekday once shifted to IST — see todayIST()'s
@@ -89,22 +83,26 @@ export async function createLeaveRequest(
     ]);
 
     // Leave Policy §7: employees on probation aren't eligible for Paid Leave
-    // — only Sick and Emergency (the policy's own "genuine emergency or
-    // exceptional circumstance" carve-out) go through during probation.
-    if (employee?.probationStatus === "probation" && data.leaveType !== "sick" && data.leaveType !== "emergency") {
+    // — admin-configurable via Leave Policy settings (probationAllowedTypes),
+    // defaults to Sick/Emergency only.
+    if (
+      policy.probationRestrictionEnabled &&
+      employee?.probationStatus === "probation" &&
+      !policy.probationAllowedTypes.includes(data.leaveType)
+    ) {
       throw new Error(
-        "Employees on probation aren't eligible for this leave type — only Sick and Emergency leave are allowed during probation. Contact HR for an exception."
+        "Employees on probation aren't eligible for this leave type — contact HR for an exception, or check which leave types are allowed during probation under Leave Policy settings."
       );
     }
 
-    // Leave Policy §4: planned leave must be applied at least 3 working days
-    // in advance.
-    if (PLANNED_LEAVE_TYPES.has(data.leaveType)) {
+    // Leave Policy §4: planned leave must be applied a minimum number of
+    // working days in advance — admin-configurable via Leave Policy settings.
+    if (policy.advanceNoticeEnabled && policy.advanceNoticeRequiredTypes.includes(data.leaveType)) {
       const holidayDates = new Set(holidays.map((h) => h.date));
-      const minFromDate = addWorkingDays(todayIST(), ADVANCE_NOTICE_WORKING_DAYS, policy.weeklyOffDays, holidayDates);
+      const minFromDate = addWorkingDays(todayIST(), policy.advanceNoticeWorkingDays, policy.weeklyOffDays, holidayDates);
       if (data.fromDate < minFromDate) {
         throw new Error(
-          `This leave type needs at least ${ADVANCE_NOTICE_WORKING_DAYS} working days' notice — the earliest start date is ${minFromDate}.`
+          `This leave type needs at least ${policy.advanceNoticeWorkingDays} working days' notice — the earliest start date is ${minFromDate}.`
         );
       }
     }
