@@ -1,6 +1,7 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { useState } from "react";
+import { FileText, X, ExternalLink } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/utils/helpers";
 import type { HrPolicyDocument } from "@/modules/hrms/policies/types";
@@ -9,13 +10,19 @@ type Props = {
   policyDocuments: HrPolicyDocument[];
 };
 
+// #toolbar=0&navpanes=0 suppresses Chrome/Edge/Firefox's built-in PDF
+// viewer chrome (toolbar + the thumbnail sidebar that broke the layout in
+// the first version of this modal) — without it, that native UI renders at
+// its own width/height inside the iframe regardless of the container.
+function embedUrl(fileUrl: string): string {
+  return `${fileUrl}#toolbar=0&navpanes=0`;
+}
+
 // Read-only for every employee — HR manages upload/archive/delete from the
-// separate admin-only HR Policy Documents screen (/hrms/policies). Opens
-// fileUrl in a new tab (same pattern HrPoliciesPage's own title link uses)
-// rather than an embedded <iframe> — a PDF's native in-browser viewer
-// (toolbar, thumbnail sidebar) doesn't consistently fit inside a custom
-// modal across browsers, so this avoids that instead of fighting it.
+// separate admin-only HR Policy Documents screen (/hrms/policies).
 export function MyPoliciesList({ policyDocuments }: Props) {
+  const [viewing, setViewing] = useState<HrPolicyDocument | null>(null);
+
   return (
     <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
@@ -37,9 +44,9 @@ export function MyPoliciesList({ policyDocuments }: Props) {
       ) : (
         <div className="space-y-2">
           {policyDocuments.map((d) => (
-            <a
+            <button
               key={d.id}
-              href={d.fileUrl} target="_blank" rel="noreferrer"
+              onClick={() => setViewing(d)}
               className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors"
             >
               <div className="min-w-0">
@@ -47,8 +54,38 @@ export function MyPoliciesList({ policyDocuments }: Props) {
                 <p className="text-xs text-muted-foreground">Updated {formatDate(d.updatedAt)}</p>
               </div>
               <span className="flex-shrink-0 text-xs font-semibold text-primary">View</span>
-            </a>
+            </button>
           ))}
+        </div>
+      )}
+
+      {viewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewing(null)} />
+          <div className="modal-enter relative flex h-[85dvh] w-full max-w-3xl min-w-0 flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-border px-5 py-3.5">
+              <p className="truncate text-sm font-semibold text-foreground">{viewing.title}</p>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
+                <a
+                  href={viewing.fileUrl} target="_blank" rel="noreferrer"
+                  title="Open in a new tab"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  <ExternalLink size={14} />
+                </a>
+                <button onClick={() => setViewing(null)} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1">
+              <iframe
+                src={embedUrl(viewing.fileUrl)}
+                title={viewing.title}
+                className="h-full w-full border-0 bg-white"
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
