@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutGrid, Users2, Inbox, Clock, CalendarDays, Laptop, LifeBuoy, Wallet, Activity, Sparkles,
-  CalendarPlus, PencilLine, Gauge, ArrowRight, UserCircle, CheckCircle2, CalendarCheck,
+  CalendarPlus, PencilLine, Gauge, ArrowRight, UserCircle, CheckCircle2, CalendarCheck, FileText,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useEss } from "@/modules/ess/hooks/useEss";
@@ -24,6 +24,7 @@ import { MyCorrectionsList } from "@/modules/ess/components/MyCorrectionsList";
 import { MyRequestsInbox } from "@/modules/ess/components/MyRequestsInbox";
 import { MyPayslipsList } from "@/modules/ess/components/MyPayslipsList";
 import { MyActivityList } from "@/modules/ess/components/MyActivityList";
+import { MyPoliciesList } from "@/modules/ess/components/MyPoliciesList";
 import { MyAssetsList } from "@/modules/ess/components/MyAssetsList";
 import { RequestAssetForm } from "@/modules/ess/components/RequestAssetForm";
 import { MyTicketsList } from "@/modules/ess/components/MyTicketsList";
@@ -40,7 +41,7 @@ const todayStr = todayIST;
 // deep link below so an unrecognized/stale value falls back to Overview
 // instead of silently rendering nothing.
 const VALID_SECTIONS = new Set([
-  "overview", "team", "approvals", "requests", "attendance", "leaves", "assets", "support", "payslips", "activity",
+  "overview", "team", "approvals", "requests", "attendance", "leaves", "assets", "support", "payslips", "activity", "policies",
 ]);
 
 export function EssPage() {
@@ -51,7 +52,7 @@ export function EssPage() {
     loading, loadError, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances, leavePolicy, enabledLeaveTypes,
-    attendancePolicy, forgottenCheckout,
+    attendancePolicy, policyDocuments, forgottenCheckout,
     clockIn, clockOut, resolveCheckInContext, startBreak, endBreak, applyLeave, cancelMyLeave,
     requestCorrection, requestAsset, reportIssue, decideInboxItem, reload,
   } = useEss();
@@ -142,6 +143,7 @@ export function EssPage() {
         { key: "support", label: "IT Support", icon: LifeBuoy },
         { key: "payslips", label: "Payslips", icon: Wallet },
         { key: "activity", label: "Activity", icon: Activity },
+        { key: "policies", label: "Policies", icon: FileText },
       ],
     },
   ];
@@ -310,6 +312,8 @@ export function EssPage() {
         {section === "payslips" && <MyPayslipsList payroll={payroll} />}
 
         {section === "activity" && <MyActivityList activity={activity} />}
+
+        {section === "policies" && <MyPoliciesList policyDocuments={policyDocuments} />}
       </HrShell>
 
       <ApplyLeaveForm open={applyOpen} enabledLeaveTypes={enabledLeaveTypes} onClose={() => setApplyOpen(false)} onSubmit={applyLeave} />

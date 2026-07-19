@@ -20,9 +20,11 @@ import { auth } from "@/lib/firebase/client";
 import { WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import { fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
+import { fetchHrPolicyDocuments } from "@/modules/hrms/policies/services/hr-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import { todayIST } from "@/lib/utils/helpers";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
+import type { HrPolicyDocument } from "@/modules/hrms/policies/types";
 import type { Asset, AssetRequest } from "@/modules/assets/types";
 import type { Ticket } from "@/modules/tickets/types";
 import type { Office } from "@/modules/admin/offices/types";
@@ -99,6 +101,7 @@ export function useEss() {
   const [office, setOffice] = useState<Office | null>(null);
   const [leavePolicy, setLeavePolicy] = useState<LeavePolicy>(DEFAULT_LEAVE_POLICY);
   const [attendancePolicy, setAttendancePolicy] = useState<AttendancePolicy>(DEFAULT_ATTENDANCE_POLICY);
+  const [policyDocuments, setPolicyDocuments] = useState<HrPolicyDocument[]>([]);
   const [forgottenCheckout, setForgottenCheckout] = useState<AttendanceRecord | null>(null);
 
   const load = useCallback(async () => {
@@ -106,16 +109,18 @@ export function useEss() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [emp, hols, policy, attPolicy] = await Promise.all([
+      const [emp, hols, policy, attPolicy, policyDocs] = await Promise.all([
         fetchEmployeeByUserId(user.uid, user.email),
         fetchHolidays(),
         fetchLeavePolicy(),
         fetchAttendancePolicy(),
+        fetchHrPolicyDocuments(true),
       ]);
       setEmployee(emp);
       setHolidays(hols);
       setLeavePolicy(policy);
       setAttendancePolicy(attPolicy);
+      setPolicyDocuments(policyDocs);
 
       if (emp) {
         const [allEmployees, att, myLeaves, myRegs, myPayroll, recentActivity, empAssets, myAssetReqs, myTix, offices] = await Promise.all([
@@ -606,7 +611,7 @@ export function useEss() {
     loading, loadError, employee, directReports, attendance, leaves, regularizations, teamInbox,
     holidays, payroll, activity, myAssets, assetRequests, myTickets,
     today, todayRecord, isClockedIn, isClockedOut, isOnBreak, leaveBalances,
-    leavePolicy, enabledLeaveTypes, attendancePolicy, forgottenCheckout,
+    leavePolicy, enabledLeaveTypes, attendancePolicy, policyDocuments, forgottenCheckout,
     clockIn, clockOut, resolveCheckInContext, startBreak, endBreak, applyLeave, cancelMyLeave,
     requestCorrection, requestAsset, reportIssue, decideInboxItem, reload: load,
   };
