@@ -123,6 +123,11 @@ export type AttendanceRecord = FirestoreRecord & {
   officeId: string;
   breakStartTime: string | null;
   breakMinutes: number;
+  // Written explanation for a check-in past the Attendance Policy's grace
+  // period (HR-ATT-001 §5: "Employees reporting after 10:05 AM must submit
+  // a written explanation for the delay") — collected in the Check In flow
+  // itself, null when the check-in wasn't late.
+  lateReason: string | null;
   clockInLat: number | null;
   clockInLng: number | null;
   withinGeofence: boolean | null;

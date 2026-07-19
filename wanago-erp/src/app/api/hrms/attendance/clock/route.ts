@@ -43,6 +43,7 @@ type ClockInBody = {
   clockInSelfieUrl: string | null;
   distanceFromOfficeMeters: number | null;
   locationApprovalStatus: "pending" | null;
+  lateReason: string | null;
 };
 
 type ClockOutBody = {
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
           clockIn: time, clockOut: null,
           officeId: body.officeId,
           breakStartTime: null, breakMinutes: 0,
+          lateReason: body.lateReason || null,
           hoursWorked: null, needsReview: false,
           clockInLat: body.clockInLat, clockInLng: body.clockInLng,
           withinGeofence: body.withinGeofence,

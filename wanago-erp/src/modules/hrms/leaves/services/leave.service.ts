@@ -2,6 +2,9 @@ import { orderBy, where, serverTimestamp } from "firebase/firestore";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { fetchLeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
+import { fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
+import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service";
+import { todayIST } from "@/lib/utils/helpers";
 import type { LeaveRequest } from "@/modules/hrms/shared/types";
 import type { LeaveRequestSchema, LeaveDecisionSchema } from "@/modules/hrms/leaves/schemas";
 
@@ -21,6 +24,43 @@ function rangesOverlap(aFrom: string, aTo: string, bFrom: string, bTo: string): 
   return aFrom <= bTo && bFrom <= aTo;
 }
 
+// Leave Policy (HR-LV-001) §4/§5/§6: Casual/Earned/WFH/Loss-of-Pay are
+// "Planned Leave" and need 3 working days' notice; Sick and Emergency have
+// their own ASAP/immediate-notice processes instead and are exempt.
+const PLANNED_LEAVE_TYPES = new Set<string>(["casual", "earned", "wfh", "loss_of_pay"]);
+const ADVANCE_NOTICE_WORKING_DAYS = 3;
+
+// Parses a "YYYY-MM-DD" string into a local-time Date via explicit
+// numeric parts (not `new Date(dateStr)`, which parses as UTC and can land
+// on the wrong calendar day/weekday once shifted to IST — see todayIST()'s
+// own comment for the same class of bug this project already hit once).
+function parseDateStr(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function isWorkingDay(dateStr: string, weeklyOffDays: number[], holidayDates: Set<string>): boolean {
+  return !weeklyOffDays.includes(parseDateStr(dateStr).getDay()) && !holidayDates.has(dateStr);
+}
+
+// The earliest date that is `n` working days after `startDateStr`.
+function addWorkingDays(startDateStr: string, n: number, weeklyOffDays: number[], holidayDates: Set<string>): string {
+  const cur = parseDateStr(startDateStr);
+  let counted = 0;
+  while (counted < n) {
+    cur.setDate(cur.getDate() + 1);
+    if (isWorkingDay(toDateStr(cur), weeklyOffDays, holidayDates)) counted++;
+  }
+  return toDateStr(cur);
+}
+
 export async function fetchLeaves(): Promise<LeaveRequest[]> {
   return repo.findMany({ constraints: [orderBy("createdAt", "desc")] });
 }
@@ -33,7 +73,43 @@ export async function fetchLeaveById(id: string): Promise<LeaveRequest | null> {
   return repo.findById(id);
 }
 
-export async function createLeaveRequest(data: LeaveRequestSchema, createdBy: string): Promise<LeaveRequest> {
+export async function createLeaveRequest(
+  data: LeaveRequestSchema,
+  createdBy: string,
+  options?: { skipPolicyChecks?: boolean }
+): Promise<LeaveRequest> {
+  // HR/Admin logging a leave directly (LeavesPage's addLeave) IS the
+  // Leave Policy's "unless otherwise approved by Management" exception —
+  // only the employee's own ESS self-apply flow enforces these.
+  if (!options?.skipPolicyChecks) {
+    const [employee, policy, holidays] = await Promise.all([
+      fetchEmployeeById(data.employeeId),
+      fetchLeavePolicy(),
+      fetchHolidays(),
+    ]);
+
+    // Leave Policy §7: employees on probation aren't eligible for Paid Leave
+    // — only Sick and Emergency (the policy's own "genuine emergency or
+    // exceptional circumstance" carve-out) go through during probation.
+    if (employee?.probationStatus === "probation" && data.leaveType !== "sick" && data.leaveType !== "emergency") {
+      throw new Error(
+        "Employees on probation aren't eligible for this leave type — only Sick and Emergency leave are allowed during probation. Contact HR for an exception."
+      );
+    }
+
+    // Leave Policy §4: planned leave must be applied at least 3 working days
+    // in advance.
+    if (PLANNED_LEAVE_TYPES.has(data.leaveType)) {
+      const holidayDates = new Set(holidays.map((h) => h.date));
+      const minFromDate = addWorkingDays(todayIST(), ADVANCE_NOTICE_WORKING_DAYS, policy.weeklyOffDays, holidayDates);
+      if (data.fromDate < minFromDate) {
+        throw new Error(
+          `This leave type needs at least ${ADVANCE_NOTICE_WORKING_DAYS} working days' notice — the earliest start date is ${minFromDate}.`
+        );
+      }
+    }
+  }
+
   // Block the same employee from holding two pending/approved leave
   // requests over the same days — previously nothing checked this, so an
   // employee could get two overlapping ranges approved and have both

@@ -19,7 +19,7 @@ type Props = {
   attendancePolicy?: AttendancePolicy;
   forgottenCheckout?: AttendanceRecord | null;
   onFileCorrection?: (date: string) => void;
-  onClockIn: (ctx: CheckInContext, selfie: File | null) => Promise<{ error: string | null; pendingApproval?: boolean }>;
+  onClockIn: (ctx: CheckInContext, selfie: File | null, lateReason?: string | null) => Promise<{ error: string | null; pendingApproval?: boolean }>;
   onClockOut: (ctx: CheckInContext, selfie: File | null) => Promise<{ error: string | null; pendingApproval?: boolean }>;
   onResolveContext: () => Promise<CheckInContext>;
   onStartBreak: () => Promise<{ error: string | null }>;
@@ -60,11 +60,12 @@ export function ClockCard({
     setModal({ action, ctx });
   }
 
-  async function handleModalConfirm(selfieFile: File | null) {
+  async function handleModalConfirm(selfieFile: File | null, lateReason?: string) {
     if (!modal?.ctx) return;
     setBusy(true);
-    const fn = modal.action === "in" ? onClockIn : onClockOut;
-    const { error, pendingApproval } = await fn(modal.ctx, selfieFile);
+    const { error, pendingApproval } = modal.action === "in"
+      ? await onClockIn(modal.ctx, selfieFile, lateReason)
+      : await onClockOut(modal.ctx, selfieFile);
     setBusy(false);
     setModal(null);
     if (error) setError(error);
@@ -74,6 +75,12 @@ export function ClockCard({
   const recent = attendance.slice(0, 5);
   const breakMinutes = todayRecord?.breakMinutes ?? 0;
   const breakRemaining = Math.max(0, BREAK_ALLOWANCE_MINUTES - breakMinutes);
+  // Approximated against the device's current time when the Check In modal
+  // opens — the server derives the actual clockIn timestamp a few seconds
+  // later, so this can't be exact, but it's within the same grace-period
+  // window the policy cares about. HR-ATT-001 §5 requires a written
+  // explanation for arriving after the grace period.
+  const wouldBeLate = isLateArrival(new Date().toTimeString().slice(0, 5), attendancePolicy);
 
   return (
     <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -208,6 +215,7 @@ export function ClockCard({
           ctx={modal.ctx}
           loading={modalLoading}
           busy={busy}
+          requiresLateReason={modal.action === "in" && wouldBeLate}
           onConfirm={handleModalConfirm}
           onClose={() => setModal(null)}
         />

@@ -12,10 +12,13 @@ export type AttendancePolicy = {
 
 const DOC_ID = "attendancePolicy";
 
+// Matches the company's official Attendance Policy (HR-ATT-001): office
+// hours 10:00 AM-6:00 PM, and a 5-minute grace period since employees
+// reporting after 10:05 AM must submit a written explanation.
 export const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
-  workStartTime:      "09:30",
-  workEndTime:        "18:30",
-  gracePeriodMinutes: 15,
+  workStartTime:      "10:00",
+  workEndTime:        "18:00",
+  gracePeriodMinutes: 5,
   halfDayHours:       4,
   fullDayHours:       8,
 };

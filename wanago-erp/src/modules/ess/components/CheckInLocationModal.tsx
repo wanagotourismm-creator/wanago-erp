@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { X, Loader2, MapPin, Camera, CheckCircle2, AlertTriangle } from "lucide-react";
 import { LocationPickerMap } from "@/modules/admin/offices/components/LocationPickerMap";
 import type { CheckInContext } from "@/modules/ess/hooks/useEss";
@@ -10,7 +10,10 @@ type Props = {
   ctx:     CheckInContext | null;
   loading: boolean;
   busy:    boolean;
-  onConfirm: (selfieFile: File | null) => void;
+  // Set when checking in past the Attendance Policy's grace period — HR-ATT-001
+  // §5 requires a written explanation for the delay, collected here.
+  requiresLateReason?: boolean;
+  onConfirm: (selfieFile: File | null, lateReason?: string) => void;
   onClose:   () => void;
 };
 
@@ -20,14 +23,25 @@ type Props = {
 // office has geofencing configured and the employee is confirmed outside
 // it (or couldn't be located at all); being in range, or an office that
 // never opted into geofencing, skips straight to a plain confirm.
-export function CheckInLocationModal({ action, ctx, loading, busy, onConfirm, onClose }: Props) {
+export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateReason, onConfirm, onClose }: Props) {
   const selfieInputRef = useRef<HTMLInputElement>(null);
+  const [lateReason, setLateReason] = useState("");
+  const [lateReasonError, setLateReasonError] = useState<string | null>(null);
   const actionLabel = action === "in" ? "Check In" : "Check Out";
+  const needsLateReason = action === "in" && !!requiresLateReason;
+
+  function tryConfirm(selfieFile: File | null) {
+    if (needsLateReason && !lateReason.trim()) {
+      setLateReasonError("Please explain the reason for the delay.");
+      return;
+    }
+    onConfirm(selfieFile, needsLateReason ? lateReason.trim() : undefined);
+  }
 
   function handleSelfieCaptured(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) onConfirm(file);
+    if (file) tryConfirm(file);
   }
 
   return (
@@ -84,6 +98,23 @@ export function CheckInLocationModal({ action, ctx, loading, busy, onConfirm, on
                   <p>A selfie is required, and this will be sent to your manager for approval.</p>
                 </div>
               )}
+
+              {needsLateReason && (
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <AlertTriangle size={13} className="flex-shrink-0" />
+                    You&apos;re checking in late — reason for the delay
+                  </label>
+                  <textarea
+                    value={lateReason}
+                    onChange={(e) => { setLateReason(e.target.value); setLateReasonError(null); }}
+                    rows={2}
+                    placeholder="e.g. traffic, personal emergency..."
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none transition-all hover:border-primary/40 focus:border-primary"
+                  />
+                  {lateReasonError && <p className="text-xs font-medium text-destructive">{lateReasonError}</p>}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -91,14 +122,19 @@ export function CheckInLocationModal({ action, ctx, loading, busy, onConfirm, on
         {!loading && ctx && (
           <div className="border-t border-primary/15 bg-muted/30 px-5 py-3.5">
             {!ctx.geofenceConfigured || ctx.withinGeofence === true ? (
-              <button onClick={() => onConfirm(null)} disabled={busy}
+              <button onClick={() => tryConfirm(null)} disabled={busy}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm">
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 Confirm {actionLabel}
               </button>
             ) : (
               <>
-                <button onClick={() => selfieInputRef.current?.click()} disabled={busy}
+                <button
+                  onClick={() => {
+                    if (needsLateReason && !lateReason.trim()) { setLateReasonError("Please explain the reason for the delay."); return; }
+                    selfieInputRef.current?.click();
+                  }}
+                  disabled={busy}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60 transition-colors shadow-sm">
                   {busy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                   Take Selfie &amp; Submit for Approval

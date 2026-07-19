@@ -155,6 +155,15 @@ export function AttendanceDetailModal({ record, onClose, onEdit, onDelete }: Pro
             </div>
           )}
 
+          {record.lateReason && (
+            <div>
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-amber-600">Reason for Late Arrival</p>
+              <p className="rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5 text-sm text-foreground whitespace-pre-wrap">
+                {record.lateReason}
+              </p>
+            </div>
+          )}
+
           {record.notes && (
             <div>
               <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-primary">Notes</p>

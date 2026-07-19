@@ -68,6 +68,7 @@ export async function createAttendanceRecord(data: AttendanceRecordSchema, creat
     notes:       data.notes || null,
     breakStartTime: data.breakStartTime || null,
     breakMinutes:   data.breakMinutes ?? 0,
+    lateReason:     null,
     clockInLat:     data.clockInLat ?? null,
     clockInLng:     data.clockInLng ?? null,
     withinGeofence: data.withinGeofence ?? null,

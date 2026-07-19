@@ -19,7 +19,7 @@ import { notifyUser } from "@/lib/notify";
 import { auth } from "@/lib/firebase/client";
 import { WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
-import { fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, isLateArrival, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
+import { fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
 import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
 import { todayIST } from "@/lib/utils/helpers";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
@@ -55,7 +55,9 @@ async function postAttendanceClock(body: Record<string, unknown>): Promise<{ hou
   return data;
 }
 
-export const BREAK_ALLOWANCE_MINUTES = 60;
+// Matches the company's Attendance Policy: Lunch Break (45m) + Tea Break
+// (20m) = 1h05m total allotted break time per day.
+export const BREAK_ALLOWANCE_MINUTES = 65;
 
 export type LeaveBalance = { type: string; entitlement: number; used: number; remaining: number };
 
@@ -274,7 +276,7 @@ export function useEss() {
     };
   }
 
-  async function clockIn(ctx: CheckInContext, selfieFile: File | null) {
+  async function clockIn(ctx: CheckInContext, selfieFile: File | null, lateReason?: string | null) {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
       if (ctx.geofenceConfigured && !ctx.pos) {
@@ -302,6 +304,7 @@ export function useEss() {
         clockInSelfieUrl: selfieUrl,
         distanceFromOfficeMeters: outOfRange ? ctx.distanceMeters : null,
         locationApprovalStatus: outOfRange ? "pending" : null,
+        lateReason: lateReason || null,
       });
       await load();
 

@@ -25,7 +25,9 @@ export function useLeaves() {
 
   async function addLeave(data: LeaveRequestSchema) {
     try {
-      const l = await createLeaveRequest(data, user?.uid ?? "");
+      // HR logging leave directly is the Leave Policy's own "unless
+      // otherwise approved by Management" exception — see createLeaveRequest.
+      const l = await createLeaveRequest(data, user?.uid ?? "", { skipPolicyChecks: true });
       setLeaves(p => [l, ...p]);
       return { error: null };
     } catch { return { error: "Failed to submit leave request" }; }
