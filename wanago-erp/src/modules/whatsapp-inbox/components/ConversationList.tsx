@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { MessageCircle, Frown, Smile } from "lucide-react";
 import { cn, initials, timeAgo } from "@/lib/utils/helpers";
 import type { WhatsAppConversation, WhatsAppIntent } from "@/modules/whatsapp-inbox/types";
@@ -8,8 +9,11 @@ type Props = {
   conversations: WhatsAppConversation[];
   loading: boolean;
   activeId: string | null;
+  currentEmployeeId: string | null;
   onSelect: (c: WhatsAppConversation) => void;
 };
+
+const FILTERS = ["All", "Mine", "Unassigned"] as const;
 
 const INTENT_LABELS: Record<WhatsAppIntent, string> = {
   new_inquiry:      "New Inquiry",
@@ -45,23 +49,43 @@ function ConversationBadges({ sentiment, intent }: { sentiment: WhatsAppConversa
   );
 }
 
-export function ConversationList({ conversations, loading, activeId, onSelect }: Props) {
+export function ConversationList({ conversations, loading, activeId, currentEmployeeId, onSelect }: Props) {
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
+
+  const filtered = useMemo(() => conversations.filter((c) => {
+    if (filter === "Mine") return c.assignedTo === currentEmployeeId;
+    if (filter === "Unassigned") return !c.assignedTo;
+    return true;
+  }), [conversations, filter, currentEmployeeId]);
+
   if (loading) {
     return <p className="px-4 py-6 text-center text-xs text-muted-foreground">Loading conversations…</p>;
   }
 
-  if (conversations.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-        <MessageCircle size={22} className="text-muted-foreground/40" />
-        <p className="text-xs text-muted-foreground">No conversations yet — inbound WhatsApp messages will show up here.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col">
-      {conversations.map((c) => (
+      <div className="flex items-center gap-1 border-b border-border px-2 py-2 flex-shrink-0">
+        {FILTERS.map((f) => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={cn("rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors",
+              filter === f ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted")}>
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+          <MessageCircle size={22} className="text-muted-foreground/40" />
+          <p className="text-xs text-muted-foreground">
+            {conversations.length === 0
+              ? "No conversations yet — inbound WhatsApp messages will show up here."
+              : "No conversations match this filter."}
+          </p>
+        </div>
+      ) : (
+      <>
+      {filtered.map((c) => (
         <button
           key={c.id}
           onClick={() => onSelect(c)}
@@ -92,9 +116,16 @@ export function ConversationList({ conversations, loading, activeId, onSelect }:
               )}
             </div>
             <ConversationBadges sentiment={c.sentiment} intent={c.intent} />
+            <p className="mt-1 truncate text-[10px] text-muted-foreground/70">
+              {c.assignedTo
+                ? (c.assignedTo === currentEmployeeId ? "Assigned to you" : `Assigned to ${c.agentName ?? "another agent"}`)
+                : "Unassigned"}
+            </p>
           </div>
         </button>
       ))}
+      </>
+      )}
     </div>
   );
 }

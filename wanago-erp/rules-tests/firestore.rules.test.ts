@@ -583,3 +583,109 @@ describe("firestore.rules — leave/regularization/asset-request self-approval p
     );
   });
 });
+
+describe("firestore.rules — WhatsApp conversation assignment (per-employee inbox)", () => {
+  it("blocks a sales user from reading a conversation assigned to a different agent", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: "emp2",
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(db.collection("whatsappConversations").doc("c1").get());
+  });
+
+  it("allows a sales user to read their own assigned conversation", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: "emp1",
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("whatsappConversations").doc("c1").get());
+  });
+
+  it("allows a sales user to read an unassigned conversation", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: null,
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("whatsappConversations").doc("c1").get());
+  });
+
+  it("allows sales_head to read a conversation assigned to someone else (whatsapp:view_all default)", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: "emp2",
+      });
+    });
+    await seedUser("head1", "sales_head");
+    const db = testEnv.authenticatedContext("head1").firestore();
+    await assertSucceeds(db.collection("whatsappConversations").doc("c1").get());
+  });
+
+  it("blocks a plain sales user from reassigning an already-assigned conversation", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: "emp1",
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(db.collection("whatsappConversations").doc("c1").update({ assignedTo: "emp2", agentName: "Someone Else" }));
+  });
+
+  it("allows a sales user to claim an unassigned conversation", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: null,
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("whatsappConversations").doc("c1").update({ assignedTo: "emp1", agentName: "Agent One" }));
+  });
+
+  it("blocks a sales user from reading messages in a conversation assigned to someone else", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: "emp2",
+      });
+      await context.firestore().collection("whatsappMessages").doc("m1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        conversationId: "c1", direction: "inbound", body: "hello",
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(db.collection("whatsappMessages").doc("m1").get());
+  });
+
+  it("allows a sales user to read messages in their own assigned conversation", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("whatsappConversations").doc("c1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        phoneNumber: "+919876543210", assignedTo: "emp1",
+      });
+      await context.firestore().collection("whatsappMessages").doc("m1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "system", status: "active",
+        conversationId: "c1", direction: "inbound", body: "hello",
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("whatsappMessages").doc("m1").get());
+  });
+});

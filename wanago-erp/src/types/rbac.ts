@@ -71,7 +71,9 @@ export type Permission =
   | "admin:offices"
   // Reports
   | "reports:view"
-  | "reports:export";
+  | "reports:export"
+  // WhatsApp Inbox
+  | "whatsapp:view_all";
 
 export type PermissionMap = Record<SystemRole, Permission[]>;
 

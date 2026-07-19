@@ -60,7 +60,20 @@ async function findCustomerByPhone(db: Firestore, phone: string) {
   if (!key) return null;
   const snap = await db.collection(FIRESTORE_COLLECTIONS.CUSTOMERS).get();
   const match = snap.docs.find((d) => phoneMatchKey(d.data().phone as string) === key);
-  return match ? { id: match.id, fullName: match.data().fullName as string | undefined } : null;
+  if (!match) return null;
+  const data = match.data();
+  return {
+    id: match.id,
+    fullName: data.fullName as string | undefined,
+    // A brand-new WhatsApp conversation inherits the matched customer's own
+    // sales agent — the natural default ("this customer's messages go to
+    // whoever already owns them"), and closes the "everyone shares one
+    // inbox" gap this per-employee routing feature exists to fix. null
+    // when the customer itself is unassigned; the conversation then starts
+    // unassigned too, claimable by anyone (same as an unassigned Lead).
+    assignedTo: (data.assignedTo as string | null | undefined) ?? null,
+    agentName:  (data.agentName as string | null | undefined) ?? null,
+  };
 }
 
 type ConversationHandle = {
@@ -94,6 +107,8 @@ async function findOrCreateConversation(
       phoneNumber,
       customerId:   customer?.id ?? null,
       customerName,
+      assignedTo: customer?.assignedTo ?? null,
+      agentName:  customer?.agentName ?? null,
       lastMessagePreview:   null,
       lastMessageAt:        now,
       lastMessageDirection: null,

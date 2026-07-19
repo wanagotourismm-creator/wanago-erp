@@ -14,6 +14,15 @@ export type WhatsAppConversation = FirestoreRecord & {
   customerId:   string | null;
   customerName: string | null;
 
+  // The staff member this conversation "belongs to" — mirrors
+  // Lead/Customer/Booking's assignedTo/agentName pattern exactly (an
+  // Employee.id + denormalized name, null = unassigned/claimable by
+  // anyone). Auto-set from the matched customer's own assignedTo when the
+  // conversation is first created (see findOrCreateConversation in the
+  // webhook route); otherwise claimed/reassigned manually from the inbox.
+  assignedTo?: string | null;
+  agentName?:  string | null;
+
   lastMessagePreview:   string | null;
   lastMessageAt:        FirestoreRecord["createdAt"] | null;
   lastMessageDirection: WhatsAppMessageDirection | null;

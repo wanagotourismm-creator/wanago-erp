@@ -33,6 +33,18 @@ export async function markConversationRead(conversationId: string): Promise<void
   return whatsappConversationRepository.update(conversationId, { unreadCount: 0 } as Partial<WhatsAppConversation>);
 }
 
+// Claiming an unassigned conversation and reassigning an already-assigned
+// one are the same write — firestore.rules is what actually tells them
+// apart (canReassign() only gates touching assignedTo when it's already
+// set; claiming a null one is open to anyone, same as Lead/Customer).
+export async function assignConversation(
+  conversationId: string, employeeId: string, employeeName: string
+): Promise<void> {
+  return whatsappConversationRepository.update(conversationId, {
+    assignedTo: employeeId, agentName: employeeName,
+  } as Partial<WhatsAppConversation>);
+}
+
 // The API route owns the Meta credentials and persists the outbound
 // message itself — the inbox UI learns about the new message through its
 // real-time subscription above, not this call's response.

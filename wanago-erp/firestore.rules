@@ -101,6 +101,19 @@ service cloud.firestore {
         resource.data.get('assignedTo', null) == getUserEmployeeId();
     }
 
+    // whatsappMessages don't carry their own assignedTo — visibility
+    // follows whichever conversation they belong to, same "unassigned or
+    // mine" rule as canViewAssigned above. No dedicated 'whatsapp:view_all'
+    // permission exists in PERMISSION_MAP, so roleCanViewAll() falls back
+    // to defaultViewAllRoles' generic branch (operations, sales_head) —
+    // same default every other unassigned-permission collection gets.
+    function canViewWhatsAppConversation(conversationId) {
+      let convo = get(/databases/$(database)/documents/whatsappConversations/$(conversationId)).data;
+      return isAdmin() || roleCanViewAll('whatsapp:view_all') ||
+        convo.get('assignedTo', null) == null ||
+        convo.get('assignedTo', null) == getUserEmployeeId();
+    }
+
     // ── Catch-all exclusion lists ─────────────────────────────
     // IMPORTANT: Firestore evaluates every `match` block whose path pattern
     // matches a request and grants access if ANY of them allow it (rules are
@@ -121,7 +134,9 @@ service cloud.firestore {
         // Each has its own dedicated, stricter read rule above
         // (canViewAssigned) — without this exclusion the catch-all's plain
         // isAuthenticated() grant silently re-opens them to everyone.
-        'leads', 'customers', 'bookings'
+        'leads', 'customers', 'bookings',
+        // Same reasoning — canViewAssigned/canViewWhatsAppConversation.
+        'whatsappConversations', 'whatsappMessages'
       ];
     }
 
@@ -144,7 +159,7 @@ service cloud.firestore {
 
     function isUpdateRestricted(collectionName) {
       return collectionName in [
-        'users', 'offices', 'leads', 'customers', 'bookings', 'quotations', 'invoices',
+        'users', 'offices', 'leads', 'customers', 'bookings', 'whatsappConversations', 'quotations', 'invoices',
         'payments', 'expenses', 'packages', 'suppliers', 'itineraries',
         'itineraryBrochures', 'campaigns', 'hrmsEmployees', 'hrmsCheckIns',
         'hrmsLeaves', 'hrmsRegularizations', 'tickets',
@@ -932,6 +947,47 @@ service cloud.firestore {
     match /whatsappTemplates/{id} {
       allow read:  if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // ── WhatsApp conversations (per-employee inbox) ────────────
+    // Same assignedTo/agentName pattern as leads/customers/bookings — an
+    // unassigned conversation is visible/claimable by anyone; once
+    // assigned, only the assignee, an admin, or a view-all role
+    // (operations/sales_head by default) sees it. Reassignment is gated
+    // the same way as customers/bookings (canReassign — admin/super_admin/
+    // sales_head). create is left as permissive as the catch-all (matches
+    // leads/customers/bookings precedent) since the webhook route creates
+    // these via the Admin SDK anyway, bypassing this entirely.
+    match /whatsappConversations/{id} {
+      allow read: if isAuthenticated() && canViewAssigned('whatsapp:view_all');
+      allow create: if isAuthenticated() && hasRequiredFields();
+      // Unlike customers/bookings' equivalent rule, this also lets anyone
+      // claim a currently-unassigned conversation (resource.data.assignedTo
+      // == null) — touchesAssignmentFields() alone can't tell "null → me"
+      // (claiming) apart from "someone → someone else" (reassigning), and
+      // both need to be allowed for a non-privileged agent, only the
+      // second blocked.
+      allow update: if isAuthenticated() && (
+        resource.data.get('assignedTo', null) == null ||
+        !touchesAssignmentFields(['assignedTo', 'agentName']) ||
+        canReassign()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Message bodies are the actual sensitive content — restricting the
+    // conversation list alone would be pointless if any authenticated user
+    // could still read every message directly. Visibility follows the
+    // parent conversation's own assignedTo (canViewWhatsAppConversation).
+    // create/update stay as permissive as the catch-all: outbound sends go
+    // through /api/whatsapp/send and inbound through the webhook, both
+    // Admin SDK (bypass this file entirely) — no legitimate client write
+    // path exists today for either verb.
+    match /whatsappMessages/{id} {
+      allow read: if isAuthenticated() && canViewWhatsAppConversation(resource.data.conversationId);
+      allow create: if isAuthenticated() && hasRequiredFields();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
     // ── All other collections ─────────────────────────────────

@@ -11,6 +11,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   { label: "HRMS",      permissions: ["hrms:view_all", "hrms:view_own", "hrms:manage"] },
   { label: "Admin",     permissions: ["admin:settings", "admin:users", "admin:offices"] },
   { label: "Reports",   permissions: ["reports:view", "reports:export"] },
+  { label: "WhatsApp Inbox", permissions: ["whatsapp:view_all"] },
 ];
 
 // ── Permission definitions per role ──────────────────────────
@@ -27,6 +28,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "hrms:view_all", "hrms:view_own", "hrms:manage",
     "reports:view", "reports:export",
     "admin:settings", "admin:users", "admin:offices",
+    "whatsapp:view_all",
   ],
 
   operations: [
@@ -34,6 +36,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "customers:view_all",
     "bookings:view_all", "bookings:edit", "bookings:approve", "bookings:ops_approve",
     "reports:view",
+    "whatsapp:view_all",
   ],
 
   finance: [
@@ -70,6 +73,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "customers:view_all", "customers:create",
     "bookings:view_all", "bookings:create",
     "reports:view",
+    "whatsapp:view_all",
   ],
 
   support: [
