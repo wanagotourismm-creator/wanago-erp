@@ -1,1 +1,4 @@
 .vercel
+/.playwright-mcp/
+/firebase-debug.log
+/mobile-dashboard.png

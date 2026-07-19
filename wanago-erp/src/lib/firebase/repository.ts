@@ -18,8 +18,10 @@ import {
   type QueryConstraint,
   type Unsubscribe,
 } from "firebase/firestore";
+import type { ZodType } from "zod";
 import { db, auth } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { logInvalidDocument } from "@/lib/firebase/schemas";
 import type { FirestoreRecord } from "@/types/global";
 
 export type QueryOptions = {
@@ -31,9 +33,15 @@ export type QueryOptions = {
 // ── Base Repository ───────────────────────────────────────────
 export class BaseRepository<T extends FirestoreRecord> {
   protected readonly collectionName: string;
+  // Optional per-module document schema (extend firestoreRecordSchema —
+  // see src/lib/firebase/schemas.ts). Repositories that don't pass one keep
+  // today's unvalidated `as T` cast; this is opt-in so modules can migrate
+  // incrementally (see PRD Pillar 1, "Zod-validated Firestore reads").
+  private readonly schema?: ZodType<unknown>;
 
-  constructor(collectionName: string) {
+  constructor(collectionName: string, schema?: ZodType<unknown>) {
     this.collectionName = collectionName;
+    this.schema = schema;
   }
 
   protected ref() {
@@ -42,6 +50,20 @@ export class BaseRepository<T extends FirestoreRecord> {
 
   protected docRef(id: string) {
     return doc(db, this.collectionName, id);
+  }
+
+  // Validates a raw Firestore doc against this repository's schema (if any)
+  // before it ever reaches a component. Invalid docs are logged and
+  // dropped — never thrown, never rendered raw.
+  private hydrate(id: string, data: DocumentData): T | null {
+    const raw = { id, ...data };
+    if (!this.schema) return raw as T;
+    const result = this.schema.safeParse(raw);
+    if (!result.success) {
+      logInvalidDocument(this.collectionName, id, result.error);
+      return null;
+    }
+    return result.data as T;
   }
 
   // ── Create ────────────────────────────────────────────────
@@ -58,7 +80,7 @@ export class BaseRepository<T extends FirestoreRecord> {
   async findById(id: string): Promise<T | null> {
     const snap = await getDoc(this.docRef(id));
     if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() } as T;
+    return this.hydrate(snap.id, snap.data());
   }
 
   // ── Read many ─────────────────────────────────────────────
@@ -77,7 +99,9 @@ export class BaseRepository<T extends FirestoreRecord> {
 
     const q: Query = query(this.ref(), ...constraints);
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T);
+    return snap.docs
+      .map((d) => this.hydrate(d.id, d.data()))
+      .filter((doc): doc is T => doc !== null);
   }
 
   // ── Update ────────────────────────────────────────────────
@@ -124,7 +148,9 @@ export class BaseRepository<T extends FirestoreRecord> {
   ): Unsubscribe {
     const q: Query = query(this.ref(), ...constraints);
     return onSnapshot(q, (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T);
+      const items = snap.docs
+        .map((d) => this.hydrate(d.id, d.data()))
+        .filter((doc): doc is T => doc !== null);
       callback(items);
     });
   }
