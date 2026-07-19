@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { getAppUrl } from "@/lib/app-url";
 
 const WEEKS_OF_REVENUE_HISTORY = 12;
 
@@ -101,14 +102,14 @@ export async function runWeeklyMlPredictions(): Promise<RunMlPredictionsResult> 
     }));
 
   // ── Call the Python function ────────────────────────────────────────
-  const vercelHost = process.env.VERCEL_URL;
-  if (!vercelHost) {
-    return { ok: false, error: "VERCEL_URL not set — can't reach the internal ML function.", status: 500 };
-  }
-
+  // Must be the stable production domain (same helper every other
+  // absolute-link call site in this app uses), not process.env.VERCEL_URL
+  // — that resolves to the ephemeral per-deployment URL, which sits behind
+  // Vercel's Deployment Protection and 401s any unauthenticated
+  // server-to-server request, unlike the aliased production domain.
   let mlResponse: z.infer<typeof mlResponseSchema>;
   try {
-    const res = await fetch(`https://${vercelHost}/api/ml/forecast`, {
+    const res = await fetch(`${getAppUrl()}/api/ml/forecast`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ weeklyRevenue: weekBuckets, leads }),
