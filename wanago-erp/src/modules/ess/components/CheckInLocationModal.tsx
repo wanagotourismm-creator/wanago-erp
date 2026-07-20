@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Loader2, MapPin, Camera, CheckCircle2, AlertTriangle } from "lucide-react";
+import { X, Loader2, MapPin, Camera, CheckCircle2, AlertTriangle, RotateCw } from "lucide-react";
 import { LocationPickerMap } from "@/modules/admin/offices/components/LocationPickerMap";
 import type { CheckInContext } from "@/modules/ess/hooks/useEss";
 
@@ -15,6 +15,7 @@ type Props = {
   requiresLateReason?: boolean;
   onConfirm: (selfieFile: File | null, lateReason?: string) => void;
   onClose:   () => void;
+  onRetryLocation?: () => void;
 };
 
 // Shown every time an employee checks in/out — always displays the
@@ -23,7 +24,7 @@ type Props = {
 // office has geofencing configured and the employee is confirmed outside
 // it (or couldn't be located at all); being in range, or an office that
 // never opted into geofencing, skips straight to a plain confirm.
-export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateReason, onConfirm, onClose }: Props) {
+export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateReason, onConfirm, onClose, onRetryLocation }: Props) {
   const selfieInputRef = useRef<HTMLInputElement>(null);
   const [lateReason, setLateReason] = useState("");
   const [lateReasonError, setLateReasonError] = useState<string | null>(null);
@@ -96,6 +97,16 @@ export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateR
                       : "We couldn't get your location"}
                   </div>
                   <p>A selfie is required, and this will be sent to your manager for approval.</p>
+                  {!ctx.pos && onRetryLocation && (
+                    <button
+                      type="button"
+                      onClick={onRetryLocation}
+                      disabled={busy}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 hover:underline disabled:opacity-60 dark:text-amber-400">
+                      <RotateCw size={12} />
+                      Try getting my location again
+                    </button>
+                  )}
                 </div>
               )}
 

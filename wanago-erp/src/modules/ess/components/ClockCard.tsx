@@ -59,6 +59,19 @@ export function ClockCard({
     setModal({ action, ctx });
   }
 
+  // GPS fixes can fail transiently (cold start, brief signal loss) even with
+  // the high-accuracy/15s settings in lib/geo.ts — re-running the same
+  // lookup in place (instead of forcing a full close/reopen) lets the
+  // employee retry once their signal settles instead of falling straight
+  // through to the selfie-and-manager-approval path.
+  async function retryLocation() {
+    if (!modal) return;
+    setModalLoading(true);
+    const ctx = await onResolveContext();
+    setModalLoading(false);
+    setModal({ action: modal.action, ctx });
+  }
+
   async function handleModalConfirm(selfieFile: File | null, lateReason?: string) {
     if (!modal?.ctx) return;
     setBusy(true);
@@ -218,6 +231,7 @@ export function ClockCard({
           requiresLateReason={modal.action === "in" && wouldBeLate}
           onConfirm={handleModalConfirm}
           onClose={() => setModal(null)}
+          onRetryLocation={retryLocation}
         />
       )}
     </div>

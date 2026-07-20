@@ -30,7 +30,11 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
 // a null result blocks clock-in is decided by the caller (useEss.ts's
 // clockIn()) based on whether the employee's office has geofencing
 // configured at all — this helper itself stays a plain best-effort lookup.
-export function getCurrentPosition(timeoutMs = 8000): Promise<GeoPosition | null> {
+// enableHighAccuracy + a 15s timeout (up from a plain default-accuracy 8s)
+// gives a cold GPS fix enough time to land, especially indoors/urban canyon
+// — the old combination was timing out for a lot of real check-ins before
+// low-accuracy network positioning even had a chance to resolve.
+export function getCurrentPosition(timeoutMs = 15000): Promise<GeoPosition | null> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       resolve(null);
@@ -43,7 +47,7 @@ export function getCurrentPosition(timeoutMs = 8000): Promise<GeoPosition | null
         accuracy: pos.coords.accuracy ?? null,
       }),
       () => resolve(null),
-      { timeout: timeoutMs, maximumAge: 60000 }
+      { timeout: timeoutMs, maximumAge: 60000, enableHighAccuracy: true }
     );
   });
 }

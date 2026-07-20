@@ -13,6 +13,7 @@ import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSp
 import { HrActionQueueCard } from "@/modules/dashboard/components/HrActionQueueCard";
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
+import { QuickClockCard }    from "@/modules/dashboard/components/QuickClockCard";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 
 // Replaces the company-wide DashboardPage for the `hr` role — HR's queues
@@ -79,6 +80,8 @@ export function HrPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
+
+          <QuickClockCard />
 
           <HrActionQueueCard items={hr.oldestPending} loading={hr.loading} />
 

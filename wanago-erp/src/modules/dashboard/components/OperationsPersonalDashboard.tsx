@@ -13,6 +13,7 @@ import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSp
 import { OpsApprovalQueueCard } from "@/modules/dashboard/components/OpsApprovalQueueCard";
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
+import { QuickClockCard }    from "@/modules/dashboard/components/QuickClockCard";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 
 // Replaces the company-wide DashboardPage for the `operations` role —
@@ -79,6 +80,8 @@ export function OperationsPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
+
+          <QuickClockCard />
 
           <OpsApprovalQueueCard items={ops.oldestPending} loading={ops.loading} />
 

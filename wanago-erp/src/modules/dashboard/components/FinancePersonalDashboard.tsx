@@ -13,6 +13,7 @@ import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSp
 import { FinanceActionQueueCard } from "@/modules/dashboard/components/FinanceActionQueueCard";
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
+import { QuickClockCard }    from "@/modules/dashboard/components/QuickClockCard";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/utils/helpers";
 
@@ -80,6 +81,8 @@ export function FinancePersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
+
+          <QuickClockCard />
 
           <FinanceActionQueueCard items={finance.oldestPending} loading={finance.loading} />
 

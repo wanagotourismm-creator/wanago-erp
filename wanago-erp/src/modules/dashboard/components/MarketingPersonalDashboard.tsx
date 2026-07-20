@@ -13,6 +13,7 @@ import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSp
 import { MyCampaignsCard }   from "@/modules/dashboard/components/MyCampaignsCard";
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
+import { QuickClockCard }    from "@/modules/dashboard/components/QuickClockCard";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 
 // Replaces the company-wide DashboardPage for the `marketing` role —
@@ -79,6 +80,8 @@ export function MarketingPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
+
+          <QuickClockCard />
 
           <MyCampaignsCard campaigns={campaignStats.campaigns} loading={campaignStats.loading} />
 

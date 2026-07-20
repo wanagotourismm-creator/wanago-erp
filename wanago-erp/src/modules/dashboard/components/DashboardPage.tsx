@@ -33,6 +33,7 @@ import { PayrollSummaryCard }   from "@/modules/dashboard/components/PayrollSumm
 import { PendingDuesPanel }     from "@/modules/dashboard/components/PendingDuesPanel";
 import { InternationalFollowUps } from "@/modules/dashboard/components/InternationalFollowUps";
 import { ContinueTrainingCard }   from "@/modules/dashboard/components/ContinueTrainingCard";
+import { QuickClockCard }         from "@/modules/dashboard/components/QuickClockCard";
 import { SalesPersonalDashboard }      from "@/modules/dashboard/components/SalesPersonalDashboard";
 import { MarketingPersonalDashboard }  from "@/modules/dashboard/components/MarketingPersonalDashboard";
 import { HrPersonalDashboard }         from "@/modules/dashboard/components/HrPersonalDashboard";
@@ -204,6 +205,8 @@ function CompanyWideDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
+
+          <QuickClockCard />
 
           {/* Revenue chart + Pipeline */}
           <div className="grid gap-4 lg:grid-cols-3">

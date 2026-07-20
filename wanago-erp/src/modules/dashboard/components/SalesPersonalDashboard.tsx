@@ -16,6 +16,7 @@ import { MyRankCard }        from "@/modules/dashboard/components/MyRankCard";
 import { WeeklyLeaderboardCard } from "@/modules/dashboard/components/WeeklyLeaderboardCard";
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
+import { QuickClockCard }    from "@/modules/dashboard/components/QuickClockCard";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/utils/helpers";
 
@@ -86,6 +87,8 @@ export function SalesPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
+
+          <QuickClockCard />
 
           <MySalesProgress />
 
