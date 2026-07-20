@@ -41,6 +41,8 @@ export function SalesPersonalDashboard() {
         followUpCount={pipeline.followUpPending}
       />
 
+      <QuickClockCard />
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="My Active Leads"
@@ -87,8 +89,6 @@ export function SalesPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
-
-          <QuickClockCard />
 
           <MySalesProgress />
 

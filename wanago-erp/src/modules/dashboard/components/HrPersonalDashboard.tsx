@@ -34,6 +34,8 @@ export function HrPersonalDashboard() {
         followUpCount={hr.pendingLeaves + hr.pendingRegularizations}
       />
 
+      <QuickClockCard />
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Pending Approvals"
@@ -80,8 +82,6 @@ export function HrPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
-
-          <QuickClockCard />
 
           <HrActionQueueCard items={hr.oldestPending} loading={hr.loading} />
 

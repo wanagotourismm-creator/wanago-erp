@@ -34,6 +34,8 @@ export function OperationsPersonalDashboard() {
         followUpCount={ops.pendingOpsApprovals}
       />
 
+      <QuickClockCard />
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Awaiting Confirmation"
@@ -80,8 +82,6 @@ export function OperationsPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
-
-          <QuickClockCard />
 
           <OpsApprovalQueueCard items={ops.oldestPending} loading={ops.loading} />
 

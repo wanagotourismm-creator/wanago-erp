@@ -34,6 +34,8 @@ export function MarketingPersonalDashboard() {
         followUpCount={campaignStats.activeCampaigns}
       />
 
+      <QuickClockCard />
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="My Campaigns"
@@ -80,8 +82,6 @@ export function MarketingPersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
-
-          <QuickClockCard />
 
           <MyCampaignsCard campaigns={campaignStats.campaigns} loading={campaignStats.loading} />
 

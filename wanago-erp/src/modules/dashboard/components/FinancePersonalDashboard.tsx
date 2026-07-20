@@ -35,6 +35,8 @@ export function FinancePersonalDashboard() {
         followUpCount={finance.pendingExpenseApprovals}
       />
 
+      <QuickClockCard />
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Collected This Month"
@@ -81,8 +83,6 @@ export function FinancePersonalDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
-
-          <QuickClockCard />
 
           <FinanceActionQueueCard items={finance.oldestPending} loading={finance.loading} />
 

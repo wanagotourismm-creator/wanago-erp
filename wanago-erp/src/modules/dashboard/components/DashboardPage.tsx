@@ -119,6 +119,8 @@ function CompanyWideDashboard() {
         <CockpitFilters filters={cockpitFilters} onChange={setCockpitFilters} />
       </div>
 
+      <QuickClockCard />
+
       <FounderBriefingCard />
 
       {/* Stat cards — first one is featured (dark green) */}
@@ -205,8 +207,6 @@ function CompanyWideDashboard() {
               <OnsiteRemoteSplit officePct={attendanceSummary.officePct} wfhPct={attendanceSummary.wfhPct} />
             </div>
           )}
-
-          <QuickClockCard />
 
           {/* Revenue chart + Pipeline */}
           <div className="grid gap-4 lg:grid-cols-3">
