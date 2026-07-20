@@ -59,6 +59,7 @@ const CATEGORY_META: Record<NotificationCategory, { icon: string; label: string 
   followup:       { icon: "⏰", label: "Reminder" },
   approval:       { icon: "📄", label: "Approval" },
   location:       { icon: "📍", label: "Location Approval" },
+  marketing:      { icon: "📣", label: null },
 };
 
 // Full-bleed, brand-colored card used for every generic notification email
@@ -430,6 +431,51 @@ export async function sendQuotationEmail(params: {
     html: renderQuotationEmailHtml(params.customerName, params.refNumber, params.grandTotal, company.businessName),
     businessName: company.businessName,
     attachments: [{ filename: `Quotation-${params.refNumber}.pdf`, url: params.pdfUrl }],
+  });
+}
+
+function renderReviewRequestEmailHtml(customerName: string, link: string, businessName: string) {
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">How Was Your Trip?</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${customerName}! ✈️</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 24px;">
+            We hope you had a wonderful trip! It'd mean a lot if you could take 30 seconds to share how it went — it helps us keep improving.
+          </p>
+          <p style="text-align:center;margin:0 0 24px;">
+            <a href="${link}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;">Share Your Feedback</a>
+          </p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent by the review-requests cron once a completed booking's configured
+// delay has passed — see reviews.service.ts's scheduleReviewRequest and
+// src/app/api/cron/review-requests/route.ts.
+export async function sendReviewRequestEmail(params: {
+  to: string; customerName: string; link: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
+  return sendRawEmail({
+    to: params.to,
+    subject: `How was your trip with ${company.businessName}? ✈️`,
+    html: renderReviewRequestEmailHtml(params.customerName, params.link, company.businessName),
+    businessName: company.businessName,
   });
 }
 

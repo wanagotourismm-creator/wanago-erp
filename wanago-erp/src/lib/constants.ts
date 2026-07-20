@@ -173,6 +173,13 @@ export const FIRESTORE_COLLECTIONS = {
   HR_POLICY_DOCUMENTS:    "hrPolicyDocuments",
   FORMS:                  "forms",
   FORM_RESPONSES:         "formResponses",
+  REVIEW_REQUESTS:        "reviewRequests",
+  NPS_RESPONSES:          "npsResponses",
+  TALLY_MAPPINGS:         "tallyMappings",
+  TALLY_EXPORTS:          "tallyExports",
+  JOURNEYS:               "journeys",
+  JOURNEY_RUNS:           "journeyRuns",
+  SEGMENTS:               "segments",
 } as const;
 
 // Internal lookup keys business logic uses to ask "give me the approved
@@ -184,6 +191,7 @@ export const WHATSAPP_TEMPLATE_PURPOSES = {
   BOOKING_REQUEST_CONTACTED:   "booking_request_contacted",
   STAFF_REQUEST_DECISION:      "staff_request_decision",
   INTERNATIONAL_TRIP_FOLLOWUP: "international_trip_followup",
+  REVIEW_REQUEST:              "review_request",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

@@ -11,6 +11,7 @@ import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { generateQuotationPdfBlob, loadCompanyLogoDataUrl } from "@/lib/pdf/quotation-pdf";
+import { createJourneyRunsForTrigger } from "@/modules/journeys/services/journey.service";
 
 // Notification helpers below are best-effort — a failure here must never
 // break the actual quotation creation/approval/rejection flow.
@@ -234,6 +235,21 @@ export async function deleteQuotation(id: string): Promise<void> {
 export async function sendQuotation(quotation: Quotation): Promise<void> {
   await quotationRepository.update(quotation.id, { status: "sent" } as Partial<Quotation>);
   await sendQuotationPdfToCustomer(quotation);
+
+  // Best-effort — same convention as createReferralBonusIfEligible/
+  // scheduleReviewRequest. Only ever creates a journeyRuns doc; the actual
+  // send happens exclusively from the journey-engine cron.
+  try {
+    await createJourneyRunsForTrigger("quote_sent", {
+      id: quotation.id,
+      customerId: quotation.customerId,
+      customerName: quotation.customerName,
+      customerPhone: quotation.customerPhone,
+      createdBy: quotation.createdBy,
+    });
+  } catch (err) {
+    console.error("[quotation.service] createJourneyRunsForTrigger failed:", err);
+  }
 }
 
 export async function markQuotationAccepted(id: string): Promise<void> {

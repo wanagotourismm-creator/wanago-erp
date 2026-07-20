@@ -249,7 +249,7 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
     await assertSucceeds(db.collection("activities").doc("doc1").get());
   });
 
-  it.each(["users", "settings", "hrmsEmployees", "candidates", "performanceReviews", "referralPartners", "helpArticles"])(
+  it.each(["users", "settings", "hrmsEmployees", "candidates", "performanceReviews", "referralPartners", "helpArticles", "npsResponses", "tallyMappings", "journeys", "segments"])(
     "blocks a non-admin authenticated create of %s",
     async (collectionName) => {
       await seedUser("u1", "sales");
@@ -262,7 +262,7 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
     }
   );
 
-  it.each(["users", "settings", "bookings", "trash", "hrmsLeaves", "tickets", "referralPartners"])(
+  it.each(["users", "settings", "bookings", "trash", "hrmsLeaves", "tickets", "referralPartners", "npsResponses", "tallyMappings", "journeys", "segments"])(
     "blocks a non-admin authenticated update of %s",
     async (collectionName) => {
       await seedDoc(collectionName);
@@ -275,6 +275,121 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
       );
     }
   );
+});
+
+describe("firestore.rules — Review & NPS engine (reviewRequests/npsResponses)", () => {
+  async function seedDoc(collectionName: string) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection(collectionName).doc("doc1").set({ seeded: true });
+    });
+  }
+
+  it("allows any authenticated staff member to read npsResponses (reputation dashboard)", async () => {
+    await seedDoc("npsResponses");
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("npsResponses").doc("doc1").get());
+  });
+
+  it("allows admin to write npsResponses directly", async () => {
+    await seedUser("admin1", "admin");
+    const db = testEnv.authenticatedContext("admin1").firestore();
+    await assertSucceeds(
+      db.collection("npsResponses").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "admin1", status: "active",
+      })
+    );
+  });
+
+  it("allows any authenticated staff member to create/read/update reviewRequests (booking completion trigger)", async () => {
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(
+      db.collection("reviewRequests").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", bookingId: "b1",
+      })
+    );
+    await assertSucceeds(db.collection("reviewRequests").doc("doc1").get());
+    await assertSucceeds(
+      db.collection("reviewRequests").doc("doc1").update({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", sentAt: new Date(),
+      })
+    );
+  });
+});
+
+describe("firestore.rules — Tally export (tallyMappings/tallyExports)", () => {
+  async function seedDoc(collectionName: string) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection(collectionName).doc("doc1").set({ seeded: true });
+    });
+  }
+
+  it("allows any authenticated staff member to read tallyMappings", async () => {
+    await seedDoc("tallyMappings");
+    await seedUser("u1", "finance");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("tallyMappings").doc("doc1").get());
+  });
+
+  it("allows admin to write tallyMappings directly", async () => {
+    await seedUser("admin1", "admin");
+    const db = testEnv.authenticatedContext("admin1").firestore();
+    await assertSucceeds(
+      db.collection("tallyMappings").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "admin1", status: "active",
+      })
+    );
+  });
+
+  it("allows any authenticated staff member to create/read tallyExports (export log)", async () => {
+    await seedUser("u1", "finance");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(
+      db.collection("tallyExports").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", periodStart: "2026-07-01",
+      })
+    );
+    await assertSucceeds(db.collection("tallyExports").doc("doc1").get());
+  });
+});
+
+describe("firestore.rules — Marketing automation (journeys/segments/journeyRuns)", () => {
+  async function seedDoc(collectionName: string) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection(collectionName).doc("doc1").set({ seeded: true });
+    });
+  }
+
+  it("allows any authenticated staff member to read journeys and segments", async () => {
+    await seedDoc("journeys");
+    await seedDoc("segments");
+    await seedUser("u1", "marketing");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("journeys").doc("doc1").get());
+    await assertSucceeds(db.collection("segments").doc("doc1").get());
+  });
+
+  it("allows admin to write journeys and segments directly", async () => {
+    await seedUser("admin1", "admin");
+    const db = testEnv.authenticatedContext("admin1").firestore();
+    await assertSucceeds(
+      db.collection("journeys").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "admin1", status: "active",
+      })
+    );
+  });
+
+  it("allows any authenticated staff member to create/read journeyRuns", async () => {
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(
+      db.collection("journeyRuns").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", journeyId: "j1",
+      })
+    );
+    await assertSucceeds(db.collection("journeyRuns").doc("doc1").get());
+  });
 });
 
 describe("firestore.rules — HR creating a login account for a new employee", () => {

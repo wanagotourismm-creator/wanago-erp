@@ -60,6 +60,11 @@ export type Booking = Omit<FirestoreRecord, "status"> & {
   // Set once the international-package 10-day-before-travel follow-up
   // reminder has fired, so it doesn't re-notify on every check.
   followUpNotifiedAt: Timestamp | Date | string | FieldValue | null;
+
+  // Stamped the moment status first becomes "completed" — the review-
+  // requests cron uses this (+ ReviewSettings.delayDays) to schedule the
+  // post-trip NPS request. Null until then.
+  completedAt: Timestamp | Date | string | FieldValue | null;
 };
 
 export type BookingFormData = Omit<
@@ -68,5 +73,5 @@ export type BookingFormData = Omit<
   | "financeApprovedBy" | "financeApprovedAt" | "paymentVerification"
   | "opsApprovedBy" | "opsApprovedAt" | "profitAmount" | "followUpNotifiedAt"
   | "financeRejectedBy" | "financeRejectedAt" | "financeRejectionReason"
-  | "opsRejectedBy" | "opsRejectedAt" | "opsRejectionReason"
+  | "opsRejectedBy" | "opsRejectedAt" | "opsRejectionReason" | "completedAt"
 >;

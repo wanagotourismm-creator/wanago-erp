@@ -77,6 +77,7 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
           assignedTo:     customer.assignedTo     ?? "",
           agentName:      customer.agentName      ?? "",
           notes:          customer.notes          ?? "",
+          marketingOptOut: customer.marketingOptOut ?? false,
         });
       } else {
         reset({
@@ -226,6 +227,10 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
                 className={cn(inputClass, "resize-none")}
               />
             </Field>
+            <label className="mt-3 flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <input type="checkbox" className="h-4 w-4 rounded border-input" {...register("marketingOptOut")} />
+              Opted out of marketing messages (journeys will never message this customer)
+            </label>
           </div>
 
           {referralEnabled && !customer && (

@@ -153,7 +153,18 @@ service cloud.firestore {
         'referralPartners', 'referralPosters', 'referralClicks',
         'assets', 'settings', 'bookingRequests', 'quickInquiries', 'holidays',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
-        'whatsappTemplates', 'teamPulseResponses', 'digests'
+        'whatsappTemplates', 'teamPulseResponses', 'digests',
+        // All real writes happen server-side via the Admin SDK (the
+        // review-requests cron and the public /review/{token} route) —
+        // no legitimate client create path exists, same reasoning as
+        // whatsappTemplates.
+        'npsResponses',
+        // Admin-configured ledger-mapping table (Tally export) — same
+        // reasoning as whatsappTemplates, no non-admin write path needed.
+        'tallyMappings',
+        // Marketing-configured journey/segment definitions — same
+        // reasoning, no non-admin write path needed.
+        'journeys', 'segments'
       ];
     }
 
@@ -171,7 +182,8 @@ service cloud.firestore {
         'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
         'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
-        'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash'
+        'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash',
+        'npsResponses', 'tallyMappings', 'journeys', 'segments'
       ];
     }
 
@@ -945,6 +957,51 @@ service cloud.firestore {
     // manages these). The smart-send helper reads it server-side via
     // the Admin SDK, which bypasses these rules entirely.
     match /whatsappTemplates/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── NPS responses (Review & NPS engine) ────────────────────
+    // Written exclusively by the public, no-login /review/{token} route
+    // via the Admin SDK (bypasses this file entirely) — there's no
+    // legitimate client write path, so writes are locked to Admin same as
+    // whatsappTemplates above. Read stays open to any authenticated staff
+    // member for the Reviews & NPS reputation dashboard.
+    // reviewRequests has no dedicated rule — it's created client-side by
+    // scheduleReviewRequest() when a booking completes, and the plain
+    // catch-all's isAuthenticated() read/create/update grant below is
+    // exactly the access it needs (same as most other modules).
+    match /npsResponses/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Tally ledger mappings (accounting bridge) ──────────────
+    // Admin-managed lookup table (ERP expense category / system account ->
+    // Tally ledger name+group) — same reasoning as whatsappTemplates: read
+    // open to any authenticated user (Finance needs it to see/export), write
+    // restricted to Admin. tallyExports (the per-export log) has no
+    // dedicated rule — it's written client-side by whichever authenticated
+    // finance/admin user triggers an export, and the catch-all's plain
+    // isAuthenticated() grant is exactly right, same as reviewRequests.
+    match /tallyMappings/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Marketing automation (drip journeys) ───────────────────
+    // journeys/segments are marketing-configured definitions — read open
+    // to any authenticated user, write restricted to Admin, same reasoning
+    // as whatsappTemplates/tallyMappings. journeyRuns has no dedicated
+    // rule — created client-side by the quote_sent/trip_completed hook
+    // points and advanced server-side by the journey-engine cron (Admin
+    // SDK, bypasses this file), so the catch-all's plain isAuthenticated()
+    // grant is exactly right, same as reviewRequests/tallyExports.
+    match /journeys/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    match /segments/{id} {
       allow read:  if isAuthenticated();
       allow write: if isAdmin();
     }

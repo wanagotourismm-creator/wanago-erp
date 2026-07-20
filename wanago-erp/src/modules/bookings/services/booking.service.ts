@@ -9,6 +9,8 @@ import type { Booking, BookingFormData } from "@/modules/bookings/types";
 import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
 import { createReferralBonusIfEligible } from "@/modules/referrals/services/referral.service";
+import { scheduleReviewRequest } from "@/modules/reviews/services/reviews.service";
+import { createJourneyRunsForTrigger } from "@/modules/journeys/services/journey.service";
 
 // Approve/reject used to be a plain read-then-write with no check that the
 // booking was still in the expected status — two approvers acting on the
@@ -126,6 +128,7 @@ export async function createBooking(
     opsApprovedAt:       null,
     profitAmount:        null,
     followUpNotifiedAt:  null,
+    completedAt:         null,
   });
 
   await notifyApprovers("bookings:finance_approve", booking, "Finance");
@@ -182,7 +185,37 @@ export async function updateBookingStatus(
   id: string,
   status: string
 ): Promise<void> {
-  return bookingRepository.update(id, { status } as Partial<Booking>);
+  const existing = await bookingRepository.findById(id);
+  const patch: Partial<Booking> = { status } as Partial<Booking>;
+
+  const becameCompleted = status === BOOKING_STATUS.COMPLETED && existing?.status !== BOOKING_STATUS.COMPLETED;
+  if (becameCompleted) {
+    patch.completedAt = serverTimestamp();
+  }
+
+  await bookingRepository.update(id, patch);
+
+  // Best-effort, same convention as createReferralBonusIfEligible — a
+  // failure here must never block the status change itself.
+  if (becameCompleted && existing) {
+    try {
+      await scheduleReviewRequest({ ...existing, status: BOOKING_STATUS.COMPLETED });
+    } catch (err) {
+      console.error("[booking.service] scheduleReviewRequest failed:", err);
+    }
+    try {
+      await createJourneyRunsForTrigger("trip_completed", {
+        id: existing.id,
+        customerId: existing.customerId,
+        customerName: existing.customerName,
+        customerPhone: existing.customerPhone,
+        createdBy: existing.createdBy,
+        assignedTo: existing.assignedTo,
+      });
+    } catch (err) {
+      console.error("[booking.service] createJourneyRunsForTrigger failed:", err);
+    }
+  }
 }
 
 // Finance verifies how much of the amount has actually come in, then the

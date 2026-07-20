@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useDashboard }         from "@/modules/dashboard/hooks/useDashboard";
 import { useCurrentEmployee }   from "@/modules/dashboard/hooks/useCurrentEmployee";
 import { useAttendanceSummary } from "@/modules/dashboard/hooks/useAttendanceSummary";
@@ -18,6 +19,8 @@ import { LeadPipeline }         from "@/modules/dashboard/components/LeadPipelin
 import { RevenueForecast }      from "@/modules/dashboard/components/RevenueForecast";
 import { InsightsCard }         from "@/modules/dashboard/components/InsightsCard";
 import { FounderBriefingCard }  from "@/modules/dashboard/components/FounderBriefingCard";
+import { CockpitFilters }       from "@/modules/dashboard/components/CockpitFilters";
+import { AlertsFeed }           from "@/modules/dashboard/components/AlertsFeed";
 import { TeamStatusDonut }      from "@/modules/dashboard/components/TeamStatusDonut";
 import { HiringStatsCard }      from "@/modules/dashboard/components/HiringStatsCard";
 import { SmartRecommendations } from "@/modules/dashboard/components/SmartRecommendations";
@@ -37,6 +40,15 @@ import { FinancePersonalDashboard }    from "@/modules/dashboard/components/Fina
 import { OperationsPersonalDashboard } from "@/modules/dashboard/components/OperationsPersonalDashboard";
 import { SkeletonCard }         from "@/components/ui/Skeleton";
 import { formatCurrency }       from "@/lib/utils/helpers";
+import type { CockpitFilters as CockpitFiltersType } from "@/modules/dashboard/types";
+
+function defaultCockpitFilters(): CockpitFiltersType {
+  return {
+    officeId:   "all",
+    rangeStart: new Date(new Date().setDate(new Date().getDate() - 30)),
+    rangeEnd:   new Date(),
+  };
+}
 
 // Every non-admin role gets a dashboard scoped to their own department's
 // work instead of the company-wide view below (which includes things like
@@ -63,7 +75,8 @@ export function DashboardPage() {
 }
 
 function CompanyWideDashboard() {
-  const { stats, pipeline, revenue, bookings, loading, error } = useDashboard();
+  const [cockpitFilters, setCockpitFilters] = useState<CockpitFiltersType>(defaultCockpitFilters);
+  const { stats, pipeline, revenue, bookings, alerts, loading, error } = useDashboard(cockpitFilters);
   const { user } = useAuthStore();
   const currentEmployee   = useCurrentEmployee();
   const attendanceSummary = useAttendanceSummary();
@@ -97,10 +110,13 @@ function CompanyWideDashboard() {
       )}
 
       {/* Greeting row */}
-      <GreetingBanner
-        newLeads={stats?.newLeads ?? 0}
-        followUpCount={stats?.followUpPending ?? 0}
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <GreetingBanner
+          newLeads={stats?.newLeads ?? 0}
+          followUpCount={stats?.followUpPending ?? 0}
+        />
+        <CockpitFilters filters={cockpitFilters} onChange={setCockpitFilters} />
+      </div>
 
       <FounderBriefingCard />
 
@@ -135,6 +151,37 @@ function CompanyWideDashboard() {
           href="/invoices"
         />
       </div>
+
+      {/* Executive cockpit tiles — cash/margin/pipeline read straight off
+          existing module data (no GL/BI engine yet, see dashboard/types) */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Cash Position"
+          value={formatCurrency(stats?.cashPosition ?? 0)}
+          sub="Payments in − paid expenses, in range"
+          href="/payments"
+        />
+        <StatCard
+          label="Gross Margin"
+          value={stats?.grossMarginPct != null ? `${stats.grossMarginPct.toFixed(1)}%` : "—"}
+          sub="Confirmed/completed bookings"
+          href="/bookings"
+        />
+        <StatCard
+          label="Open Pipeline Value"
+          value={formatCurrency(stats?.pipelineValue ?? 0)}
+          sub="Active leads' stated budget"
+          href="/leads"
+        />
+        <StatCard
+          label="AR Overdue"
+          value={formatCurrency(stats?.arOverdueAmount ?? 0)}
+          sub="Overdue invoice balance"
+          href="/invoices"
+        />
+      </div>
+
+      <AlertsFeed alerts={alerts} loading={loading} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
 

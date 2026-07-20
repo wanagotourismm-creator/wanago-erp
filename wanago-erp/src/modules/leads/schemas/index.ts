@@ -25,6 +25,7 @@ export const leadSchema = z.object({
   assignedTo:     z.string().optional().or(z.literal("")),
   agentName:      z.string().optional().or(z.literal("")),
   isSelfGenerated: z.boolean().optional(),
+  marketingOptOut: z.boolean().optional(),
 
   officeId:       z.string().min(1),
   officeName:     z.string().min(1),

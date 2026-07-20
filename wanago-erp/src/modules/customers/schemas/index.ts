@@ -19,6 +19,8 @@ export const customerSchema = z.object({
 
   notes:          z.string().optional().or(z.literal("")),
 
+  marketingOptOut: z.boolean().optional(),
+
   // Form-only — resolved to referredByCustomerId at submit time (see
   // CustomersPage.handleSubmit), not stored on the Customer as-is.
   referralCodeEntered: z.string().optional().or(z.literal("")),

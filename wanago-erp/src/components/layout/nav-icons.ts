@@ -4,7 +4,7 @@ import {
   Receipt, Megaphone, BadgeCheck, CalendarOff, Wallet,
   BarChart3, Settings, Clock,
   ShieldCheck, UserPlus, Target, GraduationCap, UserCircle, Gauge, MessageCircle, Heart, Gift, Inbox,
-  Sparkles,
+  Sparkles, Download, Workflow,
 } from "lucide-react";
 
 // Shared icon map keyed by nav-config's `icon: string` field — single
@@ -39,4 +39,6 @@ export const NAV_ICONS: Record<string, React.ElementType> = {
   "gift":             Gift,
   "inbox":            Inbox,
   "sparkles":         Sparkles,
+  "download":         Download,
+  "workflow":         Workflow,
 };

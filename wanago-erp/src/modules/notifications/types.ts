@@ -1,6 +1,6 @@
 import type { FirestoreRecord } from "@/types/global";
 
-export type NotificationCategory = "leave" | "regularization" | "asset" | "ticket" | "system" | "followup" | "approval" | "location";
+export type NotificationCategory = "leave" | "regularization" | "asset" | "ticket" | "system" | "followup" | "approval" | "location" | "marketing";
 
 export type AppNotification = FirestoreRecord & {
   recipientId: string;

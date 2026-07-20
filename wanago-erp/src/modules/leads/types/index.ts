@@ -78,6 +78,11 @@ export type Lead = FirestoreRecord & {
 
   // Reference
   refNumber:      string;
+
+  // Global marketing opt-out (Marketing Automation / drip journeys) —
+  // checked by the journey engine before every WhatsApp/email send;
+  // optional so pre-feature records read as false (not opted out).
+  marketingOptOut?: boolean;
 };
 
 export type LeadFormData = Omit<

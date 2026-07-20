@@ -160,6 +160,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "id-badge",
         roles: ["super_admin","admin","finance"],
       },
+      {
+        label: "Tally Export",
+        href:  "/accounting/tally",
+        icon:  "download",
+        roles: ["super_admin","admin","finance"],
+      },
     ],
   },
   {
@@ -175,6 +181,12 @@ export const NAV_CONFIG: NavGroup[] = [
         label: "Refer & Earn",
         href:  "/referral-program",
         icon:  "gift",
+        roles: ["super_admin","admin","marketing"],
+      },
+      {
+        label: "Marketing Automation",
+        href:  "/journeys",
+        icon:  "workflow",
         roles: ["super_admin","admin","marketing"],
       },
     ],
@@ -210,6 +222,12 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/insights",
         icon:  "sparkles",
         roles: ["super_admin","admin","sales_head","finance"],
+      },
+      {
+        label: "Reviews & NPS",
+        href:  "/reviews",
+        icon:  "heart",
+        roles: ["super_admin","admin","marketing","sales_head","operations"],
       },
     ],
   },

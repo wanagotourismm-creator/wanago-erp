@@ -92,6 +92,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
           source:          lead.source          ?? "",
           pax:             lead.pax             ?? undefined,
           isSelfGenerated: lead.isSelfGenerated ?? false,
+          marketingOptOut: lead.marketingOptOut ?? false,
         });
       } else {
         reset({
@@ -99,6 +100,7 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
           officeId:        user?.officeId   ?? "main",
           officeName:      user?.officeName ?? "Head Office",
           isSelfGenerated: false,
+          marketingOptOut: false,
         });
       }
     }
@@ -295,6 +297,18 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
                     onChange={e => setValue("isSelfGenerated", e.target.checked)}
                   />
                   Self-generated lead (sourced directly by me, not assigned)
+                </label>
+              </div>
+
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input"
+                    checked={watch("marketingOptOut") ?? false}
+                    onChange={e => setValue("marketingOptOut", e.target.checked)}
+                  />
+                  Opted out of marketing messages (journeys will never message this lead)
                 </label>
               </div>
             </div>

@@ -31,6 +31,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 firebase-debug.log
+firestore-debug.log
+
+# Test artifacts
+/coverage
+/test-results
 
 
 # Python (api/ml/forecast.py)

@@ -31,6 +31,8 @@ export async function createTicket(data: TicketSchema, createdBy: string): Promi
     resolvedAt:      null,
     status:          "active",
     createdBy,
+    sourceType:      "manual",
+    linkedBookingId: null,
   });
 }
 

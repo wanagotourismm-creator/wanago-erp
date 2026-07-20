@@ -9,14 +9,13 @@ import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { CustomerDetailModal } from "@/modules/customers/components/CustomerDetailModal";
 import { CustomerForm } from "@/modules/customers/components/CustomerForm";
 import { CUSTOMER_TYPES, CUSTOMER_SEGMENT_LABELS } from "@/modules/customers/components/CustomerBadges";
-import { computeCustomerSegment, type CustomerSegment } from "@/modules/customers/utils/segment";
-import { BOOKING_STATUS } from "@/lib/constants";
+import { computeCustomerSegments, type CustomerSegment } from "@/modules/customers/utils/segment";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { PinConfirmDialog } from "@/components/shared/PinConfirmDialog";
 import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
-import { cn, toDate } from "@/lib/utils/helpers";
+import { cn } from "@/lib/utils/helpers";
 import { BulkImportModal, type TemplateColumn } from "@/components/bulk/BulkImportModal";
 import { BulkExportButton } from "@/components/bulk/BulkExportButton";
 import { resolveOffice } from "@/lib/bulk/resolveOffice";
@@ -68,52 +67,15 @@ export function CustomersPage() {
 
   useEffect(() => { fetchOffices().then(setOffices).catch(() => {}); }, []);
 
-  // Segments every customer using the shared computeCustomerSegment rule —
-  // enquiry count from matched Leads, booking count/value/recency from
-  // Bookings. Recomputed whenever the customer list changes so a brand new
-  // customer isn't stuck showing as unsegmented.
+  // Segments every customer using the shared computeCustomerSegments rule
+  // (customers/utils/segment.ts — also reused by the journeys module's
+  // segment resolver). Recomputed whenever the customer list changes so a
+  // brand new customer isn't stuck showing as unsegmented.
   useEffect(() => {
     if (customers.length === 0) return;
-    Promise.all([fetchLeads(), fetchBookings()]).then(([leads, bookings]) => {
-      const enquiryCounts: Record<string, number> = {};
-      const lastEnquiryAt: Record<string, Date> = {};
-      for (const lead of leads) {
-        if (!lead.matchedCustomerId) continue;
-        enquiryCounts[lead.matchedCustomerId] = (enquiryCounts[lead.matchedCustomerId] ?? 0) + 1;
-        const created = toDate(lead.createdAt);
-        if (created && (!lastEnquiryAt[lead.matchedCustomerId] || created > lastEnquiryAt[lead.matchedCustomerId])) {
-          lastEnquiryAt[lead.matchedCustomerId] = created;
-        }
-      }
-
-      const bookingCounts: Record<string, number> = {};
-      const bookingValues: Record<string, number> = {};
-      const lastBookingAt: Record<string, Date> = {};
-      for (const booking of bookings) {
-        const created = toDate(booking.createdAt);
-        if (created && (!lastBookingAt[booking.customerId] || created > lastBookingAt[booking.customerId])) {
-          lastBookingAt[booking.customerId] = created;
-        }
-        if (booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.COMPLETED) {
-          bookingCounts[booking.customerId] = (bookingCounts[booking.customerId] ?? 0) + 1;
-          bookingValues[booking.customerId] = (bookingValues[booking.customerId] ?? 0) + booking.totalAmount;
-        }
-      }
-
-      const nextSegments: Record<string, CustomerSegment> = {};
-      for (const customer of customers) {
-        const lastActivityAt = [lastEnquiryAt[customer.id], lastBookingAt[customer.id]]
-          .filter((d): d is Date => !!d)
-          .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-        nextSegments[customer.id] = computeCustomerSegment({
-          enquiryCount:      enquiryCounts[customer.id] ?? 0,
-          bookingCount:      bookingCounts[customer.id] ?? 0,
-          totalBookingValue: bookingValues[customer.id] ?? 0,
-          lastActivityAt,
-        });
-      }
-      setSegments(nextSegments);
-    }).catch(() => {});
+    Promise.all([fetchLeads(), fetchBookings()])
+      .then(([leads, bookings]) => setSegments(computeCustomerSegments(customers, leads, bookings)))
+      .catch(() => {});
   }, [customers]);
 
   // Supports deep-linking straight into a customer's detail view, e.g.
