@@ -44,7 +44,7 @@ const nowTime  = () => new Date().toTimeString().slice(0, 5);
 // clock/timezone can no longer misrecord it) and runs the
 // check-then-create/update inside one transaction (closing the race where
 // two near-simultaneous check-ins could both land).
-async function postAttendanceClock(body: Record<string, unknown>): Promise<{ hoursWorked?: number | null }> {
+async function postAttendanceClock(body: Record<string, unknown>): Promise<{ hoursWorked?: number | null; pendingApproval?: boolean; distanceMeters?: number | null }> {
   const idToken = await auth.currentUser?.getIdToken();
   if (!idToken) throw new Error("Not signed in");
   const res = await fetch("/api/hrms/attendance/clock", {
@@ -280,10 +280,11 @@ export function useEss() {
   async function clockIn(ctx: CheckInContext, selfieFile: File | null, lateReason?: string | null) {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
-      if (ctx.geofenceConfigured && !ctx.pos) {
-        return { error: "This office requires location access to clock in. Please enable location permissions for this site and try again." };
-      }
-
+      // Both branches below are advisory fast-fail UX only — the API route
+      // re-derives geofence/selfie-requirement/suspicion from the employee's
+      // actual assigned office and this employee's real attendance history
+      // server-side, so a client that skips or lies about these checks (e.g.
+      // calling the route directly) gets caught there regardless.
       if (ctx.pos) {
         const blockReason = await checkAndLogSuspicion(ctx.pos, "check_in");
         if (blockReason) return { error: blockReason };
@@ -296,24 +297,22 @@ export function useEss() {
         selfieUrl = await uploadAttendanceSelfie(employee.id, today, "check_in", selfieFile);
       }
 
-      await postAttendanceClock({
+      const res = await postAttendanceClock({
         type: "in",
-        employeeId: employee.id, employeeName: employee.fullName,
-        officeId: employee.officeId,
-        clockInLat: ctx.pos?.lat ?? null, clockInLng: ctx.pos?.lng ?? null, withinGeofence: ctx.withinGeofence,
+        employeeId: employee.id,
+        clockInLat: ctx.pos?.lat ?? null, clockInLng: ctx.pos?.lng ?? null, clockInAccuracy: ctx.pos?.accuracy ?? null,
         clockInAddress: ctx.address,
         clockInSelfieUrl: selfieUrl,
-        distanceFromOfficeMeters: outOfRange ? ctx.distanceMeters : null,
-        locationApprovalStatus: outOfRange ? "pending" : null,
         lateReason: lateReason || null,
       });
       await load();
 
-      if (outOfRange) {
-        const km = ctx.distanceMeters != null ? (ctx.distanceMeters / 1000).toFixed(1) : "an unknown distance";
+      const pendingApproval = !!res.pendingApproval;
+      if (pendingApproval) {
+        const km = res.distanceMeters != null ? (res.distanceMeters / 1000).toFixed(1) : "an unknown distance";
         notifyManagerOfLocationRequest(`${employee.fullName} checked in ${km} km from ${ctx.officeName} and needs approval.`);
       }
-      return { error: null, pendingApproval: outOfRange };
+      return { error: null, pendingApproval };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Failed to clock in" };
     }
@@ -322,10 +321,6 @@ export function useEss() {
   async function clockOut(ctx: CheckInContext, selfieFile: File | null) {
     if (!todayRecord) return { error: "You haven't clocked in today" };
     try {
-      if (ctx.geofenceConfigured && !ctx.pos) {
-        return { error: "This office requires location access to clock out. Please enable location permissions for this site and try again." };
-      }
-
       if (ctx.pos) {
         const blockReason = await checkAndLogSuspicion(ctx.pos, "check_out");
         if (blockReason) return { error: blockReason };
@@ -338,24 +333,21 @@ export function useEss() {
         selfieUrl = await uploadAttendanceSelfie(employee?.id ?? "unknown", today, "check_out", selfieFile);
       }
 
-      await postAttendanceClock({
+      const res = await postAttendanceClock({
         type: "out",
         recordId: todayRecord.id, employeeId: employee?.id,
-        clockOutLat: ctx.pos?.lat ?? null,
-        clockOutLng: ctx.pos?.lng ?? null,
-        withinGeofenceOut: ctx.withinGeofence,
+        clockOutLat: ctx.pos?.lat ?? null, clockOutLng: ctx.pos?.lng ?? null, clockOutAccuracy: ctx.pos?.accuracy ?? null,
         clockOutAddress: ctx.address,
         clockOutSelfieUrl: selfieUrl,
-        distanceFromOfficeMeters: outOfRange ? ctx.distanceMeters : todayRecord.distanceFromOfficeMeters,
-        locationApprovalStatus: outOfRange ? "pending" : todayRecord.locationApprovalStatus,
       });
       await load();
 
-      if (outOfRange && employee) {
-        const km = ctx.distanceMeters != null ? (ctx.distanceMeters / 1000).toFixed(1) : "an unknown distance";
+      const pendingApproval = !!res.pendingApproval;
+      if (pendingApproval && employee) {
+        const km = res.distanceMeters != null ? (res.distanceMeters / 1000).toFixed(1) : "an unknown distance";
         notifyManagerOfLocationRequest(`${employee.fullName} checked out ${km} km from ${ctx.officeName} and needs approval.`);
       }
-      return { error: null, pendingApproval: outOfRange };
+      return { error: null, pendingApproval };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Failed to clock out" };
     }

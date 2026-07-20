@@ -213,6 +213,21 @@ service cloud.firestore {
              (emp.functionalManagerId != null &&
               employeeById(emp.functionalManagerId).userId == request.auth.uid);
     }
+    // The manager-only half of isOwnerOrEitherManagerOfEmployee, with the
+    // owner branch stripped out — hrmsCheckIns' create rule uses this
+    // instead of the owner-inclusive version so an employee can never
+    // create their own attendance record by writing this collection
+    // directly (see attendanceOwnerWriteIsSafe below for why that matters).
+    // A manager still needs full create access here for regularization
+    // approval's backfill write (approveRegularization in
+    // regularization.service.ts).
+    function isEitherManagerOfEmployee(employeeId) {
+      let emp = employeeById(employeeId);
+      return (emp.reportingManagerId != null &&
+              employeeById(emp.reportingManagerId).userId == request.auth.uid) ||
+             (emp.functionalManagerId != null &&
+              employeeById(emp.functionalManagerId).userId == request.auth.uid);
+    }
     function isEmployeeOwner(employeeId) {
       return employeeById(employeeId).userId == request.auth.uid;
     }
@@ -245,6 +260,23 @@ service cloud.firestore {
       return !isEmployeeOwner(employeeId) || !request.resource.data.diff(resource.data).affectedKeys().hasAny(
         ['requestStatus', 'approvedBy', 'approvedAt', 'rejectedBy']
       );
+    }
+    // Deliberately an allowlist, not a blocklist like its three siblings
+    // above. Those only need to keep an owner off a short, stable list of
+    // approval-trail fields; everything else about a leave/regularization/
+    // asset request is fair game for its own owner to edit. Attendance is
+    // the opposite shape — the ONLY legitimate self-write any client flow
+    // ever makes is starting/ending a break (startBreak/endBreak in
+    // useEss.ts/useQuickClock.ts). clockIn/clockOut, the geofence result,
+    // the selfie URL, and locationApprovalStatus are meant to be written
+    // exclusively by the hardened /api/hrms/attendance/clock route (Admin
+    // SDK, bypasses this rule) or by a manager/HR — so this fails closed:
+    // a new field added to AttendanceRecord later is owner-blocked by
+    // default until someone deliberately adds it here, instead of silently
+    // becoming another way to self-fake attendance.
+    function attendanceOwnerWriteIsSafe(employeeId) {
+      return !isEmployeeOwner(employeeId) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['breakStartTime', 'breakMinutes', 'updatedAt']);
     }
 
     // Bookings: only Finance/Ops/Admin may touch the approval trail fields.
@@ -544,26 +576,45 @@ service cloud.firestore {
     }
 
     // Clock-in/out itself goes through /api/hrms/attendance/clock (Admin
-    // SDK, bypasses these rules entirely) — but HR's manual "Add
-    // Attendance" form and break start/end still write here directly via
-    // the client SDK, so this needs the same owner-or-manager-or-HR gate
-    // every other employee-record collection has. Previously any
-    // authenticated user could read/write ANY employee's attendance
-    // record directly, which is exactly the class of bug the server route
-    // above was built to close — a direct Firestore write bypassed it
-    // completely.
+    // SDK, bypasses these rules entirely) — that route re-derives the
+    // geofence result and runs the fraud heuristics server-side, which a
+    // direct client-SDK write to this collection would skip entirely.
+    // HR's manual "Add Attendance" form, regularization-approval backfills,
+    // and location-approval decisions still write here directly, so those
+    // paths (HR/Admin, or the employee's manager) keep create/update
+    // access — but the employee themselves is deliberately NOT part of the
+    // create rule, and is confined to only the break fields on update (see
+    // isEitherManagerOfEmployee and attendanceOwnerWriteIsSafe above).
+    // Previously any authenticated user could read/write ANY employee's
+    // attendance record directly, which is exactly the class of bug the
+    // server route was built to close — a direct Firestore write bypassed
+    // it completely; this collection's rules are what actually enforces
+    // that the bypass stays closed.
     match /hrmsCheckIns/{id} {
       allow read: if isAuthenticated();
+      // Deliberately manager-or-HR only, NOT owner-inclusive — an
+      // employee's own clock-in must go through /api/hrms/attendance/clock
+      // (Admin SDK, bypasses this rule), which re-derives the geofence
+      // result and runs the fraud heuristics server-side. Letting the
+      // owner create here directly would let them write
+      // { withinGeofence: true, clockInSelfieUrl: null, ... } straight
+      // into Firestore and skip all of that. Managers still need create
+      // access for regularization approval's backfill write
+      // (approveRegularization in regularization.service.ts).
       allow create: if isAuthenticated() && (
-        isOwnerOrEitherManagerOfEmployee(request.resource.data.employeeId) ||
+        isEitherManagerOfEmployee(request.resource.data.employeeId) ||
         getUserRole() in ['super_admin', 'admin', 'hr']
       );
       // Either manager may decide a pending location-approval request
       // (decideLocationApproval in attendance.service.ts) — see
       // isOwnerOrEitherManagerOfEmployee's own comment for why this one
       // collection includes the functional manager and the others don't.
+      // The owner branch stays (break start/end is a legitimate direct
+      // self-write) but attendanceOwnerWriteIsSafe below confines it to
+      // only the break fields — same reasoning as the create rule above.
       allow update: if isAuthenticated() && (
-        isOwnerOrEitherManagerOfEmployee(resource.data.employeeId) ||
+        (isOwnerOrEitherManagerOfEmployee(resource.data.employeeId) &&
+         attendanceOwnerWriteIsSafe(resource.data.employeeId)) ||
         getUserRole() in ['super_admin', 'admin', 'hr']
       );
       allow delete: if getUserRole() in ['super_admin', 'admin', 'hr'];
