@@ -82,7 +82,13 @@ export function EssPage() {
     const presentThisMonth = thisMonthRecords.filter((a) => a.status === "present" || a.status === "half_day" || a.status === "wfh").length;
     const attendancePct = thisMonthRecords.length === 0 ? null : Math.round((presentThisMonth / thisMonthRecords.length) * 100);
 
-    const leaveBalanceRemaining = leaveBalances.reduce((sum, b) => sum + b.remaining, 0);
+    // Loss of Pay has no real accrual cap (its 365-day "entitlement" just
+    // keeps it from ever reading as exhausted, see DEFAULT_LEAVE_POLICY) —
+    // summing it in with real capped leave types would make this headline
+    // number meaningless (e.g. reading "404" instead of a real balance).
+    const leaveBalanceRemaining = leaveBalances
+      .filter((b) => b.type !== "loss_of_pay")
+      .reduce((sum, b) => sum + b.remaining, 0);
     const myPendingRequests =
       leaves.filter((l) => l.status === "pending").length +
       regularizations.filter((r) => r.regularizationStatus === "pending").length +

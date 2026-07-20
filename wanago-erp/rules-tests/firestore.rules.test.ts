@@ -249,6 +249,31 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
     await assertSucceeds(db.collection("activities").doc("doc1").get());
   });
 
+  it("allows hr to read activities", async () => {
+    await seedDoc("activities");
+    await seedUser("hr1", "hr");
+    const db = testEnv.authenticatedContext("hr1").firestore();
+    await assertSucceeds(db.collection("activities").doc("doc1").get());
+  });
+
+  it("allows a user to read their own activity entry", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("activities").doc("a1").set({ actorId: "u1" });
+    });
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("activities").doc("a1").get());
+  });
+
+  it("blocks a user from reading someone else's activity entry", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("activities").doc("a1").set({ actorId: "u2" });
+    });
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(db.collection("activities").doc("a1").get());
+  });
+
   it.each(["users", "settings", "hrmsEmployees", "candidates", "performanceReviews", "referralPartners", "helpArticles", "npsResponses", "tallyMappings", "journeys", "segments"])(
     "blocks a non-admin authenticated create of %s",
     async (collectionName) => {
@@ -435,6 +460,27 @@ describe("firestore.rules — HR/payroll data (sensitive)", () => {
     await seedUser("u1", "finance");
     const db = testEnv.authenticatedContext("u1").firestore();
     await assertSucceeds(db.collection("hrmsPayroll").doc("p1").get());
+  });
+
+  it("allows an employee to read their own payslip", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("hrmsEmployees").doc("emp1").set({ userId: "u1" });
+      await context.firestore().collection("hrmsPayroll").doc("p1").set({ netPay: 50000, employeeId: "emp1" });
+    });
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("hrmsPayroll").doc("p1").get());
+  });
+
+  it("blocks an employee from reading a colleague's payslip", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("hrmsEmployees").doc("emp1").set({ userId: "u1" });
+      await context.firestore().collection("hrmsEmployees").doc("emp2").set({ userId: "u2" });
+      await context.firestore().collection("hrmsPayroll").doc("p1").set({ netPay: 50000, employeeId: "emp2" });
+    });
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(db.collection("hrmsPayroll").doc("p1").get());
   });
 });
 

@@ -528,9 +528,17 @@ service cloud.firestore {
       allow write: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
     }
 
+    // Employee's own payslip read added for the ESS "My Payslips" section
+    // (MyPayslipsList/fetchPayrollByEmployee) — previously only
+    // super_admin/admin/hr/finance could read at all, so that fetch
+    // permission-denied for every other role and (since useEss.ts loads it
+    // in the same Promise.all as attendance/leaves/etc) failed the entire
+    // ESS dashboard load for any non-HR/finance/admin employee.
     match /hrmsPayroll/{id} {
-      allow read: if isAuthenticated() &&
-                     getUserRole() in ['super_admin','admin','hr','finance'];
+      allow read: if isAuthenticated() && (
+        getUserRole() in ['super_admin','admin','hr','finance'] ||
+        isEmployeeOwner(resource.data.employeeId)
+      );
       allow write: if isAuthenticated() &&
                       getUserRole() in ['super_admin','admin','hr'];
     }
@@ -859,12 +867,17 @@ service cloud.firestore {
     // those fields, so every single write was being silently rejected.
     // Same non-standard-shape precedent as teamspaceMessages/notifications
     // above: skip hasRequiredFields() rather than force artificial fields
-    // onto an audit record. Read restricted to Admin/Super Admin — this is
-    // an internal audit trail, not something every employee should be able
-    // to query directly, even though it's only ever surfaced in the
-    // admin-only Activity Log UI today.
+    // onto an audit record. Bulk/unfiltered reads (the admin-only Activity
+    // Log page, EmployeeProfile's per-employee activity tab) stay
+    // Admin/HR-only — this is an internal audit trail, not something every
+    // employee should browse freely. The actorId branch is narrower: it
+    // only ever satisfies a query pre-filtered by `where('actorId','==',uid)`
+    // (fetchRecentActivityByActor) — Firestore can't prove an unfiltered
+    // query safe against a per-document condition, so this exists
+    // specifically to let ESS's "My Activity" tab read the signed-in
+    // employee's own trail without the broader audit-log permission.
     match /activities/{id} {
-      allow read:          if isAdmin();
+      allow read:          if isAdmin() || getUserRole() == 'hr' || resource.data.actorId == request.auth.uid;
       allow create:        if isAuthenticated();
       allow update, delete: if isAdmin();
     }

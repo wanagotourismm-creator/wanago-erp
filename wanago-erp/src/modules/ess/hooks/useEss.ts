@@ -21,7 +21,7 @@ import { WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import { fetchLeavePolicy, DEFAULT_LEAVE_POLICY, LEAVE_TYPE_ORDER, type LeavePolicy } from "@/modules/leavepolicy/services/leave-policy.service";
 import { fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
 import { fetchHrPolicyDocuments } from "@/modules/hrms/policies/services/hr-policy.service";
-import { fetchRecentActivity, type ActivityLogEntry } from "@/lib/activity-log";
+import { fetchRecentActivityByActor, type ActivityLogEntry } from "@/lib/activity-log";
 import { todayIST } from "@/lib/utils/helpers";
 import type { Employee, AttendanceRecord, LeaveRequest, PayrollRecord, AttendanceRegularization } from "@/modules/hrms/shared/types";
 import type { HrPolicyDocument } from "@/modules/hrms/policies/types";
@@ -129,7 +129,7 @@ export function useEss() {
           fetchLeavesByEmployee(emp.id),
           fetchRegularizationsByEmployee(emp.id),
           fetchPayrollByEmployee(emp.id),
-          fetchRecentActivity(200),
+          fetchRecentActivityByActor(user.uid, 200),
           fetchAssetsByEmployee(emp.id),
           fetchAssetRequestsByEmployee(emp.id),
           fetchTicketsByReporter(emp.id),
@@ -148,7 +148,7 @@ export function useEss() {
         const alreadyFiled = openPriorDay ? myRegs.some((r) => r.date === openPriorDay.date) : false;
         setForgottenCheckout(alreadyFiled ? null : openPriorDay);
         setPayroll(myPayroll);
-        setActivity(recentActivity.filter((a) => a.actorId === user.uid));
+        setActivity(recentActivity);
         setMyAssets(empAssets);
         setAssetRequests(myAssetReqs);
         setMyTickets(myTix);
