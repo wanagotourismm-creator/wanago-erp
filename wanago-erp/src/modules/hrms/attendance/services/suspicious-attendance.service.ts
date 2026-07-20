@@ -1,9 +1,7 @@
 import { orderBy, serverTimestamp } from "firebase/firestore";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
-import { notifyUser } from "@/lib/notify";
-import { fetchUsersByPermission } from "@/lib/notify-recipients";
-import { SUSPICION_REASON_LABELS, type SuspicionReason } from "@/lib/geo-fraud";
+import { auth } from "@/lib/firebase/client";
 import type { SuspiciousAttendanceAttempt } from "@/modules/hrms/shared/types";
 
 class SuspiciousAttendanceRepository extends BaseRepository<SuspiciousAttendanceAttempt> {
@@ -20,57 +18,6 @@ export async function fetchSuspiciousAttemptsByEmployee(employeeId: string): Pro
     .then((rows) => rows.filter((r) => r.employeeId === employeeId));
 }
 
-// Notifications are best-effort — a failure here must never block the
-// check-in/out flow that's already been rejected for the employee.
-async function notifyHrOfSuspiciousAttempt(data: {
-  employeeName: string;
-  officeName: string;
-  action: "check_in" | "check_out";
-  reasons: SuspicionReason[];
-}): Promise<void> {
-  try {
-    const recipients = await fetchUsersByPermission("hrms:manage");
-    const reasonText = data.reasons.map((r) => SUSPICION_REASON_LABELS[r] ?? r).join("; ");
-    await Promise.all(
-      recipients.map((u) =>
-        notifyUser({
-          userId:   u.id,
-          email:    u.email,
-          title:    `Suspicious ${data.action === "check_in" ? "check-in" : "check-out"} blocked — ${data.employeeName}`,
-          body:     `${data.employeeName} at ${data.officeName}: ${reasonText}`,
-          link:     "/hrms-admin",
-          category: "system",
-        })
-      )
-    );
-  } catch {
-    // ignore — this is an alert, not the record of the event itself
-  }
-}
-
-export async function logSuspiciousAttempt(data: {
-  employeeId: string;
-  employeeName: string;
-  officeId: string;
-  officeName: string;
-  action: "check_in" | "check_out";
-  lat: number;
-  lng: number;
-  accuracy: number | null;
-  reasons: SuspicionReason[];
-}, createdBy: string): Promise<SuspiciousAttendanceAttempt> {
-  const attempt = await repo.create({
-    ...data,
-    reviewed: false,
-    reviewedBy: null,
-    reviewedAt: null,
-    status: "active",
-    createdBy,
-  });
-  notifyHrOfSuspiciousAttempt(data).catch(() => {});
-  return attempt;
-}
-
 export async function markSuspiciousAttemptReviewed(id: string, reviewedBy: string): Promise<void> {
   return repo.update(id, {
     reviewed: true,
@@ -81,4 +28,28 @@ export async function markSuspiciousAttemptReviewed(id: string, reviewedBy: stri
 
 export async function deleteSuspiciousAttempt(id: string): Promise<void> {
   return repo.delete(id);
+}
+
+// Goes through /api/hrms/attendance/reinstate (Admin SDK) rather than a
+// direct Firestore write — firestore.rules' users/{userId} update rule
+// only lets isAdmin() flip isActive directly, which would leave HR (who
+// this review page is otherwise built for) unable to click this at all.
+// The route itself re-checks hrms:manage server-side and only ever touches
+// accounts it auto-suspended, so this can't be repurposed to reactivate an
+// unrelated manually-deactivated account.
+export async function reinstateEmployee(userId: string): Promise<{ error: string | null }> {
+  try {
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) return { error: "Not signed in" };
+    const res = await fetch("/api/hrms/attendance/reinstate", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ userId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data.error || "Failed to reinstate account" };
+    return { error: null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to reinstate account" };
+  }
 }

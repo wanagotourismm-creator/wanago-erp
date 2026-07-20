@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  fetchSuspiciousAttempts, markSuspiciousAttemptReviewed, deleteSuspiciousAttempt,
+  fetchSuspiciousAttempts, markSuspiciousAttemptReviewed, deleteSuspiciousAttempt, reinstateEmployee,
 } from "@/modules/hrms/attendance/services/suspicious-attendance.service";
+import { fetchUsers } from "@/modules/admin/users/services/user-admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { toDate } from "@/lib/utils/helpers";
 import type { SuspiciousAttendanceAttempt } from "@/modules/hrms/shared/types";
@@ -13,15 +14,26 @@ const ESCALATION_THRESHOLD = 3; // 3rd+ flagged attempt in the window counts as 
 
 export function useSuspiciousAttendance() {
   const [attempts, setAttempts] = useState<SuspiciousAttendanceAttempt[]>([]);
+  const [suspendedUserIds, setSuspendedUserIds] = useState<Set<string>>(new Set());
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
+  const [reinstating, setReinstating] = useState<string | null>(null);
   const { user } = useAuthStore();
 
+  // Whether a flagged attempt's account is STILL suspended is read live off
+  // users/{uid}.isActive rather than trusted from the attempt log itself —
+  // the log is a historical record, but the suspension it caused may have
+  // already been reinstated (by this page or directly in the Users admin
+  // page) since it was written.
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setAttempts(await fetchSuspiciousAttempts());
+      const [fetchedAttempts, users] = await Promise.all([fetchSuspiciousAttempts(), fetchUsers()]);
+      setAttempts(fetchedAttempts);
+      setSuspendedUserIds(new Set(
+        users.filter((u) => !u.isActive && u.suspensionSource === "suspicious_attendance").map((u) => u.id)
+      ));
     } catch {
       setError("Failed to load flagged attendance attempts");
     } finally {
@@ -30,6 +42,17 @@ export function useSuspiciousAttendance() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  async function reinstate(userId: string) {
+    setReinstating(userId);
+    try {
+      const { error } = await reinstateEmployee(userId);
+      if (!error) setSuspendedUserIds((p) => { const next = new Set(p); next.delete(userId); return next; });
+      return { error };
+    } finally {
+      setReinstating(null);
+    }
+  }
 
   async function markReviewed(id: string) {
     try {
@@ -52,11 +75,12 @@ export function useSuspiciousAttendance() {
   }
 
   // Repeat-offender detection is computed here from the already-fetched
-  // list, not stored per-attempt at creation time — the flagged employee's
-  // own client is what writes each log entry (see logSuspiciousAttempt),
-  // and it can't read past attempts (only HR/Admin can), so there's no way
-  // for it to know its own history. Recomputing here, on HR's own
-  // read-permitted session, sidesteps that entirely.
+  // list, not stored per-attempt at creation time — every log entry is
+  // written server-side by /api/hrms/attendance/clock (Admin SDK), which
+  // only ever sees one attempt at a time and doesn't itself read this
+  // collection back. Recomputing here, on HR's own read-permitted session,
+  // is simpler than threading a running per-employee count through the
+  // write path.
   const escalatedEmployeeIds = useMemo(() => {
     const now = Date.now();
     const countByEmployee = new Map<string, number>();
@@ -76,7 +100,11 @@ export function useSuspiciousAttendance() {
     total:      attempts.length,
     unreviewed: attempts.filter(a => !a.reviewed).length,
     escalated:  escalatedEmployeeIds.size,
+    suspended:  suspendedUserIds.size,
   };
 
-  return { attempts, loading, error, stats, escalatedEmployeeIds, load, markReviewed, removeAttempt };
+  return {
+    attempts, loading, error, stats, escalatedEmployeeIds, suspendedUserIds, reinstating,
+    load, markReviewed, removeAttempt, reinstate,
+  };
 }

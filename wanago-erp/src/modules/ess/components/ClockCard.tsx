@@ -2,7 +2,7 @@
 
 import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff, AlertTriangle } from "lucide-react";
 import { useState } from "react";
-import { formatDate } from "@/lib/utils/helpers";
+import { formatDate, formatTime12h } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
 import { CheckInLocationModal } from "@/modules/ess/components/CheckInLocationModal";
 import { isLateArrival, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
@@ -150,7 +150,7 @@ export function ClockCard({
           <div>
             <p className="text-xs text-muted-foreground">Check In</p>
             <p className="text-lg font-bold text-foreground">
-              {todayRecord?.clockIn || "—"}
+              {formatTime12h(todayRecord?.clockIn)}
               {isLateArrival(todayRecord?.clockIn, attendancePolicy) && (
                 <span className="ml-1.5 align-middle text-[10px] font-semibold uppercase text-amber-600">Late</span>
               )}
@@ -158,7 +158,7 @@ export function ClockCard({
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Check Out</p>
-            <p className="text-lg font-bold text-foreground">{todayRecord?.clockOut || "—"}</p>
+            <p className="text-lg font-bold text-foreground">{formatTime12h(todayRecord?.clockOut)}</p>
           </div>
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -215,7 +215,7 @@ export function ClockCard({
               <span className="text-muted-foreground">{formatDate(r.date, "dd MMM")}</span>
               <span className={cn("font-medium",
                 r.status === "present" ? "text-green-600" : r.status === "absent" ? "text-red-600" : "text-muted-foreground")}>
-                {r.clockIn && r.clockOut ? `${r.clockIn} – ${r.clockOut}` : r.status.replace("_", " ")}
+                {r.clockIn && r.clockOut ? `${formatTime12h(r.clockIn)} – ${formatTime12h(r.clockOut)}` : r.status.replace("_", " ")}
               </span>
             </div>
           ))}

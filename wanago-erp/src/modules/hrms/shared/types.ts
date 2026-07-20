@@ -176,6 +176,13 @@ export type SuspiciousAttendanceAttempt = FirestoreRecord & {
   reviewed: boolean;
   reviewedBy: string | null;
   reviewedAt: Timestamp | Date | string | FieldValue | null;
+  // The login /api/hrms/attendance/clock's checkAndBlockSuspicious
+  // auto-suspended as a result of this attempt — null for attempts logged
+  // before this existed. Whether it's STILL suspended is read live off
+  // users/{suspendedUserId}.isActive (see useSuspiciousAttendance.ts), not
+  // stored here, since reinstating clears the suspension on the user doc
+  // without touching this historical log entry.
+  suspendedUserId?: string | null;
 };
 
 export type AttendanceRegularization = FirestoreRecord & {

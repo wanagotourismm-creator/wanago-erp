@@ -6,9 +6,7 @@ import { fetchEmployeeByUserId, fetchEmployeeById } from "@/modules/hrms/employe
 import { fetchAttendanceByEmployee, uploadAttendanceSelfie, updateAttendanceRecord } from "@/modules/hrms/attendance/services/attendance.service";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { fetchAttendancePolicy, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
-import { getCurrentPosition, reverseGeocode, distanceMeters, type GeoPosition } from "@/lib/geo";
-import { detectSuspiciousLocation } from "@/lib/geo-fraud";
-import { logSuspiciousAttempt } from "@/modules/hrms/attendance/services/suspicious-attendance.service";
+import { getCurrentPosition, reverseGeocode, distanceMeters } from "@/lib/geo";
 import { notifyUser } from "@/lib/notify";
 import { auth } from "@/lib/firebase/client";
 import { todayIST } from "@/lib/utils/helpers";
@@ -25,7 +23,7 @@ const todayStr = todayIST;
 // Exists so the Dashboard can offer Check In/Out without every dashboard
 // mount paying for the rest of useEss's Promise.all. If the clock-in rules
 // themselves ever change, mirror the change in both places — see
-// useEss.ts's clockIn/clockOut/checkAndLogSuspicion for the source of truth.
+// useEss.ts's clockIn/clockOut for the source of truth.
 async function postAttendanceClock(body: Record<string, unknown>): Promise<{ hoursWorked?: number | null; pendingApproval?: boolean; distanceMeters?: number | null }> {
   const idToken = await auth.currentUser?.getIdToken();
   if (!idToken) throw new Error("Not signed in");
@@ -82,27 +80,6 @@ export function useQuickClock() {
   const isOnBreak    = !!todayRecord?.breakStartTime;
   const forgottenCheckout = attendance.find((a) => a.date !== today && !!a.clockIn && !a.clockOut) ?? null;
 
-  async function checkAndLogSuspicion(pos: GeoPosition, action: "check_in" | "check_out"): Promise<string | null> {
-    if (!employee || !user) return null;
-    const recentRecords = attendance.filter((r) => r.date !== today);
-    const reasons = detectSuspiciousLocation({ pos, action, recentRecords });
-    if (reasons.length === 0) return null;
-
-    logSuspiciousAttempt({
-      employeeId: employee.id,
-      employeeName: employee.fullName,
-      officeId: employee.officeId,
-      officeName: office?.name ?? "",
-      action,
-      lat: pos.lat,
-      lng: pos.lng,
-      accuracy: pos.accuracy,
-      reasons,
-    }, user.uid).catch(() => { /* logging the flag must never crash the block itself */ });
-
-    return "We couldn't verify your location for this attempt, so it's been blocked and flagged for HR review. If this is a mistake, contact HR or submit an attendance correction.";
-  }
-
   async function resolveCheckInContext(): Promise<CheckInContext> {
     const pos = await getCurrentPosition();
     const address = pos ? await reverseGeocode(pos.lat, pos.lng) : null;
@@ -146,16 +123,13 @@ export function useQuickClock() {
   async function clockIn(ctx: CheckInContext, selfieFile: File | null, lateReason?: string | null) {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
-      // Both branches below are advisory fast-fail UX only — the API route
-      // re-derives geofence/selfie-requirement/suspicion from the employee's
-      // actual assigned office and this employee's real attendance history
-      // server-side, so a client that skips or lies about these checks (e.g.
-      // calling the route directly) gets caught there regardless.
-      if (ctx.pos) {
-        const blockReason = await checkAndLogSuspicion(ctx.pos, "check_in");
-        if (blockReason) return { error: blockReason };
-      }
-
+      // No client-side suspicion pre-check here (deliberately removed) —
+      // /api/hrms/attendance/clock's checkAndBlockSuspicious is now the
+      // ONLY place a flag gets logged, since it also suspends the account
+      // and notifies the manager. A client-side duplicate that only
+      // blocked+logged (no suspend, no manager notice) would mean a normal
+      // UI flow got the weaker response and only a raw API call got the
+      // real one — backwards from what a bypass-resistant check should do.
       const outOfRange = ctx.requiresSelfie;
       let selfieUrl: string | null = null;
       if (outOfRange) {
@@ -187,11 +161,6 @@ export function useQuickClock() {
   async function clockOut(ctx: CheckInContext, selfieFile: File | null) {
     if (!todayRecord) return { error: "You haven't clocked in today" };
     try {
-      if (ctx.pos) {
-        const blockReason = await checkAndLogSuspicion(ctx.pos, "check_out");
-        if (blockReason) return { error: blockReason };
-      }
-
       const outOfRange = ctx.requiresSelfie;
       let selfieUrl: string | null = null;
       if (outOfRange) {

@@ -24,6 +24,19 @@ export function todayIST(): string {
   return dateIST(new Date());
 }
 
+// Attendance clockIn/clockOut are stored server-side as a plain 24hr
+// "HH:mm" string (see /api/hrms/attendance/clock's serverDateAndTime) — that
+// storage/comparison format never changes, this is purely a display
+// conversion to 12hr AM/PM for the Check In/Out card.
+export function formatTime12h(time: string | null | undefined): string {
+  if (!time) return "—";
+  const [h, m] = time.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return time;
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 // Normalizes a phone number for duplicate-detection matching (not for
 // display or sending) — strips all non-digit characters and keeps just the
 // last 10, so "+91 98765 43210", "919876543210", and "9876543210" all match

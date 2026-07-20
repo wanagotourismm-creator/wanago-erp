@@ -621,15 +621,16 @@ service cloud.firestore {
     }
 
     // Suspicious-location check-in/out attempts (heuristic fraud flags).
-    // Create is open to any authenticated user because the flagged
-    // employee's own client is what writes the log entry as a side effect
-    // of their own blocked attempt — but only HR/Admin can ever read,
-    // update (mark reviewed), or delete these, so an employee can't see
-    // what tripped the heuristic or erase their own flagged history.
+    // /api/hrms/attendance/clock (Admin SDK) is the only writer — it logs
+    // the flag AND suspends the employee's login in the same request, so a
+    // client-side create was never actually needed here. HR/Admin-only
+    // create (not open to any authenticated user, unlike this collection's
+    // history) closes off an employee writing themselves a fake flagged
+    // entry directly; only HR/Admin can read, update (mark reviewed), or
+    // delete these either, so an employee can't see what tripped the
+    // heuristic or erase their own flagged history.
     match /hrmsSuspiciousAttendance/{id} {
-      allow read: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
-      allow create: if isAuthenticated() && hasRequiredFields();
-      allow update, delete: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
+      allow read, create, update, delete: if isAuthenticated() && getUserRole() in ['super_admin', 'admin', 'hr'];
     }
 
     match /onboardingTasks/{id} {

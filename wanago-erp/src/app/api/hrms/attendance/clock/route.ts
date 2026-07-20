@@ -121,8 +121,8 @@ async function notifyHrOfSuspiciousAttempt(data: {
         notifyUser({
           userId:   u.id,
           email:    u.email,
-          title:    `Suspicious ${data.action === "check_in" ? "check-in" : "check-out"} blocked — ${data.employeeName}`,
-          body:     `${data.employeeName} at ${data.officeName}: ${reasonText}`,
+          title:    `Account suspended — suspicious ${data.action === "check_in" ? "check-in" : "check-out"} — ${data.employeeName}`,
+          body:     `${data.employeeName} at ${data.officeName}: ${reasonText}. Their account has been temporarily suspended pending review.`,
           link:     "/hrms-admin",
           category: "system",
         })
@@ -133,12 +133,55 @@ async function notifyHrOfSuspiciousAttempt(data: {
   }
 }
 
+// Mirrors notifyManagerOfLocationRequest (useEss.ts/useQuickClock.ts) —
+// both the reporting manager and functional manager, since suspicious
+// activity is exactly the kind of thing a functional (skip-level) manager
+// also needs to see even without direct reports (same reasoning as
+// location-approval routing, see hrms/shared/types.ts's comment on
+// functionalManagerId).
+async function notifyManagersOfSuspension(adminDb: Firestore, params: {
+  employee: DocumentData; employeeName: string; officeName: string;
+  action: "check_in" | "check_out"; reasons: SuspicionReason[];
+}): Promise<void> {
+  const reasonText = params.reasons.map((r) => SUSPICION_REASON_LABELS[r] ?? r).join("; ");
+  const title = `${params.employeeName}'s account suspended — suspicious ${params.action === "check_in" ? "check-in" : "check-out"}`;
+  const body = `${params.employeeName} at ${params.officeName}: ${reasonText}. Their login has been temporarily suspended pending your and HR's review.`;
+
+  const managerIds = new Set<string>();
+  if (params.employee.reportingManagerId) managerIds.add(params.employee.reportingManagerId);
+  if (params.employee.functionalManagerId && params.employee.functionalManagerId !== params.employee.reportingManagerId) {
+    managerIds.add(params.employee.functionalManagerId);
+  }
+  if (managerIds.size === 0) return;
+
+  try {
+    await Promise.all(Array.from(managerIds).map(async (managerId) => {
+      const managerSnap = await adminDb.collection(FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES).doc(managerId).get();
+      const manager = managerSnap.data();
+      if (!manager?.userId) return;
+      await notifyUser({ userId: manager.userId, email: manager.email ?? null, title, body, link: "/hrms-admin", category: "system" });
+    }));
+  } catch {
+    // ignore — this is an alert, not the record of the event itself
+  }
+}
+
 // Runs the same location-spoofing heuristics geo-fraud.ts always ran, but
 // now against attendance history this route fetches itself (rather than a
 // list the client already had loaded) so a direct API call can't skip it.
-// Returns true (and logs + alerts HR) when the attempt should be blocked.
+// A browser has no API to ask "is this GPS reading mocked" the way a native
+// Android/iOS app can — Location.isFromMockProvider() isn't exposed to web
+// JS at all — so this is pattern-matching (impossible travel speed,
+// suspiciously exact accuracy, identical coordinates repeated), not proof.
+// That's exactly why a flag here suspends rather than permanently blocks:
+// it puts a hold on the account and hands the actual judgment call to the
+// employee's manager and HR (see /hrms-admin's Suspicious Attendance page
+// and its Reinstate action) rather than the heuristic deciding on its own.
+// Returns true (and logs + suspends + alerts) when the attempt should be
+// blocked.
 async function checkAndBlockSuspicious(adminDb: Firestore, params: {
   employeeId: string; employeeName: string; officeId: string | null; officeName: string;
+  employee: DocumentData; callerUid: string;
   action: "check_in" | "check_out"; pos: { lat: number; lng: number }; accuracy: number | null;
   today: string; createdBy: string;
 }): Promise<boolean> {
@@ -155,20 +198,38 @@ async function checkAndBlockSuspicious(adminDb: Firestore, params: {
   });
   if (reasons.length === 0) return false;
 
+  const reasonText = reasons.map((r) => SUSPICION_REASON_LABELS[r] ?? r).join("; ");
+
   await adminDb.collection(FIRESTORE_COLLECTIONS.HRMS_SUSPICIOUS_ATTENDANCE).add({
     employeeId: params.employeeId, employeeName: params.employeeName,
     officeId: params.officeId, officeName: params.officeName,
     action: params.action, lat: params.pos.lat, lng: params.pos.lng, accuracy: params.accuracy,
     reasons, reviewed: false, reviewedBy: null, reviewedAt: null, status: "active",
+    suspendedUserId: params.callerUid,
     createdBy: params.createdBy,
     createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
   });
+
+  // Suspends the login this attempt came from, not the whole employee
+  // record — reinstateEmployee (via /api/hrms/attendance/reinstate) flips
+  // this back on once a manager/HR has reviewed it. suspensionSource lets
+  // the admin Users page and this route tell an auto-suspension apart from
+  // an unrelated manual deactivation, so reinstating one never accidentally
+  // re-activates the other.
+  await adminDb.collection(FIRESTORE_COLLECTIONS.USERS).doc(params.callerUid).update({
+    isActive: false,
+    suspendedAt: FieldValue.serverTimestamp(),
+    suspendedReason: reasonText,
+    suspensionSource: "suspicious_attendance",
+  });
+
   notifyHrOfSuspiciousAttempt({ employeeName: params.employeeName, officeName: params.officeName, action: params.action, reasons }).catch(() => {});
+  notifyManagersOfSuspension(adminDb, { employee: params.employee, employeeName: params.employeeName, officeName: params.officeName, action: params.action, reasons }).catch(() => {});
   return true;
 }
 
 const SUSPICIOUS_BLOCK_MESSAGE =
-  "We couldn't verify your location for this attempt, so it's been blocked and flagged for HR review. If this is a mistake, contact HR or submit an attendance correction.";
+  "We couldn't verify your location for this attempt. For your account's security, it's been temporarily suspended and flagged for your manager and HR to review — you'll need them to reinstate it before you can log in again. If this is a mistake, contact HR.";
 
 export async function POST(req: NextRequest) {
   const caller = await requireAuth(bearerToken(req));
@@ -199,6 +260,16 @@ export async function POST(req: NextRequest) {
   if (userDoc.data()?.employeeId !== body.employeeId) {
     return NextResponse.json({ error: "This login isn't linked to that employee record." }, { status: 403 });
   }
+  // isActive only blocks the NEXT sign-in (auth.service.ts's signInUser) —
+  // it doesn't invalidate an already-issued ID token, so without this check
+  // an employee suspended mid-session by checkAndBlockSuspicious below could
+  // just retry the clock-in/out from the same already-open tab and land a
+  // valid record despite the suspension. Checked here explicitly so a
+  // suspension actually stops further clock-in/out immediately, not just
+  // future logins.
+  if (userDoc.data()?.isActive === false) {
+    return NextResponse.json({ error: "Your account is temporarily suspended pending review. Contact your manager or HR." }, { status: 403 });
+  }
 
   const employeeSnap = await adminDb.collection(FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES).doc(body.employeeId).get();
   if (!employeeSnap.exists) return NextResponse.json({ error: "Employee record not found" }, { status: 404 });
@@ -225,7 +296,8 @@ export async function POST(req: NextRequest) {
       if (geo.pos) {
         const blocked = await checkAndBlockSuspicious(adminDb, {
           employeeId: body.employeeId, employeeName: employee.fullName, officeId: employee.officeId ?? null,
-          officeName: office?.name ?? "", action: "check_in", pos: geo.pos, accuracy, today: date, createdBy: caller.uid,
+          officeName: office?.name ?? "", employee, callerUid: caller.uid,
+          action: "check_in", pos: geo.pos, accuracy, today: date, createdBy: caller.uid,
         });
         if (blocked) return NextResponse.json({ error: SUSPICIOUS_BLOCK_MESSAGE }, { status: 403 });
       }
@@ -292,7 +364,8 @@ export async function POST(req: NextRequest) {
     if (geo.pos) {
       const blocked = await checkAndBlockSuspicious(adminDb, {
         employeeId: body.employeeId, employeeName: employee.fullName, officeId,
-        officeName: office?.name ?? "", action: "check_out", pos: geo.pos, accuracy, today: date, createdBy: caller.uid,
+        officeName: office?.name ?? "", employee, callerUid: caller.uid,
+        action: "check_out", pos: geo.pos, accuracy, today: date, createdBy: caller.uid,
       });
       if (blocked) return NextResponse.json({ error: SUSPICIOUS_BLOCK_MESSAGE }, { status: 403 });
     }

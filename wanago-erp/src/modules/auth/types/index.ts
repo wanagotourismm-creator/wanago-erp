@@ -26,6 +26,16 @@ export type UserProfile = {
   officeName: string;
   department: string;
   isActive: boolean;
+  // Set by /api/hrms/attendance/clock's checkAndBlockSuspicious when a
+  // location-spoofing heuristic flags a check-in/out — distinguishes an
+  // auto-suspension pending manager/HR review (reinstated only via
+  // /api/hrms/attendance/reinstate) from an unrelated manual deactivation
+  // through the Users admin page. null/absent for every other account.
+  suspendedAt?: unknown | null;
+  suspendedReason?: string | null;
+  suspensionSource?: "suspicious_attendance" | null;
+  reinstatedBy?: string | null;
+  reinstatedAt?: unknown | null;
   createdAt: unknown;
   updatedAt: unknown;
   createdBy: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Trash2, MapPin, Flame } from "lucide-react";
+import { CheckCircle2, Trash2, MapPin, Flame, ShieldOff, ShieldCheck, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
@@ -12,9 +12,20 @@ type Props = {
   attempts: SuspiciousAttendanceAttempt[];
   loading:  boolean;
   escalatedEmployeeIds: Set<string>;
+  suspendedUserIds: Set<string>;
+  reinstating: string | null;
   onMarkReviewed: (a: SuspiciousAttendanceAttempt) => void;
   onDelete:       (a: SuspiciousAttendanceAttempt) => void;
+  onReinstate:    (userId: string) => void;
 };
+
+function SuspendedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+      <ShieldOff size={11} /> Account suspended
+    </span>
+  );
+}
 
 function EscalatedBadge() {
   return (
@@ -41,7 +52,7 @@ function ReasonsList({ reasons }: { reasons: string[] }) {
   );
 }
 
-export function SuspiciousAttendanceTable({ attempts, loading, escalatedEmployeeIds, onMarkReviewed, onDelete }: Props) {
+export function SuspiciousAttendanceTable({ attempts, loading, escalatedEmployeeIds, suspendedUserIds, reinstating, onMarkReviewed, onDelete, onReinstate }: Props) {
   if (loading) return <SkeletonTable rows={5} />;
 
   if (attempts.length === 0) {
@@ -72,7 +83,10 @@ export function SuspiciousAttendanceTable({ attempts, loading, escalatedEmployee
                 <td className="px-4 py-3">
                   <p className="font-medium text-foreground">{a.employeeName}</p>
                   <p className="text-[11px] text-muted-foreground">{a.officeName}</p>
-                  {escalatedEmployeeIds.has(a.employeeId) && <div className="mt-1"><EscalatedBadge /></div>}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {escalatedEmployeeIds.has(a.employeeId) && <EscalatedBadge />}
+                    {!!a.suspendedUserId && suspendedUserIds.has(a.suspendedUserId) && <SuspendedBadge />}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{ACTION_LABELS[a.action] ?? a.action}</td>
                 <td className="px-4 py-3"><ReasonsList reasons={a.reasons} /></td>
@@ -96,17 +110,29 @@ export function SuspiciousAttendanceTable({ attempts, loading, escalatedEmployee
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    {!a.reviewed && (
-                      <button onClick={() => onMarkReviewed(a)} title="Mark reviewed"
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-                        <CheckCircle2 size={13} />
+                  <div className="flex items-center justify-end gap-1">
+                    {!!a.suspendedUserId && suspendedUserIds.has(a.suspendedUserId) && (
+                      <button
+                        onClick={() => onReinstate(a.suspendedUserId!)}
+                        disabled={reinstating === a.suspendedUserId}
+                        title="Reinstate this account"
+                        className="flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2 text-[11px] font-medium text-primary hover:bg-primary/20 disabled:opacity-60 transition-colors">
+                        {reinstating === a.suspendedUserId ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                        Reinstate
                       </button>
                     )}
-                    <button onClick={() => onDelete(a)} title="Delete"
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                      <Trash2 size={13} />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      {!a.reviewed && (
+                        <button onClick={() => onMarkReviewed(a)} title="Mark reviewed"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                          <CheckCircle2 size={13} />
+                        </button>
+                      )}
+                      <button onClick={() => onDelete(a)} title="Delete"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -118,7 +144,9 @@ export function SuspiciousAttendanceTable({ attempts, loading, escalatedEmployee
 
     <div className="sm:hidden space-y-2.5">
       {attempts.map((a) => {
+        const isSuspended = !!a.suspendedUserId && suspendedUserIds.has(a.suspendedUserId);
         const actions: SwipeAction[] = [
+          ...(isSuspended ? [{ key: "reinstate", icon: <ShieldCheck size={16} />, label: "Reinstate", onClick: () => onReinstate(a.suspendedUserId!), className: "bg-primary" }] : []),
           ...(!a.reviewed ? [{ key: "review", icon: <CheckCircle2 size={16} />, label: "Reviewed", onClick: () => onMarkReviewed(a), className: "bg-primary" }] : []),
           { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(a), className: "bg-red-600" },
         ];
@@ -129,7 +157,10 @@ export function SuspiciousAttendanceTable({ attempts, loading, escalatedEmployee
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{a.employeeName}</p>
                   <p className="text-[11px] text-muted-foreground">{ACTION_LABELS[a.action]} &middot; {a.officeName}</p>
-                  {escalatedEmployeeIds.has(a.employeeId) && <div className="mt-1"><EscalatedBadge /></div>}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {escalatedEmployeeIds.has(a.employeeId) && <EscalatedBadge />}
+                    {isSuspended && <SuspendedBadge />}
+                  </div>
                 </div>
                 <span className={cn(
                   "flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
