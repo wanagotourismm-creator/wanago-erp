@@ -42,7 +42,7 @@ export function SuspiciousAttendancePage() {
             the exact same coordinates repeated across several days) — their reporting/functional manager was
             notified and their account was <strong className="text-foreground">automatically suspended</strong> pending
             review. Review each one and use <strong className="text-foreground">Reinstate</strong> to restore access
-            once you and the manager are satisfied it's legitimate.
+            once you and the manager are satisfied it&apos;s legitimate.
           </p>
         </div>
       </div>
