@@ -131,6 +131,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "truck",
         roles: ["super_admin","admin","operations"],
       },
+      {
+        label: "Vendor Rates",
+        href:  "/vendor-rates",
+        icon:  "tag",
+        roles: ["super_admin","admin","operations"],
+      },
     ],
   },
   {

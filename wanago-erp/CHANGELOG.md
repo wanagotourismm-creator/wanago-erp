@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-07-23 (Tools Expansion Release 1, Tool 7 — Vendor Rate & Availability Portal, final tool)
+
+- New `src/modules/vendor-portal/` (`vendorRates`/`vendorAvailability` collections) + new `Supplier.vendorPortalToken` field — vendors have no login/credential system, so the portal reuses the existing anonymous long-lived token-link pattern (`/book/{token}`, `/review/{token}`), not a new auth mechanism
+- `GET`/`POST /api/public/vendor/[token]/route.ts` (Admin SDK, no auth beyond the token) + a plain `/vendor/{token}` page where a vendor submits rates (service/unit/rate/validity window) and bulk availability (resource label/date range/units available) — add-only, no self-edit/delete
+- "Generate Vendor Link" + copy/WhatsApp-share block added to `SupplierDetailModal` (mirrors the existing Lead booking-link UI)
+- New staff page `/vendor-rates` (Operations nav) — cross-supplier management view, staff can add/edit/delete any rate or availability entry directly, with a "Vendor Submitted" vs "Staff Entered" badge
+- `findOverlappingAvailability` (reuses Tool 5's `dateRangesOverlap`) surfaces a non-blocking "Overlaps" hint on the availability table; `findApplicableRate` picks the most-recent rate active on a date (not yet wired into Quotation/Package costing) — both pure and unit-tested (12 new tests)
+- New `firestore.rules` blocks for `vendorRates`/`vendorAvailability` (read: any authenticated user; write: operations/admin/super_admin, mirroring `suppliers`' existing rule) + rules-tests
+- **Tools Expansion Release 1 is now complete — all 7 tools shipped**
+
 ## 2026-07-21 (Tools Expansion Release 1, Tool 6 — Traveler Companion + SOS)
 
 - New `/portal/customer/companion` page inside the existing customer portal — day-by-day itinerary (`booking.packageId → package.itineraryId → itinerary`), guide/driver/vehicle contact cards with `tel:` links (new `Resource.phone` field), emergency contacts (generic India 112 + business phone), an opt-in live-location toggle, and a confirm-gated **SOS button** that captures + reverse-geocodes location and alerts staff

@@ -15,6 +15,11 @@ export type Supplier = FirestoreRecord & {
   notes:          string | null;
   refNumber:      string;
   supplierStatus: "active" | "inactive";
+  // Long random token — the vendor's entire login-free access boundary to
+  // /vendor/{token}. Generated on demand (generateVendorPortalToken), absent
+  // until staff first click "Generate Vendor Link" in SupplierDetailModal —
+  // optional (not required on create) same as Lead.bookingLinkToken.
+  vendorPortalToken?: string | null;
 };
 
 export type SupplierFormData = Omit<Supplier, "id" | "createdAt" | "updatedAt" | "status" | "refNumber">;

@@ -274,7 +274,7 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
     await assertFails(db.collection("activities").doc("a1").get());
   });
 
-  it.each(["users", "settings", "hrmsEmployees", "candidates", "performanceReviews", "referralPartners", "helpArticles", "npsResponses", "tallyMappings", "journeys", "segments", "sosEvents"])(
+  it.each(["users", "settings", "hrmsEmployees", "candidates", "performanceReviews", "referralPartners", "helpArticles", "npsResponses", "tallyMappings", "journeys", "segments", "sosEvents", "vendorRates", "vendorAvailability"])(
     "blocks a non-admin authenticated create of %s",
     async (collectionName) => {
       await seedUser("u1", "sales");
@@ -287,7 +287,7 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
     }
   );
 
-  it.each(["users", "settings", "bookings", "trash", "hrmsLeaves", "tickets", "referralPartners", "npsResponses", "tallyMappings", "journeys", "segments", "sosEvents"])(
+  it.each(["users", "settings", "bookings", "trash", "hrmsLeaves", "tickets", "referralPartners", "npsResponses", "tallyMappings", "journeys", "segments", "sosEvents", "vendorRates", "vendorAvailability"])(
     "blocks a non-admin authenticated update of %s",
     async (collectionName) => {
       await seedDoc(collectionName);
@@ -473,6 +473,53 @@ describe("firestore.rules — Traveler Companion + SOS (sosEvents/tripCompanions
     await assertFails(
       db.collection("sosEvents").doc("doc1").set({
         createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", sosStatus: "active",
+      })
+    );
+  });
+});
+
+describe("firestore.rules — Vendor rate & availability portal (vendorRates/vendorAvailability)", () => {
+  async function seedDoc(collectionName: string) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection(collectionName).doc("doc1").set({ seeded: true });
+    });
+  }
+
+  it("allows any authenticated staff member to read vendorRates and vendorAvailability", async () => {
+    await seedDoc("vendorRates");
+    await seedDoc("vendorAvailability");
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("vendorRates").doc("doc1").get());
+    await assertSucceeds(db.collection("vendorAvailability").doc("doc1").get());
+  });
+
+  it("allows operations to write vendorRates and vendorAvailability directly", async () => {
+    await seedUser("ops1", "operations");
+    const db = testEnv.authenticatedContext("ops1").firestore();
+    await assertSucceeds(
+      db.collection("vendorRates").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "ops1", status: "active", supplierId: "s1",
+      })
+    );
+    await assertSucceeds(
+      db.collection("vendorAvailability").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "ops1", status: "active", supplierId: "s1",
+      })
+    );
+  });
+
+  it("blocks a non-operations staff member from writing vendorRates and vendorAvailability (vendor submissions go through the Admin SDK portal route)", async () => {
+    await seedUser("u1", "sales");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(
+      db.collection("vendorRates").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", supplierId: "s1",
+      })
+    );
+    await assertFails(
+      db.collection("vendorAvailability").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", supplierId: "s1",
       })
     );
   });

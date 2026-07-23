@@ -53,3 +53,15 @@ export async function updateSupplier(
 export async function deleteSupplier(id: string): Promise<void> {
   return supplierRepository.delete(id);
 }
+
+// Vendor rate & availability portal's entire login-free access boundary —
+// a long random token, not tied to any account, so no login is needed to
+// use it. Idempotent: returns the existing token if one was already
+// generated, so re-clicking "Generate Vendor Link" doesn't invalidate a
+// link already sent to the supplier. Same shape as leads' generateBookingLink.
+export async function generateVendorPortalToken(supplier: Supplier): Promise<string> {
+  if (supplier.vendorPortalToken) return supplier.vendorPortalToken;
+  const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
+  await supplierRepository.update(supplier.id, { vendorPortalToken: token } as Partial<Supplier>);
+  return token;
+}

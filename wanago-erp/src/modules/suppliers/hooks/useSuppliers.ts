@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchSuppliers, createSupplier, updateSupplier, deleteSupplier,
+  fetchSuppliers, createSupplier, updateSupplier, deleteSupplier, generateVendorPortalToken,
 } from "@/modules/suppliers/services/supplier.service";
 import { useAuthStore } from "@/store/auth.store";
 import { logActivity } from "@/lib/activity-log";
@@ -74,5 +74,15 @@ export function useSuppliers() {
     }
   }
 
-  return { suppliers, loading, error, load, addSupplier, editSupplier, removeSupplier };
+  async function generateVendorLink(supplier: Supplier): Promise<{ token: string | null; error: string | null }> {
+    try {
+      const token = await generateVendorPortalToken(supplier);
+      setSuppliers(prev => prev.map(s => s.id === supplier.id ? { ...s, vendorPortalToken: token } : s));
+      return { token, error: null };
+    } catch {
+      return { token: null, error: "Failed to generate vendor link" };
+    }
+  }
+
+  return { suppliers, loading, error, load, addSupplier, editSupplier, removeSupplier, generateVendorLink };
 }

@@ -167,7 +167,11 @@ service cloud.firestore {
         'journeys', 'segments',
         // All real creates happen server-side via the Admin SDK
         // (/api/portal/customer/sos) — no legitimate client create path.
-        'sosEvents'
+        'sosEvents',
+        // Rate/pricing data — same operations-only write reasoning as
+        // suppliers above. Vendor-submitted creates happen server-side via
+        // the Admin SDK (/api/public/vendor/{token}), not through this path.
+        'vendorRates', 'vendorAvailability'
       ];
     }
 
@@ -186,7 +190,8 @@ service cloud.firestore {
         'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
         'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash',
-        'npsResponses', 'tallyMappings', 'journeys', 'segments', 'sosEvents'
+        'npsResponses', 'tallyMappings', 'journeys', 'segments', 'sosEvents',
+        'vendorRates', 'vendorAvailability'
       ];
     }
 
@@ -486,6 +491,25 @@ service cloud.firestore {
     }
 
     match /suppliers/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','operations'];
+    }
+
+    // ── Vendor rate & availability portal ───────────────────────
+    // Rate/pricing data is commercially sensitive the same way Supplier's
+    // billing fields are, so this mirrors suppliers' write-role restriction
+    // rather than the plain catch-all Resources relies on. Every real
+    // vendor-submitted create happens server-side via the Admin SDK
+    // (/api/public/vendor/{token}) — no legitimate client create path for
+    // that side; the client write path here is staff entering/editing/
+    // deleting rates directly from /vendor-rates.
+    match /vendorRates/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','operations'];
+    }
+    match /vendorAvailability/{id} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() &&
                       getUserRole() in ['super_admin','admin','operations'];

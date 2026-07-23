@@ -185,6 +185,8 @@ export const FIRESTORE_COLLECTIONS = {
   RESOURCE_BLACKOUTS:     "resourceBlackouts",
   TRIP_COMPANIONS:        "tripCompanions",
   SOS_EVENTS:             "sosEvents",
+  VENDOR_RATES:           "vendorRates",
+  VENDOR_AVAILABILITY:    "vendorAvailability",
 } as const;
 
 // Internal lookup keys business logic uses to ask "give me the approved

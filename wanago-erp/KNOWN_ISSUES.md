@@ -1,6 +1,6 @@
 # KNOWN ISSUES
 
-_Last updated: 2026-07-12_
+_Last updated: 2026-07-23_
 
 ## Gaps (not bugs, but real functional holes)
 
@@ -9,6 +9,8 @@ _Last updated: 2026-07-12_
 - **Sales performance data is fragmented.** `incentives` and `sales-team` compute on the fly (no persistence, recomputed every page load) and already cross-reference leads/bookings; `goals` (company OKRs) and `performance/goals`/`performance/reviews` (HR review cycle) are separate systems with near-identical naming (`goals` vs `performance/goals`) but no shared schema or identity type. No single view unifies them.
 - **`reports` module is thin.** Just one 291-line page (`ReportsPage.tsx`) with no schemas/services/hooks — each tab calls another module's fetch function directly and exports to CSV/PDF. Only one true computed report exists (customer-retention cohorts via the Supabase mirror); everything else is a raw filtered dump.
 - **No general ledger or BI/trip-profitability engine yet.** The Tools Expansion PRD (Release 1, July 2026) assumes both exist as "4.0 core pillars." Neither is built — the Executive Cockpit (see CHANGELOG 2026-07-20) reads cash/margin/pipeline numbers straight off `bookings`/`payments`/`expenses`/`leads`/`invoices` instead, with TODOs in `dashboard/types/index.ts` marking where a real GL/BI engine should plug in later. Two of the PRD's five cockpit alert types (low resource availability, statutory due-dates) aren't modeled yet for the same reason — no `resources` module or tax-calendar concept exists to back them.
+- **Vendor rates aren't wired into Quotation/Package costing.** The Vendor Rate & Availability Portal (Tools Expansion Release 1, Tool 7, 2026-07-23) built `findApplicableRate` (picks the rate active on a given date for a service) specifically to make this cheap to add later, but no Quotation/Package flow calls it yet — it's a materially bigger integration than this pass covered.
+- **No approval/rejection workflow for vendor-submitted rates/availability.** A vendor's submission via `/vendor/{token}` shows up immediately as a plain list item at `/vendor-rates` (tagged "Vendor Submitted"); staff can edit/delete it there, but there's no `pending`/`approved`/`rejected` status or review gate before it's considered live data.
 
 ## Stale-doc issue (resolved 2026-07-12)
 

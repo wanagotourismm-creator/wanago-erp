@@ -38,7 +38,7 @@ const SUPPLIER_TEMPLATE_COLUMNS: TemplateColumn[] = [
 ];
 
 export function SuppliersPage() {
-  const { suppliers, loading, addSupplier, editSupplier, removeSupplier, load } = useSuppliers();
+  const { suppliers, loading, addSupplier, editSupplier, removeSupplier, generateVendorLink, load } = useSuppliers();
   const { user } = useAuthStore();
   // Matches firestore.rules' suppliers write gate — Operations/Admin/Super
   // Admin only. These were hardcoded true for every role, so a sales/HR/
@@ -262,6 +262,7 @@ export function SuppliersPage() {
         onClose={() => setViewingSupplier(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onGenerateVendorLink={generateVendorLink}
       />
 
       {/* Form drawer */}

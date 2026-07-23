@@ -1,8 +1,11 @@
 "use client";
 
-import { X, Phone, Mail, MapPin, Edit2, Trash2, Truck, FileText } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { X, Phone, Mail, MapPin, Edit2, Trash2, Truck, FileText, Link2, Copy, Check, MessageCircle, Tag } from "lucide-react";
 import { SupplierCategoryBadge, SupplierStatusBadge } from "@/modules/suppliers/components/SupplierBadges";
-import { formatDate, initials } from "@/lib/utils/helpers";
+import { formatDate, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
+import { getAppUrl } from "@/lib/app-url";
 import type { Supplier } from "@/modules/suppliers/types";
 
 type Props = {
@@ -11,7 +14,12 @@ type Props = {
   onClose:   () => void;
   onEdit:    (supplier: Supplier) => void;
   onDelete:  (supplier: Supplier) => void;
+  onGenerateVendorLink: (supplier: Supplier) => Promise<{ token: string | null; error: string | null }>;
 };
+
+function appOrigin(): string {
+  return typeof window !== "undefined" ? window.location.origin : getAppUrl();
+}
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -22,8 +30,27 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function SupplierDetailModal({ supplier, canManage, onClose, onEdit, onDelete }: Props) {
+export function SupplierDetailModal({ supplier, canManage, onClose, onEdit, onDelete, onGenerateVendorLink }: Props) {
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
   if (!supplier) return null;
+
+  const vendorLink = supplier.vendorPortalToken ? `${appOrigin()}/vendor/${supplier.vendorPortalToken}` : null;
+
+  async function handleGenerateLink() {
+    setGeneratingLink(true);
+    await onGenerateVendorLink(supplier!);
+    setGeneratingLink(false);
+  }
+
+  function copyLink() {
+    if (!vendorLink) return;
+    navigator.clipboard.writeText(vendorLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1500);
+    }).catch(() => {});
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -91,6 +118,48 @@ export function SupplierDetailModal({ supplier, canManage, onClose, onEdit, onDe
               <Row label="GST Number" value={supplier.gstNumber} />
               <Row label="Payment Terms" value={supplier.paymentTerms} />
             </div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <Link2 size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Vendor Portal Link</p>
+            </div>
+            {vendorLink ? (
+              <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5">
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{vendorLink}</span>
+                <button
+                  onClick={copyLink}
+                  title="Copy link"
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  {linkCopied ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                </button>
+                <a
+                  href={buildWhatsAppLink(supplier.phone, `Hi ${supplier.contactPerson}, please use this link to share your rates and availability with us: ${vendorLink}`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Share via WhatsApp"
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <MessageCircle size={13} />
+                </a>
+              </div>
+            ) : (
+              <button
+                onClick={handleGenerateLink}
+                disabled={generatingLink}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted disabled:opacity-60 transition-colors"
+              >
+                <Link2 size={13} /> {generatingLink ? "Generating..." : "Generate Vendor Link"}
+              </button>
+            )}
+            <Link
+              href={`/vendor-rates?supplierId=${supplier.id}`}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            >
+              <Tag size={12} /> Manage rates & availability
+            </Link>
           </div>
 
           {supplier.notes && (
