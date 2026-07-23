@@ -35,9 +35,10 @@ export async function GET(req: NextRequest) {
     ...(company.phone ? [{ label: company.businessName, phone: company.phone }] : []),
   ];
 
+  type BookingDoc = { id: string } & Record<string, unknown>;
   const bookingsSnap = await db.collection(FIRESTORE_COLLECTIONS.BOOKINGS)
     .where("customerId", "==", caller.entityId).get();
-  const bookings = bookingsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
+  const bookings: BookingDoc[] = bookingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   const relevant = selectRelevantBooking(
     bookings.map((b) => ({ id: b.id, status: b.status as string, travelDate: b.travelDate as string | null, returnDate: b.returnDate as string | null })) as BookingForSelection[]
