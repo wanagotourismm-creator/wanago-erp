@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-07-23 (Reports module rebuild — final post-Release-1 item)
+
+- Restructured `src/modules/reports/` from a single 291-line page into `types/services/hooks/components/pages` — the 6 raw-table tabs (Employees/Attendance/Leaves/Payroll/Recruitment/Performance) are behavior-preserving extractions, unchanged in what they show
+- New Sales Trend report — confirmed-booking revenue by month, 3-month moving average, MoM/YoY % change badges. Firestore-native (`sales-trend.service.ts`, pure + 13 unit tests); deliberately not routed through the Supabase mirror since Firestore already has everything needed, same reasoning as the Executive Cockpit
+- Customer Retention's existing cohort table gets a new `recharts` bar chart (90d/180d rebooking %) above it — `recharts` was already a dependency used in 5 other places, not a new-library addition
+- No schema/data changes to the 6 raw-table reports, no new Firestore collection, no rules changes
+
 ## 2026-07-23 (Sales Performance Hub — unifying incentives/sales-team/goals/reviews)
 
 - Extended the existing `/sales-team` page (renamed "Sales Performance Hub" in nav) rather than building a new module — its hook already merged leads+bookings+incentives, the closest existing prototype
