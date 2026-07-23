@@ -274,7 +274,7 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
     await assertFails(db.collection("activities").doc("a1").get());
   });
 
-  it.each(["users", "settings", "hrmsEmployees", "candidates", "performanceReviews", "referralPartners", "helpArticles", "npsResponses", "tallyMappings", "journeys", "segments"])(
+  it.each(["users", "settings", "hrmsEmployees", "candidates", "performanceReviews", "referralPartners", "helpArticles", "npsResponses", "tallyMappings", "journeys", "segments", "sosEvents"])(
     "blocks a non-admin authenticated create of %s",
     async (collectionName) => {
       await seedUser("u1", "sales");
@@ -287,7 +287,7 @@ describe("firestore.rules — catch-all does not leak admin-only collections", (
     }
   );
 
-  it.each(["users", "settings", "bookings", "trash", "hrmsLeaves", "tickets", "referralPartners", "npsResponses", "tallyMappings", "journeys", "segments"])(
+  it.each(["users", "settings", "bookings", "trash", "hrmsLeaves", "tickets", "referralPartners", "npsResponses", "tallyMappings", "journeys", "segments", "sosEvents"])(
     "blocks a non-admin authenticated update of %s",
     async (collectionName) => {
       await seedDoc(collectionName);
@@ -414,6 +414,67 @@ describe("firestore.rules — Marketing automation (journeys/segments/journeyRun
       })
     );
     await assertSucceeds(db.collection("journeyRuns").doc("doc1").get());
+  });
+});
+
+describe("firestore.rules — Resources & availability (resources/resourceAssignments/resourceBlackouts)", () => {
+  // None of these three collections have a dedicated rule — the plain
+  // catch-all's isAuthenticated() create/read/update grant is exactly what
+  // they need (operations staff manage this day-to-day, unlike the
+  // admin-only tallyMappings/journeys tables), so these tests document
+  // that intended access rather than changing any rule.
+  it.each(["resources", "resourceAssignments", "resourceBlackouts"])(
+    "allows any authenticated staff member to create/read/update %s",
+    async (collectionName) => {
+      await seedUser("u1", "operations");
+      const db = testEnv.authenticatedContext("u1").firestore();
+      await assertSucceeds(
+        db.collection(collectionName).doc("doc1").set({
+          createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active",
+        })
+      );
+      await assertSucceeds(db.collection(collectionName).doc("doc1").get());
+      await assertSucceeds(
+        db.collection(collectionName).doc("doc1").update({
+          createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", notes: "updated",
+        })
+      );
+    }
+  );
+});
+
+describe("firestore.rules — Traveler Companion + SOS (sosEvents/tripCompanions)", () => {
+  async function seedDoc(collectionName: string) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection(collectionName).doc("doc1").set({ seeded: true });
+    });
+  }
+
+  it("allows any authenticated staff member to read sosEvents", async () => {
+    await seedDoc("sosEvents");
+    await seedUser("u1", "operations");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(db.collection("sosEvents").doc("doc1").get());
+  });
+
+  it("allows admin to write sosEvents directly (resolving an event)", async () => {
+    await seedUser("admin1", "admin");
+    const db = testEnv.authenticatedContext("admin1").firestore();
+    await assertSucceeds(
+      db.collection("sosEvents").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "admin1", status: "active", sosStatus: "active",
+      })
+    );
+  });
+
+  it("blocks a non-admin staff member from writing sosEvents (only the Admin SDK portal route creates these)", async () => {
+    await seedUser("u1", "operations");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(
+      db.collection("sosEvents").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "active", sosStatus: "active",
+      })
+    );
   });
 });
 

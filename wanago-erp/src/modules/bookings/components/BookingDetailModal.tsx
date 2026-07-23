@@ -8,6 +8,8 @@ import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
 import { BOOKING_STATUS_LABELS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
 import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
+import { BookingResourcesSection } from "@/modules/resources/components/BookingResourcesSection";
+import { BookingSosHistory } from "@/modules/companion/components/BookingSosHistory";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
@@ -131,6 +133,9 @@ export function BookingDetailModal({
               refId={booking.refNumber}
             />
           )}
+
+          <BookingResourcesSection booking={booking} />
+          <BookingSosHistory bookingId={booking.id} />
 
           <div>
             <div className="mb-1 flex items-center gap-2">

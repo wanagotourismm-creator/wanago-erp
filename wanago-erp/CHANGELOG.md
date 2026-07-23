@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-07-21 (Tools Expansion Release 1, Tool 6 — Traveler Companion + SOS)
+
+- New `/portal/customer/companion` page inside the existing customer portal — day-by-day itinerary (`booking.packageId → package.itineraryId → itinerary`), guide/driver/vehicle contact cards with `tel:` links (new `Resource.phone` field), emergency contacts (generic India 112 + business phone), an opt-in live-location toggle, and a confirm-gated **SOS button** that captures + reverse-geocodes location and alerts staff
+- New `src/modules/companion/` (`tripCompanions`/`sosEvents` collections), new Admin-SDK routes `GET /api/portal/customer/companion`, `POST .../opt-in`, `POST .../sos` — no client Firestore path for the customer side, same pattern as the rest of the portal
+- SOS best-effort notifies the booking's assigned agent + every admin/operations user via the existing `notifyUserServer`, with a Google Maps link; staff see a read-only SOS history + "Mark Resolved" action inside `BookingDetailModal` (`BookingSosHistory`, same integration idiom as Tool 5's `BookingResourcesSection`)
+- `selectRelevantBooking()` — the one pure/unit-tested piece — picks which booking the page shows (an in-progress trip always wins over a later upcoming one); 8 new unit tests covering boundary cases
+- New `firestore.rules` block for `sosEvents` (read: any authenticated staff, write: Admin) + 3 new rules-tests; `tripCompanions` has no dedicated rule (Admin-SDK-only, nothing ever queries it client-side)
+- Post-trip Review/NPS hook needed no new wiring — Tool 2's `scheduleReviewRequest` already fires on booking completion
+- Documented out of scope: offline/PWA itinerary caching, background/continuous live-location tracking, a per-destination emergency-hotline database, non-admin SOS resolution — none have supporting infra in this repo yet
+
+## 2026-07-21 (Tools Expansion Release 1, Tool 5 — Resources & Availability Calendar)
+
+- New `src/modules/resources/` at `/resources` (Operations nav) — registry of vehicles/drivers/guides/room-blocks with capacity + office, assignable to bookings
+- Hard conflict detection (`findConflicts`) blocks saving an overlapping assignment/blackout and names exactly what's in the way, instead of just warning
+- New resources×days calendar/timeline grid (hand-rolled with `date-fns`, no new library — matches the existing HR calendars' approach), blackout periods, and a utilization report
+- "Assign Resource" reachable directly from a booking's detail view, not just the standalone Resources page
+- Closed a gap Tool 1 explicitly deferred: the Executive Cockpit now has a "low resource availability" alert once every active resource of a type/office is booked/blacked-out for the coming week
+- 20 new unit tests (interval overlap math, conflict exclusion for in-place edits, utilization clamping at period edges, the new cockpit alert) + 3 new Firestore rules tests documenting catch-all access
+- **Fixed a real, pre-existing production bug found while re-running rules-tests**: `firestore.rules`'s manager-lookup helpers threw an evaluation error (denying the entire request) for any employee missing an optional `reportingManagerId`/`functionalManagerId`, instead of failing just that one check — silently broken attendance/leave/regularization/asset-request writes, unrelated to this session's other work. Fixed to use `.get(key, null)` like every other optional-field check in the file.
+
 ## 2026-07-20 (Tools Expansion Release 1, Tool 4 — Marketing Automation / Drip Journeys)
 
 - New `src/modules/journeys/` at `/journeys` (Marketing nav group) — config-driven journeys: trigger (quote sent / quote unaccepted after N days / trip completed) → ordered steps (wait, send WhatsApp, send email, notify agent, add to segment)

@@ -19,6 +19,7 @@ import {
   computePipelineValue,
   computeArOverdue,
   computeCockpitAlerts,
+  computeResourceAvailabilityAlerts,
 } from "./dashboard.service";
 import type { CockpitFilters } from "@/modules/dashboard/types";
 
@@ -151,5 +152,44 @@ describe("computeCockpitAlerts", () => {
 
   it("returns an empty list when nothing is amiss", () => {
     expect(computeCockpitAlerts([], [])).toEqual([]);
+  });
+});
+
+describe("computeResourceAvailabilityAlerts", () => {
+  const NOW = new Date("2026-08-01T00:00:00Z");
+
+  it("flags a (type, office) group where every active resource is busy the coming week", () => {
+    const resources = [{ id: "r1", type: "vehicle", officeId: "off1", officeName: "Kozhikode", isActive: true }];
+    const assignments = [{ resourceId: "r1", startDate: "2026-08-02", endDate: "2026-08-03" }];
+    const alerts = computeResourceAvailabilityAlerts(resources, assignments, [], NOW);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ type: "low_resource_availability", href: "/resources" });
+  });
+
+  it("does not flag a group with at least one free resource", () => {
+    const resources = [
+      { id: "r1", type: "vehicle", officeId: "off1", officeName: "Kozhikode", isActive: true },
+      { id: "r2", type: "vehicle", officeId: "off1", officeName: "Kozhikode", isActive: true },
+    ];
+    const assignments = [{ resourceId: "r1", startDate: "2026-08-02", endDate: "2026-08-03" }];
+    expect(computeResourceAvailabilityAlerts(resources, assignments, [], NOW)).toEqual([]);
+  });
+
+  it("ignores inactive resources entirely", () => {
+    const resources = [{ id: "r1", type: "vehicle", officeId: "off1", officeName: "Kozhikode", isActive: false }];
+    expect(computeResourceAvailabilityAlerts(resources, [], [], NOW)).toEqual([]);
+  });
+
+  it("counts a blackout the same as an assignment", () => {
+    const resources = [{ id: "r1", type: "guide", officeId: "off1", officeName: "Kozhikode", isActive: true }];
+    const blackouts = [{ resourceId: "r1", startDate: "2026-08-05", endDate: "2026-08-06" }];
+    const alerts = computeResourceAvailabilityAlerts(resources, [], blackouts, NOW);
+    expect(alerts).toHaveLength(1);
+  });
+
+  it("does not flag a resource whose conflict is outside the 7-day horizon", () => {
+    const resources = [{ id: "r1", type: "vehicle", officeId: "off1", officeName: "Kozhikode", isActive: true }];
+    const assignments = [{ resourceId: "r1", startDate: "2026-09-01", endDate: "2026-09-02" }];
+    expect(computeResourceAvailabilityAlerts(resources, assignments, [], NOW)).toEqual([]);
   });
 });

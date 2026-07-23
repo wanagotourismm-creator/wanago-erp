@@ -164,7 +164,10 @@ service cloud.firestore {
         'tallyMappings',
         // Marketing-configured journey/segment definitions — same
         // reasoning, no non-admin write path needed.
-        'journeys', 'segments'
+        'journeys', 'segments',
+        // All real creates happen server-side via the Admin SDK
+        // (/api/portal/customer/sos) — no legitimate client create path.
+        'sosEvents'
       ];
     }
 
@@ -183,7 +186,7 @@ service cloud.firestore {
         'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
         'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash',
-        'npsResponses', 'tallyMappings', 'journeys', 'segments'
+        'npsResponses', 'tallyMappings', 'journeys', 'segments', 'sosEvents'
       ];
     }
 
@@ -196,9 +199,12 @@ service cloud.firestore {
     }
     function isOwnerOrManagerOfEmployee(employeeId) {
       let emp = employeeById(employeeId);
+      // .get(key, null) — an employee with no reportingManagerId set yet
+      // (e.g. not assigned, or a top-level role) must fail this branch,
+      // not throw and deny the whole rule evaluation.
       return request.auth.uid == emp.userId ||
-             (emp.reportingManagerId != null &&
-              employeeById(emp.reportingManagerId).userId == request.auth.uid);
+             (emp.get('reportingManagerId', null) != null &&
+              employeeById(emp.get('reportingManagerId', null)).userId == request.auth.uid);
     }
     // Attendance location-approval requests specifically route to BOTH the
     // reporting manager and the functional manager (see notifyManagerOfLocationRequest
@@ -209,9 +215,13 @@ service cloud.firestore {
     // for leaves/regularizations/assetRequests.
     function isOwnerOrEitherManagerOfEmployee(employeeId) {
       let emp = employeeById(employeeId);
+      // .get(key, null) instead of dot-access — most employees have no
+      // functionalManagerId set at all, and dot-accessing a genuinely
+      // missing map key throws an evaluation error (denying the whole
+      // request) rather than returning null like a normal falsy check.
       return isOwnerOrManagerOfEmployee(employeeId) ||
-             (emp.functionalManagerId != null &&
-              employeeById(emp.functionalManagerId).userId == request.auth.uid);
+             (emp.get('functionalManagerId', null) != null &&
+              employeeById(emp.get('functionalManagerId', null)).userId == request.auth.uid);
     }
     // The manager-only half of isOwnerOrEitherManagerOfEmployee, with the
     // owner branch stripped out — hrmsCheckIns' create rule uses this
@@ -223,10 +233,13 @@ service cloud.firestore {
     // regularization.service.ts).
     function isEitherManagerOfEmployee(employeeId) {
       let emp = employeeById(employeeId);
-      return (emp.reportingManagerId != null &&
-              employeeById(emp.reportingManagerId).userId == request.auth.uid) ||
-             (emp.functionalManagerId != null &&
-              employeeById(emp.functionalManagerId).userId == request.auth.uid);
+      // Same .get(key, null) reasoning as isOwnerOrEitherManagerOfEmployee
+      // above — both fields are optional and a missing one must fail this
+      // one branch, not the whole rule evaluation.
+      return (emp.get('reportingManagerId', null) != null &&
+              employeeById(emp.get('reportingManagerId', null)).userId == request.auth.uid) ||
+             (emp.get('functionalManagerId', null) != null &&
+              employeeById(emp.get('functionalManagerId', null)).userId == request.auth.uid);
     }
     function isEmployeeOwner(employeeId) {
       return employeeById(employeeId).userId == request.auth.uid;
@@ -1067,6 +1080,22 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /segments/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Traveler Companion + SOS ────────────────────────────────
+    // sosEvents: every real create happens server-side via the Admin SDK
+    // (/api/portal/customer/sos) — no legitimate client create path. The one
+    // legitimate client write is staff resolving an event from
+    // BookingDetailModal's SOS history, gated to Admin here (same reasoning
+    // as tallyMappings/journeys: widen to a broader ops role later if
+    // needed, not blocking this pass). Read open to any authenticated staff
+    // member so the SOS history section can render.
+    // tripCompanions has no dedicated rule — Admin-SDK-only, no client
+    // read/write path at all (not even for staff, in this pass) — the
+    // catch-all doesn't matter since nothing ever queries it client-side.
+    match /sosEvents/{id} {
       allow read:  if isAuthenticated();
       allow write: if isAdmin();
     }

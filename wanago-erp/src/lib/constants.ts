@@ -180,6 +180,11 @@ export const FIRESTORE_COLLECTIONS = {
   JOURNEYS:               "journeys",
   JOURNEY_RUNS:           "journeyRuns",
   SEGMENTS:               "segments",
+  RESOURCES:              "resources",
+  RESOURCE_ASSIGNMENTS:   "resourceAssignments",
+  RESOURCE_BLACKOUTS:     "resourceBlackouts",
+  TRIP_COMPANIONS:        "tripCompanions",
+  SOS_EVENTS:             "sosEvents",
 } as const;
 
 // Internal lookup keys business logic uses to ask "give me the approved

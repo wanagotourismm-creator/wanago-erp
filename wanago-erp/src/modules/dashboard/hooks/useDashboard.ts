@@ -59,7 +59,7 @@ export function useDashboard(explicitFilters?: CockpitFilters) {
       ...computeCockpitStats(raw, f),
     });
     setPipeline(computeLeadPipeline(raw.leads));
-    setAlerts(computeCockpitAlerts(raw.invoices, raw.bookings));
+    setAlerts(computeCockpitAlerts(raw.invoices, raw.bookings, raw.resources, raw.resourceAssignments, raw.resourceBlackouts));
     setBookings(raw.bookings);
   }, []);
 

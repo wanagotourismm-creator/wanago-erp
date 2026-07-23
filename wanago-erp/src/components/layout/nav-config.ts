@@ -125,6 +125,12 @@ export const NAV_CONFIG: NavGroup[] = [
         icon:  "id-badge",
         roles: ["super_admin","admin","operations"],
       },
+      {
+        label: "Resources",
+        href:  "/resources",
+        icon:  "truck",
+        roles: ["super_admin","admin","operations"],
+      },
     ],
   },
   {

@@ -2,6 +2,7 @@ import { collection, getDocs, type DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS, LEAD_STAGES, BOOKING_STATUS } from "@/lib/constants";
 import { toDate, formatCurrency } from "@/lib/utils/helpers";
+import { dateRangesOverlap } from "@/modules/resources/services/conflict.service";
 import type {
   DashboardStats, LeadPipelineItem, RevenueDataPoint,
   CockpitAlert, CockpitFilters,
@@ -82,14 +83,18 @@ export function computeLeadPipeline(leads: DocumentData[]): LeadPipelineItem[] {
 export async function fetchDashboardRawData(): Promise<{
   leads: DocumentData[]; bookings: DocumentData[]; invoices: DocumentData[];
   payments: DocumentData[]; expenses: DocumentData[];
+  resources: DocumentData[]; resourceAssignments: DocumentData[]; resourceBlackouts: DocumentData[];
 }> {
   try {
-    const [leadsSnap, bookingsSnap, invoicesSnap, paymentsSnap, expensesSnap] = await Promise.all([
+    const [leadsSnap, bookingsSnap, invoicesSnap, paymentsSnap, expensesSnap, resourcesSnap, assignmentsSnap, blackoutsSnap] = await Promise.all([
       getDocs(collection(db, FIRESTORE_COLLECTIONS.LEADS)),
       getDocs(collection(db, FIRESTORE_COLLECTIONS.BOOKINGS)),
       getDocs(collection(db, FIRESTORE_COLLECTIONS.INVOICES)),
       getDocs(collection(db, FIRESTORE_COLLECTIONS.PAYMENTS)),
       getDocs(collection(db, FIRESTORE_COLLECTIONS.EXPENSES)),
+      getDocs(collection(db, FIRESTORE_COLLECTIONS.RESOURCES)),
+      getDocs(collection(db, FIRESTORE_COLLECTIONS.RESOURCE_ASSIGNMENTS)),
+      getDocs(collection(db, FIRESTORE_COLLECTIONS.RESOURCE_BLACKOUTS)),
     ]);
     return {
       leads:    leadsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
@@ -97,10 +102,13 @@ export async function fetchDashboardRawData(): Promise<{
       invoices: invoicesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       payments: paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       expenses: expensesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      resources:           resourcesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      resourceAssignments: assignmentsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      resourceBlackouts:   blackoutsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
     };
   } catch (err) {
     console.error("[dashboard.service] fetchDashboardRawData failed — showing zeroed stats:", err);
-    return { leads: [], bookings: [], invoices: [], payments: [], expenses: [] };
+    return { leads: [], bookings: [], invoices: [], payments: [], expenses: [], resources: [], resourceAssignments: [], resourceBlackouts: [] };
   }
 }
 
@@ -170,11 +178,54 @@ export function computeCockpitStats(
   };
 }
 
-// Alert feed — only "overdue invoice" and "negative-margin booking" are
-// modeled today because those are the only two of the PRD's five alert
-// types with real data behind them right now (see the CockpitAlertType
-// comment in types/index.ts for the other three).
-export function computeCockpitAlerts(invoices: DocumentData[], bookings: DocumentData[]): CockpitAlert[] {
+const RESOURCE_AVAILABILITY_HORIZON_DAYS = 7;
+
+// One alert per (type, office) where every active resource of that kind
+// has at least one assignment/blackout overlapping the coming week — a
+// conservative, cheap-to-compute signal (not full day-by-day precision)
+// that the whole category is tight, not just one resource.
+export function computeResourceAvailabilityAlerts(
+  resources: DocumentData[], assignments: DocumentData[], blackouts: DocumentData[], now: Date = new Date()
+): CockpitAlert[] {
+  const horizonEnd = new Date(now.getTime() + RESOURCE_AVAILABILITY_HORIZON_DAYS * 24 * 60 * 60 * 1000);
+  const range = { startDate: now.toISOString().slice(0, 10), endDate: horizonEnd.toISOString().slice(0, 10) };
+
+  const groups = new Map<string, DocumentData[]>();
+  for (const r of resources) {
+    if (!r.isActive) continue;
+    const key = `${r.type}::${r.officeId}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+
+  const alerts: CockpitAlert[] = [];
+  for (const [key, groupResources] of groups) {
+    const [type, officeId] = key.split("::");
+    const allBusy = groupResources.every((r) =>
+      assignments.some((a) => a.resourceId === r.id && dateRangesOverlap(range, a as { startDate: string; endDate: string })) ||
+      blackouts.some((b) => b.resourceId === r.id && dateRangesOverlap(range, b as { startDate: string; endDate: string }))
+    );
+    if (!allBusy) continue;
+    const officeName = groupResources[0].officeName ?? officeId;
+    alerts.push({
+      id:       `low_resource_availability_${key}`,
+      type:     "low_resource_availability",
+      title:    `No ${type.replace("_", " ")}s free this week`,
+      detail:   `Every active ${type.replace("_", " ")} at ${officeName} has a booking or blackout in the next ${RESOURCE_AVAILABILITY_HORIZON_DAYS} days`,
+      href:     "/resources",
+      severity: "medium",
+    });
+  }
+  return alerts;
+}
+
+// Alert feed — reads live off existing module data, same as the rest of
+// the cockpit (no BI/alerting engine exists). resources/assignments/
+// blackouts default to [] so existing callers (and tests) that only pass
+// invoices/bookings keep working unchanged.
+export function computeCockpitAlerts(
+  invoices: DocumentData[], bookings: DocumentData[],
+  resources: DocumentData[] = [], resourceAssignments: DocumentData[] = [], resourceBlackouts: DocumentData[] = []
+): CockpitAlert[] {
   const alerts: CockpitAlert[] = [];
 
   for (const inv of invoices) {
@@ -200,6 +251,8 @@ export function computeCockpitAlerts(invoices: DocumentData[], bookings: Documen
       severity: "medium",
     });
   }
+
+  alerts.push(...computeResourceAvailabilityAlerts(resources, resourceAssignments, resourceBlackouts));
 
   return alerts.sort((a, b) => {
     if (a.severity !== b.severity) return a.severity === "high" ? -1 : 1;

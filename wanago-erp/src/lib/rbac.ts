@@ -87,7 +87,7 @@ export const PERMISSION_MAP: PermissionMap = {
 export const PAGE_ACCESS: PageAccess = {
   super_admin: ["*"],
   admin:       ["*"],
-  operations:  ["dashboard", "ess", "team-pulse", "forms", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "itinerary-brochures", "ops-approvals", "reviews", "settings"],
+  operations:  ["dashboard", "ess", "team-pulse", "forms", "leads", "customers", "bookings", "operations", "packages", "suppliers", "itineraries", "itinerary-brochures", "ops-approvals", "reviews", "resources", "settings"],
   finance:     ["dashboard", "ess", "team-pulse", "forms", "bookings", "invoices", "payments", "expenses", "reports", "insights", "hrms-payroll", "incentives", "approvals", "accounting-tally", "settings"],
   marketing:   ["dashboard", "ess", "team-pulse", "forms", "leads", "customers", "marketing", "reports", "campaigns", "referral-program", "reviews", "journeys", "whatsapp-inbox", "intake", "settings"],
   hr:          ["dashboard", "ess", "team-pulse", "forms", "hrms-overview", "hrms-employees", "hrms-attendance", "hrms-leaves", "hrms-payroll", "hrms-policies", "recruitment", "performance", "training", "reports", "incentives", "settings"],
@@ -121,6 +121,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "insights": "Insights",
   "reviews": "Reviews & NPS",
   "journeys": "Marketing Automation",
+  "resources": "Resources & Availability",
   "hrms-payroll": "Payroll",
   "incentives": "Incentives",
   "approvals": "Approvals",

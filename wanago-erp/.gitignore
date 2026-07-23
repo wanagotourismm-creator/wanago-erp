@@ -36,6 +36,8 @@ firestore-debug.log
 # Test artifacts
 /coverage
 /test-results
+hs_err_pid*.log
+replay_pid*.log
 
 
 # Python (api/ml/forecast.py)

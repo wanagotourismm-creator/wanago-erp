@@ -28,12 +28,11 @@ export type RevenueDataPoint = {
   amount: number;
 };
 
-// Two of the five PRD-listed alert types — "low resource availability"
-// (Resources module isn't built yet, Release 1 Tool 5) and "statutory
-// due-dates" (no tax-calendar concept anywhere, a Release 2 catalog item)
-// — are intentionally not modeled here since there's no real data behind
-// them yet. Extend this union once those exist instead of faking alerts.
-export type CockpitAlertType = "overdue_invoice" | "negative_margin_booking";
+// "statutory due-dates" is the one remaining PRD-listed alert type not
+// modeled here — no tax-calendar concept exists anywhere (a Release 2
+// catalog item). "low_resource_availability" was added once Release 1
+// Tool 5 (the Resources module) shipped and there was real data to back it.
+export type CockpitAlertType = "overdue_invoice" | "negative_margin_booking" | "low_resource_availability";
 
 export type CockpitAlertSeverity = "high" | "medium";
 
