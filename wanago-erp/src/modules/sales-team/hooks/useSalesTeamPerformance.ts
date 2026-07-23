@@ -35,12 +35,10 @@ export function useSalesTeamPerformance() {
     setLoading(true);
     setError(null);
     try {
-      const [leadsData, bookingsData, employeesData, goalsData, reviewsData, objectivesData] = await Promise.all([
+      const [leadsData, bookingsData, employeesData, objectivesData] = await Promise.all([
         fetchLeads(),
         fetchBookings({ status: "confirmed" }),
         fetchEmployees(),
-        fetchGoals(),
-        fetchReviews(),
         fetchObjectivesByDepartment(SALES_DEPARTMENT),
       ]);
       setLeads(leadsData);
@@ -50,8 +48,21 @@ export function useSalesTeamPerformance() {
       const salesEmployeeIds = new Set(
         employeesData.filter((e) => e.department === SALES_DEPARTMENT).map((e) => e.id)
       );
-      setLatestGoals(pickLatestGoalByEmployee(goalsData.filter((g) => salesEmployeeIds.has(g.employeeId))));
-      setLatestReviews(pickLatestReviewByEmployee(reviewsData.filter((r) => salesEmployeeIds.has(r.employeeId))));
+
+      // performanceGoals/performanceReviews are HR/admin-only reads (see
+      // firestore.rules) — most viewers of this hub (sales/sales_head
+      // roles) can't read them at all. That's expected, not a failure:
+      // isolated in its own try/catch so a permission-denied here degrades
+      // to "no goal/review data" instead of blanking out the whole hub's
+      // leads/bookings/incentive figures for anyone who isn't HR/admin.
+      try {
+        const [goalsData, reviewsData] = await Promise.all([fetchGoals(), fetchReviews()]);
+        setLatestGoals(pickLatestGoalByEmployee(goalsData.filter((g) => salesEmployeeIds.has(g.employeeId))));
+        setLatestReviews(pickLatestReviewByEmployee(reviewsData.filter((r) => salesEmployeeIds.has(r.employeeId))));
+      } catch {
+        setLatestGoals(new Map());
+        setLatestReviews(new Map());
+      }
     } catch {
       setError("Failed to load sales team performance");
     } finally {
