@@ -46,9 +46,10 @@ describe("findConflicts", () => {
   });
 
   it("flags an overlapping assignment on the same resource", () => {
-    const conflicts = findConflicts("r1", { startDate: "2026-08-03", endDate: "2026-08-04" }, [assignment({})], []);
+    const a = assignment({});
+    const conflicts = findConflicts("r1", { startDate: "2026-08-03", endDate: "2026-08-04" }, [a], []);
     expect(conflicts).toHaveLength(1);
-    expect(conflicts[0]).toEqual({ type: "assignment", assignment: assignment({}) });
+    expect(conflicts[0]).toEqual({ type: "assignment", assignment: a });
   });
 
   it("ignores assignments on a different resource", () => {

@@ -3,16 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, MapPin, Receipt, StickyNote, Plus, Trash2, Sparkles } from "lucide-react";
+import { X, Loader2, User, MapPin, Receipt, StickyNote, Plus, Trash2, Sparkles, Tag } from "lucide-react";
 import { quotationSchema, type QuotationSchema } from "@/modules/quotations/schemas";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
 import { fetchPackages } from "@/modules/packages/services/package.service";
 import { draftQuoteLineItems } from "@/modules/quotations/services/quotation-ai.service";
+import { VendorRatePicker } from "@/modules/vendor-portal/components/VendorRatePicker";
 import { useAuthStore } from "@/store/auth.store";
 import { cn, formatCurrency } from "@/lib/utils/helpers";
 import type { Customer } from "@/modules/customers/types";
 import type { Package } from "@/modules/packages/types";
 import type { Quotation } from "@/modules/quotations/types";
+import type { VendorRate } from "@/modules/vendor-portal/types";
 
 type Props = {
   open:       boolean;
@@ -60,6 +62,7 @@ export function QuotationForm({ open, quotation, prefill, onClose, onSubmit }: P
   const [packages,  setPackages]  = useState<Package[]>([]);
   const [aiDrafting, setAiDrafting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
 
   const {
     register, handleSubmit, reset, watch, setValue, control,
@@ -123,6 +126,10 @@ export function QuotationForm({ open, quotation, prefill, onClose, onSubmit }: P
 
   function handleAddItem() {
     append({ description: "", amount: 0 });
+  }
+
+  function handleSelectVendorRate(rate: VendorRate) {
+    append({ description: `${rate.serviceName} (${rate.supplierName})`, amount: rate.rateAmount });
   }
 
   const destination = watch("destination");
@@ -274,6 +281,13 @@ export function QuotationForm({ open, quotation, prefill, onClose, onSubmit }: P
                 </button>
                 <button
                   type="button"
+                  onClick={() => setVendorPickerOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Tag size={13} /> Add from Vendor Rate
+                </button>
+                <button
+                  type="button"
                   onClick={handleAddItem}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
                 >
@@ -397,6 +411,12 @@ export function QuotationForm({ open, quotation, prefill, onClose, onSubmit }: P
         </div>
 
       </div>
+
+      <VendorRatePicker
+        open={vendorPickerOpen}
+        onClose={() => setVendorPickerOpen(false)}
+        onSelect={handleSelectVendorRate}
+      />
     </div>
   );
 }

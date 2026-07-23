@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-07-23 (Vendor rates wired into Quotation/Package costing)
+
+- New `VendorRatePicker` modal (browse/filter real vendor-submitted rates by supplier, click one to insert) wired into `QuotationForm.tsx` ("Add from Vendor Rate," next to the AI "Suggest Items" button) and `PackageForm.tsx` ("Look up Vendor Rate," next to Cost Price)
+- New pure `filterActiveRates` helper alongside the existing `findApplicableRate` (both share the same validity-window logic) + 5 new unit tests
+- Manual browse-and-pick only, not an automatic computation — no field anywhere reliably joins a Quotation line item or Package to a specific `VendorRate` (both free text), so staff judgment still decides what applies; `Booking.profitAmount` suggestion is untouched (no reliable resource↔rate join exists there)
+- Fixed an unrelated pre-existing flaky test in `conflict.service.test.ts` (compared two separately-constructed `new Date()` objects for exact equality, failing whenever they landed in different milliseconds)
+
 ## 2026-07-23 (Tools Expansion Release 1, Tool 7 — Vendor Rate & Availability Portal, final tool)
 
 - New `src/modules/vendor-portal/` (`vendorRates`/`vendorAvailability` collections) + new `Supplier.vendorPortalToken` field — vendors have no login/credential system, so the portal reuses the existing anonymous long-lived token-link pattern (`/book/{token}`, `/review/{token}`), not a new auth mechanism

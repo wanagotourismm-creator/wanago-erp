@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, Package as PackageIcon, MapPin, IndianRupee, StickyNote } from "lucide-react";
+import { X, Loader2, Package as PackageIcon, MapPin, IndianRupee, StickyNote, Tag } from "lucide-react";
 import { packageSchema, type PackageSchema } from "@/modules/packages/schemas";
+import { VendorRatePicker } from "@/modules/vendor-portal/components/VendorRatePicker";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import type { Package } from "@/modules/packages/types";
+import type { VendorRate } from "@/modules/vendor-portal/types";
 
 type Props = {
   open:    boolean;
@@ -42,8 +44,10 @@ const inputClass = cn(
 export function PackageForm({ open, pkg, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
 
+  const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
+
   const {
-    register, handleSubmit, reset,
+    register, handleSubmit, reset, setValue,
     formState: { errors, isSubmitting },
   } = useForm<PackageSchema>({
     resolver: zodResolver(packageSchema),
@@ -185,8 +189,20 @@ export function PackageForm({ open, pkg, onClose, onSubmit }: Props) {
                 <input className={inputClass} type="number" min={0} placeholder="35000" {...register("costPrice")} />
               </Field>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Cost Price is what this package costs the company — it seeds the profit figure Operations confirms on each booking.
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Cost Price is what this package costs the company — it seeds the profit figure Operations confirms on each booking.
+              </p>
+              <button
+                type="button"
+                onClick={() => setVendorPickerOpen(true)}
+                className="inline-flex flex-shrink-0 items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              >
+                <Tag size={12} /> Look up Vendor Rate
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Fills in a single vendor&apos;s rate — adjust for the package&apos;s full cost if it covers more than this one line.
             </p>
           </div>
 
@@ -254,6 +270,12 @@ export function PackageForm({ open, pkg, onClose, onSubmit }: Props) {
         </div>
 
       </div>
+
+      <VendorRatePicker
+        open={vendorPickerOpen}
+        onClose={() => setVendorPickerOpen(false)}
+        onSelect={(rate: VendorRate) => setValue("costPrice", rate.rateAmount)}
+      />
     </div>
   );
 }
