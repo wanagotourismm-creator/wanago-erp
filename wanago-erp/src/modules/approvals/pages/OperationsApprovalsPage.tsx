@@ -14,9 +14,11 @@ import { useAuthStore } from "@/store/auth.store";
 import { hasPermission } from "@/lib/rbac";
 import { formatCurrency } from "@/lib/utils/helpers";
 import { fetchPackages } from "@/modules/packages/services/package.service";
+import { fetchExpenses } from "@/modules/expenses/services/expense.service";
 import type { ApprovalItem } from "@/modules/approvals/types";
 import type { Booking } from "@/modules/bookings/types";
 import type { Package } from "@/modules/packages/types";
+import type { Expense } from "@/modules/expenses/types";
 
 // Operations-only Approvals Inbox — Finance-approved bookings awaiting
 // Operations sign-off. Kept as its own separate page/nav item under
@@ -30,6 +32,9 @@ export function OperationsApprovalsPage() {
 
   const [packages, setPackages] = useState<Package[]>([]);
   useEffect(() => { fetchPackages().then(setPackages).catch(() => {}); }, []);
+
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  useEffect(() => { fetchExpenses().then(setExpenses).catch(() => {}); }, []);
 
   const [opsApprovingItem, setOpsApprovingItem] = useState<ApprovalItem & { kind: "booking-ops" } | null>(null);
   const [rejectingItem,    setRejectingItem]    = useState<ApprovalItem | null>(null);
@@ -105,6 +110,7 @@ export function OperationsApprovalsPage() {
       <OpsApprovalModal
         booking={opsApprovingItem ? (opsApprovingItem.data as Booking) : null}
         packages={packages}
+        expenses={expenses}
         onClose={() => setOpsApprovingItem(null)}
         onConfirm={(profitAmount) =>
           opsApprovingItem ? approveItem(opsApprovingItem, profitAmount) : Promise.resolve({ error: null })

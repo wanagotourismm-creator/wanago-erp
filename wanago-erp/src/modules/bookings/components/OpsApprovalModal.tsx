@@ -3,27 +3,40 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, Loader2, Briefcase } from "lucide-react";
 import { formatAmount } from "@/modules/bookings/components/BookingBadges";
+import { computeTripProfitability } from "@/modules/profitability/services/trip-profitability.service";
 import type { Booking } from "@/modules/bookings/types";
 import type { Package } from "@/modules/packages/types";
+import type { Expense } from "@/modules/expenses/types";
 
 type Props = {
   booking:  Booking | null;
   packages: Package[];
+  expenses: Expense[];
   onClose:  () => void;
   onConfirm: (profitAmount: number) => Promise<{ error: string | null }>;
 };
 
-export function OpsApprovalModal({ booking, packages, onClose, onConfirm }: Props) {
+export function OpsApprovalModal({ booking, packages, expenses, onClose, onConfirm }: Props) {
   const [profitAmount, setProfitAmount] = useState("");
   const [submitting, setSubmitting]     = useState(false);
   const [error, setError]               = useState<string | null>(null);
 
   const suggestion = useMemo(() => {
-    if (!booking?.packageId) return null;
-    const pkg = packages.find(p => p.id === booking.packageId);
-    if (!pkg) return null;
-    return booking.totalAmount - pkg.costPrice;
-  }, [booking, packages]);
+    if (!booking) return null;
+    const pkg = booking.packageId ? packages.find(p => p.id === booking.packageId) : null;
+    const linkedExpenseAmounts = expenses
+      .filter(e => e.bookingId === booking.id && (e.expenseStatus === "approved" || e.expenseStatus === "paid"))
+      .map(e => e.amount);
+    // No real cost data at all (no package, no linked expenses) — same as
+    // before, don't suggest a number that would just be totalAmount minus
+    // zero and imply the trip costs nothing.
+    if (!pkg && linkedExpenseAmounts.length === 0) return null;
+    return computeTripProfitability({
+      totalAmount: booking.totalAmount,
+      packageCostPrice: pkg?.costPrice ?? null,
+      linkedExpenseAmounts,
+    }).computedProfit;
+  }, [booking, packages, expenses]);
 
   useEffect(() => {
     if (booking) {
@@ -106,7 +119,7 @@ export function OpsApprovalModal({ booking, packages, onClose, onConfirm }: Prop
               className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-all placeholder:text-muted-foreground/60 hover:border-primary/40 focus:border-primary [&:focus]:shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
             />
             {suggestion != null && (
-              <p className="text-[11px] text-muted-foreground">Suggested from linked package: {formatAmount(suggestion)}</p>
+              <p className="text-[11px] text-muted-foreground">Suggested (package cost + any linked expenses, subtracted from Total Amount): {formatAmount(suggestion)}</p>
             )}
           </div>
         </div>

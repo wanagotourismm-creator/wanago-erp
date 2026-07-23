@@ -69,8 +69,10 @@ export function ExpensesPage() {
   async function handleSubmit(data: ExpenseSchema, receiptFile: File | null) {
     const payload = {
       ...data,
-      vendor: data.vendor || null,
-      notes:  data.notes  || null,
+      vendor:     data.vendor     || null,
+      notes:      data.notes      || null,
+      bookingId:  data.bookingId  || null,
+      bookingRef: data.bookingRef || null,
       createdBy: user?.uid ?? "",
     };
 
@@ -131,8 +133,10 @@ export function ExpensesPage() {
     for (const row of rows) {
       const payload: ExpenseFormData = {
         ...row,
-        vendor: row.vendor || null,
-        notes:  row.notes  || null,
+        vendor:     row.vendor     || null,
+        notes:      row.notes      || null,
+        bookingId:  row.bookingId  || null,
+        bookingRef: row.bookingRef || null,
         createdBy: user?.uid ?? "",
       };
       try {

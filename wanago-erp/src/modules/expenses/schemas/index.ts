@@ -7,6 +7,9 @@ export const expenseSchema = z.object({
   vendor:        z.string().optional().or(z.literal("")),
   description:   z.string().min(1, "Description is required"),
 
+  bookingId:     z.string().optional().or(z.literal("")),
+  bookingRef:    z.string().optional().or(z.literal("")),
+
   officeId:      z.string().min(1),
   officeName:    z.string().min(1),
   notes:         z.string().optional().or(z.literal("")),

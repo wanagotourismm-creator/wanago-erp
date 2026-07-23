@@ -10,6 +10,7 @@ import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } 
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import { BookingResourcesSection } from "@/modules/resources/components/BookingResourcesSection";
 import { BookingSosHistory } from "@/modules/companion/components/BookingSosHistory";
+import { TripProfitabilitySection } from "@/modules/profitability/components/TripProfitabilitySection";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
@@ -136,6 +137,7 @@ export function BookingDetailModal({
 
           <BookingResourcesSection booking={booking} />
           <BookingSosHistory bookingId={booking.id} />
+          <TripProfitabilitySection booking={booking} />
 
           <div>
             <div className="mb-1 flex items-center gap-2">

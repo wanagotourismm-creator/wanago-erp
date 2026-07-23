@@ -33,8 +33,10 @@ export async function createExpense(
     createdBy,
     status:        "active",
     expenseStatus: data.expenseStatus || "pending",
-    vendor:        data.vendor || null,
-    notes:         data.notes  || null,
+    vendor:        data.vendor    || null,
+    notes:         data.notes     || null,
+    bookingId:     data.bookingId || null,
+    bookingRef:    data.bookingRef || null,
     receiptUrl:    null,
   });
 }
@@ -44,8 +46,10 @@ export async function updateExpense(
   data: Partial<ExpenseFormData>
 ): Promise<void> {
   const patch: Partial<Expense> = { ...data };
-  if (data.vendor !== undefined) patch.vendor = data.vendor || null;
-  if (data.notes  !== undefined) patch.notes  = data.notes  || null;
+  if (data.vendor     !== undefined) patch.vendor     = data.vendor     || null;
+  if (data.notes      !== undefined) patch.notes      = data.notes      || null;
+  if (data.bookingId  !== undefined) patch.bookingId  = data.bookingId  || null;
+  if (data.bookingRef !== undefined) patch.bookingRef = data.bookingRef || null;
   return expenseRepository.update(id, patch);
 }
 

@@ -81,6 +81,7 @@ function expense(overrides: Partial<Expense>): Expense {
     vendor: "Uber", description: "Airport pickup", receiptUrl: null,
     officeId: "off1", officeName: "Kozhikode",
     notes: null, refNumber: "EXP-1001", expenseStatus: "paid",
+    bookingId: null, bookingRef: null,
     ...overrides,
   };
 }

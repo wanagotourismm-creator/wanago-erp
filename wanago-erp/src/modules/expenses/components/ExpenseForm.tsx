@@ -5,8 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, Receipt, Paperclip, StickyNote, Camera } from "lucide-react";
 import { expenseSchema, type ExpenseSchema } from "@/modules/expenses/schemas";
+import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
+import type { Booking } from "@/modules/bookings/types";
 import type { Expense } from "@/modules/expenses/types";
 
 type Props = {
@@ -46,10 +48,15 @@ const today = new Date().toISOString().slice(0, 10);
 export function ExpenseForm({ open, expense, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    fetchBookings().then(setBookings).catch(() => {});
+  }, []);
+
   const {
-    register, handleSubmit, reset,
+    register, handleSubmit, reset, setValue, watch,
     formState: { errors, isSubmitting },
   } = useForm<ExpenseSchema>({
     resolver: zodResolver(expenseSchema),
@@ -68,8 +75,10 @@ export function ExpenseForm({ open, expense, onClose, onSubmit }: Props) {
       if (expense) {
         reset({
           ...expense,
-          vendor: expense.vendor ?? "",
-          notes:  expense.notes  ?? "",
+          vendor:     expense.vendor     ?? "",
+          notes:      expense.notes      ?? "",
+          bookingId:  expense.bookingId  ?? "",
+          bookingRef: expense.bookingRef ?? "",
         });
       } else {
         reset({
@@ -81,6 +90,14 @@ export function ExpenseForm({ open, expense, onClose, onSubmit }: Props) {
       }
     }
   }, [open, expense, reset, user]);
+
+  const selectedBookingId = watch("bookingId");
+
+  function handleBookingChange(id: string) {
+    const b = bookings.find(b => b.id === id);
+    setValue("bookingId", id);
+    setValue("bookingRef", b?.refNumber ?? "");
+  }
 
   if (!open) return null;
 
@@ -144,6 +161,18 @@ export function ExpenseForm({ open, expense, onClose, onSubmit }: Props) {
               </Field>
               <Field label="Vendor" error={errors.vendor?.message}>
                 <input className={inputClass} placeholder="Vendor name" {...register("vendor")} />
+              </Field>
+              <Field label="Link to Booking (optional)" error={errors.bookingId?.message}>
+                <select
+                  className={inputClass}
+                  value={selectedBookingId ?? ""}
+                  onChange={(e) => handleBookingChange(e.target.value)}
+                >
+                  <option value="">Not trip-specific</option>
+                  {bookings.map(b => (
+                    <option key={b.id} value={b.id}>{b.refNumber} — {b.customerName}</option>
+                  ))}
+                </select>
               </Field>
             </div>
             <div className="mt-4">

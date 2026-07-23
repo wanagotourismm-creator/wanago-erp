@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-07-23 (Trip Profitability Engine — the BI half of the "4.0 core")
+
+- New `src/modules/profitability/` — `computeTripProfitability()` (pure, 4 unit tests) computes a booking's real profit as `totalAmount − Package.costPrice − linked Expenses`, instead of ignoring trip-specific costs entirely
+- `Expense` gained an optional `bookingId`/`bookingRef` link (mirrors `Invoice`'s existing pair) so costs like an extra hotel night or last-minute transport can be attributed to a specific trip — `ExpenseForm.tsx` got a "Link to Booking" picker (mirrors `InvoiceForm.tsx`'s existing one)
+- New read-only `TripProfitabilitySection` on `BookingDetailModal` — full breakdown: revenue, package cost, itemized linked expenses, computed profit, and (once approved) Ops's recorded profit with a variance note if they differ
+- `OpsApprovalModal`'s profit suggestion now uses the same real computation instead of `totalAmount − costPrice` alone
+- Deliberately no internal chart-of-accounts/journal-entry system — confirmed with the user that Tally export remains the real ledger; this pass is the profitability/BI half only. Does not feed vendor rates/Resources (no reliable cost join exists) or the Executive Cockpit's `computeGrossMargin` (stays on real Ops-confirmed `profitAmount`, not mixed with estimates)
+
 ## 2026-07-23 (Vendor rates wired into Quotation/Package costing)
 
 - New `VendorRatePicker` modal (browse/filter real vendor-submitted rates by supplier, click one to insert) wired into `QuotationForm.tsx` ("Add from Vendor Rate," next to the AI "Suggest Items" button) and `PackageForm.tsx` ("Look up Vendor Rate," next to Cost Price)
