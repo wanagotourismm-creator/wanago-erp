@@ -140,7 +140,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "performance": "Performance",
   "training": "Training",
   "quotations": "Quotations",
-  "sales-team": "Sales Team",
+  "sales-team": "Sales Performance Hub",
 };
 
 // ── Dynamic permission overrides ─────────────────────────────

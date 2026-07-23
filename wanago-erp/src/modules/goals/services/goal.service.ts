@@ -38,6 +38,13 @@ export async function fetchObjectivesByGoal(goalId: string): Promise<Objective[]
   return objectiveRepo.findMany({ constraints: [where("goalId", "==", goalId), orderBy("createdAt", "desc")] });
 }
 
+// Cross-goal lookup (unlike fetchObjectivesByGoal above) — used by the
+// Sales Performance Hub to roll up every Sales-department objective
+// regardless of which CompanyGoal phase it belongs to.
+export async function fetchObjectivesByDepartment(department: string): Promise<Objective[]> {
+  return objectiveRepo.findMany({ constraints: [where("department", "==", department), orderBy("createdAt", "desc")] });
+}
+
 export async function createObjective(data: ObjectiveSchema, createdBy: string): Promise<Objective> {
   return objectiveRepo.create({
     ...data,

@@ -3,18 +3,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchLeads } from "@/modules/leads/services/lead.service";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
+import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
+import { fetchGoals } from "@/modules/performance/goals/services/goal.service";
+import { fetchReviews } from "@/modules/performance/reviews/services/review.service";
+import { fetchObjectivesByDepartment } from "@/modules/goals/services/goal.service";
 import { useIncentives } from "@/modules/incentives/hooks/useIncentives";
+import { pickLatestGoalByEmployee, pickLatestReviewByEmployee } from "@/modules/sales-team/services/performance-merge.service";
 import { toDate } from "@/lib/utils/helpers";
 import type { Lead } from "@/modules/leads/types";
 import type { Booking } from "@/modules/bookings/types";
+import type { Goal } from "@/modules/performance/goals/types";
+import type { PerformanceReview } from "@/modules/performance/reviews/types";
+import type { Objective } from "@/modules/goals/types";
 import type { SalesAgentPerformance } from "@/modules/sales-team/types";
 import type { Timestamp } from "@/types/global";
+
+const SALES_DEPARTMENT = "Sales";
 
 export function useSalesTeamPerformance() {
   const { summaries: incentiveSummaries, loading: incentivesLoading } = useIncentives();
 
-  const [leads,    setLeads]    = useState<Lead[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [leads,     setLeads]     = useState<Lead[]>([]);
+  const [bookings,  setBookings]  = useState<Booking[]>([]);
+  const [salesObjectives, setSalesObjectives] = useState<Objective[]>([]);
+  const [latestGoals,   setLatestGoals]   = useState<Map<string, Goal>>(new Map());
+  const [latestReviews, setLatestReviews] = useState<Map<string, PerformanceReview>>(new Map());
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
 
@@ -22,12 +35,23 @@ export function useSalesTeamPerformance() {
     setLoading(true);
     setError(null);
     try {
-      const [leadsData, bookingsData] = await Promise.all([
+      const [leadsData, bookingsData, employeesData, goalsData, reviewsData, objectivesData] = await Promise.all([
         fetchLeads(),
         fetchBookings({ status: "confirmed" }),
+        fetchEmployees(),
+        fetchGoals(),
+        fetchReviews(),
+        fetchObjectivesByDepartment(SALES_DEPARTMENT),
       ]);
       setLeads(leadsData);
       setBookings(bookingsData);
+      setSalesObjectives(objectivesData);
+
+      const salesEmployeeIds = new Set(
+        employeesData.filter((e) => e.department === SALES_DEPARTMENT).map((e) => e.id)
+      );
+      setLatestGoals(pickLatestGoalByEmployee(goalsData.filter((g) => salesEmployeeIds.has(g.employeeId))));
+      setLatestReviews(pickLatestReviewByEmployee(reviewsData.filter((r) => salesEmployeeIds.has(r.employeeId))));
     } catch {
       setError("Failed to load sales team performance");
     } finally {
@@ -66,6 +90,8 @@ export function useSalesTeamPerformance() {
           conversionRate:  0,
           revenue:         0,
           incentiveAmount: 0,
+          latestGoal:      null,
+          latestReview:    null,
         });
       }
     }
@@ -97,6 +123,8 @@ export function useSalesTeamPerformance() {
           conversionRate:  0,
           revenue:         booking.totalAmount ?? 0,
           incentiveAmount: 0,
+          latestGoal:      null,
+          latestReview:    null,
         });
       }
     }
@@ -119,14 +147,22 @@ export function useSalesTeamPerformance() {
           conversionRate:  0,
           revenue:         0,
           incentiveAmount: inc.incentiveAmount,
+          latestGoal:      null,
+          latestReview:    null,
         });
       }
     }
 
-    const list = Array.from(groups.values()).map((g) => ({
-      ...g,
-      conversionRate: g.leadsAssigned > 0 ? (g.leadsWon / g.leadsAssigned) * 100 : 0,
-    }));
+    const list = Array.from(groups.values()).map((g) => {
+      const goal = latestGoals.get(g.agentId);
+      const review = latestReviews.get(g.agentId);
+      return {
+        ...g,
+        conversionRate: g.leadsAssigned > 0 ? (g.leadsWon / g.leadsAssigned) * 100 : 0,
+        latestGoal:   goal ? { title: goal.title, progress: goal.progress, status: goal.status } : null,
+        latestReview: review ? { rating: review.rating, period: review.period, reviewDate: review.reviewDate } : null,
+      };
+    });
 
     list.sort((a, b) => {
       if (b.year !== a.year)   return b.year - a.year;
@@ -135,10 +171,11 @@ export function useSalesTeamPerformance() {
     });
 
     return list;
-  }, [leads, bookings, incentiveSummaries]);
+  }, [leads, bookings, incentiveSummaries, latestGoals, latestReviews]);
 
   return {
     performance,
+    salesObjectives,
     loading: loading || incentivesLoading,
     error,
     reload: load,

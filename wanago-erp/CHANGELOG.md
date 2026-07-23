@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-07-23 (Sales Performance Hub — unifying incentives/sales-team/goals/reviews)
+
+- Extended the existing `/sales-team` page (renamed "Sales Performance Hub" in nav) rather than building a new module — its hook already merged leads+bookings+incentives, the closest existing prototype
+- Confirmed the "no shared identity" framing in `KNOWN_ISSUES.md` was overstated: `incentives`, `sales-team`, `goals.Objective.ownerId`, `performance/goals.employeeId`, and `performance/reviews.employeeId` all already resolve to the same `Employee.id` space — not a real join blocker
+- New pure `pickLatestGoalByEmployee`/`pickLatestReviewByEmployee` (8 unit tests) pick each Sales-department employee's single most-recent HR goal/review
+- New `fetchObjectivesByDepartment()` rolls up Sales-department Company OKR Objectives into a new panel above the existing per-agent table
+- Per-agent table gains "Latest Goal" and "Latest Review" columns
+- Purely computed on render — no new Firestore collection, matching how `incentives`/`sales-team` already work
+
 ## 2026-07-23 (Trip Profitability Engine — the BI half of the "4.0 core")
 
 - New `src/modules/profitability/` — `computeTripProfitability()` (pure, 4 unit tests) computes a booking's real profit as `totalAmount − Package.costPrice − linked Expenses`, instead of ignoring trip-specific costs entirely

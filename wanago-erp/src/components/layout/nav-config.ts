@@ -79,7 +79,7 @@ export const NAV_CONFIG: NavGroup[] = [
         roles: ["super_admin","admin","sales"],
       },
       {
-        label: "Sales Team",
+        label: "Sales Performance Hub",
         href:  "/sales-team",
         icon:  "chart-bar",
         roles: ["sales_head","admin","super_admin"],

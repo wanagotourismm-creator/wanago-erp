@@ -12,4 +12,9 @@ export type SalesAgentPerformance = {
   conversionRate:  number; // percentage, 0-100
   revenue:         number; // confirmed booking totalAmount, summed
   incentiveAmount: number;
+  // This agent's single most-recently-due HR goal / most-recent review —
+  // not month-scoped like the fields above (goals/reviews aren't monthly),
+  // so the same latest value is attached to every one of this agent's rows.
+  latestGoal:   { title: string; progress: number; status: string } | null;
+  latestReview: { rating: string; period: string; reviewDate: string } | null;
 };
