@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, Briefcase, Wallet, Link2, KeyRound } from "lucide-react";
+import { X, Loader2, User, Briefcase, Wallet, Link2, KeyRound, MapPin } from "lucide-react";
 import { employeeSchema, type EmployeeSchema } from "@/modules/hrms/employees/schemas";
 import { EMPLOYMENT_TYPE_LABELS, DEPARTMENTS } from "@/modules/hrms/employees/components/EmployeeBadges";
 import { fetchUsers, createUserAccount, generateTempPassword } from "@/modules/admin/users/services/user-admin.service";
@@ -70,6 +70,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
       basicSalary: 0, hra: 0, allowances: 0,
       officeId:   user?.officeId   ?? "main",
       officeName: user?.officeName ?? "Head Office",
+      isFieldStaff: false,
     },
   });
 
@@ -101,6 +102,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
           pfNumber:            employee.pfNumber ?? "",
           panNumber:           employee.panNumber ?? "",
           monthlyProfitTarget: employee.monthlyProfitTarget ?? null,
+          isFieldStaff:        employee.isFieldStaff ?? false,
         });
       } else {
         reset({
@@ -108,6 +110,7 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
           basicSalary: 0, hra: 0, allowances: 0,
           officeId:   user?.officeId   ?? "main",
           officeName: user?.officeName ?? "Head Office",
+          isFieldStaff: false,
         });
       }
     }
@@ -312,6 +315,20 @@ export function EmployeeForm({ open, employee, employees, onClose, onSubmit }: P
                   <option value="resigned">Resigned</option>
                 </select>
               </Field>
+              <div className="col-span-2">
+                <label className="flex items-start gap-2.5 rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground cursor-pointer hover:border-primary/40 transition-colors">
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-input" {...register("isFieldStaff")} />
+                  <span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <MapPin size={13} className="text-primary" />
+                      Field staff (always travelling, no fixed office)
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Skips the selfie + manager location-approval requirement on check-in/out — their location is still recorded automatically. Use this for roles that never work from an office.
+                    </span>
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
 

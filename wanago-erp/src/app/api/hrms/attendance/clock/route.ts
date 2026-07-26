@@ -93,7 +93,12 @@ type GeofenceResult = {
   requiresSelfie: boolean;
 };
 
-function evaluateGeofence(lat: unknown, lng: unknown, office: DocumentData | null): GeofenceResult {
+// isFieldStaff (Employee.isFieldStaff, set by HR admin) skips the
+// selfie/approval gate entirely — the position is still resolved and
+// stored below same as anyone else, it's only requiresSelfie that's
+// forced off. Distance/withinGeofence are still computed when possible
+// since they're just informational for a field-staff record, not a gate.
+function evaluateGeofence(lat: unknown, lng: unknown, office: DocumentData | null, isFieldStaff: boolean): GeofenceResult {
   const pos = validPos(lat, lng);
   const geofenceConfigured = office?.latitude != null && office?.longitude != null && office?.geofenceRadiusMeters != null;
 
@@ -106,7 +111,7 @@ function evaluateGeofence(lat: unknown, lng: unknown, office: DocumentData | nul
 
   return {
     pos, withinGeofence, distanceMeters: distance,
-    requiresSelfie: geofenceConfigured && (!pos || withinGeofence === false),
+    requiresSelfie: !isFieldStaff && geofenceConfigured && (!pos || withinGeofence === false),
   };
 }
 
@@ -286,7 +291,7 @@ export async function POST(req: NextRequest) {
         if (officeSnap.exists) office = officeSnap.data()!;
       }
 
-      const geo = evaluateGeofence(body.clockInLat, body.clockInLng, office);
+      const geo = evaluateGeofence(body.clockInLat, body.clockInLng, office, employee.isFieldStaff === true);
       const accuracy = typeof body.clockInAccuracy === "number" ? body.clockInAccuracy : null;
 
       if (geo.requiresSelfie && !selfieBelongsToEmployee(body.clockInSelfieUrl, body.employeeId)) {
@@ -354,7 +359,7 @@ export async function POST(req: NextRequest) {
       if (officeSnap.exists) office = officeSnap.data()!;
     }
 
-    const geo = evaluateGeofence(body.clockOutLat, body.clockOutLng, office);
+    const geo = evaluateGeofence(body.clockOutLat, body.clockOutLng, office, employee.isFieldStaff === true);
     const accuracy = typeof body.clockOutAccuracy === "number" ? body.clockOutAccuracy : null;
 
     if (geo.requiresSelfie && !selfieBelongsToEmployee(body.clockOutSelfieUrl, body.employeeId)) {

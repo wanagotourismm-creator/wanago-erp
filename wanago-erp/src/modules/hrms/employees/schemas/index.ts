@@ -36,6 +36,11 @@ export const employeeSchema = z.object({
   officeId:   z.string().min(1),
   officeName: z.string().min(1),
 
+  // Field staff skip the office geofence's selfie/location-approval gate
+  // on check-in/out — see the field's own comment on Employee in
+  // hrms/shared/types.ts.
+  isFieldStaff: z.boolean().optional(),
+
   // Explicit link to a login account — fixes/overrides the automatic
   // email-based matching used by fetchEmployeeByUserId.
   userId: z.string().optional().or(z.literal("")),

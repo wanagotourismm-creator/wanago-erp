@@ -83,10 +83,12 @@ export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateR
                 {ctx.address ?? (ctx.pos ? `${ctx.pos.lat.toFixed(5)}, ${ctx.pos.lng.toFixed(5)}` : "Location unavailable")}
               </p>
 
-              {!ctx.geofenceConfigured || ctx.withinGeofence === true ? (
+              {!ctx.requiresSelfie ? (
                 <div className="flex items-center gap-2 rounded-xl border border-green-300/50 bg-green-50 dark:bg-green-900/10 px-3 py-2.5 text-xs text-green-700 dark:text-green-400">
                   <CheckCircle2 size={14} className="flex-shrink-0" />
-                  {ctx.geofenceConfigured ? `You're at ${ctx.officeName}` : "Location confirmed"}
+                  {ctx.isFieldStaff
+                    ? "Field check-in — location recorded, no approval needed"
+                    : ctx.geofenceConfigured ? `You're at ${ctx.officeName}` : "Location confirmed"}
                 </div>
               ) : (
                 <div className="space-y-2 rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
@@ -132,7 +134,7 @@ export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateR
 
         {!loading && ctx && (
           <div className="border-t border-primary/15 bg-muted/30 px-5 py-3.5">
-            {!ctx.geofenceConfigured || ctx.withinGeofence === true ? (
+            {!ctx.requiresSelfie ? (
               <button onClick={() => tryConfirm(null)} disabled={busy}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm">
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}

@@ -75,6 +75,7 @@ export type CheckInContext = {
   withinGeofence: boolean | null;
   distanceMeters: number | null;
   requiresSelfie: boolean;
+  isFieldStaff: boolean;
 };
 
 export function useEss() {
@@ -235,15 +236,22 @@ export function useEss() {
       withinGeofence = distance <= office!.geofenceRadiusMeters!;
     }
 
+    // Field staff (Employee.isFieldStaff, set by HR admin — see the
+    // Employee type's own comment) never work from an office, so the
+    // geofence would otherwise flag every single check-in/out as
+    // out-of-range. Mirrors the same bypass evaluateGeofence() applies
+    // server-side in /api/hrms/attendance/clock/route.ts.
+    const isFieldStaff = employee?.isFieldStaff === true;
+
     return {
       pos, address, officeName: office?.name ?? "the office",
-      geofenceConfigured, withinGeofence, distanceMeters: distance,
+      geofenceConfigured, withinGeofence, distanceMeters: distance, isFieldStaff,
       // A selfie (and the manager-approval it triggers) is only ever
       // needed for a geofenced office, and only when the employee is
       // confirmed outside it or couldn't be located at all — being within
-      // range, or an office that never opted into geofencing, needs
-      // neither.
-      requiresSelfie: geofenceConfigured && (!pos || withinGeofence === false),
+      // range, an office that never opted into geofencing, or field staff,
+      // needs neither.
+      requiresSelfie: !isFieldStaff && geofenceConfigured && (!pos || withinGeofence === false),
     };
   }
 

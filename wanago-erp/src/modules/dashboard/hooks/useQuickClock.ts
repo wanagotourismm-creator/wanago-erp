@@ -93,10 +93,14 @@ export function useQuickClock() {
       withinGeofence = distance <= office!.geofenceRadiusMeters!;
     }
 
+    // Mirrors useEss.ts's resolveCheckInContext — field staff (set by HR
+    // admin on the employee record) skip the selfie/approval gate.
+    const isFieldStaff = employee?.isFieldStaff === true;
+
     return {
       pos, address, officeName: office?.name ?? "the office",
-      geofenceConfigured, withinGeofence, distanceMeters: distance,
-      requiresSelfie: geofenceConfigured && (!pos || withinGeofence === false),
+      geofenceConfigured, withinGeofence, distanceMeters: distance, isFieldStaff,
+      requiresSelfie: !isFieldStaff && geofenceConfigured && (!pos || withinGeofence === false),
     };
   }
 

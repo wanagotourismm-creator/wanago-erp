@@ -71,6 +71,18 @@ export type Employee = FirestoreRecord & {
   userId?:    string | null;
   officeId:   string;
   officeName: string;
+
+  // Field staff (e.g. always-travelling sales/ops roles) never check in
+  // from their assigned office, so the normal geofence would flag every
+  // single check-in/out as out-of-range and route it through the
+  // selfie + manager-location-approval flow. This flag (set by HR admin
+  // on the employee record) skips that gate entirely for them — the
+  // clock-in/out still records the device's GPS position as usual, it's
+  // only the selfie requirement and locationApprovalStatus: "pending"
+  // that get bypassed. See evaluateGeofence() in
+  // /api/hrms/attendance/clock/route.ts and resolveCheckInContext() in
+  // ess/hooks/useEss.ts, both of which read this.
+  isFieldStaff?: boolean;
 };
 
 export type PayrollRecord = FirestoreRecord & {
