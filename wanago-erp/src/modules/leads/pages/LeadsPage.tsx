@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, RefreshCw, Upload } from "lucide-react";
 import { useLeads } from "@/modules/leads/hooks/useLeads";
 import { LeadsTable } from "@/modules/leads/components/LeadsTable";
+import { AgentBreakdownPanel, type AgentLeadStats } from "@/modules/leads/components/AgentBreakdownPanel";
 import { LeadForm } from "@/modules/leads/components/LeadForm";
 import { LeadDetailModal } from "@/modules/leads/components/LeadDetailModal";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
@@ -45,6 +46,8 @@ const LEAD_TEMPLATE_COLUMNS: TemplateColumn[] = [
   { key: "notes",          label: "Notes",             example: "" },
 ];
 
+const UNASSIGNED_AGENT_ID = "unassigned";
+
 const STAGE_FILTERS = [
   { value: "",          label: "All Leads" },
   { value: "new",       label: "New"        },
@@ -60,6 +63,11 @@ export function LeadsPage() {
   const { leads, loading, addLead, editLead, changeStage, removeLead, createQuotation, generateLink, load } = useLeads();
   const { user } = useAuthStore();
   const canDelete = !!user && hasPermission(user.systemRole, "leads:delete");
+  // Only roles that already see every agent's leads (see scopeByAssignee in
+  // rbac-scope.ts) get the agent filter/breakdown — a plain "sales" role
+  // only ever has its own leads in `leads` to begin with, so both controls
+  // would be pointless for them.
+  const canViewAllAgents = !!user && hasPermission(user.systemRole, "leads:view_all");
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -67,6 +75,7 @@ export function LeadsPage() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [stageFilter, setStageFilter] = useState("");
+  const [agentFilter, setAgentFilter] = useState(""); // Employee.id, or "" for all, or "unassigned"
   const [search,      setSearch]      = useState("");
   const [importOpen,  setImportOpen]  = useState(false);
   const [offices,     setOffices]     = useState<Office[]>([]);
@@ -98,17 +107,46 @@ export function LeadsPage() {
   const filtered = useMemo(() => {
     return leads.filter((l) => {
       const matchStage  = !stageFilter || l.stage === stageFilter;
+      const matchAgent  = !agentFilter || (agentFilter === UNASSIGNED_AGENT_ID ? !l.assignedTo : l.assignedTo === agentFilter);
       const matchSearch = !search || [l.name, l.phone, l.destination, l.email ?? ""]
         .some(f => f?.toLowerCase().includes(search.toLowerCase()));
-      return matchStage && matchSearch;
+      return matchStage && matchAgent && matchSearch;
     });
-  }, [leads, stageFilter, search]);
+  }, [leads, stageFilter, agentFilter, search]);
 
   // Stage counts
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     leads.forEach(l => { counts[l.stage] = (counts[l.stage] ?? 0) + 1; });
     return counts;
+  }, [leads]);
+
+  // Per-agent breakdown — total leads, count by stage, and win rate. Built
+  // straight off the (already role-scoped) `leads` list rather than the
+  // heavier useSalesTeamPerformance hook (Sales Performance Hub), which is
+  // month-bucketed and also pulls in bookings/incentives/HR goals/reviews —
+  // more than a quick per-agent lead-pipeline check needs.
+  const agentBreakdown = useMemo((): AgentLeadStats[] => {
+    const map = new Map<string, AgentLeadStats>();
+    for (const l of leads) {
+      const key  = l.assignedTo || UNASSIGNED_AGENT_ID;
+      const name = l.assignedTo ? (l.agentName || "Unknown Agent") : "Unassigned";
+      let entry = map.get(key);
+      if (!entry) {
+        entry = { agentId: key, agentName: name, total: 0, byStage: {}, won: 0, conversionRate: 0 };
+        map.set(key, entry);
+      }
+      entry.total++;
+      entry.byStage[l.stage] = (entry.byStage[l.stage] ?? 0) + 1;
+      if (l.stage === "won") entry.won++;
+    }
+    return Array.from(map.values())
+      .map((e) => ({ ...e, conversionRate: e.total ? (e.won / e.total) * 100 : 0 }))
+      .sort((a, b) => {
+        if (a.agentId === UNASSIGNED_AGENT_ID && b.agentId !== UNASSIGNED_AGENT_ID) return 1;
+        if (b.agentId === UNASSIGNED_AGENT_ID && a.agentId !== UNASSIGNED_AGENT_ID) return -1;
+        return b.total - a.total;
+      });
   }, [leads]);
 
   const exportRows = useMemo(() => filtered.map((l) => ({
@@ -332,17 +370,44 @@ export function LeadsPage() {
             ))}
           </div>
 
-          {/* Search */}
-          <div className="relative max-w-sm">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by name, phone, destination..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-input bg-card pl-9 pr-4 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
+          {/* Search + agent filter */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative max-w-sm flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search by name, phone, destination..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border border-input bg-card pl-9 pr-4 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            {canViewAllAgents && (
+              <select
+                value={agentFilter}
+                onChange={(e) => setAgentFilter(e.target.value)}
+                className="rounded-xl border border-input bg-card px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 sm:max-w-[220px]"
+              >
+                <option value="">All Agents</option>
+                {agentBreakdown.filter((a) => a.agentId !== UNASSIGNED_AGENT_ID).map((a) => (
+                  <option key={a.agentId} value={a.agentId}>{a.agentName}</option>
+                ))}
+                {agentBreakdown.some((a) => a.agentId === UNASSIGNED_AGENT_ID) && (
+                  <option value={UNASSIGNED_AGENT_ID}>Unassigned</option>
+                )}
+              </select>
+            )}
           </div>
+
+          {/* Agent-wise dashboard — admin/ops/sales_head only */}
+          {canViewAllAgents && (
+            <AgentBreakdownPanel
+              stats={agentBreakdown}
+              activeAgentId={agentFilter}
+              onSelectAgent={setAgentFilter}
+            />
+          )}
 
           {/* Table */}
           <LeadsTable

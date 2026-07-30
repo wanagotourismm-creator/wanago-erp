@@ -120,11 +120,18 @@ export async function GET(req: NextRequest) {
 
   let followUpsNotified = 0;
   const todayStr = new Date().toISOString().slice(0, 10);
+  const leadIds = new Set(leads.map(l => l.id));
 
   for (const log of callLogs) {
     if (!log.followUpNeeded || !log.followUpDate) continue;
     if (log.followUpDate > todayStr) continue; // still in the future
     if (!log.createdBy) continue;
+    // A call log outlives the lead/customer it was logged against — deleting
+    // either doesn't touch callLogs (see deleteLead()), so without this check
+    // a stale follow-up fires every single day forever, for a contact that no
+    // longer exists anywhere in the UI.
+    if (log.leadId && !leadIds.has(log.leadId)) continue;
+    if (log.customerId && !customerById.has(log.customerId)) continue;
 
     const user = userById.get(log.createdBy);
     await notifyUserServer({
