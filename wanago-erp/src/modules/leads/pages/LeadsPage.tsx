@@ -131,6 +131,15 @@ export function LeadsPage() {
     router.replace("/leads");
   }, [searchParams, leads, router]);
 
+  // Supports deep-linking straight into a stage filter, e.g. from the
+  // Sales dashboard's "follow-up pending" reminder pill (/leads?stage=follow_up).
+  useEffect(() => {
+    const stage = searchParams.get("stage");
+    if (!stage) return;
+    setStageFilter(stage);
+    router.replace("/leads");
+  }, [searchParams, router]);
+
   // Filter leads
   const filtered = useMemo(() => {
     return leads.filter((l) => {

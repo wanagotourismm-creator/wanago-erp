@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useClock } from "@/modules/dashboard/hooks/useDashboard";
 import { useAuthStore } from "@/store/auth.store";
 import { Plus } from "lucide-react";
@@ -46,16 +47,22 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
           {(newLeads > 0 || followUpCount > 0) && (
             <div className="flex flex-wrap gap-2 pt-1">
               {newLeads > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white">
+                <Link
+                  href="/leads"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-white/30 transition-colors"
+                >
                   <span className="h-1.5 w-1.5 rounded-full bg-green-300" />
-                  {newLeads} new lead{newLeads > 1 ? "s" : ""}
-                </span>
+                  {newLeads} active lead{newLeads > 1 ? "s" : ""}
+                </Link>
               )}
               {followUpCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/40 px-3 py-1 text-xs font-medium text-amber-100">
+                <Link
+                  href="/leads?stage=follow_up"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/40 px-3 py-1 text-xs font-medium text-amber-100 hover:bg-amber-500/60 transition-colors"
+                >
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                  {followUpCount} follow-up pending
-                </span>
+                  {followUpCount} follow-up pending — tap to work these now
+                </Link>
               )}
             </div>
           )}

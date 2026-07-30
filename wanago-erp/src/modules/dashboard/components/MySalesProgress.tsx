@@ -27,6 +27,7 @@ const STAGE_ORDER: string[] = [
 ];
 
 type ScoredLead = { lead: Lead; score: number; reason: string };
+type FastClosureLead = { lead: Lead; hoursSinceAssigned: number; tierBonus: number; tierHours: 24 | 48 };
 
 export function MySalesProgress() {
   const { user } = useAuthStore();
@@ -36,6 +37,7 @@ export function MySalesProgress() {
   const [target,   setTarget]   = useState(0);
   const [packages, setPackages] = useState<Package[]>([]);
   const [topLeads, setTopLeads] = useState<ScoredLead[]>([]);
+  const [fastClosureLeads, setFastClosureLeads] = useState<FastClosureLead[]>([]);
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
@@ -54,9 +56,6 @@ export function MySalesProgress() {
         setTarget(employee!.monthlyProfitTarget || incentiveSettings.defaultMonthlyProfitTarget);
         setPackages(activePackages);
 
-        const staleCutoff = new Date();
-        staleCutoff.setDate(staleCutoff.getDate() - STALE_DAYS);
-
         const scored: ScoredLead[] = leads
           .filter(l => l.stage !== LEAD_STAGES.WON && l.stage !== LEAD_STAGES.LOST)
           .map(l => {
@@ -69,15 +68,18 @@ export function MySalesProgress() {
               reasons.push("Hot");
             }
 
-            const contacted = toDate(l.lastContactedAt as Timestamp | Date | string | null | undefined);
-            const daysSinceContact = contacted
-              ? Math.floor((Date.now() - contacted.getTime()) / (1000 * 60 * 60 * 24))
-              : null;
-            if (!contacted || (daysSinceContact ?? 0) >= STALE_DAYS) {
+            // lead.lastContactedAt is never actually written anywhere in the
+            // app (confirmed dead field — see the daily-reminders cron's own
+            // comment on it), so this used to always read as "Never
+            // contacted" for every single lead regardless of real history.
+            // createdAt-based "days in pipeline" is at least honest, even
+            // without per-lead call-log data (which would mean a Firestore
+            // read per lead just to rank this list).
+            const createdDate = toDate(l.createdAt);
+            const daysOpen = createdDate ? Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+            if (daysOpen >= STALE_DAYS) {
               score += 2;
-              reasons.push(
-                contacted ? `Not contacted in ${daysSinceContact} days` : "Never contacted"
-              );
+              reasons.push(`${daysOpen} days in pipeline`);
             }
 
             const stageLabel = l.stage.replace(/_/g, " ");
@@ -89,10 +91,39 @@ export function MySalesProgress() {
           .slice(0, 5);
 
         setTopLeads(scored);
+
+        // Fast Closure Bonus opportunities — leads assigned to this rep
+        // recently enough that confirming the booking now still qualifies
+        // for the 24h/48h bonus tier (calculateFastClosureBonus in
+        // calculateIncentives.ts applies the same two tiers once it's
+        // actually confirmed; this surfaces the opportunity *before* that
+        // window closes instead of only reporting it after the fact).
+        if (incentiveSettings.fastClosureBonusEnabled) {
+          const fastClosure: FastClosureLead[] = leads
+            .filter(l => l.stage !== LEAD_STAGES.WON && l.stage !== LEAD_STAGES.LOST)
+            .map(l => {
+              const assignedDate = toDate(l.assignedAt as Timestamp | Date | string | null | undefined);
+              if (!assignedDate) return null;
+              const hoursSinceAssigned = (Date.now() - assignedDate.getTime()) / (1000 * 60 * 60);
+              if (hoursSinceAssigned <= 24) {
+                return { lead: l, hoursSinceAssigned, tierBonus: incentiveSettings.fastClosure24hBonus, tierHours: 24 as const };
+              }
+              if (hoursSinceAssigned <= 48) {
+                return { lead: l, hoursSinceAssigned, tierBonus: incentiveSettings.fastClosure48hBonus, tierHours: 48 as const };
+              }
+              return null;
+            })
+            .filter((x): x is FastClosureLead => x !== null)
+            .sort((a, b) => a.hoursSinceAssigned - b.hoursSinceAssigned);
+          setFastClosureLeads(fastClosure);
+        } else {
+          setFastClosureLeads([]);
+        }
       } catch {
         setTarget(0);
         setPackages([]);
         setTopLeads([]);
+        setFastClosureLeads([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -189,6 +220,21 @@ export function MySalesProgress() {
                   <li key={pkg.id} className="text-xs text-muted-foreground">
                     • Selling <span className="text-foreground font-medium">{pkg.title}</span> earns the
                     most right now — {formatCurrency(pkg.basePrice - pkg.costPrice)} margin per booking.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Fast Closure Bonus opportunities */}
+          {fastClosureLeads.length > 0 && (
+            <div className="rounded-lg border-l-4 border-l-green-500 bg-green-50 dark:bg-green-900/10 p-3">
+              <p className="text-xs font-medium text-foreground mb-2">Confirm these now for a Fast Closure Bonus</p>
+              <ul className="space-y-1">
+                {fastClosureLeads.map(({ lead, tierBonus, tierHours, hoursSinceAssigned }) => (
+                  <li key={lead.id} className="text-xs text-muted-foreground">
+                    • <span className="text-foreground font-medium">{lead.name}</span> — confirm within{" "}
+                    {Math.max(0, Math.ceil(tierHours - hoursSinceAssigned))}h for {formatCurrency(tierBonus)}
                   </li>
                 ))}
               </ul>
