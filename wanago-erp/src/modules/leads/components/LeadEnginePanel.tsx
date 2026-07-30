@@ -52,8 +52,8 @@ export function LeadEnginePanel({ lead }: Props) {
 
   const closability = useMemo(() => {
     if (isClosed || callLogsLoading || quotationLoading) return null;
-    return computeLeadClosability({ stage: lead.stage, priority: lead.priority, callLogs, quotation });
-  }, [isClosed, callLogsLoading, quotationLoading, lead.stage, lead.priority, callLogs, quotation]);
+    return computeLeadClosability({ stage: lead.stage, priority: lead.priority, callLogs, quotation, createdAt: lead.createdAt });
+  }, [isClosed, callLogsLoading, quotationLoading, lead.stage, lead.priority, callLogs, quotation, lead.createdAt]);
 
   if (isClosed) return null;
 

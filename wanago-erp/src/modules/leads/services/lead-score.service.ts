@@ -7,8 +7,14 @@ import { toDate } from "@/lib/utils/helpers";
 import { getQuotationRisk } from "@/modules/dashboard/services/insights.service";
 import type { CallLog } from "@/modules/call-logs/types";
 import type { Quotation } from "@/modules/quotations/types";
+import type { Timestamp } from "@/types/global";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+// Grace window before a never-contacted lead counts as a speed-to-lead
+// miss rather than just "hasn't had a fair chance yet" — matches
+// command-center.service.ts's identical threshold for the same signal.
+const SPEED_TO_LEAD_GRACE_HOURS = 1;
 
 export type ClosabilityBand = "hot" | "warm" | "at_risk" | "cold";
 
@@ -34,6 +40,7 @@ export function computeLeadClosability(input: {
   priority:   string;
   callLogs:   CallLog[]; // newest-first
   quotation:  Quotation | null;
+  createdAt:  Timestamp | Date | string; // Lead.createdAt — feeds the speed-to-lead signal below
 }): LeadClosability {
   let score = STAGE_POINTS[input.stage] ?? 10;
   const reasons: string[] = [];
@@ -93,8 +100,23 @@ export function computeLeadClosability(input: {
       reasons.push(`No contact in ${Math.floor(daysSince)} days`);
     }
   } else {
-    score -= 10;
-    reasons.push("Never contacted yet");
+    // Speed-to-lead: how long this lead has sat with zero contact at all —
+    // one of the strongest known predictors of conversion, and distinct
+    // from the "days since last contact" branch above (which only applies
+    // once at least one call has happened). Scaled by hours, not a flat
+    // penalty, so a lead that's 10 minutes old isn't dinged the same as
+    // one that's sat untouched for two days.
+    const leadCreatedAt = toDate(input.createdAt);
+    const hoursOpen = leadCreatedAt ? (Date.now() - leadCreatedAt.getTime()) / HOUR_MS : 0;
+    if (hoursOpen < SPEED_TO_LEAD_GRACE_HOURS) {
+      // too fresh to flag — hasn't had a fair chance at a response yet
+    } else if (hoursOpen < 24) {
+      score -= 10;
+      reasons.push(`No contact yet — ${Math.floor(hoursOpen)}h since it came in`);
+    } else {
+      score -= 20;
+      reasons.push(`No contact yet — ${Math.floor(hoursOpen / 24)}d since it came in`);
+    }
   }
 
   // Last call outcome

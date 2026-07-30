@@ -8,6 +8,7 @@ import { useMyPipelineStats }   from "@/modules/dashboard/hooks/useMyPipelineSta
 import { useMyRank }            from "@/modules/dashboard/hooks/useMyRank";
 import { useRelevantCompanyGoals } from "@/modules/dashboard/hooks/useRelevantCompanyGoals";
 import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
+import { fetchCallLogs } from "@/modules/call-logs/services/call-log.service";
 import { GreetingBanner }    from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }          from "@/modules/dashboard/components/StatCard";
 import { ProfileHeroCard }   from "@/modules/dashboard/components/ProfileHeroCard";
@@ -23,6 +24,7 @@ import { CommandCenterCard } from "@/modules/dashboard/components/CommandCenterC
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/utils/helpers";
 import type { Quotation } from "@/modules/quotations/types";
+import type { CallLog } from "@/modules/call-logs/types";
 
 // Replaces the company-wide DashboardPage for the `sales` role: everything
 // here is scoped to the logged-in rep's own leads/bookings/goals instead of
@@ -42,11 +44,18 @@ export function SalesPersonalDashboard() {
   // above), same join CommandCenterCard's data needs elsewhere too.
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [quotationsLoading, setQuotationsLoading] = useState(true);
+  // Same story for call logs — fetchCallLogs({}) with no filter reads the
+  // whole collection once, filtered client-side to this rep's own leads
+  // below, rather than one query per lead.
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [callLogsLoading, setCallLogsLoading] = useState(true);
   useEffect(() => {
     fetchQuotations().then(setQuotations).catch(() => setQuotations([])).finally(() => setQuotationsLoading(false));
+    fetchCallLogs({}).then(setCallLogs).catch(() => setCallLogs([])).finally(() => setCallLogsLoading(false));
   }, []);
   const myLeadIds = new Set(pipeline.leads.map((l) => l.id));
   const myQuotations = quotations.filter((q) => q.leadId && myLeadIds.has(q.leadId));
+  const myCallLogs = callLogs.filter((c) => c.leadId && myLeadIds.has(c.leadId));
 
   return (
     <div className="space-y-6">
@@ -112,7 +121,8 @@ export function SalesPersonalDashboard() {
             quotations={myQuotations}
             invoices={[]}
             bookings={pipeline.bookings}
-            loading={pipeline.loading || quotationsLoading}
+            callLogs={myCallLogs}
+            loading={pipeline.loading || quotationsLoading || callLogsLoading}
           />
 
           <RelevantGoalsCard objectives={relevantGoals.objectives} loading={relevantGoals.loading} />

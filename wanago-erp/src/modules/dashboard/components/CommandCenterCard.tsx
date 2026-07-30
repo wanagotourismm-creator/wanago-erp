@@ -9,12 +9,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils/helpers";
 import { buildCommandCenter, type CommandCenterItem } from "@/modules/dashboard/services/command-center.service";
 import type { Quotation } from "@/modules/quotations/types";
+import type { CallLog } from "@/modules/call-logs/types";
 
 type Props = {
   leads:      DocumentData[] | null;
   quotations: Quotation[];
   invoices:   DocumentData[] | null;
   bookings:   DocumentData[] | null;
+  callLogs:   CallLog[];
   loading:    boolean;
 };
 
@@ -35,12 +37,12 @@ const ENTITY_STYLE: Record<CommandCenterItem["entityType"], string> = {
 // how each signal is derived. Purely props-driven (same pattern as
 // InsightsCard/FinanceActionQueueCard) — no fetching of its own, reuses
 // whatever the dashboard already loaded.
-export function CommandCenterCard({ leads, quotations, invoices, bookings, loading }: Props) {
+export function CommandCenterCard({ leads, quotations, invoices, bookings, callLogs, loading }: Props) {
   const items = useMemo(
     () => buildCommandCenter({
-      leads: leads ?? [], quotations, invoices: invoices ?? [], bookings: bookings ?? [],
+      leads: leads ?? [], quotations, invoices: invoices ?? [], bookings: bookings ?? [], callLogs,
     }),
-    [leads, quotations, invoices, bookings]
+    [leads, quotations, invoices, bookings, callLogs]
   );
 
   return (

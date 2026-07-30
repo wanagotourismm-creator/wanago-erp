@@ -25,7 +25,9 @@ import { TeamStatusDonut }      from "@/modules/dashboard/components/TeamStatusD
 import { HiringStatsCard }      from "@/modules/dashboard/components/HiringStatsCard";
 import { CommandCenterCard } from "@/modules/dashboard/components/CommandCenterCard";
 import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
+import { fetchCallLogs } from "@/modules/call-logs/services/call-log.service";
 import type { Quotation } from "@/modules/quotations/types";
+import type { CallLog } from "@/modules/call-logs/types";
 import { TopPerformers }        from "@/modules/dashboard/components/TopPerformers";
 import { WeeklyLeaderboardCard } from "@/modules/dashboard/components/WeeklyLeaderboardCard";
 import { DepartingSoon }        from "@/modules/dashboard/components/DepartingSoon";
@@ -82,13 +84,19 @@ function CompanyWideDashboard() {
   const { stats, pipeline, revenue, bookings, leads, invoices, alerts, loading, error } = useDashboard(cockpitFilters);
   const { user } = useAuthStore();
 
-  // Command Center's one genuinely new fetch — leads/invoices/bookings all
+  // Command Center's genuinely new fetches — leads/invoices/bookings all
   // come for free from useDashboard above, which already loads them
-  // internally for its own stats.
+  // internally for its own stats. callLogs is fetched with no filter
+  // (fetchCallLogs({}) — the whole collection in one read, same cost shape
+  // as those already-free fetches) purely to check "has this lead ever
+  // been contacted," not per-lead.
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [quotationsLoading, setQuotationsLoading] = useState(true);
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [callLogsLoading, setCallLogsLoading] = useState(true);
   useEffect(() => {
     fetchQuotations().then(setQuotations).catch(() => setQuotations([])).finally(() => setQuotationsLoading(false));
+    fetchCallLogs({}).then(setCallLogs).catch(() => setCallLogs([])).finally(() => setCallLogsLoading(false));
   }, []);
   const currentEmployee   = useCurrentEmployee();
   const attendanceSummary = useAttendanceSummary();
@@ -258,7 +266,8 @@ function CompanyWideDashboard() {
               quotations={quotations}
               invoices={invoices}
               bookings={bookings}
-              loading={loading || quotationsLoading}
+              callLogs={callLogs}
+              loading={loading || quotationsLoading || callLogsLoading}
             />
             <TopPerformers bookings={bookings} loading={loading} />
           </div>
