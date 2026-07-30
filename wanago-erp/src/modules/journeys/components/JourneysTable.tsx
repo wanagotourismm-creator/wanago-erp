@@ -13,6 +13,7 @@ const TRIGGER_LABELS: Record<string, string> = {
   quote_sent: "Quote sent",
   quote_unaccepted: "Quote unaccepted",
   trip_completed: "Trip completed",
+  lead_stale: "Lead gone stale",
 };
 
 export function JourneysTable() {

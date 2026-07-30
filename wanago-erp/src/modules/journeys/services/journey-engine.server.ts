@@ -8,7 +8,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { notifyUserServer } from "@/lib/server/notify-server";
-import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { FIRESTORE_COLLECTIONS, LEAD_STAGES } from "@/lib/constants";
 import type { Journey, JourneyRun, JourneyStep } from "@/modules/journeys/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -27,19 +27,45 @@ export function fillTemplate(template: string, name: string): string {
 }
 
 // Re-checked at execution time (not just when the run was created) since a
-// run can span multiple daily cron ticks and opt-out status can change
-// in between.
-async function customerOptedOut(customerId: string): Promise<boolean> {
+// run can span multiple daily cron ticks and opt-out status can change in
+// between. Entity-aware: a "lead" run's entityId is a Lead doc id, not a
+// Customer one — querying the Customers collection for it (as this used to
+// unconditionally do) would silently always read back "not opted out"
+// for every lead run, never actually re-checking anything.
+async function entityOptedOut(entityType: JourneyRun["entityType"], entityId: string): Promise<boolean> {
   const db = getAdminDb();
   if (!db) return false;
-  const snap = await db.collection(FIRESTORE_COLLECTIONS.CUSTOMERS).doc(customerId).get();
+  const collection = entityType === "lead" ? FIRESTORE_COLLECTIONS.LEADS : FIRESTORE_COLLECTIONS.CUSTOMERS;
+  const snap = await db.collection(collection).doc(entityId).get();
   return !!snap.data()?.marketingOptOut;
+}
+
+// Only meaningful for entityType: "lead" (a customer run has no `stage` to
+// check, so this is always false for every other trigger) — a lead_stale
+// nurture run needs to stop itself once the thing it exists to prevent
+// (an ignored lead) is no longer true, or it'll keep sending "haven't heard
+// from you" messages to someone who was just won.
+async function leadResolved(entityType: JourneyRun["entityType"], leadId: string): Promise<boolean> {
+  if (entityType !== "lead") return false;
+  const db = getAdminDb();
+  if (!db) return false;
+  const snap = await db.collection(FIRESTORE_COLLECTIONS.LEADS).doc(leadId).get();
+  const stage = snap.data()?.stage;
+  return stage === LEAD_STAGES.WON || stage === LEAD_STAGES.LOST;
 }
 
 export async function executeJourneyStep(run: JourneyRun, journey: Journey, step: JourneyStep): Promise<void> {
   if (step.type === "wait") return; // handled purely by scheduling, nothing to send
 
-  if ((step.type === "send_whatsapp" || step.type === "send_email") && await customerOptedOut(run.entityId)) {
+  if (await leadResolved(run.entityType, run.entityId)) {
+    const db = getAdminDb();
+    await db?.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS).doc(run.id).update({
+      runStatus: "stopped_resolved", updatedAt: FieldValue.serverTimestamp(),
+    });
+    return;
+  }
+
+  if ((step.type === "send_whatsapp" || step.type === "send_email") && await entityOptedOut(run.entityType, run.entityId)) {
     const db = getAdminDb();
     await db?.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS).doc(run.id).update({
       runStatus: "stopped_optout", updatedAt: FieldValue.serverTimestamp(),
@@ -187,60 +213,122 @@ export async function advanceDueRuns(now: Date): Promise<{ advanced: number }> {
   return { advanced };
 }
 
-// quote_unaccepted is the only time-based trigger — scans quotations still
-// "sent" past the configured delay and creates a run for any not already
-// started (same idempotency check as the client-side instant triggers).
+// quote_unaccepted and lead_stale are the two time-based triggers — each
+// scans its own collection for entities past the configured delay and
+// creates a run for any not already started (same idempotency check as
+// the client-side instant triggers).
 export async function scanTimeBasedTriggers(now: Date): Promise<{ created: number }> {
   const db = getAdminDb();
   if (!db) return { created: 0 };
 
   const journeysSnap = await db.collection(FIRESTORE_COLLECTIONS.JOURNEYS)
     .where("isActive", "==", true).get();
-  const timeBasedJourneys = journeysSnap.docs
-    .map((d) => ({ id: d.id, ...d.data() } as Journey))
-    .filter((j) => j.trigger.type === "quote_unaccepted");
-  if (timeBasedJourneys.length === 0) return { created: 0 };
-
-  const quotationsSnap = await db.collection(FIRESTORE_COLLECTIONS.QUOTATIONS)
-    .where("status", "==", "sent").get();
+  const allJourneys = journeysSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Journey));
+  const quoteUnacceptedJourneys = allJourneys.filter((j) => j.trigger.type === "quote_unaccepted");
+  const leadStaleJourneys = allJourneys.filter((j) => j.trigger.type === "lead_stale");
 
   let created = 0;
-  for (const journey of timeBasedJourneys) {
-    const afterDays = journey.trigger.type === "quote_unaccepted" ? journey.trigger.afterDays : 0;
-    for (const qDoc of quotationsSnap.docs) {
-      const q = qDoc.data();
-      const updatedAtMs = toMillis(q.updatedAt);
-      if (updatedAtMs == null || (now.getTime() - updatedAtMs) / DAY_MS < afterDays) continue;
 
-      const existing = await db.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS)
-        .where("journeyId", "==", journey.id).where("entityId", "==", q.customerId).limit(1).get();
-      if (!existing.empty) continue;
+  if (quoteUnacceptedJourneys.length > 0) {
+    const quotationsSnap = await db.collection(FIRESTORE_COLLECTIONS.QUOTATIONS)
+      .where("status", "==", "sent").get();
 
-      const customerSnap = await db.collection(FIRESTORE_COLLECTIONS.CUSTOMERS).doc(q.customerId as string).get();
-      if (customerSnap.data()?.marketingOptOut) continue;
+    for (const journey of quoteUnacceptedJourneys) {
+      const afterDays = journey.trigger.type === "quote_unaccepted" ? journey.trigger.afterDays : 0;
+      for (const qDoc of quotationsSnap.docs) {
+        const q = qDoc.data();
+        const updatedAtMs = toMillis(q.updatedAt);
+        if (updatedAtMs == null || (now.getTime() - updatedAtMs) / DAY_MS < afterDays) continue;
 
-      await db.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS).add({
-        journeyId: journey.id,
-        entityType: "customer",
-        entityId: q.customerId,
-        entityName: q.customerName,
-        entityPhone: q.customerPhone,
-        entityEmail: (customerSnap.data()?.email as string | undefined) ?? null,
-        agentId: (q.createdBy as string) ?? null,
-        currentStepIndex: 0,
-        nextStepDueAt: FieldValue.serverTimestamp(),
-        runStatus: "active",
-        sentWhatsappCount: 0, sentEmailCount: 0,
-        repliedAt: null, convertedBookingId: null, convertedRevenue: null,
-        createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
-        createdBy: "journey-engine", status: "active",
-      });
-      await db.collection(FIRESTORE_COLLECTIONS.JOURNEYS).doc(journey.id).update({
-        enteredCount: FieldValue.increment(1),
-      });
-      created++;
+        const existing = await db.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS)
+          .where("journeyId", "==", journey.id).where("entityId", "==", q.customerId).limit(1).get();
+        if (!existing.empty) continue;
+
+        const customerSnap = await db.collection(FIRESTORE_COLLECTIONS.CUSTOMERS).doc(q.customerId as string).get();
+        if (customerSnap.data()?.marketingOptOut) continue;
+
+        await db.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS).add({
+          journeyId: journey.id,
+          entityType: "customer",
+          entityId: q.customerId,
+          entityName: q.customerName,
+          entityPhone: q.customerPhone,
+          entityEmail: (customerSnap.data()?.email as string | undefined) ?? null,
+          agentId: (q.createdBy as string) ?? null,
+          currentStepIndex: 0,
+          nextStepDueAt: FieldValue.serverTimestamp(),
+          runStatus: "active",
+          sentWhatsappCount: 0, sentEmailCount: 0,
+          repliedAt: null, convertedBookingId: null, convertedRevenue: null,
+          createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+          createdBy: "journey-engine", status: "active",
+        });
+        await db.collection(FIRESTORE_COLLECTIONS.JOURNEYS).doc(journey.id).update({
+          enteredCount: FieldValue.increment(1),
+        });
+        created++;
+      }
     }
   }
+
+  if (leadStaleJourneys.length > 0) {
+    const leadsSnap = await db.collection(FIRESTORE_COLLECTIONS.LEADS).get();
+    // Bulk-fetched once — not per-lead — same N+1-avoidance principle as
+    // Command Center's speed-to-lead signal (command-center.service.ts).
+    const callLogsSnap = await db.collection(FIRESTORE_COLLECTIONS.CALL_LOGS).get();
+    const lastContactByLead = new Map<string, number>();
+    for (const doc of callLogsSnap.docs) {
+      const c = doc.data();
+      if (!c.leadId) continue;
+      const t = toMillis(c.createdAt);
+      if (t == null) continue;
+      const prev = lastContactByLead.get(c.leadId as string);
+      if (!prev || t > prev) lastContactByLead.set(c.leadId as string, t);
+    }
+
+    for (const journey of leadStaleJourneys) {
+      const afterDays = journey.trigger.type === "lead_stale" ? journey.trigger.afterDays : 0;
+      for (const leadDoc of leadsSnap.docs) {
+        const lead = leadDoc.data();
+        if (lead.stage === LEAD_STAGES.WON || lead.stage === LEAD_STAGES.LOST) continue;
+
+        // Last real contact — call-log createdAt if one exists, falling
+        // back to when the lead was created if it's never been contacted
+        // at all yet. Deliberately NOT lead.lastContactedAt — confirmed
+        // dead, never written anywhere in this app.
+        const lastContactMs = lastContactByLead.get(leadDoc.id) ?? toMillis(lead.createdAt);
+        if (lastContactMs == null || (now.getTime() - lastContactMs) / DAY_MS < afterDays) continue;
+
+        const existing = await db.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS)
+          .where("journeyId", "==", journey.id).where("entityId", "==", leadDoc.id).limit(1).get();
+        if (!existing.empty) continue;
+
+        if (lead.marketingOptOut) continue;
+
+        await db.collection(FIRESTORE_COLLECTIONS.JOURNEY_RUNS).add({
+          journeyId: journey.id,
+          entityType: "lead",
+          entityId: leadDoc.id,
+          entityName: lead.name,
+          entityPhone: (lead.phone as string | undefined) ?? null,
+          entityEmail: (lead.email as string | undefined) ?? null,
+          agentId: (lead.assignedTo as string | undefined) ?? null,
+          currentStepIndex: 0,
+          nextStepDueAt: FieldValue.serverTimestamp(),
+          runStatus: "active",
+          sentWhatsappCount: 0, sentEmailCount: 0,
+          repliedAt: null, convertedBookingId: null, convertedRevenue: null,
+          createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+          createdBy: "journey-engine", status: "active",
+        });
+        await db.collection(FIRESTORE_COLLECTIONS.JOURNEYS).doc(journey.id).update({
+          enteredCount: FieldValue.increment(1),
+        });
+        created++;
+      }
+    }
+  }
+
   return { created };
 }
 

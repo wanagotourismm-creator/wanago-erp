@@ -158,6 +158,10 @@ export function JourneyForm({
       setError("Set how many days after sending before this triggers.");
       return;
     }
+    if (form.trigger.type === "lead_stale" && (!form.trigger.afterDays || form.trigger.afterDays < 1)) {
+      setError("Set how many days since last contact before this triggers.");
+      return;
+    }
     setError(null);
     const result = await onSave(form);
     if (result.error) setError(result.error);
@@ -178,12 +182,15 @@ export function JourneyForm({
             value={form.trigger.type}
             onChange={(e) => {
               const type = e.target.value as JourneyTrigger["type"];
-              setTrigger(type === "quote_unaccepted" ? { type, afterDays: 3 } : { type } as JourneyTrigger);
+              if (type === "quote_unaccepted") setTrigger({ type, afterDays: 3 });
+              else if (type === "lead_stale") setTrigger({ type, afterDays: 5 });
+              else setTrigger({ type } as JourneyTrigger);
             }}
           >
             <option value="quote_sent">Quote sent</option>
             <option value="quote_unaccepted">Quote unaccepted after N days</option>
             <option value="trip_completed">Trip completed</option>
+            <option value="lead_stale">Lead gone stale</option>
           </select>
         </Field>
         {form.trigger.type === "quote_unaccepted" && (
@@ -192,6 +199,15 @@ export function JourneyForm({
               type="number" min={1} className={inputClass}
               value={form.trigger.afterDays}
               onChange={(e) => setTrigger({ type: "quote_unaccepted", afterDays: Number(e.target.value) })}
+            />
+          </Field>
+        )}
+        {form.trigger.type === "lead_stale" && (
+          <Field label="Days since last contact">
+            <input
+              type="number" min={1} className={inputClass}
+              value={form.trigger.afterDays}
+              onChange={(e) => setTrigger({ type: "lead_stale", afterDays: Number(e.target.value) })}
             />
           </Field>
         )}

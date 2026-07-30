@@ -5,7 +5,13 @@ import type { CustomerSegment } from "@/modules/customers/utils/segment";
 export type JourneyTrigger =
   | { type: "quote_sent" }
   | { type: "quote_unaccepted"; afterDays: number }
-  | { type: "trip_completed" };
+  | { type: "trip_completed" }
+  // Time-based, same shape as quote_unaccepted — scanned in
+  // scanTimeBasedTriggers (journey-engine.server.ts) against each lead's
+  // last real contact (call-log createdAt, falling back to Lead.createdAt
+  // if never contacted — NOT Lead.lastContactedAt, a confirmed-dead field
+  // never written anywhere in this app).
+  | { type: "lead_stale"; afterDays: number };
 
 // "create task" is deliberately not its own tracked record — no generic
 // task-tracking system exists anywhere in this app (OnboardingTask is
@@ -43,7 +49,12 @@ export type JourneyFormData = Omit<
   "enteredCount" | "sentCount" | "repliedCount" | "convertedCount" | "revenueTotal"
 >;
 
-export type JourneyRunStatus = "active" | "completed" | "stopped_optout" | "stopped_error";
+// "stopped_resolved" — the lead moved to won/lost mid-journey (only ever
+// checked for entityType: "lead" runs, see executeJourneyStep) — distinct
+// from stopped_optout (customer/lead asked not to be contacted) and
+// stopped_error (something broke), since this one just means the nurture
+// sequence is no longer needed, not that something went wrong.
+export type JourneyRunStatus = "active" | "completed" | "stopped_optout" | "stopped_error" | "stopped_resolved";
 
 export type JourneyRun = FirestoreRecord & {
   journeyId:   string;
