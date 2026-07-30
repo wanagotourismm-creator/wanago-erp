@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall, MessageCircle, Link2, Copy, Check, PackageCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Mail, MapPin, Edit2, Trash2, FileText, CheckCircle2, User, PhoneCall, PhoneOutgoing, MessageCircle, Link2, Copy, Check, PackageCheck, Loader2 } from "lucide-react";
 import { StageBadge, PriorityBadge, ReturningCustomerBadge } from "@/modules/leads/components/LeadBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { formatDate, formatDateTime, formatCurrency, initials, buildWhatsAppLink } from "@/lib/utils/helpers";
@@ -10,6 +10,7 @@ import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
 import { LeadEnginePanel } from "@/modules/leads/components/LeadEnginePanel";
+import { fetchCallingEnabled, initiateBridgeCall } from "@/modules/call-logs/services/telephony.service";
 import type { CallLogSchema } from "@/modules/call-logs/schemas";
 import type { CallLogFormData, CallMethod, CallDirection } from "@/modules/call-logs/types";
 import type { Lead } from "@/modules/leads/types";
@@ -45,9 +46,26 @@ export function LeadDetailModal({ lead, canDelete, onClose, onEdit, onDelete, on
   const [generatingLink, setGeneratingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [creatingQuotation, setCreatingQuotation] = useState(false);
+  const [callingEnabled, setCallingEnabled] = useState(false);
+  const [placingCall, setPlacingCall] = useState(false);
+  const [callError, setCallError] = useState<string | null>(null);
   const { addCallLog } = useCallLogs({ leadId: lead?.id });
 
+  useEffect(() => { fetchCallingEnabled().then(setCallingEnabled); }, []);
+
   if (!lead) return null;
+
+  async function handleCallViaApp() {
+    if (!lead) return;
+    setPlacingCall(true);
+    setCallError(null);
+    const result = await initiateBridgeCall({
+      leadId: lead.id, customerId: null, contactName: lead.name, phone: lead.phone,
+    });
+    setPlacingCall(false);
+    if ("error" in result) { setCallError(result.error); return; }
+    setCallLogRefreshKey((k) => k + 1);
+  }
 
   const canQuote = !["quoted", "negotiation", "won", "lost"].includes(lead.stage);
   const canMarkWon = ["quoted", "negotiation"].includes(lead.stage);
@@ -188,7 +206,20 @@ export function LeadDetailModal({ lead, canDelete, onClose, onEdit, onDelete, on
                   <MessageCircle size={12} /> Call via WhatsApp
                 </a>
               )}
+              {callingEnabled && lead.phone && (
+                <button
+                  type="button"
+                  onClick={handleCallViaApp}
+                  disabled={placingCall}
+                  title="Rings your own phone first, then connects the lead once you pick up"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+                >
+                  {placingCall ? <Loader2 size={12} className="animate-spin" /> : <PhoneOutgoing size={12} />}
+                  {placingCall ? "Calling your phone…" : "Call via App"}
+                </button>
+              )}
             </div>
+            {callError && <p className="mt-2 text-xs text-destructive">{callError}</p>}
           </div>
 
           <div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, MessageCircle, History, Gift, Copy, Check, FileText } from "lucide-react";
+import { X, Mail, MapPin, Edit2, Trash2, User, Briefcase, PhoneCall, PhoneOutgoing, MessageCircle, History, Gift, Copy, Check, FileText, Loader2 } from "lucide-react";
 import { CustomerTypeBadge, CustomerSegmentBadge } from "@/modules/customers/components/CustomerBadges";
 import { computeCustomerSegment } from "@/modules/customers/utils/segment";
 import { PhoneLink } from "@/components/shared/PhoneLink";
@@ -14,6 +14,7 @@ import { fetchLeads } from "@/modules/leads/services/lead.service";
 import { StageBadge } from "@/modules/leads/components/LeadBadges";
 import { BOOKING_STATUS } from "@/lib/constants";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
+import { fetchCallingEnabled, initiateBridgeCall } from "@/modules/call-logs/services/telephony.service";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
 import { fetchReferralSettings, fetchReferralBonusesForCustomer } from "@/modules/referrals/services/referral.service";
@@ -86,8 +87,13 @@ export function CustomerDetailModal({ customer, canManage, canDelete, onClose, o
     direction: "outbound",
   });
   const [callLogRefreshKey, setCallLogRefreshKey] = useState(0);
+  const [callingEnabled, setCallingEnabled] = useState(false);
+  const [placingCall, setPlacingCall] = useState(false);
+  const [callError, setCallError] = useState<string | null>(null);
 
   const { addCallLog } = useCallLogs({ customerId: customer?.id });
+
+  useEffect(() => { fetchCallingEnabled().then(setCallingEnabled); }, []);
 
   useEffect(() => {
     if (!customer) { setBookings([]); setInvoices([]); return; }
@@ -159,6 +165,18 @@ export function CustomerDetailModal({ customer, canManage, canDelete, onClose, o
       setCallPrefill({ method, direction: "outbound" });
       setCallFormOpen(true);
     }
+  }
+
+  async function handleCallViaApp() {
+    if (!customer) return;
+    setPlacingCall(true);
+    setCallError(null);
+    const result = await initiateBridgeCall({
+      leadId: null, customerId: customer.id, contactName: customer.fullName, phone: customer.phone,
+    });
+    setPlacingCall(false);
+    if ("error" in result) { setCallError(result.error); return; }
+    setCallLogRefreshKey((k) => k + 1);
   }
 
   async function handleLogCall(data: CallLogSchema, recordingFile: File | null) {
@@ -255,7 +273,20 @@ export function CustomerDetailModal({ customer, canManage, canDelete, onClose, o
                   <MessageCircle size={12} /> Call via WhatsApp
                 </a>
               )}
+              {callingEnabled && customer.phone && (
+                <button
+                  type="button"
+                  onClick={handleCallViaApp}
+                  disabled={placingCall}
+                  title="Rings your own phone first, then connects the customer once you pick up"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-60 transition-colors"
+                >
+                  {placingCall ? <Loader2 size={12} className="animate-spin" /> : <PhoneOutgoing size={12} />}
+                  {placingCall ? "Calling your phone…" : "Call via App"}
+                </button>
+              )}
             </div>
+            {callError && <p className="mt-2 text-xs text-destructive">{callError}</p>}
           </div>
 
           <div>

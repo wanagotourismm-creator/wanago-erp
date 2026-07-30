@@ -123,17 +123,27 @@ export function slugify(str: string): string {
 }
 
 // ── Phone / WhatsApp helpers ─────────────────────────────────
-// wa.me links need the full international number (country code + number,
-// digits only, no leading +). Numbers in this app are stored as plain
-// 10-digit local numbers, so this only prepends India's country code when
-// the cleaned number looks like one — anything else (already has a
-// country code, or an unexpected format) passes through unchanged rather
-// than guessing wrong.
-export function buildWhatsAppLink(phone: string, message?: string): string {
+// Numbers in this app are stored as plain 10-digit local numbers, so this
+// only prepends India's country code when the cleaned number looks like
+// one — anything else (already has a country code, or an unexpected
+// format) passes through unchanged rather than guessing wrong. Shared by
+// buildWhatsAppLink (needs digits, no +) and toE164Phone (needs a leading +,
+// required by telephony providers like Exotel).
+function withIndianCountryCode(phone: string): string {
   const digits = phone.replace(/\D/g, "");
-  const withCountryCode = digits.length === 10 ? `91${digits}` : digits;
-  const base = `https://wa.me/${withCountryCode}`;
+  return digits.length === 10 ? `91${digits}` : digits;
+}
+
+// wa.me links need the full international number, digits only, no leading +.
+export function buildWhatsAppLink(phone: string, message?: string): string {
+  const base = `https://wa.me/${withIndianCountryCode(phone)}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+}
+
+// E.164 format (e.g. "+919876543210") — required by telephony providers'
+// APIs (Exotel's Voice API, etc.), unlike wa.me's no-leading-+ convention.
+export function toE164Phone(phone: string): string {
+  return `+${withIndianCountryCode(phone)}`;
 }
 
 // ── Number helpers ────────────────────────────────────────────

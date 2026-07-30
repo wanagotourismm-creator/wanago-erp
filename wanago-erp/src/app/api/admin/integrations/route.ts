@@ -12,13 +12,20 @@ const SECRET_FIELDS = [
   "anthropicApiKey", "openaiApiKey", "resendApiKey",
   "gmailAppPassword", "googleTtsApiKey",
   "metaWhatsappAccessToken", "metaWhatsappAppSecret", "metaWhatsappVerifyToken",
+  "callingApiKey", "callingApiToken", "callingWebhookToken",
 ] as const;
 // Plain identifiers, not secrets (an email "from" address / a phone number
 // ID) — safe to send back so the admin can actually see and edit what's
 // configured instead of it always looking blank.
-const PLAIN_FIELDS = ["resendFromEmail", "gmailUser", "metaWhatsappPhoneNumberId"] as const;
+const PLAIN_FIELDS = ["resendFromEmail", "gmailUser", "metaWhatsappPhoneNumberId", "callingAccountSid", "callingCallerId"] as const;
+// Real on/off switches, independent of whether a value is "configured" —
+// unlike every other field here, a boolean has no write-only reason to be
+// withheld, so GET always returns its real current state (see the `values`
+// merge below), not just a "non-empty string" presence check.
+const BOOLEAN_FIELDS = ["callingEnabled"] as const;
 
-const FIELDS = [...SECRET_FIELDS, ...PLAIN_FIELDS] as const;
+const STRING_FIELDS = [...SECRET_FIELDS, ...PLAIN_FIELDS] as const;
+const FIELDS = [...STRING_FIELDS, ...BOOLEAN_FIELDS] as const;
 
 function bearerToken(req: NextRequest): string | null {
   const header = req.headers.get("authorization");
@@ -36,7 +43,11 @@ export async function GET(req: NextRequest) {
   const snap = await db.collection(DOC_PATH[0]).doc(DOC_PATH[1]).get();
   const data = snap.data() ?? {};
   const configured: Record<string, boolean> = {};
-  for (const f of FIELDS) configured[f] = typeof data[f] === "string" && data[f].length > 0;
+  for (const f of STRING_FIELDS) configured[f] = typeof data[f] === "string" && data[f].length > 0;
+  // A boolean's "configured" state is just its real value — true means on,
+  // false/absent means off. Distinct from the string fields above, where
+  // "configured" means "non-empty," not the value itself.
+  for (const f of BOOLEAN_FIELDS) configured[f] = data[f] === true;
 
   const values: Record<string, string> = {};
   for (const f of PLAIN_FIELDS) if (configured[f]) values[f] = data[f];
@@ -63,14 +74,22 @@ export async function POST(req: NextRequest) {
   // "clear the existing one"). Plain fields are round-tripped though, so
   // the client can tell those two cases apart and explicitly ask to clear
   // via `clear`, which actually removes the field rather than skipping it.
-  const patch: Record<string, FieldValue | string> = {};
-  for (const f of FIELDS) {
+  const patch: Record<string, FieldValue | string | boolean> = {};
+  for (const f of STRING_FIELDS) {
     const v = body.values?.[f];
     if (typeof v !== "string" || v.trim().length === 0) continue;
     // Google's App Password is displayed grouped in 4s ("abcd efgh ijkl
     // mnop") for readability — pasted verbatim, those inner spaces break
     // SMTP AUTH even though Google's own login forms strip them silently.
     patch[f] = f === "gmailAppPassword" ? v.replace(/\s+/g, "") : v.trim();
+  }
+  // Booleans always write their real value (including explicit `false`,
+  // unlike the "blank means unchanged" convention above) — a toggle the
+  // admin just switched off needs that to actually persist, not be skipped
+  // as if it were an untouched field.
+  for (const f of BOOLEAN_FIELDS) {
+    const v = body.values?.[f];
+    if (typeof v === "boolean") patch[f] = v;
   }
   for (const f of body.clear ?? []) {
     if ((FIELDS as readonly string[]).includes(f)) patch[f] = FieldValue.delete();

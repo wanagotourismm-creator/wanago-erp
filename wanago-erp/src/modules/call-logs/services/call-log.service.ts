@@ -41,9 +41,11 @@ export async function createCallLog(
     loggedBy,
     loggedByName,
     recordingFileUrl: null,
-    // TODO: auto-populate via telephony webhook once a provider
-    // (Exotel/Knowlarity) is connected.
+    // Manually-logged calls never go through Exotel — both stay null here;
+    // bridge calls set these via /api/telephony/exotel/call and its
+    // callback instead (see telephony.service.ts).
     recordingUrl: null,
+    externalCallSid: null,
   });
 }
 

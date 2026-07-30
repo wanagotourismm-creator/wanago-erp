@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, KeyRound, Loader2, Mail, MessageCircle, Send, Volume2 } from "lucide-react";
+import { Check, KeyRound, Loader2, Mail, MessageCircle, Phone, Send, Volume2 } from "lucide-react";
 import { fetchIntegrationStatus, saveIntegrationSecrets, sendTestEmail } from "@/modules/admin/integrations/services/integrations.service";
 import { cn } from "@/lib/utils/helpers";
 
@@ -9,7 +9,10 @@ import { cn } from "@/lib/utils/helpers";
 // redisplayed once saved, matching the API's SECRET_FIELDS. `secret:
 // false` fields (a from-address, a phone number — not sensitive) come
 // back from the server as plain text and are directly visible/editable.
-type FieldDef = { key: string; label: string; placeholder: string; secret?: boolean };
+// `type: "boolean"` is a real on/off switch (e.g. "is calling enabled"),
+// independent of whether a value is configured — ignores `secret`/
+// `placeholder` entirely, rendered as a checkbox instead of a text input.
+type FieldDef = { key: string; label: string; placeholder: string; secret?: boolean; type?: "boolean" };
 type Section = { title: string; icon: React.ElementType; description?: string; fields: FieldDef[] };
 
 // "Ask HR" previously had its own Anthropic/OpenAI key section here — it
@@ -51,10 +54,25 @@ const SECTIONS: Section[] = [
       { key: "metaWhatsappAppSecret", label: "App Secret", placeholder: "used to verify inbound webhook signatures" },
     ],
   },
+  {
+    title: "Voice Calling (Exotel)", icon: Phone,
+    description: "Optional, paid add-on — lets an agent click \"Call via App\" on a lead/customer and have Exotel ring their own phone first, then bridge in the other party, with the call recorded automatically. Off by default; nothing is billed or attempted until Enabled is switched on below.\n\nSetup: 1) Sign up at exotel.com and complete business KYC. 2) Buy a virtual number (ExoPhone) from your dashboard. 3) Go to Settings → API Settings and copy your Account SID, API Key, and API Token. 4) Paste them below along with your ExoPhone number as the Caller ID. 5) Set a Webhook Verify Token — any random string you choose, confirms callbacks are really from Exotel. 6) Switch Enabled on.",
+    fields: [
+      { key: "callingEnabled", label: "Enabled", placeholder: "", type: "boolean" },
+      { key: "callingAccountSid", label: "Account SID", placeholder: "your Exotel Account SID", secret: false },
+      { key: "callingApiKey", label: "API Key", placeholder: "from Settings > API Settings" },
+      { key: "callingApiToken", label: "API Token", placeholder: "from Settings > API Settings" },
+      { key: "callingCallerId", label: "Caller ID (ExoPhone)", placeholder: "e.g. 08041234567", secret: false },
+      { key: "callingWebhookToken", label: "Webhook Verify Token", placeholder: "choose any random string" },
+    ],
+  },
 ];
 
 const PLAIN_FIELD_KEYS = new Set(
-  SECTIONS.flatMap((s) => s.fields).filter((f) => f.secret === false).map((f) => f.key)
+  SECTIONS.flatMap((s) => s.fields).filter((f) => f.secret === false && f.type !== "boolean").map((f) => f.key)
+);
+const BOOLEAN_FIELD_KEYS = new Set(
+  SECTIONS.flatMap((s) => s.fields).filter((f) => f.type === "boolean").map((f) => f.key)
 );
 
 const inputClass = cn(
@@ -64,7 +82,7 @@ const inputClass = cn(
 
 export function IntegrationsPanel() {
   const [configured, setConfigured] = useState<Record<string, boolean>>({});
-  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [draft, setDraft] = useState<Record<string, string | boolean>>({});
   // The last-known-saved value for plain (non-secret) fields — used to
   // tell an actual edit apart from the pre-filled value on load, and to
   // restore the display after saving (draft otherwise resets to empty).
@@ -81,11 +99,16 @@ export function IntegrationsPanel() {
       .then(({ configured, values }) => {
         setConfigured(configured);
         setInitialValues(values);
+        // Booleans' real current state lives in `configured` (see the API
+        // route — a boolean's "configured" IS its value, not a "non-empty"
+        // check), not `values` (string fields only).
+        const booleanInitial: Record<string, boolean> = {};
+        BOOLEAN_FIELD_KEYS.forEach((k) => { booleanInitial[k] = configured[k] === true; });
         // Pre-fill plain (non-secret) fields with their real current value
         // so they show up as actually configured, not blank — secrets are
         // never returned by the server, so draft stays empty for those
         // until the admin types a new one.
-        setDraft((prev) => ({ ...values, ...prev }));
+        setDraft((prev) => ({ ...values, ...booleanInitial, ...prev }));
       })
       .catch(() => setError("Couldn't load integration status"))
       .finally(() => setLoading(false));
@@ -96,10 +119,18 @@ export function IntegrationsPanel() {
     setError(null);
     setSaved(false);
     try {
-      const patch: Record<string, string> = {};
+      const patch: Record<string, string | boolean> = {};
       const clear: string[] = [];
       for (const [k, v] of Object.entries(draft)) {
-        const trimmed = v.trim();
+        if (BOOLEAN_FIELD_KEYS.has(k)) {
+          // Booleans always send their real value when changed (including
+          // an explicit `false`) — unlike the string fields below, there's
+          // no "blank means unchanged" ambiguity to worry about.
+          const boolVal = v === true;
+          if (boolVal !== (configured[k] === true)) patch[k] = boolVal;
+          continue;
+        }
+        const trimmed = typeof v === "string" ? v.trim() : "";
         if (trimmed.length > 0 && trimmed !== initialValues[k]) {
           patch[k] = trimmed;
         } else if (trimmed.length === 0 && PLAIN_FIELD_KEYS.has(k) && initialValues[k]) {
@@ -115,18 +146,25 @@ export function IntegrationsPanel() {
       await saveIntegrationSecrets(patch, clear);
 
       const nextConfigured = { ...configured };
-      for (const k of Object.keys(patch)) nextConfigured[k] = true;
+      for (const [k, v] of Object.entries(patch)) {
+        nextConfigured[k] = BOOLEAN_FIELD_KEYS.has(k) ? (v as boolean) : true;
+      }
       for (const k of clear) nextConfigured[k] = false;
       setConfigured(nextConfigured);
 
       // Only plain fields' new values stick around client-side — a
       // freshly-typed secret is sent once and then dropped from state,
       // same as the original write-only behavior.
-      const plainPatch = Object.fromEntries(Object.entries(patch).filter(([k]) => PLAIN_FIELD_KEYS.has(k)));
+      const plainPatch = Object.fromEntries(
+        Object.entries(patch).filter(([k]) => PLAIN_FIELD_KEYS.has(k))
+      ) as Record<string, string>;
       const nextInitial = { ...initialValues, ...plainPatch };
       for (const k of clear) delete nextInitial[k];
       setInitialValues(nextInitial);
-      setDraft(nextInitial);
+
+      const nextDraft: Record<string, string | boolean> = { ...nextInitial };
+      BOOLEAN_FIELD_KEYS.forEach((k) => { nextDraft[k] = nextConfigured[k] === true; });
+      setDraft(nextDraft);
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -156,7 +194,8 @@ export function IntegrationsPanel() {
   // by itself — only an actual edit (a new value, or clearing one that was
   // previously set) counts.
   const hasDraft = Object.entries(draft).some(([k, v]) => {
-    const trimmed = v.trim();
+    if (BOOLEAN_FIELD_KEYS.has(k)) return (v === true) !== (configured[k] === true);
+    const trimmed = typeof v === "string" ? v.trim() : "";
     if (trimmed.length > 0) return trimmed !== initialValues[k];
     return PLAIN_FIELD_KEYS.has(k) && !!initialValues[k];
   });
@@ -185,28 +224,40 @@ export function IntegrationsPanel() {
             <p className="text-sm font-semibold text-foreground">{section.title}</p>
           </div>
           {section.description && (
-            <p className="mb-4 pl-10 text-xs text-muted-foreground">{section.description}</p>
+            <p className="mb-4 whitespace-pre-wrap pl-10 text-xs text-muted-foreground">{section.description}</p>
           )}
           <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2", !section.description && "mt-4")}>
             {section.fields.map((f) => (
-              <div key={f.key} className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              f.type === "boolean" ? (
+                <label key={f.key} className="flex items-center gap-2.5 rounded-xl border border-input px-3 py-2.5 text-sm text-foreground cursor-pointer hover:border-primary/40 transition-colors sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input"
+                    checked={draft[f.key] === true}
+                    onChange={(e) => setDraft((p) => ({ ...p, [f.key]: e.target.checked }))}
+                  />
                   {f.label}
-                  {configured[f.key] && (
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:text-green-400">
-                      <Check size={9} /> Configured
-                    </span>
-                  )}
                 </label>
-                <input
-                  type={f.secret === false ? "text" : "password"}
-                  autoComplete="off"
-                  className={inputClass}
-                  placeholder={f.secret === false || !configured[f.key] ? f.placeholder : "•••••••• (leave blank to keep)"}
-                  value={draft[f.key] ?? ""}
-                  onChange={(e) => setDraft((p) => ({ ...p, [f.key]: e.target.value }))}
-                />
-              </div>
+              ) : (
+                <div key={f.key} className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {f.label}
+                    {configured[f.key] && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:text-green-400">
+                        <Check size={9} /> Configured
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type={f.secret === false ? "text" : "password"}
+                    autoComplete="off"
+                    className={inputClass}
+                    placeholder={f.secret === false || !configured[f.key] ? f.placeholder : "•••••••• (leave blank to keep)"}
+                    value={typeof draft[f.key] === "string" ? (draft[f.key] as string) : ""}
+                    onChange={(e) => setDraft((p) => ({ ...p, [f.key]: e.target.value }))}
+                  />
+                </div>
+              )
             ))}
           </div>
 
