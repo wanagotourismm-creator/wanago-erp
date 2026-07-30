@@ -23,7 +23,6 @@ import type { Quotation } from "@/modules/quotations/types";
 import type { CallLog } from "@/modules/call-logs/types";
 
 const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
 const STALE_DAYS = 5; // matches insights.service.ts / daily-reminders cron's own convention
 // Grace window before a brand-new, uncontacted lead counts as a
 // speed-to-lead miss — flagging it in the first few minutes would just be
