@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, type LucideIcon } from "lucide-react";
 import { LEAD_STAGE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils/helpers";
 
-export type AgentLeadStats = {
-  agentId:        string; // "" for unassigned
-  agentName:      string;
+export type LeadGroupStats = {
+  id:             string; // "" / a sentinel for the fallback bucket (Unassigned agent, Unknown source, ...)
+  name:           string;
   total:          number;
   byStage:        Record<string, number>;
   won:            number;
@@ -15,20 +15,24 @@ export type AgentLeadStats = {
 };
 
 type Props = {
-  stats:         AgentLeadStats[];
-  activeAgentId: string;
-  onSelectAgent: (agentId: string) => void;
+  title:      string;
+  icon:       LucideIcon;
+  groupLabel: string; // column header for the grouping dimension — "Agent", "Source", ...
+  stats:      LeadGroupStats[];
+  activeId:   string;
+  onSelectId: (id: string) => void;
 };
 
 const STAGE_ORDER = ["new", "contacted", "follow_up", "quoted", "negotiation", "won", "lost"] as const;
 
-// Admin/ops-only breakdown of the leads pipeline by assigned agent — counts
-// per stage plus a win rate, so an admin can spot who's sitting on a pile of
-// uncontacted leads or who's actually converting, without opening the
-// heavier Sales Performance Hub (which is month-bucketed and pulls in
-// bookings/incentives/HR goals — overkill for a quick per-agent lead check).
-// Clicking a row doubles as the agent filter for the table above.
-export function AgentBreakdownPanel({ stats, activeAgentId, onSelectAgent }: Props) {
+// Generic admin/ops-only breakdown of the leads pipeline by whatever
+// dimension the caller groups by (assigned agent, lead source, ...) — counts
+// per stage plus a win rate, without the weight of the Sales Performance Hub
+// (month-bucketed, pulls in bookings/incentives/HR goals — overkill for a
+// quick pipeline check). Clicking a row doubles as a filter for the table
+// above; sorting/grouping is entirely the caller's responsibility, this
+// just renders whatever order `stats` is already in.
+export function LeadBreakdownPanel({ title, icon: Icon, groupLabel, stats, activeId, onSelectId }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -38,8 +42,8 @@ export function AgentBreakdownPanel({ stats, activeAgentId, onSelectAgent }: Pro
         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/20 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Users size={14} className="text-primary" />
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">Agent Performance</p>
+          <Icon size={14} className="text-primary" />
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">{title}</p>
         </div>
         {collapsed ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground" />}
       </button>
@@ -49,7 +53,7 @@ export function AgentBreakdownPanel({ stats, activeAgentId, onSelectAgent }: Pro
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {["Agent", "Total", ...STAGE_ORDER.map((s) => LEAD_STAGE_LABELS[s]), "Win Rate"].map((h) => (
+                {[groupLabel, "Total", ...STAGE_ORDER.map((s) => LEAD_STAGE_LABELS[s]), "Win Rate"].map((h) => (
                   <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -62,15 +66,15 @@ export function AgentBreakdownPanel({ stats, activeAgentId, onSelectAgent }: Pro
               )}
               {stats.map((s) => (
                 <tr
-                  key={s.agentId || "unassigned"}
-                  onClick={() => onSelectAgent(activeAgentId === s.agentId ? "" : s.agentId)}
+                  key={s.id || "none"}
+                  onClick={() => onSelectId(activeId === s.id ? "" : s.id)}
                   className={cn(
                     "cursor-pointer hover:bg-muted/20 transition-colors",
-                    activeAgentId === s.agentId && "bg-primary/5"
+                    activeId === s.id && "bg-primary/5"
                   )}
                 >
                   <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                    {s.agentName}
+                    {s.name}
                   </td>
                   <td className="px-4 py-2.5 text-foreground">{s.total}</td>
                   {STAGE_ORDER.map((stage) => (

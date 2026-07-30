@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Search, RefreshCw, Upload } from "lucide-react";
+import { Plus, Search, RefreshCw, Upload, Users, Megaphone } from "lucide-react";
 import { useLeads } from "@/modules/leads/hooks/useLeads";
 import { LeadsTable } from "@/modules/leads/components/LeadsTable";
-import { AgentBreakdownPanel, type AgentLeadStats } from "@/modules/leads/components/AgentBreakdownPanel";
+import { LeadBreakdownPanel, type LeadGroupStats } from "@/modules/leads/components/LeadBreakdownPanel";
 import { LeadForm } from "@/modules/leads/components/LeadForm";
 import { LeadDetailModal } from "@/modules/leads/components/LeadDetailModal";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
@@ -73,6 +73,7 @@ function parseLeadDate(raw: string): Date | null {
 type LeadImportRow = LeadFormData & { importedCreatedAt?: Date };
 
 const UNASSIGNED_AGENT_ID = "unassigned";
+const UNKNOWN_SOURCE_ID = "unknown_source";
 
 const STAGE_FILTERS = [
   { value: "",          label: "All Leads" },
@@ -102,6 +103,7 @@ export function LeadsPage() {
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [stageFilter, setStageFilter] = useState("");
   const [agentFilter, setAgentFilter] = useState(""); // Employee.id, or "" for all, or "unassigned"
+  const [sourceFilter, setSourceFilter] = useState(""); // lead.source, or "" for all, or "unknown_source"
   const [search,      setSearch]      = useState("");
   const [importOpen,  setImportOpen]  = useState(false);
   const [offices,     setOffices]     = useState<Office[]>([]);
@@ -134,11 +136,12 @@ export function LeadsPage() {
     return leads.filter((l) => {
       const matchStage  = !stageFilter || l.stage === stageFilter;
       const matchAgent  = !agentFilter || (agentFilter === UNASSIGNED_AGENT_ID ? !l.assignedTo : l.assignedTo === agentFilter);
+      const matchSource = !sourceFilter || (sourceFilter === UNKNOWN_SOURCE_ID ? !l.source : l.source === sourceFilter);
       const matchSearch = !search || [l.name, l.phone, l.destination, l.email ?? ""]
         .some(f => f?.toLowerCase().includes(search.toLowerCase()));
-      return matchStage && matchAgent && matchSearch;
+      return matchStage && matchAgent && matchSource && matchSearch;
     });
-  }, [leads, stageFilter, agentFilter, search]);
+  }, [leads, stageFilter, agentFilter, sourceFilter, search]);
 
   // Stage counts
   const stageCounts = useMemo(() => {
@@ -147,20 +150,24 @@ export function LeadsPage() {
     return counts;
   }, [leads]);
 
-  // Per-agent breakdown — total leads, count by stage, and win rate. Built
-  // straight off the (already role-scoped) `leads` list rather than the
-  // heavier useSalesTeamPerformance hook (Sales Performance Hub), which is
-  // month-bucketed and also pulls in bookings/incentives/HR goals/reviews —
-  // more than a quick per-agent lead-pipeline check needs.
-  const agentBreakdown = useMemo((): AgentLeadStats[] => {
-    const map = new Map<string, AgentLeadStats>();
+  // Groups the (already role-scoped) `leads` list by an arbitrary key,
+  // computing total/per-stage/win-rate — shared by the agent and source
+  // breakdowns below rather than the heavier useSalesTeamPerformance hook
+  // (Sales Performance Hub), which is month-bucketed and also pulls in
+  // bookings/incentives/HR goals/reviews — more than a quick pipeline
+  // check by agent or channel needs. The fallback bucket (id/name) sorts
+  // last regardless of its count, everything else by total descending.
+  function groupLeadStats(
+    getKey: (l: Lead) => { id: string; name: string },
+    fallbackId: string
+  ): LeadGroupStats[] {
+    const map = new Map<string, LeadGroupStats>();
     for (const l of leads) {
-      const key  = l.assignedTo || UNASSIGNED_AGENT_ID;
-      const name = l.assignedTo ? (l.agentName || "Unknown Agent") : "Unassigned";
-      let entry = map.get(key);
+      const { id, name } = getKey(l);
+      let entry = map.get(id);
       if (!entry) {
-        entry = { agentId: key, agentName: name, total: 0, byStage: {}, won: 0, conversionRate: 0 };
-        map.set(key, entry);
+        entry = { id, name, total: 0, byStage: {}, won: 0, conversionRate: 0 };
+        map.set(id, entry);
       }
       entry.total++;
       entry.byStage[l.stage] = (entry.byStage[l.stage] ?? 0) + 1;
@@ -169,11 +176,31 @@ export function LeadsPage() {
     return Array.from(map.values())
       .map((e) => ({ ...e, conversionRate: e.total ? (e.won / e.total) * 100 : 0 }))
       .sort((a, b) => {
-        if (a.agentId === UNASSIGNED_AGENT_ID && b.agentId !== UNASSIGNED_AGENT_ID) return 1;
-        if (b.agentId === UNASSIGNED_AGENT_ID && a.agentId !== UNASSIGNED_AGENT_ID) return -1;
+        if (a.id === fallbackId && b.id !== fallbackId) return 1;
+        if (b.id === fallbackId && a.id !== fallbackId) return -1;
         return b.total - a.total;
       });
-  }, [leads]);
+  }
+
+  const agentBreakdown = useMemo(
+    () => groupLeadStats(
+      (l) => l.assignedTo
+        ? { id: l.assignedTo, name: l.agentName || "Unknown Agent" }
+        : { id: UNASSIGNED_AGENT_ID, name: "Unassigned" },
+      UNASSIGNED_AGENT_ID
+    ),
+    [leads]
+  );
+
+  const sourceBreakdown = useMemo(
+    () => groupLeadStats(
+      (l) => l.source
+        ? { id: l.source, name: l.source }
+        : { id: UNKNOWN_SOURCE_ID, name: "Unknown" },
+      UNKNOWN_SOURCE_ID
+    ),
+    [leads]
+  );
 
   const exportRows = useMemo(() => filtered.map((l) => ({
     "Name":               l.name,
@@ -421,23 +448,36 @@ export function LeadsPage() {
                 className="rounded-xl border border-input bg-card px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 sm:max-w-[220px]"
               >
                 <option value="">All Agents</option>
-                {agentBreakdown.filter((a) => a.agentId !== UNASSIGNED_AGENT_ID).map((a) => (
-                  <option key={a.agentId} value={a.agentId}>{a.agentName}</option>
+                {agentBreakdown.filter((a) => a.id !== UNASSIGNED_AGENT_ID).map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
-                {agentBreakdown.some((a) => a.agentId === UNASSIGNED_AGENT_ID) && (
+                {agentBreakdown.some((a) => a.id === UNASSIGNED_AGENT_ID) && (
                   <option value={UNASSIGNED_AGENT_ID}>Unassigned</option>
                 )}
               </select>
             )}
           </div>
 
-          {/* Agent-wise dashboard — admin/ops/sales_head only */}
+          {/* Agent-wise and source-wise dashboards — admin/ops/sales_head only */}
           {canViewAllAgents && (
-            <AgentBreakdownPanel
-              stats={agentBreakdown}
-              activeAgentId={agentFilter}
-              onSelectAgent={setAgentFilter}
-            />
+            <>
+              <LeadBreakdownPanel
+                title="Agent Performance"
+                icon={Users}
+                groupLabel="Agent"
+                stats={agentBreakdown}
+                activeId={agentFilter}
+                onSelectId={setAgentFilter}
+              />
+              <LeadBreakdownPanel
+                title="Lead Source Performance"
+                icon={Megaphone}
+                groupLabel="Source"
+                stats={sourceBreakdown}
+                activeId={sourceFilter}
+                onSelectId={setSourceFilter}
+              />
+            </>
           )}
 
           {/* Table */}
