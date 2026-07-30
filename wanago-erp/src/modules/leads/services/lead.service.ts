@@ -59,13 +59,18 @@ export async function fetchLeadById(id: string): Promise<Lead | null> {
 
 export async function createLead(
   data: LeadFormData,
-  createdBy: string
+  createdBy: string,
+  // Only meaningful for bulk-importing historical leads with their real
+  // enquiry date — a normal manual "Add Lead" leaves this unset and gets
+  // today's serverTimestamp() as before.
+  options?: { createdAt?: Date }
 ): Promise<Lead> {
   const refNumber = await nextRefNumber("LEAD");
   const matchedCustomer = await findMatchingCustomer(data.phone).catch(() => null);
 
   return leadRepository.create({
     ...data,
+    createdAt: options?.createdAt,
     refNumber,
     createdBy,
     status:          "active",

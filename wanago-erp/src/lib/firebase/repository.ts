@@ -67,13 +67,20 @@ export class BaseRepository<T extends FirestoreRecord> {
   }
 
   // ── Create ────────────────────────────────────────────────
-  async create(data: Omit<T, "id" | "createdAt" | "updatedAt">): Promise<T> {
+  // `createdAt` is normally stamped as serverTimestamp() and can't be passed
+  // in — see update()'s deliberate stripping of it below, which protects a
+  // record's creation date from ever shifting on a later edit. Backdating
+  // only makes sense at creation time (e.g. bulk-importing historical leads
+  // with their real enquiry date), so it's accepted here as an explicit,
+  // separate opt-in rather than widening what update() allows.
+  async create(data: Omit<T, "id" | "createdAt" | "updatedAt"> & { createdAt?: Date }): Promise<T> {
+    const { createdAt, ...rest } = data;
     const docRef = await addDoc(this.ref(), {
-      ...data,
-      createdAt: serverTimestamp(),
+      ...rest,
+      createdAt: createdAt ?? serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    return { ...data, id: docRef.id } as T;
+    return { ...rest, id: docRef.id } as T;
   }
 
   // ── Read one ──────────────────────────────────────────────

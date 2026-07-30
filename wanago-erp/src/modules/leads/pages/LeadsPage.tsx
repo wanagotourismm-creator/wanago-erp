@@ -44,7 +44,33 @@ const LEAD_TEMPLATE_COLUMNS: TemplateColumn[] = [
   { key: "agentName",      label: "Agent Name",        example: "" },
   { key: "officeName",     label: "Office",            example: "Head Office" },
   { key: "notes",          label: "Notes",             example: "" },
+  // Optional — the date this lead actually came in (e.g. importing an old
+  // spreadsheet of historical leads). Left blank, a lead gets today's date
+  // as usual; filled in, it backdates the record so the Date column and
+  // sort order in the table reflect when the lead really arrived, not when
+  // it was uploaded.
+  { key: "leadDate",       label: "Lead Date",         example: "2026-07-15" },
 ];
+
+// Parses a strict YYYY-MM-DD (matching the template's example format) into
+// a local calendar-day Date — deliberately not `new Date(str)`, which
+// treats a bare date as UTC midnight and can silently shift a day
+// backwards/forwards depending on the browser's timezone offset.
+function parseLeadDate(raw: string): Date | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  const date = new Date(Number(y), Number(m) - 1, Number(d));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Extends LeadFormData (which deliberately excludes createdAt — the normal
+// Add/Edit Lead form never touches it) with the bulk-import-only backdate,
+// carried alongside the row through parsing and stripped off again right
+// before addLead() is called.
+type LeadImportRow = LeadFormData & { importedCreatedAt?: Date };
 
 const UNASSIGNED_AGENT_ID = "unassigned";
 
@@ -170,11 +196,15 @@ export function LeadsPage() {
     "Notes":              l.notes ?? "",
   })), [filtered]);
 
-  function onParseLeadRow(raw: Record<string, string>): { data: LeadFormData } | { error: string } {
+  function onParseLeadRow(raw: Record<string, string>): { data: LeadImportRow } | { error: string } {
     const office = resolveOffice(raw["Office"], offices, {
       officeId:   user?.officeId   ?? "",
       officeName: user?.officeName ?? "",
     });
+
+    const leadDateRaw = raw["Lead Date"]?.trim() ?? "";
+    const importedCreatedAt = leadDateRaw ? parseLeadDate(leadDateRaw) : undefined;
+    if (leadDateRaw && !importedCreatedAt) return { error: `Invalid Lead Date "${leadDateRaw}" — use YYYY-MM-DD` };
 
     // NOTE: `assignedTo` now identifies a real Employee.id (see SalesAgentSelect),
     // not free text. The CSV "Assigned To" column below is passed through as-is —
@@ -207,7 +237,7 @@ export function LeadsPage() {
     if (!check.success) return { error: check.error.issues[0]?.message ?? "Invalid row" };
 
     const d = check.data;
-    const data: LeadFormData = {
+    const data: LeadImportRow = {
       name:            d.name,
       email:           d.email || null,
       phone:           d.phone,
@@ -229,14 +259,15 @@ export function LeadsPage() {
       notes:           d.notes || null,
       lastContactedAt: null,
       createdBy:       user?.uid ?? "",
+      importedCreatedAt: importedCreatedAt ?? undefined,
     };
     return { data };
   }
 
-  async function onImportLeads(rows: LeadFormData[]): Promise<{ created: number; failed: number }> {
+  async function onImportLeads(rows: LeadImportRow[]): Promise<{ created: number; failed: number }> {
     let created = 0, failed = 0;
-    for (const row of rows) {
-      const { error } = await addLead(row);
+    for (const { importedCreatedAt, ...row } of rows) {
+      const { error } = await addLead(row, importedCreatedAt);
       if (error) failed++; else created++;
     }
     return { created, failed };
@@ -453,7 +484,7 @@ export function LeadsPage() {
       />
 
       {/* Bulk import */}
-      <BulkImportModal<LeadFormData>
+      <BulkImportModal<LeadImportRow>
         open={importOpen}
         onClose={() => setImportOpen(false)}
         title="Leads"

@@ -43,9 +43,9 @@ export function useLeads() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function addLead(data: LeadFormData): Promise<{ error: string | null }> {
+  async function addLead(data: LeadFormData, createdAt?: Date): Promise<{ error: string | null }> {
     try {
-      const lead = await createLead(data, user?.uid ?? "");
+      const lead = await createLead(data, user?.uid ?? "", { createdAt });
       setLeads(prev => [lead, ...prev]);
       logActivity({
         entityType: "Lead", entityName: lead.name, action: "created",
