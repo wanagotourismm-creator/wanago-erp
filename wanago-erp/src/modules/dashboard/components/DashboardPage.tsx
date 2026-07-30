@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDashboard }         from "@/modules/dashboard/hooks/useDashboard";
 import { useCurrentEmployee }   from "@/modules/dashboard/hooks/useCurrentEmployee";
 import { useAttendanceSummary } from "@/modules/dashboard/hooks/useAttendanceSummary";
@@ -23,7 +23,9 @@ import { CockpitFilters }       from "@/modules/dashboard/components/CockpitFilt
 import { AlertsFeed }           from "@/modules/dashboard/components/AlertsFeed";
 import { TeamStatusDonut }      from "@/modules/dashboard/components/TeamStatusDonut";
 import { HiringStatsCard }      from "@/modules/dashboard/components/HiringStatsCard";
-import { SmartRecommendations } from "@/modules/dashboard/components/SmartRecommendations";
+import { CommandCenterCard } from "@/modules/dashboard/components/CommandCenterCard";
+import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
+import type { Quotation } from "@/modules/quotations/types";
 import { TopPerformers }        from "@/modules/dashboard/components/TopPerformers";
 import { WeeklyLeaderboardCard } from "@/modules/dashboard/components/WeeklyLeaderboardCard";
 import { DepartingSoon }        from "@/modules/dashboard/components/DepartingSoon";
@@ -77,8 +79,17 @@ export function DashboardPage() {
 
 function CompanyWideDashboard() {
   const [cockpitFilters, setCockpitFilters] = useState<CockpitFiltersType>(defaultCockpitFilters);
-  const { stats, pipeline, revenue, bookings, alerts, loading, error } = useDashboard(cockpitFilters);
+  const { stats, pipeline, revenue, bookings, leads, invoices, alerts, loading, error } = useDashboard(cockpitFilters);
   const { user } = useAuthStore();
+
+  // Command Center's one genuinely new fetch — leads/invoices/bookings all
+  // come for free from useDashboard above, which already loads them
+  // internally for its own stats.
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [quotationsLoading, setQuotationsLoading] = useState(true);
+  useEffect(() => {
+    fetchQuotations().then(setQuotations).catch(() => setQuotations([])).finally(() => setQuotationsLoading(false));
+  }, []);
   const currentEmployee   = useCurrentEmployee();
   const attendanceSummary = useAttendanceSummary();
   const dashboardEmployees = useDashboardEmployees();
@@ -240,9 +251,15 @@ function CompanyWideDashboard() {
             </div>
           )}
 
-          {/* Recommendations + Top Performers */}
+          {/* Command Center + Top Performers */}
           <div className="grid gap-4 lg:grid-cols-2">
-            <SmartRecommendations />
+            <CommandCenterCard
+              leads={leads}
+              quotations={quotations}
+              invoices={invoices}
+              bookings={bookings}
+              loading={loading || quotationsLoading}
+            />
             <TopPerformers bookings={bookings} loading={loading} />
           </div>
 

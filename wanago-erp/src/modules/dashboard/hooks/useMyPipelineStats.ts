@@ -5,6 +5,8 @@ import { fetchLeads } from "@/modules/leads/services/lead.service";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
 import { toDate } from "@/lib/utils/helpers";
 import { LEAD_STAGES, BOOKING_STATUS } from "@/lib/constants";
+import type { Lead } from "@/modules/leads/types";
+import type { Booking } from "@/modules/bookings/types";
 
 export type MyPipelineStats = {
   activeLeads: number;
@@ -15,11 +17,17 @@ export type MyPipelineStats = {
   bookingsThisMonth: number;
   revenueThisMonth: number;
   profitThisMonth: number;
+  // Raw, already-scoped arrays — exposed so SalesPersonalDashboard's Command
+  // Center card can reuse this same fetch instead of a second one, same
+  // reasoning as useDashboard.ts exposing its raw leads/invoices/bookings.
+  leads:    Lead[];
+  bookings: Booking[];
 };
 
 const EMPTY: MyPipelineStats = {
   activeLeads: 0, followUpPending: 0, wonThisMonth: 0, totalThisMonth: 0, conversionRate: 0,
   bookingsThisMonth: 0, revenueThisMonth: 0, profitThisMonth: 0,
+  leads: [], bookings: [],
 };
 
 // Everything here is scoped to the logged-in sales rep's own leads/bookings
@@ -76,6 +84,8 @@ export function useMyPipelineStats(employeeId: string | null) {
           bookingsThisMonth: confirmedThisMonth.length,
           revenueThisMonth: confirmedThisMonth.reduce((sum, b) => sum + (b.totalAmount ?? 0), 0),
           profitThisMonth: confirmedThisMonth.reduce((sum, b) => sum + (b.profitAmount ?? 0), 0),
+          leads: myLeads,
+          bookings: myBookings,
         });
       } catch (e) {
         console.error("[useMyPipelineStats] failed to load — showing zeroed stats:", e);

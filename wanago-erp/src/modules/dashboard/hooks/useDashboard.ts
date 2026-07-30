@@ -37,9 +37,12 @@ export function useDashboard(explicitFilters?: CockpitFilters) {
   const [pipeline, setPipeline] = useState<LeadPipelineItem[]>([]);
   const [revenue,  setRevenue]  = useState<RevenueDataPoint[]>([]);
   const [alerts,   setAlerts]   = useState<CockpitAlert[]>([]);
-  // Raw Bookings, fetched once here and shared with TopPerformers (via
-  // DashboardPage) instead of it doing its own second full-collection read.
+  // Raw Bookings/Leads/Invoices, fetched once here and shared with
+  // TopPerformers/CommandCenterCard (via DashboardPage) instead of each
+  // doing its own second full-collection read.
   const [bookings, setBookings] = useState<DocumentData[] | null>(null);
+  const [leads,    setLeads]    = useState<DocumentData[] | null>(null);
+  const [invoices, setInvoices] = useState<DocumentData[] | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const rawRef = useRef<Awaited<ReturnType<typeof fetchDashboardRawData>> | null>(null);
@@ -61,6 +64,8 @@ export function useDashboard(explicitFilters?: CockpitFilters) {
     setPipeline(computeLeadPipeline(raw.leads));
     setAlerts(computeCockpitAlerts(raw.invoices, raw.bookings, raw.resources, raw.resourceAssignments, raw.resourceBlackouts));
     setBookings(raw.bookings);
+    setLeads(raw.leads);
+    setInvoices(raw.invoices);
   }, []);
 
   const load = useCallback(async () => {
@@ -107,7 +112,7 @@ export function useDashboard(explicitFilters?: CockpitFilters) {
     return () => clearInterval(id);
   }, [load]);
 
-  return { stats, pipeline, revenue, bookings, alerts, loading, error, refresh: load };
+  return { stats, pipeline, revenue, bookings, leads, invoices, alerts, loading, error, refresh: load };
 }
 
 // ── Live clock hook ───────────────────────────────────────────

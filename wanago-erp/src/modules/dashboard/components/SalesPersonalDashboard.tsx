@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentEmployee }   from "@/modules/dashboard/hooks/useCurrentEmployee";
 import { useAttendanceSummary } from "@/modules/dashboard/hooks/useAttendanceSummary";
 import { useMyPipelineStats }   from "@/modules/dashboard/hooks/useMyPipelineStats";
 import { useMyRank }            from "@/modules/dashboard/hooks/useMyRank";
 import { useRelevantCompanyGoals } from "@/modules/dashboard/hooks/useRelevantCompanyGoals";
+import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
 import { GreetingBanner }    from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }          from "@/modules/dashboard/components/StatCard";
 import { ProfileHeroCard }   from "@/modules/dashboard/components/ProfileHeroCard";
@@ -17,8 +19,10 @@ import { WeeklyLeaderboardCard } from "@/modules/dashboard/components/WeeklyLead
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
 import { QuickClockCard }    from "@/modules/dashboard/components/QuickClockCard";
+import { CommandCenterCard } from "@/modules/dashboard/components/CommandCenterCard";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/utils/helpers";
+import type { Quotation } from "@/modules/quotations/types";
 
 // Replaces the company-wide DashboardPage for the `sales` role: everything
 // here is scoped to the logged-in rep's own leads/bookings/goals instead of
@@ -32,6 +36,17 @@ export function SalesPersonalDashboard() {
   const pipeline = useMyPipelineStats(employeeId);
   const rank = useMyRank(employeeId);
   const relevantGoals = useRelevantCompanyGoals(currentEmployee.employee?.department ?? null, employeeId);
+
+  // Quotations have no assignedTo field of their own — scoped to this rep
+  // indirectly via their own lead ids (already fetched by useMyPipelineStats
+  // above), same join CommandCenterCard's data needs elsewhere too.
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [quotationsLoading, setQuotationsLoading] = useState(true);
+  useEffect(() => {
+    fetchQuotations().then(setQuotations).catch(() => setQuotations([])).finally(() => setQuotationsLoading(false));
+  }, []);
+  const myLeadIds = new Set(pipeline.leads.map((l) => l.id));
+  const myQuotations = quotations.filter((q) => q.leadId && myLeadIds.has(q.leadId));
 
   return (
     <div className="space-y-6">
@@ -91,6 +106,14 @@ export function SalesPersonalDashboard() {
           )}
 
           <MySalesProgress />
+
+          <CommandCenterCard
+            leads={pipeline.leads}
+            quotations={myQuotations}
+            invoices={[]}
+            bookings={pipeline.bookings}
+            loading={pipeline.loading || quotationsLoading}
+          />
 
           <RelevantGoalsCard objectives={relevantGoals.objectives} loading={relevantGoals.loading} />
 
