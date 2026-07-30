@@ -144,6 +144,18 @@ export async function fetchQuotationById(id: string): Promise<Quotation | null> 
   return quotationRepository.findById(id);
 }
 
+// Scoped single-field query (no composite index needed) rather than
+// fetchQuotations() + a client-side .find() — used by the Lead Engine
+// panel's closability score, which needs just this one lead's quotation,
+// not the whole collection. lead.service.ts's existing dedup checks
+// (createQuotationFromLead / createDraftQuotationFromWonLead) already do
+// the full-fetch-and-find instead; left as-is, not this function's concern.
+export async function fetchQuotationByLeadId(leadId: string): Promise<Quotation | null> {
+  const matches = await quotationRepository.findMany({ constraints: [where("leadId", "==", leadId)] });
+  if (matches.length === 0) return null;
+  return matches.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0))[0];
+}
+
 export async function createQuotation(
   data: QuotationFormData,
   createdBy: string,

@@ -9,6 +9,7 @@ import { getAppUrl } from "@/lib/app-url";
 import { useCallLogs } from "@/modules/call-logs/hooks/useCallLogs";
 import { CallLogForm } from "@/modules/call-logs/components/CallLogForm";
 import { CallLogHistory } from "@/modules/call-logs/components/CallLogHistory";
+import { LeadEnginePanel } from "@/modules/leads/components/LeadEnginePanel";
 import type { CallLogSchema } from "@/modules/call-logs/schemas";
 import type { CallLogFormData, CallMethod, CallDirection } from "@/modules/call-logs/types";
 import type { Lead } from "@/modules/leads/types";
@@ -148,6 +149,8 @@ export function LeadDetailModal({ lead, canDelete, onClose, onEdit, onDelete, on
               </span>
             )}
           </div>
+
+          <LeadEnginePanel lead={lead} />
 
           <div>
             <div className="mb-1 flex items-center gap-2">
