@@ -32,3 +32,16 @@ export async function saveIntegrationSecrets(values: Record<string, string>, cle
     throw new Error(data.error || "Failed to save integration keys");
   }
 }
+
+// Sends a real test email to the caller's own account, via whichever
+// provider (Gmail SMTP or Resend) is actually configured server-side —
+// lets an admin confirm the config works right after saving it, instead of
+// saving blind and finding out only when a real notification silently
+// never arrives.
+export async function sendTestEmail(): Promise<{ sentTo: string }> {
+  const headers = await authHeader();
+  const res = await fetch("/api/admin/integrations/test-email", { method: "POST", headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Failed to send test email");
+  return { sentTo: data.sentTo };
+}

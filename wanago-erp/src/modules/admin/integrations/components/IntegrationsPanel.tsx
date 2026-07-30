@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, KeyRound, Loader2, Mail, MessageCircle, Send, Volume2 } from "lucide-react";
-import { fetchIntegrationStatus, saveIntegrationSecrets } from "@/modules/admin/integrations/services/integrations.service";
+import { fetchIntegrationStatus, saveIntegrationSecrets, sendTestEmail } from "@/modules/admin/integrations/services/integrations.service";
 import { cn } from "@/lib/utils/helpers";
 
 // `secret: true` (the default) means write-only — masked input, never
@@ -73,6 +73,8 @@ export function IntegrationsPanel() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     fetchIntegrationStatus()
@@ -130,6 +132,19 @@ export function IntegrationsPanel() {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSendTestEmail() {
+    setTestingEmail(true);
+    setTestResult(null);
+    try {
+      const { sentTo } = await sendTestEmail();
+      setTestResult({ ok: true, message: `Sent to ${sentTo} — check your inbox (and spam folder).` });
+    } catch (e) {
+      setTestResult({ ok: false, message: e instanceof Error ? e.message : "Failed to send test email" });
+    } finally {
+      setTestingEmail(false);
     }
   }
 
@@ -194,6 +209,34 @@ export function IntegrationsPanel() {
               </div>
             ))}
           </div>
+
+          {section.title === "Email (Resend)" && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Sends a real test email to your own account through whichever provider is active (Gmail SMTP first, Resend as fallback) — the fastest way to confirm the config above actually works.
+                </p>
+                <button
+                  onClick={handleSendTestEmail}
+                  disabled={testingEmail}
+                  className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-input px-4 py-2 text-xs font-semibold text-foreground hover:border-primary/40 hover:bg-muted disabled:opacity-60 transition-colors"
+                >
+                  {testingEmail ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                  Send Test Email
+                </button>
+              </div>
+              {testResult && (
+                <div className={cn(
+                  "mt-3 rounded-xl border px-3 py-2 text-xs",
+                  testResult.ok
+                    ? "border-green-300/40 bg-green-50 text-green-700 dark:bg-green-900/10 dark:text-green-400"
+                    : "border-destructive/30 bg-destructive/10 text-destructive"
+                )}>
+                  {testResult.message}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ))}
 

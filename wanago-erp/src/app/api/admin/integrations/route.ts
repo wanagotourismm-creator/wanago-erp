@@ -66,7 +66,11 @@ export async function POST(req: NextRequest) {
   const patch: Record<string, FieldValue | string> = {};
   for (const f of FIELDS) {
     const v = body.values?.[f];
-    if (typeof v === "string" && v.trim().length > 0) patch[f] = v.trim();
+    if (typeof v !== "string" || v.trim().length === 0) continue;
+    // Google's App Password is displayed grouped in 4s ("abcd efgh ijkl
+    // mnop") for readability — pasted verbatim, those inner spaces break
+    // SMTP AUTH even though Google's own login forms strip them silently.
+    patch[f] = f === "gmailAppPassword" ? v.replace(/\s+/g, "") : v.trim();
   }
   for (const f of body.clear ?? []) {
     if ((FIELDS as readonly string[]).includes(f)) patch[f] = FieldValue.delete();

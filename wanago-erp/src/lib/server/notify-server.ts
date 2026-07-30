@@ -236,7 +236,7 @@ function renderLeaveDecisionEmailHtml(params: {
 // sandbox that can only email the account owner. Preferred whenever it's
 // configured; Resend is the fallback for when it isn't.
 let gmailTransport: ReturnType<typeof nodemailer.createTransport> | null = null;
-let gmailTransportUser: string | null = null;
+let gmailTransportKey: string | null = null;
 
 type EmailAttachment = { filename: string; url: string };
 
@@ -248,12 +248,23 @@ async function urlToBase64(url: string): Promise<string> {
 
 async function sendViaGmail(params: { to: string; subject: string; html: string; businessName: string; attachments?: EmailAttachment[] }): Promise<{ ok: boolean; error?: string } | null> {
   const user = await getIntegrationSecret("gmailUser", "GMAIL_USER");
-  const pass = await getIntegrationSecret("gmailAppPassword", "GMAIL_APP_PASSWORD");
+  // Google's account UI shows an App Password grouped in 4s ("abcd efgh ijkl
+  // mnop") purely for readability — pasted verbatim (including from the
+  // Admin → Integrations form, which only trims leading/trailing whitespace)
+  // those inner spaces go straight into SMTP AUTH and Gmail rejects the
+  // login. Google's own sign-in forms silently strip them; raw SMTP doesn't.
+  const rawPass = await getIntegrationSecret("gmailAppPassword", "GMAIL_APP_PASSWORD");
+  const pass = rawPass?.replace(/\s+/g, "");
   if (!user || !pass) return null; // not configured — caller falls back to Resend
 
-  if (!gmailTransport || gmailTransportUser !== user) {
+  // Keyed on user+pass together, not just user — a warm serverless instance
+  // that rotated only the App Password (same Gmail address) would otherwise
+  // keep reusing the old, now-invalid cached transporter until the instance
+  // recycles, silently failing every send in the meantime.
+  const key = `${user}:${pass}`;
+  if (!gmailTransport || gmailTransportKey !== key) {
     gmailTransport = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
-    gmailTransportUser = user;
+    gmailTransportKey = key;
   }
 
   try {
