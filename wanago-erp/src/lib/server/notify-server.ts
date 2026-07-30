@@ -490,6 +490,62 @@ export async function sendReviewRequestEmail(params: {
   });
 }
 
+function renderInvoicePaymentReminderEmailHtml(params: {
+  customerName: string; refNumber: string; balanceDue: number; dueDate: string | null; businessName: string;
+}) {
+  const amount = `₹${params.balanceDue.toLocaleString("en-IN")}`;
+  const dueLine = params.dueDate
+    ? `it was due on ${new Date(params.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`
+    : "it's now overdue";
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#d97706,#b45309);padding:40px 24px;text-align:center;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">Payment Reminder</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${params.customerName},</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 16px;">
+            This is a friendly reminder that invoice <strong>${params.refNumber}</strong> has a balance of <strong>${amount}</strong> outstanding — ${dueLine}.
+          </p>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 24px;">
+            If you've already paid, please ignore this message. Otherwise, reply to this email or get in touch with us to settle the balance.
+          </p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team ${params.businessName}</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#92400e;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#fef3c7;margin:0;">Team ${params.businessName}</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent by the daily-reminders cron directly to the customer on an overdue
+// invoice (previously this only ever notified internal staff) — see
+// /api/cron/daily-reminders/route.ts's overdue-invoice loop. Treated as a
+// transactional message (money already owed on an existing invoice), not a
+// marketing send, so it deliberately does not check
+// Customer.marketingOptOut — that flag is scoped to drip/journey marketing
+// campaigns specifically (see journey.service.ts's own comment on it), not
+// "any automated contact whatsoever."
+export async function sendInvoicePaymentReminderEmail(params: {
+  to: string; customerName: string; refNumber: string; balanceDue: number; dueDate: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
+  return sendRawEmail({
+    to: params.to,
+    subject: `Payment reminder — invoice ${params.refNumber} (${company.businessName})`,
+    html: renderInvoicePaymentReminderEmailHtml({ ...params, businessName: company.businessName }),
+    businessName: company.businessName,
+  });
+}
+
 // Server-side equivalent of src/lib/notify.ts's notifyUser() — that one is
 // client-oriented (relative fetch to /api/notify/email, client Firestore
 // SDK for the in-app write) and doesn't work from a cron route with no

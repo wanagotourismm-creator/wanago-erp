@@ -199,6 +199,7 @@ export const WHATSAPP_TEMPLATE_PURPOSES = {
   STAFF_REQUEST_DECISION:      "staff_request_decision",
   INTERNATIONAL_TRIP_FOLLOWUP: "international_trip_followup",
   REVIEW_REQUEST:              "review_request",
+  INVOICE_PAYMENT_REMINDER:    "invoice_payment_reminder",
 } as const;
 
 export const DEFAULT_LEAD_SOURCES = [

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
-import { notifyUserServer } from "@/lib/server/notify-server";
+import { notifyUserServer, sendInvoicePaymentReminderEmail } from "@/lib/server/notify-server";
+import { sendWhatsAppSmart } from "@/lib/whatsapp/template-router";
 import { fetchUsersByPermission } from "@/lib/notify-recipients";
 import { computeGoingColdCustomers, computeBookingAnomalies, getQuotationRisk } from "@/modules/dashboard/services/insights.service";
-import { LEAD_STAGES, INVOICE_STATUS, FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { LEAD_STAGES, INVOICE_STATUS, FIRESTORE_COLLECTIONS, WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
 
 export const runtime = "nodejs";
@@ -40,8 +41,9 @@ type QuotationDoc = {
 type InvoiceDoc = {
   id: string; refNumber: string; customerName: string; status: string;
   balanceDue: number; createdBy: string;
+  customerId: string; customerPhone: string; dueDate: string | null;
 };
-type CustomerDoc = { id: string; fullName: string; assignedTo: string | null };
+type CustomerDoc = { id: string; fullName: string; assignedTo: string | null; email: string | null };
 
 // Verified daily by Vercel Cron (see vercel.json) — a bearer-token check is
 // this route's only defense, since it has no other auth context. Reads
@@ -209,7 +211,12 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Invoice overdue, per-invoice ────────────────────────────────────
+  // Milestone days (not "every day it's overdue") so the customer gets a
+  // nudge at sensible checkpoints instead of the same email daily forever —
+  // computed purely from dueDate, no extra "last reminded" field needed.
+  const CUSTOMER_REMINDER_MILESTONE_DAYS = [1, 7, 14, 30];
   let invoicesOverdueNotified = 0;
+  let customerPaymentRemindersSent = 0;
   for (const inv of overdueInvoices) {
     if (!inv.createdBy) continue;
     const user = userById.get(inv.createdBy);
@@ -222,6 +229,40 @@ export async function GET(req: NextRequest) {
       category: "followup",
     });
     invoicesOverdueNotified++;
+
+    // Customer-facing reminder — previously only staff were ever notified
+    // about an overdue invoice, never the customer who actually owes the
+    // money. Email is the reliable channel (Gmail SMTP, already proven);
+    // WhatsApp only fires if an admin has since registered+approved a Meta
+    // template for this purpose (sendWhatsAppSmart returns {ok:false}
+    // otherwise, which is fine — this whole block is best-effort).
+    const dueDateMs = inv.dueDate ? toMillis(inv.dueDate) : null;
+    const daysOverdue = dueDateMs != null ? Math.floor((now - dueDateMs) / DAY_MS) : null;
+    if (daysOverdue != null && CUSTOMER_REMINDER_MILESTONE_DAYS.includes(daysOverdue)) {
+      const customer = customerById.get(inv.customerId);
+      try {
+        const results = await Promise.all([
+          inv.customerPhone
+            ? sendWhatsAppSmart({
+                to: inv.customerPhone,
+                purpose: WHATSAPP_TEMPLATE_PURPOSES.INVOICE_PAYMENT_REMINDER,
+                variables: [inv.customerName, inv.refNumber, String(inv.balanceDue)],
+                fallbackBody: `Hi ${inv.customerName}, invoice ${inv.refNumber} has ₹${inv.balanceDue} outstanding. Please get in touch to settle it.`,
+              })
+            : Promise.resolve({ ok: false }),
+          customer?.email
+            ? sendInvoicePaymentReminderEmail({
+                to: customer.email, customerName: inv.customerName, refNumber: inv.refNumber,
+                balanceDue: inv.balanceDue, dueDate: inv.dueDate,
+              })
+            : Promise.resolve({ ok: false }),
+        ]);
+        if (results.some((r) => r.ok)) customerPaymentRemindersSent++;
+      } catch {
+        // Best-effort — a failed customer nudge must never break the
+        // staff-facing notification above, which has already succeeded.
+      }
+    }
   }
 
   // ── Going-cold customer → notify their assigned agent ───────────────
@@ -271,6 +312,7 @@ export async function GET(req: NextRequest) {
     quotationsStaleNotified,
     financeApprovalsStuckNotified,
     invoicesOverdueNotified,
+    customerPaymentRemindersSent,
     goingColdNotified,
     anomaliesNotified,
   });
