@@ -1,12 +1,12 @@
 "use client";
 
 import { X, Trash2, UserCheck, Ticket as TicketIcon, User, Timer } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 import { TicketPriorityBadge, TicketStatusBadge, TicketSlaBadge, TICKET_STATUS_LABELS } from "@/modules/tickets/components/TicketBadges";
 import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
 import { formatDate } from "@/lib/utils/helpers";
 import type { TicketSlaPolicy } from "@/modules/tickets/services/ticket-sla-policy.service";
 import type { Ticket, TicketStatus } from "@/modules/tickets/types";
-import { Modal } from "@/components/ui/Modal";
 
 type Props = {
   ticket:       Ticket | null;
