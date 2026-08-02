@@ -32,7 +32,16 @@ export function StageBadge({ stage }: { stage: string }) {
   );
 }
 
-export function PriorityBadge({ priority }: { priority: string }) {
+export function PriorityBadge({ priority }: { priority: string | null | undefined }) {
+  // Older/imported leads can have a missing or blank priority — fall back
+  // to a neutral label instead of crashing the whole table on one bad row.
+  if (!priority) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+        —
+      </span>
+    );
+  }
   return (
     <span className={cn(
       "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
