@@ -4,9 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LayoutDashboard, LogOut, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Mail, X } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useTeamSpaceUIStore } from "@/store/teamspace-ui.store";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
 import { useVisibleNavGroups } from "@/components/layout/useVisibleNavGroups";
 import { NAV_ICONS } from "@/components/layout/nav-icons";
@@ -40,6 +41,7 @@ function MenuLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void 
 export function MobileMenuSheet() {
   const { mobileSidebarOpen, closeMobileSidebar } = useUIStore();
   const { user } = useAuthStore();
+  const { openPanel } = useTeamSpaceUIStore();
   const { logout } = useAuth();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -63,10 +65,20 @@ export function MobileMenuSheet() {
             sizes="150px"
           />
         </div>
-        <button onClick={closeMobileSidebar} aria-label="Close menu"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground active:bg-muted transition-colors">
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { openPanel(); closeMobileSidebar(); }}
+            aria-label="Open Team Space"
+            title="Team Space"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground active:bg-muted transition-colors"
+          >
+            <Mail size={17} />
+          </button>
+          <button onClick={closeMobileSidebar} aria-label="Close menu"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground active:bg-muted transition-colors">
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Nav */}
