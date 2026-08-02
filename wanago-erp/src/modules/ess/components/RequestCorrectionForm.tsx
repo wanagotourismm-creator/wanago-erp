@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, Clock } from "lucide-react";
 import { essRegularizationApplySchema, type EssRegularizationApplySchema } from "@/modules/ess/schemas";
+import { Modal } from "@/components/ui/Modal";
 
 type Props = {
   open: boolean;
@@ -44,9 +45,7 @@ export function RequestCorrectionForm({ open, date, onClose, onSubmit }: Props) 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
@@ -89,7 +88,6 @@ export function RequestCorrectionForm({ open, date, onClose, onSubmit }: Props) 
           </button>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

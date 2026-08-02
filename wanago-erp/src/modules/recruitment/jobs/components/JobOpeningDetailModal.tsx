@@ -1,6 +1,7 @@
 "use client";
 
 import { X, Edit2, Trash2, MapPin, Users, Briefcase } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 import { STATUS_STYLES } from "@/modules/recruitment/jobs/components/JobOpeningsTable";
 import { EMPLOYMENT_TYPE_LABELS } from "@/modules/hrms/employees/components/EmployeeBadges";
 import { formatDate, cn } from "@/lib/utils/helpers";
@@ -28,10 +29,7 @@ export function JobOpeningDetailModal({ job, canManage, onClose, onEdit, onDelet
   if (!job) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -128,7 +126,6 @@ export function JobOpeningDetailModal({ job, canManage, onClose, onEdit, onDelet
           </div>
         )}
 
-      </div>
-    </div>
+    </Modal>
   );
 }

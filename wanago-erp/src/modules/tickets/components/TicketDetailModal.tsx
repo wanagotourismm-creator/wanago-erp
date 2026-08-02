@@ -1,13 +1,17 @@
 "use client";
 
-import { X, Trash2, UserCheck, Ticket as TicketIcon, User } from "lucide-react";
-import { TicketPriorityBadge, TicketStatusBadge, TICKET_STATUS_LABELS } from "@/modules/tickets/components/TicketBadges";
+import { X, Trash2, UserCheck, Ticket as TicketIcon, User, Timer } from "lucide-react";
+import { TicketPriorityBadge, TicketStatusBadge, TicketSlaBadge, TICKET_STATUS_LABELS } from "@/modules/tickets/components/TicketBadges";
+import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
 import { formatDate } from "@/lib/utils/helpers";
+import type { TicketSlaPolicy } from "@/modules/tickets/services/ticket-sla-policy.service";
 import type { Ticket, TicketStatus } from "@/modules/tickets/types";
+import { Modal } from "@/components/ui/Modal";
 
 type Props = {
   ticket:       Ticket | null;
   canDelete:    boolean;
+  slaPolicy:    TicketSlaPolicy;
   onClose:      () => void;
   onSetStatus:  (t: Ticket, status: TicketStatus) => void;
   onAssignToMe: (t: Ticket) => void;
@@ -23,14 +27,12 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function TicketDetailModal({ ticket, canDelete, onClose, onSetStatus, onAssignToMe, onDelete }: Props) {
+export function TicketDetailModal({ ticket, canDelete, slaPolicy, onClose, onSetStatus, onAssignToMe, onDelete }: Props) {
   if (!ticket) return null;
+  const sla = getTicketSlaStatus(ticket, slaPolicy);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -75,6 +77,17 @@ export function TicketDetailModal({ ticket, canDelete, onClose, onSetStatus, onA
             </div>
           </div>
 
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <Timer size={13} className="text-primary" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">SLA</p>
+            </div>
+            <div className="divide-y divide-border rounded-xl border border-border px-3">
+              <Row label="First Response" value={<TicketSlaBadge clock={sla.response} />} />
+              <Row label="Resolution" value={<TicketSlaBadge clock={sla.resolution} />} />
+            </div>
+          </div>
+
           {ticket.description && (
             <div>
               <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-primary">Description</p>
@@ -115,7 +128,6 @@ export function TicketDetailModal({ ticket, canDelete, onClose, onSetStatus, onA
           </select>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

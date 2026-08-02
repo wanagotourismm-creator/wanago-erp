@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { X, Loader2, Briefcase } from "lucide-react";
 import { formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { computeTripProfitability } from "@/modules/profitability/services/trip-profitability.service";
+import { Modal } from "@/components/ui/Modal";
 import type { Booking } from "@/modules/bookings/types";
 import type { Package } from "@/modules/packages/types";
 import type { Expense } from "@/modules/expenses/types";
@@ -72,9 +73,7 @@ export function OpsApprovalModal({ booking, packages, expenses, onClose, onConfi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-enter relative w-full max-w-md flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="sm">
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
@@ -136,7 +135,6 @@ export function OpsApprovalModal({ booking, packages, expenses, onClose, onConfi
           </button>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

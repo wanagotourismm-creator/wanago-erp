@@ -5,6 +5,7 @@ import { FormRenderer, type FormAnswers } from "@/modules/forms/components/FormR
 import { useFormResponses } from "@/modules/forms/hooks/useFormResponses";
 import { uploadFile } from "@/lib/storage/upload";
 import type { Form } from "@/modules/forms/types";
+import { Modal } from "@/components/ui/Modal";
 
 type Props = {
   form:    Form | null;
@@ -30,10 +31,7 @@ export function FormFillModal({ form, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
@@ -51,7 +49,6 @@ export function FormFillModal({ form, onClose }: Props) {
         <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
           <FormRenderer fields={form.fields} onSubmit={handleSubmit} onUploadFile={handleUploadFile} />
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -6,6 +6,7 @@ import { fetchVendorRates } from "@/modules/vendor-portal/services/vendor-portal
 import { filterActiveRates } from "@/modules/vendor-portal/services/vendor-rate-lookup.service";
 import { useSuppliers } from "@/modules/suppliers/hooks/useSuppliers";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils/helpers";
 import type { VendorRate } from "@/modules/vendor-portal/types";
 
@@ -50,9 +51,7 @@ export function VendorRatePicker({ open, onClose, onSelect }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-enter relative w-full max-w-lg max-h-[80dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
@@ -108,7 +107,6 @@ export function VendorRatePicker({ open, onClose, onSelect }: Props) {
           )}
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

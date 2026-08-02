@@ -1,6 +1,7 @@
 "use client";
 
 import { X, Trash2, Wallet, Building2 } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 import { PaymentMethodBadge, formatAmount } from "@/modules/payments/components/PaymentBadges";
 import { formatDate, initials } from "@/lib/utils/helpers";
 import type { Payment } from "@/modules/payments/types";
@@ -25,10 +26,7 @@ export function PaymentDetailModal({ payment, canManage, onClose, onDelete }: Pr
   if (!payment) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -102,7 +100,6 @@ export function PaymentDetailModal({ payment, canManage, onClose, onDelete }: Pr
           </div>
         )}
 
-      </div>
-    </div>
+    </Modal>
   );
 }

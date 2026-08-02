@@ -8,6 +8,7 @@ import { officeSchema, type OfficeSchema } from "@/modules/admin/offices/schemas
 import { getCurrentPosition } from "@/lib/geo";
 import { cn } from "@/lib/utils/helpers";
 import { LocationPickerMap } from "@/modules/admin/offices/components/LocationPickerMap";
+import { Modal } from "@/components/ui/Modal";
 import type { Office } from "@/modules/admin/offices/types";
 
 type Props = {
@@ -89,9 +90,7 @@ export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose}>
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
@@ -181,7 +180,6 @@ export function OfficeForm({ open, office, onClose, onSubmit }: Props) {
           </button>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

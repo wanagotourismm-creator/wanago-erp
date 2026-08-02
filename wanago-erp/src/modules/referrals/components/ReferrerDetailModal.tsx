@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, Loader2, MousePointerClick, TrendingUp } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 import { fetchLeadsForReferrer, fetchBonusesForReferrer, fetchClickCountForReferrer } from "@/modules/referrals/services/referral-analytics.service";
 import { ReferralBonusStatusBadge } from "@/modules/referrals/components/ReferralBonusBadge";
 import { formatCurrency, formatDate, cn } from "@/lib/utils/helpers";
@@ -42,9 +43,7 @@ export function ReferrerDetailModal({ stat, onClose }: Props) {
   const bonusPending = bonuses.filter(b => b.bonusStatus === "pending").reduce((s, b) => s + b.bonusAmount, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
@@ -125,7 +124,6 @@ export function ReferrerDetailModal({ stat, onClose }: Props) {
             </>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

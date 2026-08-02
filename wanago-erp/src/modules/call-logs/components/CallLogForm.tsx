@@ -7,6 +7,7 @@ import { X, Loader2, PhoneCall, Paperclip, StickyNote, Sparkles } from "lucide-r
 import { callLogSchema, type CallLogSchema } from "@/modules/call-logs/schemas";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { cn } from "@/lib/utils/helpers";
+import { Modal } from "@/components/ui/Modal";
 import { suggestNextSteps } from "@/modules/call-logs/services/call-log-ai.service";
 import type { CallMethod, CallDirection } from "@/modules/call-logs/types";
 
@@ -108,10 +109,7 @@ export function CallLogForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -249,7 +247,6 @@ export function CallLogForm({
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

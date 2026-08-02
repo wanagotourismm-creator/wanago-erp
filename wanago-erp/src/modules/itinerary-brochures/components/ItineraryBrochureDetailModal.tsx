@@ -5,6 +5,7 @@ import Image from "next/image";
 import { X, MapPin, Edit2, Trash2, Copy, CalendarDays, ListChecks, FileText, Phone, Download, RefreshCw, Loader2 } from "lucide-react";
 import { BrochureStatusBadge } from "@/modules/itinerary-brochures/components/BrochureBadges";
 import { formatDate } from "@/lib/utils/helpers";
+import { Modal } from "@/components/ui/Modal";
 import type { ItineraryBrochure } from "@/modules/itinerary-brochures/types";
 
 type Props = {
@@ -40,10 +41,7 @@ export function ItineraryBrochureDetailModal({ brochure, onClose, onEdit, onDele
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -229,7 +227,6 @@ export function ItineraryBrochureDetailModal({ brochure, onClose, onEdit, onDele
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Loader2, UploadCloud, CheckCircle2, AlertTriangle } from "lucide-react";
 import { helpArticleSchema, type HelpArticleSchema } from "@/modules/helpcenter/schemas";
 import { cn } from "@/lib/utils/helpers";
+import { Modal } from "@/components/ui/Modal";
 
 type Props = {
   open:     boolean;
@@ -73,10 +74,7 @@ export function HelpArticleBulkImport({ open, onClose, onImport }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
-
-      <div className="modal-enter relative w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={handleClose} size="lg">
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
           <div className="flex items-center gap-3">
@@ -149,7 +147,6 @@ export function HelpArticleBulkImport({ open, onClose, onImport }: Props) {
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -12,6 +12,7 @@ import { fetchBrochureImageLibrary } from "@/modules/itinerary-brochures/service
 import { StringListEditor } from "@/modules/itinerary-brochures/components/StringListEditor";
 import { ImageUploadField } from "@/modules/itinerary-brochures/components/ImageUploadField";
 import { cn, joinAddressCity } from "@/lib/utils/helpers";
+import { Modal } from "@/components/ui/Modal";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import type { ItineraryBrochure } from "@/modules/itinerary-brochures/types";
 
@@ -127,10 +128,7 @@ export function ItineraryBrochureForm({ open, brochure, onClose, onSubmit }: Pro
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-3xl max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="xl">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -419,7 +417,6 @@ export function ItineraryBrochureForm({ open, brochure, onClose, onSubmit }: Pro
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

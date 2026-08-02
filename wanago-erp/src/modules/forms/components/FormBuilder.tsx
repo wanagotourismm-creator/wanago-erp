@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils/helpers";
 import type { Control } from "react-hook-form";
 import type { Form, FieldConditionOperator } from "@/modules/forms/types";
 import type { UserProfile } from "@/modules/auth/types";
+import { Modal } from "@/components/ui/Modal";
 
 type Props = {
   open:    boolean;
@@ -265,10 +266,7 @@ export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="lg">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -435,7 +433,6 @@ export function FormBuilder({ open, form, onClose, onSubmit }: Props) {
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

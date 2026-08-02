@@ -153,6 +153,14 @@
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
+@keyframes sheetIn {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes dialogIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
 @keyframes tourFill {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
@@ -164,6 +172,19 @@
 
 .modal-enter {
   animation: modalIn 0.2s ease-out;
+}
+/* iOS bottom sheet — UIKit-style spring deceleration. */
+.sheet-enter {
+  animation: sheetIn 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* Android Material dialog — M3 standard decelerate curve. */
+.dialog-enter {
+  animation: dialogIn 0.22s cubic-bezier(0.2, 0, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-enter, .sheet-enter, .dialog-enter {
+    animation: none;
+  }
 }
 .tour-fill {
   transform-origin: left;

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { X, Loader2, MapPin, Camera, CheckCircle2, AlertTriangle, RotateCw } from "lucide-react";
 import { LocationPickerMap } from "@/modules/admin/offices/components/LocationPickerMap";
 import type { CheckInContext } from "@/modules/ess/hooks/useEss";
+import { Modal } from "@/components/ui/Modal";
 
 type Props = {
   action:  "in" | "out";
@@ -46,10 +47,7 @@ export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateR
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={busy ? undefined : onClose} />
-
-      <div className="modal-enter relative w-full max-w-sm rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="sm" dismissible={!busy}>
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <div className="flex items-center gap-2">
             <MapPin size={15} className="text-primary" />
@@ -164,7 +162,6 @@ export function CheckInLocationModal({ action, ctx, loading, busy, requiresLateR
             )}
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

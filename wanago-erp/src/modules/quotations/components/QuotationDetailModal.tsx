@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Edit2, Trash2, Download, Receipt, MapPin, ArrowRightLeft, Loader2, Send, CheckCircle2, XCircle } from "lucide-react";
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
 import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
+import { Modal } from "@/components/ui/Modal";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { downloadQuotationPdf, loadCompanyLogoDataUrl } from "@/lib/pdf/quotation-pdf";
@@ -148,10 +149,7 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -297,7 +295,6 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

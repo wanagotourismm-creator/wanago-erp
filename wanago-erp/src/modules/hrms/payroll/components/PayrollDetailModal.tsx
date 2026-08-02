@@ -5,6 +5,7 @@ import { X, Edit2, Trash2, CheckCircle2, Banknote, Download, Loader2, Wallet, Us
 import { PayrollStatusBadge, MONTH_LABELS, formatSalary } from "@/modules/hrms/payroll/components/PayrollBadges";
 import { downloadPayslip } from "@/modules/hrms/payroll/services/payslip.service";
 import { initials } from "@/lib/utils/helpers";
+import { Modal } from "@/components/ui/Modal";
 import type { PayrollRecord } from "@/modules/hrms/shared/types";
 
 type Props = {
@@ -42,10 +43,7 @@ export function PayrollDetailModal({ record, canManage, onClose, onEdit, onDelet
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose}>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -148,7 +146,6 @@ export function PayrollDetailModal({ record, canManage, onClose, onEdit, onDelet
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, Wallet } from "lucide-react";
 import { formatAmount } from "@/modules/bookings/components/BookingBadges";
+import { Modal } from "@/components/ui/Modal";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
@@ -32,9 +33,7 @@ export function FinanceApprovalModal({ booking, onClose, onConfirm }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-enter relative w-full max-w-md flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="sm">
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
@@ -92,7 +91,6 @@ export function FinanceApprovalModal({ booking, onClose, onConfirm }: Props) {
           </button>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { X, Edit2, Trash2, CheckCircle2, XCircle, Banknote, Receipt, Building2, Paperclip } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 import { ExpenseStatusBadge, formatAmount } from "@/modules/expenses/components/ExpenseBadges";
 import { formatDate } from "@/lib/utils/helpers";
 import type { Expense } from "@/modules/expenses/types";
@@ -30,10 +31,7 @@ export function ExpenseDetailModal({ expense, canManage, onClose, onEdit, onDele
   const canMarkPaid        = canManage && expense.expenseStatus === "approved";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="md">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -162,7 +160,6 @@ export function ExpenseDetailModal({ expense, canManage, onClose, onEdit, onDele
         </div>
         )}
 
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -11,6 +11,7 @@ import { canReassignSalesAgent } from "@/lib/rbac-scope";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils/helpers";
 import { fetchReferralSettings } from "@/modules/referrals/services/referral.service";
+import { Modal } from "@/components/ui/Modal";
 import type { Customer } from "@/modules/customers/types";
 
 type Props = {
@@ -92,12 +93,7 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Modal */}
-      <div className="modal-enter relative w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose} size="lg">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -274,7 +270,6 @@ export function CustomerForm({ open, customer, onClose, onSubmit }: Props) {
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }

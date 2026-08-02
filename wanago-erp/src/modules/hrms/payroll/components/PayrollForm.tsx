@@ -8,6 +8,7 @@ import { payrollRecordSchema, type PayrollRecordSchema } from "@/modules/hrms/pa
 import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
 import { MONTH_LABELS } from "@/modules/hrms/payroll/components/PayrollBadges";
 import { useAuthStore } from "@/store/auth.store";
+import { Modal } from "@/components/ui/Modal";
 import type { Employee, PayrollRecord } from "@/modules/hrms/shared/types";
 
 type Props = { open: boolean; record?: PayrollRecord | null; onClose: () => void; onSubmit: (d: PayrollRecordSchema) => Promise<void>; error?: string | null; };
@@ -78,9 +79,7 @@ export function PayrollForm({ open, record, onClose, onSubmit, error }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-enter relative w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border border-primary/20 bg-card shadow-2xl overflow-hidden">
+    <Modal onClose={onClose}>
 
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
@@ -139,7 +138,6 @@ export function PayrollForm({ open, record, onClose, onSubmit, error }: Props) {
           </button>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }
