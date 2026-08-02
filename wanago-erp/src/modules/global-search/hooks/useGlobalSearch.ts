@@ -8,7 +8,7 @@ const CACHE_TTL_MS = 3 * 60_000;
 
 // Module-level (not component state) so the index survives the palette
 // being closed/reopened — only the first open of a session (or one past
-// the TTL) pays the cost of fetching all 6 collections.
+// the TTL) pays the cost of fetching every indexed collection.
 let cache: { data: SearchResult[]; expires: number } | null = null;
 
 export function useGlobalSearch() {

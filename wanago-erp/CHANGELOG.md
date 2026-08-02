@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-07-23 (Doc correction — Global Search coverage)
+
+- Picked up "Global Search doesn't cover Suppliers/Packages/Invoices" as a planned next step, then found it was already resolved in the code (`search-index.service.ts` already indexes all 13 record types + role-filtered page jump, from an earlier commit) — `PROJECT_STATUS.md`/`KNOWN_ISSUES.md` just hadn't been updated to match. No feature work needed; corrected both docs and a stale code comment (`useGlobalSearch.ts` said "6 collections")
+
 ## 2026-07-23 (Reports module rebuild — final post-Release-1 item)
 
 - Restructured `src/modules/reports/` from a single 291-line page into `types/services/hooks/components/pages` — the 6 raw-table tabs (Employees/Attendance/Leaves/Payroll/Recruitment/Performance) are behavior-preserving extractions, unchanged in what they show
