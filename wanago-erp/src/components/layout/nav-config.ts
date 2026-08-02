@@ -7,6 +7,10 @@ export type NavItem = {
   badge?:     string;
   roles?:     SystemRole[];
   children?:  NavItem[];
+  // Priority (lower = earlier) for the phone bottom-nav's 4 shortcut slots —
+  // see useMobileQuickAccessItems(). Independent of this list's declaration
+  // order, which is grouped by department, not usage frequency.
+  mobileQuickAccess?: number;
 };
 
 export type NavGroup = {
@@ -22,6 +26,7 @@ export const NAV_CONFIG: NavGroup[] = [
         label: "Dashboard",
         href:  "/dashboard",
         icon:  "layout-dashboard",
+        mobileQuickAccess: 1,
       },
       {
         label: "My HR",
@@ -53,6 +58,7 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/leads",
         icon:  "users",
         roles: ["super_admin","admin","sales","marketing","support"],
+        mobileQuickAccess: 2,
       },
       {
         label: "Intake",
@@ -65,12 +71,14 @@ export const NAV_CONFIG: NavGroup[] = [
         href:  "/customers",
         icon:  "user-check",
         roles: ["super_admin","admin","sales","operations","support"],
+        mobileQuickAccess: 4,
       },
       {
         label: "Bookings",
         href:  "/bookings",
         icon:  "calendar-check",
         roles: ["super_admin","admin","sales","operations","finance","support"],
+        mobileQuickAccess: 3,
       },
       {
         label: "Quotations",
