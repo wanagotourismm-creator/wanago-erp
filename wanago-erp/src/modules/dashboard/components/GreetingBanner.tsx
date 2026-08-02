@@ -28,9 +28,38 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
   const clock    = useClock();
   const name     = user?.displayName ?? "there";
   const quote    = QUOTES[new Date().getDay() % QUOTES.length];
+  const hasNudges = newLeads > 0 || followUpCount > 0;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-primary px-7 py-6 text-white shadow-md">
+    <>
+      {/* Mobile — identity already lives in MobileTopBar's avatar, so this
+          drops the decorative hero entirely and shows only the actionable
+          nudge chips as a slim inline strip. Renders nothing if there's
+          nothing actionable. */}
+      {hasNudges && (
+        <div className="flex flex-wrap gap-2 lg:hidden">
+          {newLeads > 0 && (
+            <Link
+              href="/leads"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors active:scale-95"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              {newLeads} active lead{newLeads > 1 ? "s" : ""}
+            </Link>
+          )}
+          {followUpCount > 0 && (
+            <Link
+              href="/leads?stage=follow_up"
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors active:scale-95 dark:bg-amber-900/30 dark:text-amber-400"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              {followUpCount} follow-up pending
+            </Link>
+          )}
+        </div>
+      )}
+
+    <div className="relative hidden overflow-hidden rounded-2xl bg-primary px-7 py-6 text-white shadow-md lg:block">
       {/* Background decorations */}
       <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/5" />
       <div className="absolute right-32 -bottom-8 h-32 w-32 rounded-full bg-white/5" />
@@ -94,5 +123,6 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
 
       </div>
     </div>
+    </>
   );
 }

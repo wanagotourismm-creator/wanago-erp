@@ -13,7 +13,7 @@ type Props = {
 
 export function StatCard({ label, value, sub, featured = false, href, tourId }: Props) {
   const className = cn(
-    "relative block rounded-2xl p-5 transition-all duration-200",
+    "relative block rounded-2xl p-4 transition-all duration-200 lg:p-5",
     href && "hover:-translate-y-0.5 hover:shadow-lg cursor-pointer",
     featured
       ? "bg-primary text-white shadow-md"
@@ -22,7 +22,7 @@ export function StatCard({ label, value, sub, featured = false, href, tourId }: 
 
   const content = (
     <>
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-3 lg:mb-4">
         <p className={cn(
           "text-sm font-medium",
           featured ? "text-white/70" : "text-muted-foreground"
@@ -42,7 +42,7 @@ export function StatCard({ label, value, sub, featured = false, href, tourId }: 
       </div>
 
       <p className={cn(
-        "text-3xl font-bold tracking-tight",
+        "stat-figure",
         featured ? "text-white" : "text-foreground"
       )}>
         {value}
