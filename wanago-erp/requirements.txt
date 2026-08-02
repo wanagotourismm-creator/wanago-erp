@@ -1,2 +1,7 @@
 numpy==1.26.4
 scikit-learn==1.4.2
+
+# api/ai/assistant.py — the AI Employee brain
+firebase-admin==6.5.0
+pydantic==2.7.4
+requests==2.32.3

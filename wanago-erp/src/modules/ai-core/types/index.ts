@@ -27,6 +27,10 @@ export type AiSettings = {
   groqModel:   string;
   temperature: number;
   maxOutputTokens: number;
+  // Master kill switch for the whole AI Assistant / "AI employee" feature —
+  // set from Admin > AI Employee. When false, /api/ai-assistant refuses all
+  // requests and the chat FAB doesn't render at all, app-wide.
+  aiEmployeeEnabled: boolean;
 };
 
 // One entry per AI-initiated write the user confirmed (or that failed after

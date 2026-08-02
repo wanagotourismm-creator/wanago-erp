@@ -7,6 +7,7 @@ import {
 import { useAIAssistant } from "@/modules/aiassistant/hooks/useAIAssistant";
 import { cn } from "@/lib/utils/helpers";
 import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySettings";
+import { fetchAiSettings } from "@/modules/ai-core/services/ai-settings.service";
 import type { AIChatMessage } from "@/modules/aiassistant/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
 
@@ -98,9 +99,17 @@ export function AIAssistantPanel() {
 
   const [draft, setDraft] = useState("");
   const [speakEnabled, setSpeakEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { settings: company } = useCompanySettings();
   const lastSpokenId = useRef<string | null>(null);
+
+  // Admin > AI Employee master switch — checked once on mount so the FAB
+  // (and everything else) simply doesn't render at all when off, rather
+  // than rendering and then erroring on the first message.
+  useEffect(() => {
+    fetchAiSettings().then((s) => setEnabled(s.aiEmployeeEnabled !== false)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -141,6 +150,8 @@ export function AIAssistantPanel() {
     }
     await startRecording();
   }
+
+  if (!enabled) return null;
 
   return (
     <>

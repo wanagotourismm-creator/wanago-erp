@@ -12,6 +12,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   groqModel:   "llama-3.3-70b-versatile",
   temperature: 0.2,
   maxOutputTokens: 500,
+  aiEmployeeEnabled: true,
 };
 
 export async function fetchAiSettings(): Promise<AiSettings> {

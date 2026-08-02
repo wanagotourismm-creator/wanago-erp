@@ -1,8 +1,19 @@
 import { auth } from "@/lib/firebase/client";
 import { createLead } from "@/modules/leads/services/lead.service";
 import { createQuotation } from "@/modules/quotations/services/quotation.service";
+import { createBooking, approveBookingAsFinance, approveBookingAsOperations } from "@/modules/bookings/services/booking.service";
+import { createInvoice } from "@/modules/invoices/services/invoice.service";
+import { createPayment } from "@/modules/payments/services/payment.service";
+import { approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
+import { updateEmployee } from "@/modules/hrms/employees/services/employee.service";
+import { createCustomer, updateCustomer } from "@/modules/customers/services/customer.service";
 import type { LeadFormData } from "@/modules/leads/types";
 import type { QuotationFormData } from "@/modules/quotations/types";
+import type { BookingFormData } from "@/modules/bookings/types";
+import type { InvoiceFormData } from "@/modules/invoices/types";
+import type { PaymentFormData } from "@/modules/payments/types";
+import type { EmployeeFormData } from "@/modules/hrms/employees/types";
+import type { CustomerFormData } from "@/modules/customers/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
 
 export type AssistantTurn = { role: "user" | "assistant"; content: string };
@@ -42,10 +53,14 @@ export async function askAssistant(question: string, history: AssistantTurn[], l
 export type ConfirmActionResult = { ok: true; docId: string } | { ok: false; error: string };
 
 // Executes an AI-proposed write via the exact same service functions the
-// manual forms use (createLead/createQuotation), preserving identical
-// firestore.rules authorization and business logic. autoSend is always
-// forced false for AI-created quotations — no customer-facing side effect
-// from an AI action. Logs the outcome (best-effort) for audit.
+// manual forms use, preserving identical firestore.rules authorization and
+// business logic (ref-number generation, GST math, approval transactions,
+// leave entitlement checks, notifications) — the AI (Python or TS) only
+// ever proposes; this dispatch table is the one place a proposal turns into
+// a real write, always under the confirming user's own Firebase session.
+// autoSend is always forced false for AI-created quotations — no
+// customer-facing side effect from an AI action. Logs the outcome
+// (best-effort) for audit.
 export async function confirmProposedAction(tool: string, args: unknown, summary: string): Promise<ConfirmActionResult> {
   const uid = auth.currentUser?.uid;
   if (!uid) return { ok: false, error: "Please sign in to confirm this action." };
@@ -56,16 +71,87 @@ export async function confirmProposedAction(tool: string, args: unknown, summary
   let errorMessage: string | undefined;
 
   try {
-    if (tool === "createLead") {
-      const lead = await createLead(args as LeadFormData, uid);
-      resultCollection = "leads";
-      resultDocId = lead.id;
-    } else if (tool === "createQuotation") {
-      const quotation = await createQuotation(args as QuotationFormData, uid, { autoSend: false });
-      resultCollection = "quotations";
-      resultDocId = quotation.id;
-    } else {
-      throw new Error(`Unknown action tool: ${tool}`);
+    switch (tool) {
+      case "createLead": {
+        const lead = await createLead(args as LeadFormData, uid);
+        resultCollection = "leads";
+        resultDocId = lead.id;
+        break;
+      }
+      case "createQuotation": {
+        const quotation = await createQuotation(args as QuotationFormData, uid, { autoSend: false });
+        resultCollection = "quotations";
+        resultDocId = quotation.id;
+        break;
+      }
+      case "createBooking": {
+        const booking = await createBooking(args as BookingFormData, uid);
+        resultCollection = "bookings";
+        resultDocId = booking.id;
+        break;
+      }
+      case "approveBookingFinance": {
+        const { bookingId, paymentVerification } = args as { bookingId: string; paymentVerification?: "full" | "partial" };
+        await approveBookingAsFinance(bookingId, uid, paymentVerification ?? "full");
+        resultCollection = "bookings";
+        resultDocId = bookingId;
+        break;
+      }
+      case "approveBookingOperations": {
+        const { bookingId, profitAmount } = args as { bookingId: string; profitAmount: number };
+        await approveBookingAsOperations(bookingId, uid, profitAmount);
+        resultCollection = "bookings";
+        resultDocId = bookingId;
+        break;
+      }
+      case "createInvoice": {
+        const invoice = await createInvoice(args as InvoiceFormData, uid);
+        resultCollection = "invoices";
+        resultDocId = invoice.id;
+        break;
+      }
+      case "recordPayment": {
+        const payment = await createPayment(args as PaymentFormData, uid);
+        resultCollection = "payments";
+        resultDocId = payment.id;
+        break;
+      }
+      case "approveLeaveRequest": {
+        const { leaveRequestId, comments } = args as { leaveRequestId: string; comments?: string };
+        await approveLeaveRequest(leaveRequestId, uid, { comments: comments ?? "" });
+        resultCollection = "hrmsLeaves";
+        resultDocId = leaveRequestId;
+        break;
+      }
+      case "rejectLeaveRequest": {
+        const { leaveRequestId, comments } = args as { leaveRequestId: string; comments?: string };
+        await rejectLeaveRequest(leaveRequestId, uid, { comments: comments ?? "" });
+        resultCollection = "hrmsLeaves";
+        resultDocId = leaveRequestId;
+        break;
+      }
+      case "updateEmployeeRecord": {
+        const { employeeId, ...patch } = args as { employeeId: string } & Partial<EmployeeFormData>;
+        await updateEmployee(employeeId, patch);
+        resultCollection = "hrmsEmployees";
+        resultDocId = employeeId;
+        break;
+      }
+      case "createCustomer": {
+        const customer = await createCustomer(args as CustomerFormData, uid);
+        resultCollection = "customers";
+        resultDocId = customer.id;
+        break;
+      }
+      case "updateCustomer": {
+        const { customerId, ...patch } = args as { customerId: string } & Partial<CustomerFormData>;
+        await updateCustomer(customerId, patch);
+        resultCollection = "customers";
+        resultDocId = customerId;
+        break;
+      }
+      default:
+        throw new Error(`Unknown action tool: ${tool}`);
     }
   } catch (err) {
     outcome = "error";

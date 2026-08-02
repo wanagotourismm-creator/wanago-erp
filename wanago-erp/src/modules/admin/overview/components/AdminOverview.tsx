@@ -14,7 +14,7 @@ import type { ActivityLogEntry } from "@/lib/activity-log";
 export type AdminTabKey =
   | "users" | "offices" | "activity" | "settings" | "permissions" | "security" | "integrations"
   | "export" | "announcements" | "holidays" | "assets" | "tickets" | "ticket-sla" | "goals" | "health" | "trash" | "explorer"
-  | "helpcenter" | "whatsapp-templates";
+  | "helpcenter" | "whatsapp-templates" | "ai-employee";
 
 type Props = {
   users:          UserProfile[];

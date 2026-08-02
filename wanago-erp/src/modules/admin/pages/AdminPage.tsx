@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
   Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound, BookOpen,
-  MessageCircle, Lock, Timer,
+  MessageCircle, Lock, Timer, Bot,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -35,6 +35,8 @@ import { TicketsPanel } from "@/modules/tickets/components/TicketsPanel";
 import { TicketSlaPolicyForm } from "@/modules/tickets/components/TicketSlaPolicyForm";
 import { GoalsPanel } from "@/modules/goals/components/GoalsPanel";
 import { IntegrationsPanel } from "@/modules/admin/integrations/components/IntegrationsPanel";
+import { AiEmployeePanel } from "@/modules/admin/ai-employee/components/AiEmployeePanel";
+import { useAiEmployeeSettings } from "@/modules/admin/ai-employee/hooks/useAiEmployeeSettings";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
 import { UsagePanel } from "@/modules/admin/usage/components/UsagePanel";
 import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
@@ -70,6 +72,7 @@ export function AdminPage() {
   const { settings, loading: settingsLoading, saving: settingsSaving, save: saveSettings } = useCompanySettings();
   const { map: permissionMap, loading: permissionsLoading, saving: permissionsSaving, save: savePermissions } = useRolePermissions();
   const { settings: securitySettings, loading: securityLoading, saving: securitySaving, save: saveSecurity } = useSecuritySettings();
+  const { settings: aiSettings, loading: aiSettingsLoading, saving: aiSettingsSaving, save: saveAiSettings } = useAiEmployeeSettings();
   const { entries: trashEntries } = useTrash();
   const { collections: healthCollections } = useSystemHealth();
 
@@ -165,6 +168,7 @@ export function AdminPage() {
         isSuperAdmin       && { key: "permissions",  label: "Roles & Permissions", icon: ShieldCheck },
         isSuperAdmin       && { key: "security",     label: "Security",           icon: Lock },
         isSuperAdmin       && { key: "integrations", label: "Integrations",       icon: KeyRound },
+        isSuperAdmin       && { key: "ai-employee",  label: "AI Employee",        icon: Bot },
       ].filter(Boolean) as HrNavGroup["items"],
     },
     {
@@ -291,6 +295,10 @@ export function AdminPage() {
         )}
 
         {tab === "integrations" && isSuperAdmin && <IntegrationsPanel />}
+
+        {tab === "ai-employee" && isSuperAdmin && !aiSettingsLoading && (
+          <AiEmployeePanel settings={aiSettings} saving={aiSettingsSaving} onSave={saveAiSettings} />
+        )}
 
         {tab === "export" && <DataExportPanel />}
 

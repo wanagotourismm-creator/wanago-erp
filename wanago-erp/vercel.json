@@ -5,7 +5,8 @@
   "installCommand": "npm install",
   "regions": ["bom1"],
   "functions": {
-    "api/ml/forecast.py": { "maxDuration": 30 }
+    "api/ml/forecast.py": { "maxDuration": 30 },
+    "api/ai/assistant.py": { "maxDuration": 60 }
   },
   "crons": [
     { "path": "/api/cron/daily-reminders",    "schedule": "30 3 * * *" },
