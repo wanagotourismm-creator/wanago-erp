@@ -1,8 +1,9 @@
 "use client";
 
-import { Edit2, Power, Trash2 } from "lucide-react";
+import { Edit2, Pencil, Power, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { initials, cn } from "@/lib/utils/helpers";
 import { SYSTEM_ROLE_LABELS, TEAM_ROLE_LABELS } from "@/lib/constants";
 import type { UserProfile } from "@/modules/auth/types";
@@ -43,7 +44,9 @@ export function UsersTable({ users, loading, selected, onSelect, onView, onEdit,
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    {/* Desktop table */}
+    <div className="hidden overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:block">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -145,5 +148,77 @@ export function UsersTable({ users, loading, selected, onSelect, onView, onEdit,
         </table>
       </div>
     </div>
+
+    {/* Mobile card list — swipe left for Edit/Activate-Deactivate/Delete */}
+    <div className="lg:hidden space-y-2.5">
+      {users.map((u) => {
+        const actions: SwipeAction[] = [
+          {
+            key:       "edit",
+            icon:      <Pencil size={16} />,
+            label:     "Edit",
+            onClick:   () => onEdit(u),
+            className: "bg-blue-600",
+          },
+          {
+            key:       "toggle",
+            icon:      <Power size={16} />,
+            label:     u.isActive ? "Deactivate" : "Activate",
+            onClick:   () => onToggle(u),
+            className: u.isActive ? "bg-amber-600" : "bg-green-600",
+          },
+          ...(onDelete ? [{
+            key:       "delete",
+            icon:      <Trash2 size={16} />,
+            label:     "Delete",
+            onClick:   () => onDelete(u),
+            className: "bg-red-600",
+          }] : []),
+        ];
+
+        return (
+          <SwipeableRow
+            key={u.uid}
+            actions={actions}
+            onTap={() => onView(u)}
+            className="rounded-xl border border-border"
+          >
+            <div className={cn("card-compact", selected.includes(u.uid) && "bg-primary/5")}>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 flex-shrink-0 rounded border-input cursor-pointer"
+                  checked={selected.includes(u.uid)}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => toggleOne(u.uid)}
+                />
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {initials(u.displayName)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate font-medium text-foreground">{u.displayName}</p>
+                    <span className={cn(
+                      "flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                      u.isActive
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                    )}>
+                      {u.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <p className="truncate text-[11px] text-muted-foreground">{u.email}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
+                    <span className="text-xs text-foreground">{SYSTEM_ROLE_LABELS[u.systemRole] ?? u.systemRole}</span>
+                    <span className="text-[11px] text-muted-foreground">{u.officeName}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Banknote, Trash2, Edit2, Download, Loader2 } from "lucide-react";
+import { CheckCircle2, Banknote, Trash2, Edit2, Pencil, Download, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { initials, formatCurrency } from "@/lib/utils/helpers";
 import { PayrollStatusBadge, MONTH_LABELS } from "@/modules/hrms/payroll/components/PayrollBadges";
 import { downloadPayslip } from "@/modules/hrms/payroll/services/payslip.service";
@@ -36,7 +37,9 @@ export function PayrollTable({ records, loading, canManage, onView, onEdit, onPr
   if (records.length === 0) return <EmptyState title="No payroll records yet" description="Generate payroll for an employee to get started" icon={<span className="text-2xl">💰</span>} />;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    {/* Desktop table */}
+    <div className="hidden overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:block">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -104,5 +107,85 @@ export function PayrollTable({ records, loading, canManage, onView, onEdit, onPr
         </table>
       </div>
     </div>
+
+    {/* Mobile card list — swipe left for Download, plus Process/Pay and Edit/Delete when managing */}
+    <div className="lg:hidden space-y-2.5">
+      {records.map((r) => {
+        const actions: SwipeAction[] = [
+          {
+            key:       "download",
+            icon:      downloadingId === r.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />,
+            label:     "Payslip",
+            onClick:   () => handleDownload(r),
+            className: "bg-slate-600",
+          },
+          ...(canManage && r.payrollStatus === "draft" ? [{
+            key:       "process",
+            icon:      <CheckCircle2 size={16} />,
+            label:     "Process",
+            onClick:   () => onProcess(r),
+            className: "bg-amber-600",
+          }] : []),
+          ...(canManage && r.payrollStatus === "processed" ? [{
+            key:       "pay",
+            icon:      <Banknote size={16} />,
+            label:     "Pay",
+            onClick:   () => onPay(r),
+            className: "bg-green-600",
+          }] : []),
+          ...(canManage ? [
+            {
+              key:       "edit",
+              icon:      <Pencil size={16} />,
+              label:     "Edit",
+              onClick:   () => onEdit(r),
+              className: "bg-blue-600",
+            },
+            {
+              key:       "delete",
+              icon:      <Trash2 size={16} />,
+              label:     "Delete",
+              onClick:   () => onDelete(r),
+              className: "bg-red-600",
+            },
+          ] : []),
+        ];
+
+        return (
+          <SwipeableRow
+            key={r.id}
+            actions={actions}
+            onTap={() => onView(r)}
+            className="rounded-xl border border-border"
+          >
+            <div className="card-compact">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {initials(r.employeeName)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{r.employeeName}</p>
+                    <p className="text-[11px] text-muted-foreground">{MONTH_LABELS[r.month]} {r.year}</p>
+                  </div>
+                </div>
+                <p className="flex-shrink-0 text-sm font-bold tabular-nums text-foreground">
+                  {formatCurrency(r.netSalary)}
+                </p>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
+                <span className="text-xs text-muted-foreground">
+                  Gross {formatCurrency(r.grossSalary)}
+                  {r.deductions > 0 && <span className="text-destructive"> · -{formatCurrency(r.deductions)}</span>}
+                </span>
+                <PayrollStatusBadge status={r.payrollStatus} />
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }
