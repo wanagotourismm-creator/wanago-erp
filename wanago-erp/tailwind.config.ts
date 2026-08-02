@@ -85,6 +85,21 @@ const config: Config = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      // Tighter line-heights than Tailwind's defaults, matching the existing
+      // 14px body base — denser, more numbers-forward rhythm for stat tiles
+      // and list rows (fintech-app density) without changing the base size.
+      fontSize: {
+        xs:    ["11px",   { lineHeight: "15px" }],
+        sm:    ["12.5px", { lineHeight: "17px" }],
+        base:  ["14px",   { lineHeight: "19px" }],
+        lg:    ["15.5px", { lineHeight: "21px" }],
+        xl:    ["17px",   { lineHeight: "23px" }],
+        "2xl": ["19px",   { lineHeight: "24px" }],
+        "3xl": ["23px",   { lineHeight: "28px" }],
+      },
+      spacing: {
+        touch: "2.75rem", // 44px — minimum comfortable tap target
+      },
       keyframes: {
         shimmer: {
           "0%":   { backgroundPosition: "-1000px 0" },
@@ -114,6 +129,7 @@ const config: Config = {
         "card-hover": "0 4px 12px 0 rgb(0 0 0 / 0.12)",
         sidebar: "1px 0 0 0 hsl(var(--border))",
         nav: "0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.06)",
+        "nav-bottom": "0 -1px 8px 0 rgb(0 0 0 / 0.04), 0 -1px 2px -1px rgb(0 0 0 / 0.03)",
       },
     },
   },

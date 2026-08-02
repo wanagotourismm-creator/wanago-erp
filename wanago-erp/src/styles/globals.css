@@ -56,6 +56,7 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-size: 14px;
+    line-height: 1.45;
   }
 
   /* ── Global focus ring — always theme colour ── */
@@ -110,6 +111,12 @@
   }
 
   .page-enter { animation: fadeIn 0.2s ease-out; }
+
+  /* "Big number" convention — stat/currency headline figures. */
+  .stat-figure { @apply text-3xl font-bold tracking-tight tabular-nums; }
+  /* Formalizes the mobile list-card padding used ad hoc across table
+     mobile-card branches, so future ones stay visually consistent. */
+  .card-compact { @apply rounded-xl p-3 bg-card; }
 
   .fluid-card { @apply transition-all duration-200; }
   .fluid-card:hover { @apply shadow-card-hover -translate-y-0.5; }
