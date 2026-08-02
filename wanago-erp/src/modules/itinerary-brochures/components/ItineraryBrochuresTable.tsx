@@ -122,7 +122,7 @@ export function ItineraryBrochuresTable({ brochures, loading, onView, onEdit, on
         ];
         return (
           <SwipeableRow key={brochure.id} actions={actions} onTap={() => onView(brochure)} className="rounded-xl border border-border">
-            <div className="rounded-xl bg-card p-3">
+            <div className="card-compact">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{brochure.destination}</p>

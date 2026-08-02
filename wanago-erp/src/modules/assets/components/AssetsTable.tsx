@@ -70,7 +70,7 @@ export function AssetsTable({ assets, loading, onView, onEdit, onDelete }: Props
         ];
         return (
           <SwipeableRow key={a.id} actions={actions} onTap={() => onView(a)} className="rounded-xl border border-border">
-            <div className="rounded-xl bg-card p-3">
+            <div className="card-compact">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{a.name}</p>

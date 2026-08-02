@@ -216,7 +216,7 @@ export function BookingsTable({
               onTap={() => onView(b)}
               className="rounded-xl border border-border"
             >
-              <div className="rounded-xl bg-card p-3">
+              <div className="card-compact">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">

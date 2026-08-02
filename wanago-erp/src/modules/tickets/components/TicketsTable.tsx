@@ -82,7 +82,7 @@ export function TicketsTable({ tickets, loading, canDelete, slaPolicy, onView, o
         ];
         return (
           <SwipeableRow key={t.id} actions={actions} onTap={() => onView(t)} className="rounded-xl border border-border">
-            <div className="rounded-xl bg-card p-3">
+            <div className="card-compact">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{t.title}</p>

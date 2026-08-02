@@ -105,7 +105,7 @@ export function FormsTable({ forms, loading, onEdit, onDelete, onTogglePublish, 
           ];
           return (
             <SwipeableRow key={form.id} actions={actions} onTap={() => (form.visibility === "internal" && form.formStatus === "published" ? onFill(form) : onEdit(form))} className="rounded-xl border border-border">
-              <div className="rounded-xl bg-card p-3">
+              <div className="card-compact">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground">{form.title}</p>

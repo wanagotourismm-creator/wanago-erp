@@ -122,7 +122,7 @@ export function ExpensesTable({ expenses, loading, canManage, onView, onEdit, on
         ] : [];
         return (
           <SwipeableRow key={exp.id} actions={actions} onTap={() => onView(exp)} className="rounded-xl border border-border">
-            <div className="rounded-xl bg-card p-3">
+            <div className="card-compact">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{exp.category}</p>
