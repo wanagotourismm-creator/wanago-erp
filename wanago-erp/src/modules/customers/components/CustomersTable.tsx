@@ -38,7 +38,7 @@ export function CustomersTable({ customers, loading, canManage, canDelete, segme
   return (
     <>
       {/* Desktop table — unchanged */}
-      <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -159,7 +159,7 @@ export function CustomersTable({ customers, loading, canManage, canDelete, segme
       </div>
 
       {/* Mobile card list — swipe left to reveal Call/Edit/Delete */}
-      <div className="sm:hidden space-y-2">
+      <div className="lg:hidden space-y-2">
         {customers.map((customer) => {
           const actions: SwipeAction[] = [];
 

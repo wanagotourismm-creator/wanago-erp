@@ -55,7 +55,7 @@ export function LeadsTable({ leads, loading, canDelete, onView, onEdit, onDelete
   return (
     <>
       {/* Desktop table — unchanged */}
-      <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -196,7 +196,7 @@ export function LeadsTable({ leads, loading, canDelete, onView, onEdit, onDelete
       </div>
 
       {/* Mobile card list — swipe left to reveal Call/Edit/Delete */}
-      <div className="sm:hidden space-y-2.5">
+      <div className="lg:hidden space-y-2.5">
         {leads.map((lead) => {
           const actions: SwipeAction[] = [
             ...(lead.phone ? [{
@@ -236,43 +236,47 @@ export function LeadsTable({ leads, loading, canDelete, onView, onEdit, onDelete
               onTap={() => onView(lead)}
               className="rounded-xl border border-border"
             >
-              <div className="rounded-xl bg-card p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                      {initials(lead.name)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+              <div className="card-compact">
+                {/* Transaction-row layout: identity left, the figure that
+                    matters most (budget) bold and right-aligned — denser,
+                    numbers-forward reading order than the old stacked cards. */}
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {initials(lead.name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
                         <p className="truncate font-medium text-foreground">{lead.name}</p>
                         {lead.matchedCustomerId && <span title="Returning customer">🔁</span>}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{lead.refNumber}</p>
+                      <p className="flex-shrink-0 text-sm font-bold tabular-nums text-foreground">
+                        {lead.budget ? formatCurrency(lead.budget) : "—"}
+                      </p>
+                    </div>
+
+                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                      <p className="truncate text-xs text-muted-foreground">
+                        {lead.destination} · {lead.pax ? `${lead.pax} pax` : "Pax TBD"}
+                      </p>
+                      <StageBadge stage={lead.stage} />
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <PhoneLink phone={lead.phone} iconSize={12} className="text-xs text-muted-foreground" />
+                        <span className="truncate text-[11px] text-muted-foreground">
+                          {lead.agentName || <span className="italic">Unassigned</span>}
+                        </span>
+                      </div>
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <PriorityBadge priority={lead.priority} />
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                          {formatDate(lead.createdAt)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <PriorityBadge priority={lead.priority} />
-                </div>
-
-                <div className="mt-2.5 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{lead.destination}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {lead.pax ? `${lead.pax} pax` : "Pax TBD"} {lead.budget ? `· ${formatCurrency(lead.budget)}` : ""}
-                    </p>
-                  </div>
-                  <StageBadge stage={lead.stage} />
-                </div>
-
-                <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
-                  <PhoneLink phone={lead.phone} iconSize={12} className="text-xs text-muted-foreground" />
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                    {formatDate(lead.createdAt)}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <span className="truncate text-[11px] text-muted-foreground">
-                    Agent: {lead.agentName || <span className="italic">Unassigned</span>}
-                  </span>
                 </div>
               </div>
             </SwipeableRow>

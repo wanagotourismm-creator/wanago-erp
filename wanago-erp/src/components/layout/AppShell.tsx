@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
+import { MobileTopBar } from "@/components/layout/MobileTopBar";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { MobileMenuSheet } from "@/components/layout/MobileMenuSheet";
 import { OfflineBanner } from "@/components/layout/OfflineBanner";
@@ -56,13 +57,20 @@ export function AppShell({ children, requiredPage, fullBleed }: Props) {
     <RouteGuard requiredPage={requiredPage}>
       <div className="flex h-screen w-full overflow-hidden bg-background">
 
-        {/* Sidebar — desktop only (lg+) */}
+        {/* Sidebar — desktop only (lg+). `lg` (1024px) is the one shell-level
+            breakpoint for "is the touch-first mobile/tablet layout active" —
+            used here, by MobileBottomNav/MobileMenuSheet below, and by every
+            dual-render *Table.tsx's desktop-table/mobile-card split. Keep new
+            shell-level decisions on `lg`; reserve `sm`/`md` for finer in-page
+            tweaks only, so tablet widths never get desktop table markup
+            inside this touch-first shell. */}
         <Sidebar />
 
         {/* Main content area */}
         <div className="flex flex-1 flex-col overflow-hidden">
           <OfflineBanner />
           <TopNav />
+          <MobileTopBar />
           <main className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden",
             "scrollbar-thin"

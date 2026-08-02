@@ -31,7 +31,7 @@ export function ItinerariesTable({ itineraries, loading, onView, onEdit, onDelet
 
   return (
     <>
-    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -113,7 +113,7 @@ export function ItinerariesTable({ itineraries, loading, onView, onEdit, onDelet
       </div>
     </div>
 
-    <div className="sm:hidden space-y-2.5">
+    <div className="lg:hidden space-y-2.5">
       {itineraries.map((itinerary) => {
         const actions: SwipeAction[] = [
           { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(itinerary), className: "bg-primary" },

@@ -31,7 +31,7 @@ export function PaymentsTable({ payments, loading, canManage, onView, onDelete }
 
   return (
     <>
-    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -110,7 +110,7 @@ export function PaymentsTable({ payments, loading, canManage, onView, onDelete }
       </div>
     </div>
 
-    <div className="sm:hidden space-y-2.5">
+    <div className="lg:hidden space-y-2.5">
       {payments.map((p) => {
         const actions: SwipeAction[] = canManage ? [
           { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(p), className: "bg-red-600" },

@@ -34,7 +34,7 @@ export function FormsTable({ forms, loading, onEdit, onDelete, onTogglePublish, 
 
   return (
     <>
-      <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -97,7 +97,7 @@ export function FormsTable({ forms, loading, onEdit, onDelete, onTogglePublish, 
         </div>
       </div>
 
-      <div className="sm:hidden space-y-2.5">
+      <div className="lg:hidden space-y-2.5">
         {forms.map((form) => {
           const actions: SwipeAction[] = [
             { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(form), className: "bg-primary" },

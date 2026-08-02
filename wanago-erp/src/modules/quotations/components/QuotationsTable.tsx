@@ -42,7 +42,7 @@ export function QuotationsTable({ quotations, loading, canEdit, canDelete, onVie
   return (
     <>
     {/* Desktop table */}
-    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -134,7 +134,7 @@ export function QuotationsTable({ quotations, loading, canEdit, canDelete, onVie
     </div>
 
     {/* Mobile card list */}
-    <div className="sm:hidden space-y-2.5">
+    <div className="lg:hidden space-y-2.5">
       {quotations.map((q) => {
         const actions: SwipeAction[] = [
           ...(canEdit ? [{ key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(q), className: "bg-blue-600" }] : []),

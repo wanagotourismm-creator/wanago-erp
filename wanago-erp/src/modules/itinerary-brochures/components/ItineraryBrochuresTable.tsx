@@ -32,7 +32,7 @@ export function ItineraryBrochuresTable({ brochures, loading, onView, onEdit, on
 
   return (
     <>
-    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -113,7 +113,7 @@ export function ItineraryBrochuresTable({ brochures, loading, onView, onEdit, on
       </div>
     </div>
 
-    <div className="sm:hidden space-y-2.5">
+    <div className="lg:hidden space-y-2.5">
       {brochures.map((brochure) => {
         const actions: SwipeAction[] = [
           { key: "duplicate", icon: <Copy size={16} />, label: "Copy", onClick: () => onDuplicate(brochure), className: "bg-muted-foreground" },

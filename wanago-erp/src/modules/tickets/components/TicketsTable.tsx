@@ -27,7 +27,7 @@ export function TicketsTable({ tickets, loading, canDelete, slaPolicy, onView, o
 
   return (
     <>
-    <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -74,7 +74,7 @@ export function TicketsTable({ tickets, loading, canDelete, slaPolicy, onView, o
       </div>
     </div>
 
-    <div className="sm:hidden space-y-2.5">
+    <div className="lg:hidden space-y-2.5">
       {tickets.map((t) => {
         const actions: SwipeAction[] = [
           { key: "assign", icon: <UserCheck size={16} />, label: "Assign", onClick: () => onAssignToMe(t), className: "bg-primary" },
