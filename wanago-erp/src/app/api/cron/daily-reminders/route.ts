@@ -4,8 +4,10 @@ import { notifyUserServer, sendInvoicePaymentReminderEmail } from "@/lib/server/
 import { sendWhatsAppSmart } from "@/lib/whatsapp/template-router";
 import { fetchUsersByPermission } from "@/lib/notify-recipients";
 import { computeGoingColdCustomers, computeBookingAnomalies, getQuotationRisk } from "@/modules/dashboard/services/insights.service";
+import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
 import { LEAD_STAGES, INVOICE_STATUS, FIRESTORE_COLLECTIONS, WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
+import type { TicketSlaPolicy } from "@/modules/tickets/services/ticket-sla-policy.service";
 
 export const runtime = "nodejs";
 
@@ -44,6 +46,22 @@ type InvoiceDoc = {
   customerId: string; customerPhone: string; dueDate: string | null;
 };
 type CustomerDoc = { id: string; fullName: string; assignedTo: string | null; email: string | null };
+type TicketDoc = {
+  id: string; refNumber: string; title: string; priority: "low" | "medium" | "high" | "urgent";
+  ticketStatus: "open" | "in_progress" | "resolved" | "closed";
+  assignedToId: string | null; createdAt: unknown; firstRespondedAt: unknown; resolvedAt: unknown;
+};
+
+// Small, duplicated on purpose (matches this cron's existing convention —
+// see STALE_DAYS above) rather than importing DEFAULT_TICKET_SLA_POLICY as
+// a value from ticket-sla-policy.service.ts, which would pull in the
+// client Firestore SDK (that file's fetch/update functions use `db` from
+// lib/firebase/client) into a route that must stay Admin-SDK-only, per
+// this file's own comment on why every read here uses getAdminDb().
+const DEFAULT_TICKET_SLA_HOURS: TicketSlaPolicy = {
+  responseHours:   { urgent: 1, high: 4,  medium: 24, low: 48  },
+  resolutionHours: { urgent: 4, high: 24, medium: 72, low: 168 },
+};
 
 // Verified daily by Vercel Cron (see vercel.json) — a bearer-token check is
 // this route's only defense, since it has no other auth context. Reads
@@ -62,7 +80,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Admin SDK not configured" }, { status: 500 });
   }
 
-  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap] = await Promise.all([
+  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap, ticketsSnap, ticketSlaPolicySnap] = await Promise.all([
     db.collection(FIRESTORE_COLLECTIONS.LEADS).get(),
     db.collection(FIRESTORE_COLLECTIONS.CALL_LOGS).get(),
     db.collection(FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES).get(),
@@ -71,6 +89,8 @@ export async function GET(req: NextRequest) {
     db.collection(FIRESTORE_COLLECTIONS.INVOICES).where("status", "==", INVOICE_STATUS.OVERDUE).get(),
     db.collection(FIRESTORE_COLLECTIONS.BOOKINGS).get(),
     db.collection(FIRESTORE_COLLECTIONS.CUSTOMERS).get(),
+    db.collection(FIRESTORE_COLLECTIONS.TICKETS).where("ticketStatus", "in", ["open", "in_progress"]).get(),
+    db.collection(FIRESTORE_COLLECTIONS.SETTINGS).doc("ticketSlaPolicy").get(),
   ]);
 
   const leads       = leadsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as LeadDoc);
@@ -81,6 +101,12 @@ export async function GET(req: NextRequest) {
   const overdueInvoices = invoicesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as InvoiceDoc);
   const bookings     = bookingsSnap.docs.map(d => d.data()) as unknown as Booking[];
   const customerById = new Map(customersSnap.docs.map(d => [d.id, ({ id: d.id, ...d.data() }) as CustomerDoc]));
+  const openTickets  = ticketsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as TicketDoc);
+  const ticketSlaPolicyData = ticketSlaPolicySnap.data() as Partial<TicketSlaPolicy> | undefined;
+  const ticketSlaPolicy: TicketSlaPolicy = {
+    responseHours:   { ...DEFAULT_TICKET_SLA_HOURS.responseHours,   ...(ticketSlaPolicyData?.responseHours   ?? {}) },
+    resolutionHours: { ...DEFAULT_TICKET_SLA_HOURS.resolutionHours, ...(ticketSlaPolicyData?.resolutionHours ?? {}) },
+  };
 
   // Most recent call log per lead, used as "last real contact" since
   // Lead.lastContactedAt is never actually written anywhere in the app.
@@ -265,6 +291,39 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ── Ticket SLA breach → notify the assignee (or admins if unassigned) ──
+  // getTicketSlaStatus (ticket-sla.service.ts) is the same shared function
+  // the Tickets table/detail-modal badges use — cron and UI can't drift.
+  // Only fires once per breach, not every day it stays breached: gated on
+  // the due time having fallen within the last 24h (this cron's own
+  // cadence) rather than a persisted "already notified" field.
+  let ticketSlaBreachesNotified = 0;
+  for (const t of openTickets) {
+    const sla = getTicketSlaStatus(t, ticketSlaPolicy, new Date(now));
+    const justBreached: string[] = [];
+    if (sla.response.status === "breached" && now - sla.response.dueAt.getTime() <= DAY_MS) justBreached.push("first response");
+    if (sla.resolution.status === "breached" && now - sla.resolution.dueAt.getTime() <= DAY_MS) justBreached.push("resolution");
+    if (justBreached.length === 0) continue;
+
+    const title = `SLA breached: ${t.refNumber}`;
+    const body = `"${t.title}" (${t.priority} priority) has missed its ${justBreached.join(" and ")} SLA.`;
+    const assigneeEmployee = t.assignedToId ? employeeById.get(t.assignedToId) : null;
+
+    if (assigneeEmployee?.userId) {
+      const user = userById.get(assigneeEmployee.userId);
+      await notifyUserServer({
+        userId: assigneeEmployee.userId, email: user?.email ?? assigneeEmployee.email ?? null,
+        title, body, link: "/admin", category: "followup",
+      });
+    } else {
+      const adminUsers = Array.from(userById.values()).filter(u => u.systemRole === "admin" || u.systemRole === "super_admin");
+      for (const admin of adminUsers) {
+        await notifyUserServer({ userId: admin.id, email: admin.email, title, body, link: "/admin", category: "followup" });
+      }
+    }
+    ticketSlaBreachesNotified++;
+  }
+
   // ── Going-cold customer → notify their assigned agent ───────────────
   let goingColdNotified = 0;
   const goingCold = computeGoingColdCustomers(bookings, 50);
@@ -313,6 +372,7 @@ export async function GET(req: NextRequest) {
     financeApprovalsStuckNotified,
     invoicesOverdueNotified,
     customerPaymentRemindersSent,
+    ticketSlaBreachesNotified,
     goingColdNotified,
     anomaliesNotified,
   });

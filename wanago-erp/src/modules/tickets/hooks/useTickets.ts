@@ -20,7 +20,8 @@ export function useTickets() {
 
   async function setStatus(id: string, status: TicketStatus) {
     try {
-      await updateTicketStatus(id, status);
+      const existing = tickets.find((t) => t.id === id);
+      await updateTicketStatus(id, status, existing?.firstRespondedAt);
       setTickets((p) => p.map((t) => (t.id === id ? { ...t, ticketStatus: status } : t)));
       return { error: null };
     } catch { return { error: "Failed to update ticket" }; }
@@ -29,7 +30,8 @@ export function useTickets() {
   async function assignToMe(id: string) {
     if (!user) return { error: "Not signed in" };
     try {
-      await assignTicket(id, user.uid, user.displayName ?? user.email);
+      const existing = tickets.find((t) => t.id === id);
+      await assignTicket(id, user.uid, user.displayName ?? user.email, existing?.firstRespondedAt);
       setTickets((p) => p.map((t) => (t.id === id ? { ...t, assignedToId: user.uid, assignedToName: user.displayName ?? user.email, ticketStatus: "in_progress" } : t)));
       return { error: null };
     } catch { return { error: "Failed to assign ticket" }; }

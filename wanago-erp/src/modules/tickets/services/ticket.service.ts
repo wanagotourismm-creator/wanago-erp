@@ -24,28 +24,39 @@ export async function createTicket(data: TicketSchema, createdBy: string): Promi
   return repo.create({
     ...data,
     refNumber,
-    ticketStatus:    "open",
-    assignedToId:    null,
-    assignedToName:  null,
-    resolutionNotes: null,
-    resolvedAt:      null,
-    status:          "active",
+    ticketStatus:      "open",
+    assignedToId:      null,
+    assignedToName:    null,
+    resolutionNotes:   null,
+    resolvedAt:        null,
+    firstRespondedAt:  null,
+    status:            "active",
     createdBy,
-    sourceType:      "manual",
-    linkedBookingId: null,
+    sourceType:        "manual",
+    linkedBookingId:   null,
   });
 }
 
-export async function updateTicketStatus(id: string, ticketStatus: TicketStatus): Promise<void> {
+// firstRespondedAt is a proxy for "staff first acknowledged this" (see its
+// own comment on the Ticket type) — stamped the first time a ticket moves
+// out of "open" via either path (a direct status change here, or
+// assignTicket below), and never overwritten afterward so a later
+// reassignment/status change doesn't reset the original response time.
+export async function updateTicketStatus(id: string, ticketStatus: TicketStatus, currentFirstRespondedAt?: Ticket["firstRespondedAt"]): Promise<void> {
   const patch: Partial<Ticket> = { ticketStatus };
   if (ticketStatus === "resolved" || ticketStatus === "closed") {
     patch.resolvedAt = serverTimestamp();
   }
+  if (ticketStatus !== "open" && !currentFirstRespondedAt) {
+    patch.firstRespondedAt = serverTimestamp();
+  }
   return repo.update(id, patch);
 }
 
-export async function assignTicket(id: string, assignedToId: string, assignedToName: string): Promise<void> {
-  return repo.update(id, { assignedToId, assignedToName, ticketStatus: "in_progress" });
+export async function assignTicket(id: string, assignedToId: string, assignedToName: string, currentFirstRespondedAt?: Ticket["firstRespondedAt"]): Promise<void> {
+  const patch: Partial<Ticket> = { assignedToId, assignedToName, ticketStatus: "in_progress" };
+  if (!currentFirstRespondedAt) patch.firstRespondedAt = serverTimestamp();
+  return repo.update(id, patch);
 }
 
 export async function deleteTicket(id: string): Promise<void> {

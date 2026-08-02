@@ -21,6 +21,15 @@ export type Ticket = FirestoreRecord & {
   resolutionNotes: string | null;
   resolvedAt:      Timestamp | Date | string | FieldValue | null;
 
+  // Stamped once, the first time a ticket moves out of "open" (assignment
+  // or a direct status change) — see ticket.service.ts. This is a proxy for
+  // "first response," not a literal reply: no comment/reply thread exists
+  // anywhere in this module, so "staff first acknowledged it" is the most
+  // honest thing this field can mean. Never overwritten once set, so a
+  // later reassignment doesn't reset the original response time. Used by
+  // ticket-sla.service.ts's response-SLA clock.
+  firstRespondedAt: Timestamp | Date | string | FieldValue | null;
+
   // Set by the Review & NPS engine when a detractor response auto-creates
   // this ticket — lets the UI show "why does this ticket exist" and link
   // back to the booking, without which a "system"-reported ticket would

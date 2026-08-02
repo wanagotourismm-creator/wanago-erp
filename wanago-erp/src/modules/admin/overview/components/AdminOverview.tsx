@@ -13,7 +13,7 @@ import type { ActivityLogEntry } from "@/lib/activity-log";
 
 export type AdminTabKey =
   | "users" | "offices" | "activity" | "settings" | "permissions" | "security" | "integrations"
-  | "export" | "announcements" | "holidays" | "assets" | "tickets" | "goals" | "health" | "trash" | "explorer"
+  | "export" | "announcements" | "holidays" | "assets" | "tickets" | "ticket-sla" | "goals" | "health" | "trash" | "explorer"
   | "helpcenter" | "whatsapp-templates";
 
 type Props = {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
   Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound, BookOpen,
-  MessageCircle, Lock,
+  MessageCircle, Lock, Timer,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -32,6 +32,7 @@ import { WhatsAppTemplatesPanel } from "@/modules/admin/whatsapp-templates/compo
 import { AssetsPanel } from "@/modules/assets/components/AssetsPanel";
 import { HelpCenterPanel } from "@/modules/helpcenter/components/HelpCenterPanel";
 import { TicketsPanel } from "@/modules/tickets/components/TicketsPanel";
+import { TicketSlaPolicyForm } from "@/modules/tickets/components/TicketSlaPolicyForm";
 import { GoalsPanel } from "@/modules/goals/components/GoalsPanel";
 import { IntegrationsPanel } from "@/modules/admin/integrations/components/IntegrationsPanel";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
@@ -153,6 +154,7 @@ export function AdminPage() {
       items: [
         { key: "assets",  label: "Assets",     icon: Laptop },
         { key: "tickets", label: "IT Support", icon: Ticket },
+        { key: "ticket-sla", label: "Ticket SLA Policy", icon: Timer },
       ],
     },
     { label: "Strategy", items: [{ key: "goals", label: "Company Goals", icon: Target }] },
@@ -303,6 +305,7 @@ export function AdminPage() {
         {tab === "assets" && <AssetsPanel />}
 
         {tab === "tickets" && <TicketsPanel />}
+        {tab === "ticket-sla" && <TicketSlaPolicyForm />}
 
         {tab === "goals" && <GoalsPanel />}
 

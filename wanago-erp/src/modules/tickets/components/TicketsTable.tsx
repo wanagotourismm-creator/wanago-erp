@@ -5,20 +5,23 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate } from "@/lib/utils/helpers";
-import { TicketPriorityBadge, TicketStatusBadge, TICKET_STATUS_LABELS } from "@/modules/tickets/components/TicketBadges";
+import { TicketPriorityBadge, TicketStatusBadge, TicketSlaBadge, TICKET_STATUS_LABELS } from "@/modules/tickets/components/TicketBadges";
+import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
+import type { TicketSlaPolicy } from "@/modules/tickets/services/ticket-sla-policy.service";
 import type { Ticket, TicketStatus } from "@/modules/tickets/types";
 
 type Props = {
   tickets: Ticket[];
   loading: boolean;
   canDelete: boolean;
+  slaPolicy: TicketSlaPolicy;
   onView: (t: Ticket) => void;
   onSetStatus: (t: Ticket, status: TicketStatus) => void;
   onAssignToMe: (t: Ticket) => void;
   onDelete: (t: Ticket) => void;
 };
 
-export function TicketsTable({ tickets, loading, canDelete, onView, onSetStatus, onAssignToMe, onDelete }: Props) {
+export function TicketsTable({ tickets, loading, canDelete, slaPolicy, onView, onSetStatus, onAssignToMe, onDelete }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
   if (tickets.length === 0) return <EmptyState title="No tickets reported" description="Issues employees report will show up here" icon={<span className="text-2xl">🎫</span>} />;
 
@@ -29,7 +32,7 @@ export function TicketsTable({ tickets, loading, canDelete, onView, onSetStatus,
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              {["Ticket", "Reported By", "Category", "Priority", "Status", "Assigned To", "Date", ""].map((h) => (
+              {["Ticket", "Reported By", "Category", "Priority", "Status", "SLA", "Assigned To", "Date", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -50,6 +53,9 @@ export function TicketsTable({ tickets, loading, canDelete, onView, onSetStatus,
                     className="rounded-lg border border-border bg-background px-2 py-1 text-xs outline-none hover:border-primary/40">
                     {Object.entries(TICKET_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
+                </td>
+                <td className="px-4 py-3">
+                  <TicketSlaBadge clock={getTicketSlaStatus(t, slaPolicy).resolution} />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{t.assignedToName || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(t.createdAt)}</td>
@@ -85,7 +91,10 @@ export function TicketsTable({ tickets, loading, canDelete, onView, onSetStatus,
                 <TicketPriorityBadge priority={t.priority} />
               </div>
               <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
-                <TicketStatusBadge status={t.ticketStatus} />
+                <div className="flex items-center gap-1.5">
+                  <TicketStatusBadge status={t.ticketStatus} />
+                  <TicketSlaBadge clock={getTicketSlaStatus(t, slaPolicy).resolution} />
+                </div>
                 <span className="text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(t.createdAt)}</span>
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground">

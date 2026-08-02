@@ -16,6 +16,7 @@ import { ticketSchema } from "@/modules/tickets/schemas";
 import { createTicket } from "@/modules/tickets/services/ticket.service";
 import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
+import { fetchTicketSlaPolicy, DEFAULT_TICKET_SLA_POLICY } from "@/modules/tickets/services/ticket-sla-policy.service";
 import type { Employee } from "@/modules/hrms/shared/types";
 import type { Office } from "@/modules/admin/offices/types";
 import type { Ticket } from "@/modules/tickets/types";
@@ -55,10 +56,12 @@ export function TicketsPanel() {
   const [importOpen, setImportOpen] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
+  const [slaPolicy, setSlaPolicy] = useState(DEFAULT_TICKET_SLA_POLICY);
 
   useEffect(() => {
     fetchEmployees().then(setEmployees);
     fetchOffices().then(setOffices);
+    fetchTicketSlaPolicy().then(setSlaPolicy).catch(() => {});
   }, []);
 
   function handleDelete(t: Ticket) {
@@ -190,6 +193,7 @@ export function TicketsPanel() {
         tickets={filtered}
         loading={loading}
         canDelete={canDelete}
+        slaPolicy={slaPolicy}
         onView={setViewingTicket}
         onSetStatus={(t, status) => setStatus(t.id, status)}
         onAssignToMe={(t) => assignToMe(t.id)}
@@ -199,6 +203,7 @@ export function TicketsPanel() {
       <TicketDetailModal
         ticket={viewingTicket ? filtered.find(t => t.id === viewingTicket.id) ?? viewingTicket : null}
         canDelete={canDelete}
+        slaPolicy={slaPolicy}
         onClose={() => setViewingTicket(null)}
         onSetStatus={(t, status) => setStatus(t.id, status)}
         onAssignToMe={(t) => assignToMe(t.id)}
