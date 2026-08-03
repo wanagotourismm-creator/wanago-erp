@@ -247,3 +247,60 @@ class UpdateCustomerArgs(BaseModel):
     city: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
+
+
+# ---- newer read/draft tools ----
+
+class ListSuspiciousAttendanceArgs(BaseModel):
+    employeeId: Optional[str] = None
+    reviewed: Optional[bool] = None
+
+
+class MineTestimonialsArgs(BaseModel):
+    destination: Optional[str] = None
+
+
+class SuggestTicketPriorityArgs(BaseModel):
+    title: str
+    description: str
+
+
+class DraftTicketReplyArgs(BaseModel):
+    refNumberOrId: str
+    context: Optional[str] = None
+
+
+class FlagExpenseAnomaliesArgs(BaseModel):
+    officeId: Optional[str] = None
+
+
+class GetEmployeePerformanceArgs(BaseModel):
+    refNumberOrId: str
+
+
+# ---- itinerary write tool ----
+# createItinerary is a genuine write-tool proposal like createBooking/
+# createQuotation — the top-level orchestrator LLM generates the full
+# day-by-day content itself when it decides to propose this tool (same
+# mechanism already used for every other write tool), no separate drafting
+# sub-call needed. Mirrors src/modules/itineraries/types/index.ts's
+# ItineraryFormData shape.
+
+class ItineraryDayArgs(BaseModel):
+    dayNumber: int
+    title: str
+    description: str
+
+
+class CreateItineraryArgs(BaseModel):
+    title: str
+    destination: str
+    durationDays: int
+    days: List[ItineraryDayArgs]
+    officeId: str
+    officeName: str
+    tripType: Optional[str] = None
+    tagline: Optional[str] = None
+    inclusions: List[str] = []
+    exclusions: List[str] = []
+    notes: Optional[str] = None

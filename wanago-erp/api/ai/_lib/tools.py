@@ -475,6 +475,171 @@ def draft_campaign_message(args: s.DraftCampaignMessageArgs) -> Dict[str, Any]:
     return {"draftText": result["text"]}
 
 
+# ── listSuspiciousAttendance ────────────────────────────────────
+# Reason codes come from src/lib/geo-fraud.ts's SuspicionReason union — kept
+# as a literal copy of SUSPICION_REASON_LABELS from that file rather than an
+# import (TS/Python can't share a module) since it's a small, stable, 3-item
+# enum. If geo-fraud.ts's reasons ever change, update this too.
+SUSPICION_REASON_LABELS = {
+    "accuracy_too_precise": "GPS accuracy was suspiciously exact for a consumer device (possible location spoofing)",
+    "impossible_travel_speed": "Implied travel speed since their last recorded position is physically impossible",
+    "identical_coordinates_repeated": "Reported the exact same coordinates as several recent attempts in a row",
+}
+
+
+def list_suspicious_attendance(args: s.ListSuspiciousAttendanceArgs) -> Dict[str, Any]:
+    wheres = []
+    if args.employeeId: wheres.append(("employeeId", "==", args.employeeId))
+    if args.reviewed is not None: wheres.append(("reviewed", "==", args.reviewed))
+    docs = sort_by_created_at_desc(query_collection("hrmsSuspiciousAttendance", wheres))[:MAX_LIST_RESULTS]
+    return {"attempts": [
+        {
+            "employeeName": d.get("employeeName"), "action": d.get("action"), "officeName": d.get("officeName"),
+            "reviewed": d.get("reviewed"),
+            "reasons": [SUSPICION_REASON_LABELS.get(r, r) for r in (d.get("reasons") or [])],
+        } for d in docs
+    ]}
+
+
+# ── checkInvoiceGstMath ──────────────────────────────────────────
+# Deterministic, not LLM-based — same "rule-based where reliable" stance as
+# lead_score.py and get_pipeline_analytics. Mirrors the exact tax-inclusive
+# formula in src/modules/invoices/components/InvoiceForm.tsx
+# (computedTaxAmount = totalAmount * (taxRate/(100+taxRate))) — the same
+# formula whose earlier bug is why this check exists at all.
+def check_invoice_gst_math(args: s.RefLookupArgs) -> Dict[str, Any]:
+    invoice = find_by_ref_or_id("invoices", args.refNumberOrId)
+    if not invoice:
+        return {"error": "Invoice not found"}
+    total = invoice.get("totalAmount") or 0
+    tax_rate = invoice.get("taxRate")
+    if tax_rate is None:
+        return {"refNumber": invoice.get("refNumber"), "note": "No tax rate set on this invoice - nothing to check."}
+    expected_tax = round(total * (tax_rate / (100 + tax_rate)), 2)
+    stored_tax = invoice.get("taxAmount")
+    stored = round(stored_tax, 2) if stored_tax is not None else None
+    mismatch = stored is None or abs(stored - expected_tax) > 1.0
+    return {
+        "refNumber": invoice.get("refNumber"), "totalAmount": total, "taxRate": tax_rate,
+        "storedTaxAmount": stored, "expectedTaxAmount": expected_tax, "mismatch": mismatch,
+    }
+
+
+# ── mineTestimonials ─────────────────────────────────────────────
+def mine_testimonials(args: s.MineTestimonialsArgs) -> Dict[str, Any]:
+    wheres: List[tuple] = [("category", "==", "promoter")]
+    if args.destination: wheres.append(("destination", "==", args.destination))
+    docs = query_collection("npsResponses", wheres)
+    quotes = [d for d in docs if d.get("comment") and len(d.get("comment", "")) > 15]
+    quotes.sort(key=lambda d: d.get("score", 0), reverse=True)
+    return {"testimonials": [
+        {"customerName": d.get("customerName"), "destination": d.get("destination"),
+         "score": d.get("score"), "quote": d.get("comment")} for d in quotes[:MAX_LIST_RESULTS]
+    ]}
+
+
+# ── suggestTicketPriority ────────────────────────────────────────
+# Free-text suggestion (not a machine-actioned field write) — the assistant
+# relays this to whoever's filing/triaging the ticket, it never sets
+# ticket.priority itself.
+def suggest_ticket_priority(args: s.SuggestTicketPriorityArgs) -> Dict[str, Any]:
+    prompt = (
+        f'A support ticket was filed with title: "{args.title}" and description: "{args.description}".\n'
+        "Suggest a priority (low, medium, high, or urgent) and give a one-sentence reason. "
+        "urgent = blocks someone's work entirely or affects many people right now; "
+        "high = significant impact on one person's ability to work; "
+        "medium = annoying but has a workaround; low = cosmetic/non-blocking."
+    )
+    result = generate_text(feature="ai-employee-ticket-triage", prompt=prompt, created_by="system", max_output_tokens=120)
+    return {"suggestion": result["text"]}
+
+
+def draft_ticket_reply(args: s.DraftTicketReplyArgs) -> Dict[str, Any]:
+    ticket = find_by_ref_or_id("tickets", args.refNumberOrId)
+    if not ticket:
+        return {"draftText": None, "error": "Ticket not found"}
+    prompt = (
+        "Draft a short, helpful reply to this support ticket for the assigned staff member to review and send.\n"
+        f"Title: {ticket.get('title')}\nDescription: {ticket.get('description')}\n"
+        + (f"Context: {args.context}\n" if args.context else "")
+        + "Keep it warm and specific, plain text, under 4 sentences. This is a DRAFT - never claim the issue is "
+          "already resolved unless the context says so."
+    )
+    result = generate_text(feature="ai-employee-ticket-reply-draft", prompt=prompt, created_by="system")
+    return {"ticketRef": ticket.get("refNumber"), "draftText": result["text"]}
+
+
+# ── flagExpenseAnomalies ─────────────────────────────────────────
+# Deterministic duplicate + statistical-outlier detection, same "rule-based
+# where reliable" stance as the GST check above — fraud heuristics like
+# these are cheaper, more auditable, and more reliable as plain code than an
+# LLM guessing over a list of numbers.
+def flag_expense_anomalies(args: s.FlagExpenseAnomaliesArgs) -> Dict[str, Any]:
+    wheres = [("officeId", "==", args.officeId)] if args.officeId else []
+    expenses = query_collection("expenses", wheres)
+
+    seen: Dict[tuple, Optional[str]] = {}
+    duplicates = []
+    for e in expenses:
+        key = (e.get("vendor"), e.get("amount"), e.get("expenseDate"))
+        if key in seen:
+            duplicates.append({
+                "refNumber": e.get("refNumber"), "vendor": e.get("vendor"),
+                "amount": e.get("amount"), "date": e.get("expenseDate"), "duplicateOfRef": seen[key],
+            })
+        else:
+            seen[key] = e.get("refNumber")
+
+    by_category: Dict[str, List[float]] = defaultdict(list)
+    for e in expenses:
+        amt = e.get("amount")
+        if amt:
+            by_category[e.get("category")].append(amt)
+
+    outliers = []
+    for e in expenses:
+        cat = e.get("category")
+        amounts = by_category.get(cat, [])
+        if len(amounts) < 3:
+            continue
+        avg = sum(amounts) / len(amounts)
+        if avg > 0 and (e.get("amount") or 0) > avg * 3:
+            outliers.append({
+                "refNumber": e.get("refNumber"), "category": cat,
+                "amount": e.get("amount"), "categoryAverage": round(avg, 2),
+            })
+
+    return {
+        "duplicates": duplicates[:MAX_LIST_RESULTS], "outliers": outliers[:MAX_LIST_RESULTS],
+        "note": "Duplicates = same vendor+amount+date. Outliers = more than 3x the category average, and needs "
+                "at least 3 expenses already in that category to have a meaningful average to compare against.",
+    }
+
+
+# ── getEmployeePerformance ───────────────────────────────────────
+# Read-only by design — src/modules/performance/reviews/ already has a
+# careful "polish, never invent" AI assistant
+# (review-ai.service.ts/polishReviewNotes) for actually drafting review
+# content, and firestore.rules flags these two collections as "sensitive HR
+# data" (hr/admin-only). Adding a second, competing AI path that could
+# create/fabricate a review would undercut that deliberate design, so this
+# tool only surfaces existing goals/review history for context — never
+# proposes creating one.
+def get_employee_performance(args: s.GetEmployeePerformanceArgs) -> Dict[str, Any]:
+    employee = find_by_ref_or_id("hrmsEmployees", args.refNumberOrId)
+    if not employee:
+        return {"error": "Employee not found"}
+    goals = sort_by_created_at_desc(query_collection("performanceGoals", [("employeeId", "==", employee["id"])]))[:10]
+    reviews = sort_by_created_at_desc(query_collection("performanceReviews", [("employeeId", "==", employee["id"])]))[:5]
+    return {
+        "employeeName": employee.get("fullName"),
+        "goals": [{"title": g.get("title"), "progress": g.get("progress"), "status": g.get("status"),
+                   "dueDate": g.get("dueDate")} for g in goals],
+        "reviews": [{"period": r.get("period"), "rating": r.get("rating"), "reviewType": r.get("reviewType"),
+                    "status": r.get("status")} for r in reviews],
+    }
+
+
 @dataclass
 class AiTool:
     name: str
@@ -598,6 +763,30 @@ AI_TOOLS: List[AiTool] = [
     AiTool("updateCustomer", "write",
            "Propose updating an existing customer's contact/profile fields. Args: { customerId, fullName?, email?, phone?, city?, address?, notes? }. Never propose changing who the customer is assigned to — that's a separate reassignment action not exposed here.",
            s.UpdateCustomerArgs, allowed_roles=["super_admin", "admin", "sales_head"]),
+    AiTool("listSuspiciousAttendance", "read",
+           "List flagged suspicious attendance attempts with plain-language reasons (not raw codes), optionally filtered. Args: { employeeId?: string, reviewed?: boolean }.",
+           s.ListSuspiciousAttendanceArgs, run=list_suspicious_attendance, allowed_roles=["super_admin", "admin", "hr"]),
+    AiTool("checkInvoiceGstMath", "read",
+           "Deterministically check whether an invoice's stored tax amount matches what the tax-inclusive GST formula actually produces — use this before telling anyone an invoice's tax figures are correct. Args: { refNumberOrId: string }.",
+           s.RefLookupArgs, run=check_invoice_gst_math, allowed_roles=["super_admin", "admin", "finance"]),
+    AiTool("mineTestimonials", "read",
+           "Find real positive customer quotes (from NPS promoter responses) usable in marketing/referral material — never invent a testimonial. Args: { destination?: string }.",
+           s.MineTestimonialsArgs, run=mine_testimonials, allowed_roles=["super_admin", "admin", "marketing"]),
+    AiTool("suggestTicketPriority", "read",
+           "Suggest a priority level (with reasoning) for a support ticket based on its title/description — purely advisory, never sets the ticket's actual priority field. Args: { title: string, description: string }.",
+           s.SuggestTicketPriorityArgs, run=suggest_ticket_priority),
+    AiTool("draftTicketReply", "read",
+           "Draft a short reply to a support ticket for the assigned staff member to review and send manually — this NEVER sends anything. Args: { refNumberOrId: string, context?: string }.",
+           s.DraftTicketReplyArgs, run=draft_ticket_reply),
+    AiTool("flagExpenseAnomalies", "read",
+           "Deterministically flag likely-duplicate or statistically-outlier expenses for a human to double-check — never accuses anyone of fraud, just surfaces what needs a second look. Args: { officeId?: string }.",
+           s.FlagExpenseAnomaliesArgs, run=flag_expense_anomalies, allowed_roles=["super_admin", "admin", "finance"]),
+    AiTool("getEmployeePerformance", "read",
+           "Look up an employee's recent goals and performance-review history (ratings/status only, not full review text) for context — never used to draft or create a new review. Args: { refNumberOrId: string }.",
+           s.GetEmployeePerformanceArgs, run=get_employee_performance, allowed_roles=["super_admin", "admin", "hr"]),
+    AiTool("createItinerary", "write",
+           "Propose creating a full day-by-day itinerary — write real, specific day titles/descriptions for the given destination and duration yourself (don't leave them generic). Args: { title, destination, durationDays, days: [{dayNumber, title, description}], officeId, officeName, tripType?, tagline?, inclusions?: string[], exclusions?: string[], notes? }.",
+           s.CreateItineraryArgs, allowed_roles=["super_admin", "admin", "operations", "sales"]),
 ]
 
 _BY_NAME = {tool.name: tool for tool in AI_TOOLS}

@@ -7,6 +7,7 @@ import { createPayment } from "@/modules/payments/services/payment.service";
 import { approveLeaveRequest, rejectLeaveRequest } from "@/modules/hrms/leaves/services/leave.service";
 import { updateEmployee } from "@/modules/hrms/employees/services/employee.service";
 import { createCustomer, updateCustomer } from "@/modules/customers/services/customer.service";
+import { createItinerary } from "@/modules/itineraries/services/itinerary.service";
 import type { LeadFormData } from "@/modules/leads/types";
 import type { QuotationFormData } from "@/modules/quotations/types";
 import type { BookingFormData } from "@/modules/bookings/types";
@@ -14,6 +15,7 @@ import type { InvoiceFormData } from "@/modules/invoices/types";
 import type { PaymentFormData } from "@/modules/payments/types";
 import type { EmployeeFormData } from "@/modules/hrms/employees/types";
 import type { CustomerFormData } from "@/modules/customers/types";
+import type { ItineraryFormData } from "@/modules/itineraries/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
 
 export type AssistantTurn = { role: "user" | "assistant"; content: string };
@@ -148,6 +150,18 @@ export async function confirmProposedAction(tool: string, args: unknown, summary
         await updateCustomer(customerId, patch);
         resultCollection = "customers";
         resultDocId = customerId;
+        break;
+      }
+      case "createItinerary": {
+        const raw = args as ItineraryFormData;
+        const itinerary = await createItinerary({
+          ...raw,
+          tripType: raw.tripType ?? null, packageId: null, packageName: null,
+          tagline: raw.tagline ?? null, inclusions: raw.inclusions ?? [], exclusions: raw.exclusions ?? [],
+          notes: raw.notes ?? null, itineraryStatus: "draft",
+        }, uid);
+        resultCollection = "itineraries";
+        resultDocId = itinerary.id;
         break;
       }
       default:
