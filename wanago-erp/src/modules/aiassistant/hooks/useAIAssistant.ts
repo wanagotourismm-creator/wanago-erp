@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { askAssistant, confirmProposedAction, transcribeAudio, type AssistantTurn } from "@/modules/aiassistant/services/ai-assistant.service";
+import { fetchRecentHistory, saveChatMessage, clearChatHistory } from "@/modules/aiassistant/services/ai-chat-history.service";
 import type { AIChatMessage } from "@/modules/aiassistant/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
 import { useUIStore } from "@/store/ui.store";
+import { useAuthStore } from "@/store/auth.store";
 
 let idCounter = 0;
 function nextId(): string {
@@ -16,9 +18,11 @@ export function useAIAssistant() {
   const open = useUIStore((s) => s.aiAssistantOpen);
   const openPanel = useUIStore((s) => s.openAIAssistant);
   const closePanel = useUIStore((s) => s.closeAIAssistant);
+  const user = useAuthStore((s) => s.user);
 
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [language, setLanguage] = useState<AILanguage>("en");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -26,6 +30,24 @@ export function useAIAssistant() {
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  // Previously every panel open started from a blank transcript — this
+  // seeds it with the signed-in user's own recent history (their own
+  // messages only; aiChatHistory is scoped per-uid, see firestore.rules) so
+  // the assistant "remembers" past conversations across sessions.
+  useEffect(() => {
+    if (!user?.uid || historyLoaded) return;
+    fetchRecentHistory(user.uid)
+      .then((stored) => setMessages(stored.map((m) => ({ id: m.id, role: m.role, content: m.content }))))
+      .catch(() => {})
+      .finally(() => setHistoryLoaded(true));
+  }, [user?.uid, historyLoaded]);
+
+  const clearHistory = useCallback(async () => {
+    if (!user?.uid) return;
+    await clearChatHistory(user.uid).catch(() => {});
+    setMessages([]);
+  }, [user?.uid]);
 
   const ask = useCallback(async (question: string) => {
     const trimmed = question.trim();
@@ -36,16 +58,22 @@ export function useAIAssistant() {
       .map((m) => ({ role: m.role, content: m.content! }));
     setMessages((prev) => [...prev, { id: nextId(), role: "user", content: trimmed }]);
     setLoading(true);
+    if (user?.uid) saveChatMessage(user.uid, "user", trimmed);
 
     try {
       const result = await askAssistant(trimmed, history, language);
       if (result.kind === "answer") {
         setMessages((prev) => [...prev, { id: nextId(), role: "assistant", content: result.text }]);
+        if (user?.uid) saveChatMessage(user.uid, "assistant", result.text);
       } else if (result.kind === "proposal") {
         setMessages((prev) => [...prev, {
           id: nextId(), role: "assistant",
           proposal: { tool: result.tool, args: result.args, summary: result.summary, status: "pending" },
         }]);
+        // Proposals aren't saved as history text — same as what's already
+        // excluded from the `history` array sent to the backend above
+        // (.filter(m => m.content)) — a proposal card isn't plain-text
+        // conversation the AI should be re-fed as prior context.
       } else {
         setMessages((prev) => [...prev, { id: nextId(), role: "assistant", content: result.message }]);
       }
@@ -57,7 +85,7 @@ export function useAIAssistant() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, language]);
+  }, [messages, loading, language, user?.uid]);
 
   const confirmAction = useCallback(async (messageId: string) => {
     const message = messages.find((m) => m.id === messageId);
@@ -149,7 +177,7 @@ export function useAIAssistant() {
 
   return {
     open, openPanel, closePanel, messages, loading, ask,
-    confirmAction, cancelAction,
+    confirmAction, cancelAction, clearHistory,
     language, setLanguage,
     recording, transcribing, voiceError, startRecording, stopRecording,
   };

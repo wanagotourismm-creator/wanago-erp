@@ -136,7 +136,11 @@ service cloud.firestore {
         // isAuthenticated() grant silently re-opens them to everyone.
         'leads', 'customers', 'bookings',
         // Same reasoning — canViewAssigned/canViewWhatsAppConversation.
-        'whatsappConversations', 'whatsappMessages'
+        'whatsappConversations', 'whatsappMessages',
+        // Strictly-owner-scoped dedicated rule above — without this
+        // exclusion the catch-all's plain isAuthenticated() grant would
+        // leak every user's private chat history to every other user.
+        'aiChatHistory'
       ];
     }
 
@@ -152,7 +156,7 @@ service cloud.firestore {
         'companyGoals', 'objectives', 'goalCheckIns',
         'referralPartners', 'referralPosters', 'referralClicks',
         'assets', 'settings', 'bookingRequests', 'quickInquiries', 'holidays', 'offers',
-        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge',
+        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge', 'aiChatHistory',
         'whatsappTemplates', 'teamPulseResponses', 'digests',
         // All real writes happen server-side via the Admin SDK (the
         // review-requests cron and the public /review/{token} route) —
@@ -188,7 +192,7 @@ service cloud.firestore {
         'referralClicks', 'assets', 'assetRequests', 'holidays', 'offers',
         'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
         'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
-        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge',
+        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge', 'aiChatHistory',
         'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash',
         'npsResponses', 'tallyMappings', 'journeys', 'segments', 'sosEvents',
         'vendorRates', 'vendorAvailability'
@@ -921,6 +925,17 @@ service cloud.firestore {
     match /offers/{id} {
       allow read:  if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // ── AI Assistant chat history (per-user memory) ──────────
+    // Strictly owner-scoped — this is private chat history, not a shared
+    // business record, so unlike activities/aiActionLogs there's no
+    // admin/hr override here at all.
+    match /aiChatHistory/{id} {
+      allow read:   if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow update: if false;
     }
 
     // ── AI ML predictions (revenue forecast, lead conversion model) ──

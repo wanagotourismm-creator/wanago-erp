@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Sparkles, X, Send, Loader2, AlertTriangle, Mic, Square, Volume2, VolumeX, Check, CheckCircle2, XCircle,
+  Sparkles, X, Send, Loader2, AlertTriangle, Mic, Square, Volume2, VolumeX, Check, CheckCircle2, XCircle, Trash2,
 } from "lucide-react";
 import { useAIAssistant } from "@/modules/aiassistant/hooks/useAIAssistant";
 import { cn } from "@/lib/utils/helpers";
@@ -10,14 +10,6 @@ import { useCompanySettings } from "@/modules/admin/settings/hooks/useCompanySet
 import { fetchAiSettings } from "@/modules/ai-core/services/ai-settings.service";
 import type { AIChatMessage } from "@/modules/aiassistant/types";
 import type { AILanguage } from "@/lib/ai/getAIAnswer";
-
-const SPEECH_LANG: Record<AILanguage, string> = { en: "en-US", ml: "ml-IN" };
-
-function findVoice(lang: AILanguage): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !window.speechSynthesis) return null;
-  const prefix = lang === "ml" ? "ml" : "en";
-  return window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(prefix)) ?? null;
-}
 
 function ProposalCard({ message, onConfirm, onCancel }: {
   message: AIChatMessage;
@@ -92,7 +84,7 @@ function AssistantMessage({ message }: { message: AIChatMessage }) {
 export function AIAssistantPanel() {
   const {
     open, openPanel, closePanel, messages, loading, ask,
-    confirmAction, cancelAction,
+    confirmAction, cancelAction, clearHistory,
     language, setLanguage,
     recording, transcribing, voiceError, startRecording, stopRecording,
   } = useAIAssistant();
@@ -103,6 +95,7 @@ export function AIAssistantPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { settings: company } = useCompanySettings();
   const lastSpokenId = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Admin > AI Employee master switch — checked once on mount so the FAB
   // (and everything else) simply doesn't render at all when off, rather
@@ -115,24 +108,40 @@ export function AIAssistantPanel() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, loading]);
 
-  // Reads the latest assistant reply aloud when speak-aloud is on — silently
-  // does nothing if the browser has no installed voice for the selected
-  // language (better than mispronouncing Malayalam with a wrong voice).
+  // Reads the latest assistant reply aloud when speak-aloud is on — real
+  // server-side voice (Google Cloud TTS via /api/ai-assistant/speak)
+  // rather than the browser's own speechSynthesis, which on most Windows/
+  // Android/Chrome setups has no Malayalam voice installed at all and used
+  // to silently do nothing. Best-effort: a TTS failure just means no audio
+  // plays — the text reply is already on screen either way.
   useEffect(() => {
     if (!speakEnabled) return;
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant" || !last.content || last.id === lastSpokenId.current) return;
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-
-    const voice = findVoice(language);
-    if (!voice) return;
 
     lastSpokenId.current = last.id;
-    const utterance = new SpeechSynthesisUtterance(last.content);
-    utterance.voice = voice;
-    utterance.lang = SPEECH_LANG[language];
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/ai-assistant/speak", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text: last.content, language }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok || typeof data.audioBase64 !== "string") return;
+
+        if (!audioRef.current) audioRef.current = new Audio();
+        audioRef.current.pause();
+        audioRef.current.src = `data:audio/mp3;base64,${data.audioBase64}`;
+        await audioRef.current.play().catch(() => {});
+      } catch {
+        // best-effort — see comment above
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [messages, speakEnabled, language]);
 
   function handleSend() {
@@ -215,6 +224,17 @@ export function AIAssistantPanel() {
                 >
                   {speakEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
                 </button>
+
+                {/* Clear chat history */}
+                {messages.length > 0 && (
+                  <button
+                    onClick={() => { if (confirm("Clear your chat history with the assistant? This can't be undone.")) clearHistory(); }}
+                    title="Clear chat history"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
 
                 <button onClick={closePanel} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
                   <X size={15} />
