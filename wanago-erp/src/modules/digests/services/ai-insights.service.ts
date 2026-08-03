@@ -235,7 +235,7 @@ async function generateNarrative(m: AiInsightsMetrics): Promise<{
     `Confirmed bookings this week: ${m.totalBookings}`,
     `New leads this week: ${m.newLeadsCount}, won this week: ${m.leadsWonCount} (${m.leadConversionRate}% conversion)`,
     `Quotations created: ${m.quotationsCreated}, accepted: ${m.quotationsAccepted}, rejected: ${m.quotationsRejected} (${m.quotationWinRate}% win rate)`,
-    `Quotations awaiting Finance approval right now: ${m.pendingFinanceApprovals}`,
+    `Quotations awaiting Operations approval right now: ${m.pendingFinanceApprovals}`,
     m.topDestinationsByLeads.length ? `Top destinations by lead volume: ${m.topDestinationsByLeads.map(d => `${d.destination} (${d.count})`).join(", ")}` : "No leads this week.",
     m.topDestinationsByRevenue.length ? `Top destinations by revenue: ${m.topDestinationsByRevenue.map(d => `${d.destination} (₹${d.count})`).join(", ")}` : "No confirmed revenue this week.",
     `Overdue invoices right now: ${m.overdueInvoiceCount} (₹${m.overdueInvoiceAmount} outstanding)`,

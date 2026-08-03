@@ -115,7 +115,7 @@ export function InsightsPage() {
               <Tile label="Bookings" value={report.totalBookings} />
               <Tile label="Lead Conversion" value={`${report.leadConversionRate}%`} sub={<p className="mt-0.5 text-[11px] text-muted-foreground">{report.leadsWonCount}/{report.newLeadsCount} new leads won</p>} />
               <Tile label="Quotation Win Rate" value={`${report.quotationWinRate}%`} sub={<p className="mt-0.5 text-[11px] text-muted-foreground">{report.quotationsAccepted} accepted, {report.quotationsRejected} rejected</p>} />
-              <Tile label="Pending Finance Approvals" value={report.pendingFinanceApprovals} />
+              <Tile label="Pending Quotation Approvals" value={report.pendingFinanceApprovals} />
               <Tile label="Overdue Invoices" value={report.overdueInvoiceCount} sub={<p className="mt-0.5 text-[11px] text-muted-foreground">{formatCurrency(report.overdueInvoiceAmount)} outstanding</p>} />
               <Tile label="Going Cold" value={`${report.goingColdCount} customers`} />
               <Tile label="New Leads" value={report.newLeadsCount} />

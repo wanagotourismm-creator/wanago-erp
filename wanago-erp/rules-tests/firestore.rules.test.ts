@@ -657,7 +657,7 @@ describe("firestore.rules — customer reassignment", () => {
   });
 });
 
-describe("firestore.rules — quotations (sales/admin create, finance approval gate)", () => {
+describe("firestore.rules — quotations (sales/admin create, operations approval gate)", () => {
   it("blocks operations role from creating a quotation", async () => {
     await seedUser("u1", "operations");
     const db = testEnv.authenticatedContext("u1").firestore();
@@ -679,6 +679,41 @@ describe("firestore.rules — quotations (sales/admin create, finance approval g
     await seedUser("u1", "sales");
     const db = testEnv.authenticatedContext("u1").firestore();
     await assertFails(db.collection("quotations").doc("q1").update({ financeApprovalStatus: "approved" }));
+  });
+
+  // Quotation approval moved from Finance to Operations — see
+  // quotation.service.ts's approveQuotationOperations/notifyOpsApprovers
+  // and PERMISSION_MAP's "quotations:ops_approve" (src/lib/rbac.ts).
+  it("allows operations to approve a pending quotation", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("quotations").doc("q1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "sent",
+        financeApprovalStatus: "pending",
+      });
+    });
+    await seedUser("ops1", "operations");
+    const db = testEnv.authenticatedContext("ops1").firestore();
+    await assertSucceeds(
+      db.collection("quotations").doc("q1").update({
+        financeApprovalStatus: "approved", financeApprovedBy: "ops1", financeApprovedAt: new Date(),
+      })
+    );
+  });
+
+  it("blocks finance from approving a quotation (approval moved to operations)", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("quotations").doc("q1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "sent",
+        financeApprovalStatus: "pending",
+      });
+    });
+    await seedUser("fin1", "finance");
+    const db = testEnv.authenticatedContext("fin1").firestore();
+    await assertFails(
+      db.collection("quotations").doc("q1").update({
+        financeApprovalStatus: "approved", financeApprovedBy: "fin1", financeApprovedAt: new Date(),
+      })
+    );
   });
 });
 

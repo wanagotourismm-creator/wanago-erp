@@ -67,6 +67,9 @@ export type AiInsightsReport = FirestoreRecord & {
   quotationsAccepted: number;
   quotationsRejected: number;
   quotationWinRate: number;
+  // Quotation approval moved from Finance to Operations — field name kept
+  // for backwards compat with stored digest history, still counts
+  // financeApprovalStatus === "pending" quotations.
   pendingFinanceApprovals: number;
   topDestinationsByLeads: { destination: string; count: number }[];
   topDestinationsByRevenue: { destination: string; count: number }[];

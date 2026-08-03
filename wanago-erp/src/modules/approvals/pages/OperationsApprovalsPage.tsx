@@ -6,6 +6,7 @@ import { useApprovals } from "@/modules/approvals/hooks/useApprovals";
 import { RejectReasonModal } from "@/modules/approvals/components/RejectReasonModal";
 import { OpsApprovalModal } from "@/modules/bookings/components/OpsApprovalModal";
 import { BookingDetailModal } from "@/modules/bookings/components/BookingDetailModal";
+import { QuotationDetailModal } from "@/modules/quotations/components/QuotationDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
@@ -17,18 +18,29 @@ import { fetchPackages } from "@/modules/packages/services/package.service";
 import { fetchExpenses } from "@/modules/expenses/services/expense.service";
 import type { ApprovalItem } from "@/modules/approvals/types";
 import type { Booking } from "@/modules/bookings/types";
+import type { Quotation } from "@/modules/quotations/types";
 import type { Package } from "@/modules/packages/types";
 import type { Expense } from "@/modules/expenses/types";
 
+const KIND_META: Record<"booking-ops" | "quotation", { label: string; variant: "info" | "warning" }> = {
+  "booking-ops": { label: "Booking",   variant: "info"    },
+  "quotation":   { label: "Quotation", variant: "warning" },
+};
+
 // Operations-only Approvals Inbox — Finance-approved bookings awaiting
-// Operations sign-off. Kept as its own separate page/nav item under
-// Operations rather than sharing the Finance Approvals page — the two
-// departments review two different sets of requests.
+// Operations sign-off, plus Quotations awaiting Operations approval
+// (moved here from Finance — see quotation.service.ts's
+// notifyOpsApprovers/approveQuotationOperations). Kept as its own separate
+// page/nav item under Operations rather than sharing the Finance Approvals
+// page — the two departments review two different sets of requests.
 export function OperationsApprovalsPage() {
   const { user } = useAuthStore();
   const { opsQueue, loading, approveItem, rejectItem, reload } = useApprovals();
 
-  const canSeeOps = !!user && hasPermission(user.systemRole, "bookings:ops_approve");
+  const canSeeOps = !!user && (
+    hasPermission(user.systemRole, "bookings:ops_approve") ||
+    hasPermission(user.systemRole, "quotations:ops_approve")
+  );
 
   const [packages, setPackages] = useState<Package[]>([]);
   useEffect(() => { fetchPackages().then(setPackages).catch(() => {}); }, []);
@@ -40,7 +52,12 @@ export function OperationsApprovalsPage() {
   const [rejectingItem,    setRejectingItem]    = useState<ApprovalItem | null>(null);
   const [viewingItem,      setViewingItem]      = useState<ApprovalItem | null>(null);
 
+  async function handleApproveInline(item: ApprovalItem & { kind: "quotation" }) {
+    await approveItem(item, user?.uid ?? "");
+  }
+
   function renderRow(item: ApprovalItem) {
+    const meta = KIND_META[item.kind as "booking-ops" | "quotation"];
     return (
       <div
         key={`${item.kind}-${item.id}`}
@@ -48,7 +65,7 @@ export function OperationsApprovalsPage() {
         className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <Badge variant="info">Booking</Badge>
+          <Badge variant={meta.variant}>{meta.label}</Badge>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-foreground">{item.refNumber} · {item.customerName}</p>
             {item.agentName && (
@@ -64,7 +81,10 @@ export function OperationsApprovalsPage() {
           <Button
             size="sm"
             variant="primary"
-            onClick={() => setOpsApprovingItem(item as ApprovalItem & { kind: "booking-ops" })}
+            onClick={() => {
+              if (item.kind === "booking-ops") setOpsApprovingItem(item as ApprovalItem & { kind: "booking-ops" });
+              else handleApproveInline(item as ApprovalItem & { kind: "quotation" });
+            }}
           >
             Approve
           </Button>
@@ -82,7 +102,7 @@ export function OperationsApprovalsPage() {
       <PageHeader
         title="Operations Approvals"
         tourId="tour-opsapprovals-header"
-        description="Review Finance-approved bookings awaiting Operations sign-off"
+        description="Review Finance-approved bookings and quotations awaiting Operations sign-off"
         actions={
           <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()} data-tour-id="tour-opsapprovals-refresh">
             Refresh
@@ -98,7 +118,7 @@ export function OperationsApprovalsPage() {
             <span className="text-xs text-muted-foreground">({opsQueue.length})</span>
           </div>
           {!loading && opsQueue.length === 0 ? (
-            <EmptyState icon={<Inbox size={22} />} title="No pending Operations approvals" description="Finance-approved bookings awaiting Operations sign-off will appear here." />
+            <EmptyState icon={<Inbox size={22} />} title="No pending Operations approvals" description="Finance-approved bookings and quotations awaiting Operations sign-off will appear here." />
           ) : (
             <div className="space-y-2">
               {opsQueue.map(renderRow)}
@@ -128,12 +148,12 @@ export function OperationsApprovalsPage() {
         }}
       />
 
-      {/* Read-only full-detail viewer — same modal used everywhere else in
+      {/* Read-only full-detail viewers — same modals used everywhere else in
           the app, so Operations sees exactly what Sales/Finance entered
           before deciding. No manage/edit/delete/approve actions wired
           here; those stay on this page's own Approve/Reject buttons. */}
       <BookingDetailModal
-        booking={viewingItem ? (viewingItem.data as Booking) : null}
+        booking={viewingItem?.kind === "booking-ops" ? (viewingItem.data as Booking) : null}
         canManage={false}
         canDelete={false}
         canApprove={false}
@@ -141,6 +161,19 @@ export function OperationsApprovalsPage() {
         onEdit={() => {}}
         onDelete={() => {}}
         onStatus={() => {}}
+      />
+
+      <QuotationDetailModal
+        quotation={viewingItem?.kind === "quotation" ? (viewingItem.data as Quotation) : null}
+        canEdit={false}
+        canDelete={false}
+        onClose={() => setViewingItem(null)}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onConvert={() => {}}
+        onSend={() => {}}
+        onAccept={() => {}}
+        onReject={() => {}}
       />
 
     </div>

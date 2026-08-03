@@ -16,17 +16,17 @@ import { createJourneyRunsForTrigger } from "@/modules/journeys/services/journey
 // Notification helpers below are best-effort — a failure here must never
 // break the actual quotation creation/approval/rejection flow.
 
-async function notifyFinanceApprovers(quotation: Quotation): Promise<void> {
+async function notifyOpsApprovers(quotation: Quotation): Promise<void> {
   try {
-    const approvers = await fetchUsersByPermission("quotations:finance_approve");
+    const approvers = await fetchUsersByPermission("quotations:ops_approve");
     await Promise.all(
       approvers.map((u) =>
         notifyUser({
           userId:   u.id,
           email:    u.email,
-          title:    `New quotation ${quotation.refNumber} needs Finance approval`,
+          title:    `New quotation ${quotation.refNumber} needs Operations approval`,
           body:     `${quotation.customerName} — ${quotation.totalAmount}`,
-          link:     "/approvals",
+          link:     "/operations-approvals",
           category: "approval",
         })
       )
@@ -193,7 +193,7 @@ export async function createQuotation(
     financeRejectionReason:  null,
   });
 
-  await notifyFinanceApprovers(quotation);
+  await notifyOpsApprovers(quotation);
   if (options?.autoSend !== false) {
     await sendQuotationPdfToCustomer(quotation);
   }
@@ -227,7 +227,7 @@ export async function updateQuotation(
 
   if (existing?.financeApprovalStatus === "rejected") {
     const updated = await quotationRepository.findById(id);
-    if (updated) await notifyFinanceApprovers(updated);
+    if (updated) await notifyOpsApprovers(updated);
   }
 }
 
@@ -272,7 +272,12 @@ export async function rejectQuotation(id: string): Promise<void> {
   await quotationRepository.update(id, { status: "rejected" } as Partial<Quotation>);
 }
 
-export async function approveQuotationFinance(id: string, approvedBy: string): Promise<void> {
+// Field/param names below still say "finance" — that's the original
+// Firestore schema (see quotationTouchesApprovalFields in firestore.rules),
+// kept as-is to avoid migrating every existing quotation document. The
+// approver role itself is Operations, not Finance (see notifyOpsApprovers
+// above and the "quotations:ops_approve" permission).
+export async function approveQuotationOperations(id: string, approvedBy: string): Promise<void> {
   const existing = await quotationRepository.findById(id);
 
   await quotationRepository.update(id, {
@@ -285,12 +290,12 @@ export async function approveQuotationFinance(id: string, approvedBy: string): P
     await notifyCreator(
       existing.createdBy,
       `Quotation ${existing.refNumber} approved`,
-      `${existing.customerName}'s quotation has been approved by Finance and can now be converted to a booking.`
+      `${existing.customerName}'s quotation has been approved by Operations and can now be converted to a booking.`
     );
   }
 }
 
-export async function rejectQuotationFinance(id: string, rejectedBy: string, reason: string): Promise<void> {
+export async function rejectQuotationOperations(id: string, rejectedBy: string, reason: string): Promise<void> {
   const existing = await quotationRepository.findById(id);
 
   await quotationRepository.update(id, {
@@ -304,7 +309,7 @@ export async function rejectQuotationFinance(id: string, rejectedBy: string, rea
     await notifyCreator(
       existing.createdBy,
       `Quotation ${existing.refNumber} rejected`,
-      `${existing.customerName}'s quotation was rejected by Finance: ${reason}. Edit and resubmit it to send it back for approval.`
+      `${existing.customerName}'s quotation was rejected by Operations: ${reason}. Edit and resubmit it to send it back for approval.`
     );
   }
 }
@@ -318,7 +323,7 @@ export async function convertQuotationToBooking(
 ): Promise<void> {
   const fresh = await quotationRepository.findById(quotation.id);
   if (!fresh || fresh.financeApprovalStatus !== "approved") {
-    throw new Error("Quotation must be approved by Finance before it can be converted to a booking.");
+    throw new Error("Quotation must be approved by Operations before it can be converted to a booking.");
   }
 
   const booking = await createBooking({

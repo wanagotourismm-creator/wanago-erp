@@ -375,13 +375,13 @@ export const DEFAULT_TRAINING_MODULES: SeedModule[] = [
   },
   {
     title: "Operations Approvals",
-    description: "Final sign-off on bookings after Finance has approved them.",
+    description: "Final sign-off on bookings after Finance has approved them, plus quotations awaiting Operations approval.",
     steps: [
       {
         targetPath: "/operations-approvals",
         targetSelector: '[data-tour-id="tour-opsapprovals-header"]',
-        explanationEn: "Once Finance approves a booking, it lands here for Operations to give the final sign-off — confirming logistics can actually be arranged.",
-        explanationMl: "Finance ഒരു ബുക്കിംഗ് അംഗീകരിച്ചുകഴിഞ്ഞാൽ, അന്തിമ അംഗീകാരത്തിനായി അത് ഇവിടെ Operations-ന് ലഭിക്കുന്നു — ലോജിസ്റ്റിക്സ് യഥാർത്ഥത്തിൽ ക്രമീകരിക്കാൻ കഴിയുമെന്ന് സ്ഥിരീകരിക്കുന്നു.",
+        explanationEn: "Once Finance approves a booking, it lands here for Operations to give the final sign-off — confirming logistics can actually be arranged. Quotations also come straight here for Operations approval before they can be converted to a booking.",
+        explanationMl: "Finance ഒരു ബുക്കിംഗ് അംഗീകരിച്ചുകഴിഞ്ഞാൽ, അന്തിമ അംഗീകാരത്തിനായി അത് ഇവിടെ Operations-ന് ലഭിക്കുന്നു — ലോജിസ്റ്റിക്സ് യഥാർത്ഥത്തിൽ ക്രമീകരിക്കാൻ കഴിയുമെന്ന് സ്ഥിരീകരിക്കുന്നു. Quotations-ഉം Booking ആയി കൺവേർട്ട് ചെയ്യുന്നതിന് മുൻപ് Operations അംഗീകാരത്തിനായി ഇവിടെ നേരിട്ട് എത്തുന്നു.",
       },
       {
         targetPath: "/operations-approvals",
@@ -511,7 +511,7 @@ export const DEFAULT_TRAINING_MODULES: SeedModule[] = [
   },
   {
     title: "Finance Approvals",
-    description: "Review bookings, quotations, and invoices awaiting Finance sign-off.",
+    description: "Review bookings and invoices awaiting Finance sign-off.",
     steps: [
       {
         targetPath: "/approvals",

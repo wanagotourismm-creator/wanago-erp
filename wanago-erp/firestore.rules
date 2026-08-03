@@ -345,10 +345,13 @@ service cloud.firestore {
       return getUserRole() in ['super_admin', 'admin', 'sales_head'];
     }
 
-    // Quotations: only Finance/Admin may touch the approval trail, except
+    // Quotations: only Operations/Admin may touch the approval trail, except
     // the one resubmit transition (rejected -> pending, no other approval
     // field touched) which `updateQuotation` performs for any authenticated
-    // user editing their own rejected quotation.
+    // user editing their own rejected quotation. Field names below still
+    // read "finance*" — that's the original Firestore schema, kept as-is to
+    // avoid a data migration across every existing quotation document; the
+    // approver role itself moved to Operations (see quotation.service.ts).
     function quotationTouchesApprovalFields() {
       return request.resource.data.diff(resource.data).affectedKeys().hasAny([
         'financeApprovalStatus', 'financeApprovedBy', 'financeApprovedAt',
@@ -467,10 +470,10 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
                        getUserRole() in ['super_admin','admin','sales'];
       allow update: if isAuthenticated() &&
-                       getUserRole() in ['super_admin','admin','sales','finance'] && (
+                       getUserRole() in ['super_admin','admin','sales','operations'] && (
                          !quotationTouchesApprovalFields() ||
                          isQuotationResubmit() ||
-                         getUserRole() in ['super_admin','admin','finance']
+                         getUserRole() in ['super_admin','admin','operations']
                        );
       allow delete: if isAdmin();
     }

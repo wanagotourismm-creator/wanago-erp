@@ -32,25 +32,25 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-const FINANCE_APPROVAL_LABELS: Record<string, string> = {
-  pending:  "Pending Finance Approval",
-  approved: "Finance Approved",
-  rejected: "Finance Rejected",
+const APPROVAL_LABELS: Record<string, string> = {
+  pending:  "Pending Operations Approval",
+  approved: "Operations Approved",
+  rejected: "Operations Rejected",
 };
 
-const FINANCE_APPROVAL_STYLES: Record<string, string> = {
+const APPROVAL_STYLES: Record<string, string> = {
   pending:  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   approved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-function FinanceApprovalBadge({ status }: { status: string }) {
+function ApprovalStatusBadge({ status }: { status: string }) {
   return (
     <span className={cn(
       "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-      FINANCE_APPROVAL_STYLES[status] ?? "bg-muted text-muted-foreground"
+      APPROVAL_STYLES[status] ?? "bg-muted text-muted-foreground"
     )}>
-      {FINANCE_APPROVAL_LABELS[status] ?? status}
+      {APPROVAL_LABELS[status] ?? status}
     </span>
   );
 }
@@ -175,7 +175,7 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
 
           <div className="flex flex-wrap items-center gap-2">
             <QuotationStatusBadge status={q.status} />
-            <FinanceApprovalBadge status={q.financeApprovalStatus} />
+            <ApprovalStatusBadge status={q.financeApprovalStatus} />
           </div>
           {q.financeApprovalStatus === "rejected" && q.financeRejectionReason && (
             <p className="text-xs text-muted-foreground">

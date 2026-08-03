@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useBookings } from "@/modules/bookings/hooks/useBookings";
 import {
-  fetchQuotations, approveQuotationFinance, rejectQuotationFinance,
+  fetchQuotations, approveQuotationOperations, rejectQuotationOperations,
 } from "@/modules/quotations/services/quotation.service";
 import {
   fetchInvoices, approveInvoiceFinance, rejectInvoiceFinance,
@@ -16,8 +16,9 @@ import type { ApprovalItem } from "@/modules/approvals/types";
 // Legacy/pre-feature quotations and invoices may not have
 // `financeApprovalStatus` set at all — those should still surface in the
 // queue for a first approval rather than silently disappearing, so the
-// filter only excludes records explicitly marked approved/rejected.
-function needsFinanceApproval(status: string | undefined): boolean {
+// filter only excludes records explicitly marked approved/rejected. Shared
+// by invoices (Finance queue) and quotations (Operations queue) below.
+function needsApproval(status: string | undefined): boolean {
   return status !== "approved" && status !== "rejected";
 }
 
@@ -63,31 +64,35 @@ export function useApprovals() {
         customerName: b.customerName, agentName: b.agentName, amount: b.totalAmount, data: b,
       }));
 
-    const quotationItems: ApprovalItem[] = quotations
-      .filter(q => needsFinanceApproval(q.financeApprovalStatus))
-      .map(q => ({
-        kind: "quotation", id: q.id, refNumber: q.refNumber,
-        customerName: q.customerName, agentName: null, amount: q.totalAmount, data: q,
-      }));
-
     const invoiceItems: ApprovalItem[] = invoices
-      .filter(inv => needsFinanceApproval(inv.financeApprovalStatus))
+      .filter(inv => needsApproval(inv.financeApprovalStatus))
       .map(inv => ({
         kind: "invoice", id: inv.id, refNumber: inv.refNumber,
         customerName: inv.customerName, agentName: null, amount: inv.totalAmount, data: inv,
       }));
 
-    return [...bookingItems, ...quotationItems, ...invoiceItems];
-  }, [bookings, quotations, invoices]);
+    return [...bookingItems, ...invoiceItems];
+  }, [bookings, invoices]);
 
   const opsQueue: ApprovalItem[] = useMemo(() => {
-    return bookings
+    const bookingItems: ApprovalItem[] = bookings
       .filter(b => b.status === BOOKING_STATUS.OPS_PENDING)
       .map(b => ({
         kind: "booking-ops", id: b.id, refNumber: b.refNumber,
         customerName: b.customerName, agentName: b.agentName, amount: b.totalAmount, data: b,
       }));
-  }, [bookings]);
+
+    // Quotation approval moved from Finance to Operations — see
+    // quotation.service.ts's notifyOpsApprovers / approveQuotationOperations.
+    const quotationItems: ApprovalItem[] = quotations
+      .filter(q => needsApproval(q.financeApprovalStatus))
+      .map(q => ({
+        kind: "quotation", id: q.id, refNumber: q.refNumber,
+        customerName: q.customerName, agentName: null, amount: q.totalAmount, data: q,
+      }));
+
+    return [...bookingItems, ...quotationItems];
+  }, [bookings, quotations]);
 
   // Overloaded so each call site gets the right "extra" argument type for
   // its item kind: payment verification for booking-finance, profit amount
@@ -116,7 +121,7 @@ export function useApprovals() {
         return approveOperations(item.id, extra as number);
       case "quotation":
         try {
-          await approveQuotationFinance(item.id, extra as string);
+          await approveQuotationOperations(item.id, extra as string);
           await loadQuotationsAndInvoices();
           return { error: null };
         } catch {
@@ -143,7 +148,7 @@ export function useApprovals() {
         return rejectOperations(item.id, rejectedBy, reason);
       case "quotation":
         try {
-          await rejectQuotationFinance(item.id, rejectedBy, reason);
+          await rejectQuotationOperations(item.id, rejectedBy, reason);
           await loadQuotationsAndInvoices();
           return { error: null };
         } catch {

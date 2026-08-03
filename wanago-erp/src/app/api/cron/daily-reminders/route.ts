@@ -213,7 +213,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // ── Quotation stuck in pending Finance approval ─────────────────────
+  // ── Quotation stuck in pending Operations approval ───────────────────
+  // Moved from Finance to Operations — see quotation.service.ts's
+  // notifyOpsApprovers/approveQuotationOperations.
   let financeApprovalsStuckNotified = 0;
   const stuckQuotations = quotations.filter(q => {
     if (q.financeApprovalStatus !== "pending") return false;
@@ -222,14 +224,14 @@ export async function GET(req: NextRequest) {
     return (now - createdAtMs) / DAY_MS >= FINANCE_APPROVAL_STUCK_DAYS;
   });
   if (stuckQuotations.length > 0) {
-    const approvers = await fetchUsersByPermission("quotations:finance_approve");
+    const approvers = await fetchUsersByPermission("quotations:ops_approve");
     for (const approver of approvers) {
       await notifyUserServer({
         userId:   approver.id,
         email:    approver.email,
         title:    `${stuckQuotations.length} quotation(s) awaiting your approval`,
-        body:     `${stuckQuotations.map(q => q.refNumber).join(", ")} — pending Finance approval for ${FINANCE_APPROVAL_STUCK_DAYS}+ days.`,
-        link:     "/approvals",
+        body:     `${stuckQuotations.map(q => q.refNumber).join(", ")} — pending Operations approval for ${FINANCE_APPROVAL_STUCK_DAYS}+ days.`,
+        link:     "/operations-approvals",
         category: "approval",
       });
     }

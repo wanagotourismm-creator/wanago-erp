@@ -56,10 +56,12 @@ export type Quotation = Omit<FirestoreRecord, "status"> & {
   // to the resulting booking and prevents re-converting.
   convertedBookingId: string | null;
 
-  // Mandatory Finance approval gate — every quotation starts "pending" and
-  // must be approved before it can be converted to a booking. Editing a
+  // Mandatory Operations approval gate — every quotation starts "pending"
+  // and must be approved before it can be converted to a booking. Editing a
   // rejected quotation automatically resets this to "pending" on save
-  // (see updateQuotation) — that's the entire resubmit mechanism.
+  // (see updateQuotation) — that's the entire resubmit mechanism. Field
+  // names still say "finance" (original schema, kept to avoid migrating
+  // existing documents) — the approver role is Operations, not Finance.
   financeApprovalStatus:  QuotationFinanceApprovalStatus;
   financeApprovedBy:      string | null;
   financeApprovedAt:      Timestamp | Date | string | FieldValue | null;
