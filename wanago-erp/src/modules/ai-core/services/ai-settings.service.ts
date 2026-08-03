@@ -15,6 +15,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   aiEmployeeEnabled: true,
   aiAutoFixEnabled: false,
   aiWhatsAppReplyEnabled: false,
+  aiDailyBriefingEnabled: false,
 };
 
 export async function fetchAiSettings(): Promise<AiSettings> {

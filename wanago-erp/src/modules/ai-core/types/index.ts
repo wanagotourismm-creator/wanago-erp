@@ -42,6 +42,12 @@ export type AiSettings = {
   // which replies to real customers, not staff. Off by default: distinct
   // trust boundary from both switches above.
   aiWhatsAppReplyEnabled: boolean;
+  // Gates /api/cron/daily-ai-briefing — a daily "what needs attention today"
+  // digest pushed to admins (in-app + email), reusing the same ranking as
+  // the in-app Command Center widget. Off by default like the other
+  // narrower switches; low risk (read-only, no writes) but still opt-in
+  // since it emails every admin daily once on.
+  aiDailyBriefingEnabled: boolean;
 };
 
 // One entry per AI-initiated write the user confirmed (or that failed after

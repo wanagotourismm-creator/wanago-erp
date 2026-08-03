@@ -41,3 +41,8 @@ export async function isAiWhatsAppReplyEnabled(): Promise<boolean> {
   const settings = await getAiSettingsServer();
   return settings.aiWhatsAppReplyEnabled === true;
 }
+
+export async function isAiDailyBriefingEnabled(): Promise<boolean> {
+  const settings = await getAiSettingsServer();
+  return settings.aiDailyBriefingEnabled === true;
+}
