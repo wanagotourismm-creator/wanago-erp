@@ -194,8 +194,8 @@ describe("firestore.rules — users (self-escalation)", () => {
   });
 });
 
-describe("firestore.rules — invoices (finance-only writes)", () => {
-  it("blocks a non-finance role from creating an invoice", async () => {
+describe("firestore.rules — invoices (finance-only edits, finance+operations create)", () => {
+  it("blocks a non-finance/non-operations role from creating an invoice", async () => {
     await seedUser("u1", "sales");
     const db = testEnv.authenticatedContext("u1").firestore();
     await assertFails(
@@ -213,6 +213,31 @@ describe("firestore.rules — invoices (finance-only writes)", () => {
         createdAt: new Date(), updatedAt: new Date(), createdBy: "u1", status: "draft",
       })
     );
+  });
+
+  // Operations calls getOrCreateInvoiceForBooking (invoice.service.ts) from
+  // approveBookingAsOperations — auto-generating the invoice the moment
+  // Operations confirms a booking, so Operations needs create access here
+  // even though they otherwise never touch invoices.
+  it("allows operations to create an invoice (auto-generated on booking confirmation)", async () => {
+    await seedUser("ops1", "operations");
+    const db = testEnv.authenticatedContext("ops1").firestore();
+    await assertSucceeds(
+      db.collection("invoices").doc("inv1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "ops1", status: "draft",
+      })
+    );
+  });
+
+  it("blocks operations from updating an existing invoice (edit stays Finance-only)", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("invoices").doc("inv1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "ops1", status: "draft",
+      });
+    });
+    await seedUser("ops1", "operations");
+    const db = testEnv.authenticatedContext("ops1").firestore();
+    await assertFails(db.collection("invoices").doc("inv1").update({ status: "sent" }));
   });
 });
 

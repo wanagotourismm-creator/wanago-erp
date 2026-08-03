@@ -6,6 +6,7 @@ import { FIRESTORE_COLLECTIONS, INVOICE_STATUS, type InvoiceStatus } from "@/lib
 import { toDate } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Invoice, InvoiceFormData } from "@/modules/invoices/types";
+import type { Booking } from "@/modules/bookings/types";
 import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
 
@@ -66,6 +67,11 @@ export async function fetchInvoiceById(id: string): Promise<Invoice | null> {
   return invoiceRepository.findById(id);
 }
 
+export async function fetchInvoiceByBookingId(bookingId: string): Promise<Invoice | null> {
+  const rows = await invoiceRepository.findMany({ constraints: [where("bookingId", "==", bookingId)] });
+  return rows[0] ?? null;
+}
+
 export async function createInvoice(
   data: InvoiceFormData,
   createdBy: string
@@ -96,6 +102,35 @@ export async function createInvoice(
   await notifyFinanceApprovers(invoice);
 
   return invoice;
+}
+
+// Auto-generates the invoice the moment a booking is confirmed — before
+// this, Finance had to remember to manually create one for every single
+// confirmed booking (createInvoice previously had no automatic trigger at
+// all, only the manual "New Invoice" form and the AI assistant tool).
+// Idempotent like getOrCreateOperationsBooking — safe to call more than
+// once for the same booking.
+export async function getOrCreateInvoiceForBooking(booking: Booking, createdBy: string): Promise<Invoice> {
+  const existing = await fetchInvoiceByBookingId(booking.id);
+  if (existing) return existing;
+
+  return createInvoice({
+    bookingId:     booking.id,
+    bookingRef:    booking.refNumber,
+    customerId:    booking.customerId,
+    customerName:  booking.customerName,
+    customerPhone: booking.customerPhone,
+    totalAmount:   booking.totalAmount,
+    amountPaid:    booking.advanceAmount,
+    taxRate:       null,
+    taxAmount:     null,
+    issueDate:     new Date().toISOString().slice(0, 10),
+    dueDate:       null,
+    officeId:      booking.officeId,
+    officeName:    booking.officeName,
+    notes:         `Auto-generated from confirmed booking ${booking.refNumber}.`,
+    createdBy,
+  }, createdBy);
 }
 
 export async function updateInvoice(

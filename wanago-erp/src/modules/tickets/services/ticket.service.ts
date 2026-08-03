@@ -2,8 +2,37 @@ import { orderBy, where, serverTimestamp } from "firebase/firestore";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
+import { notifyUser } from "@/lib/notify";
+import { fetchUsersByPermission } from "@/lib/notify-recipients";
 import type { Ticket, TicketStatus } from "@/modules/tickets/types";
 import type { TicketSchema } from "@/modules/tickets/schemas";
+
+// New tickets start unassigned (assignToMe is a self-claim action, and
+// assignedToId is a Firebase Auth uid rather than an Employee.id — unlike
+// Leads/Bookings, there's no established "ticket team" department to
+// round-robin across) — so previously nobody knew a ticket existed until
+// the next day's SLA-breach cron caught it. This tells Admin/Super Admin
+// immediately instead, same "admin:users" audience the SLA-breach
+// fallback already uses for unassigned tickets.
+async function notifyNewTicket(ticket: Ticket): Promise<void> {
+  try {
+    const admins = await fetchUsersByPermission("admin:users");
+    await Promise.all(
+      admins.map((u) =>
+        notifyUser({
+          userId:   u.id,
+          email:    u.email,
+          title:    `New ticket: ${ticket.title}`,
+          body:     `${ticket.category} — ${ticket.priority} priority. Needs an assignee.`,
+          link:     "/admin",
+          category: "system",
+        })
+      )
+    );
+  } catch {
+    // ignore — notifications must not block ticket creation
+  }
+}
 
 class TicketRepository extends BaseRepository<Ticket> {
   constructor() { super(FIRESTORE_COLLECTIONS.TICKETS); }
@@ -21,7 +50,7 @@ export async function fetchTicketsByReporter(employeeId: string): Promise<Ticket
 export async function createTicket(data: TicketSchema, createdBy: string): Promise<Ticket> {
   const refNumber = await nextRefNumber("TICKET");
 
-  return repo.create({
+  const ticket = await repo.create({
     ...data,
     refNumber,
     ticketStatus:      "open",
@@ -35,6 +64,10 @@ export async function createTicket(data: TicketSchema, createdBy: string): Promi
     sourceType:        "manual",
     linkedBookingId:   null,
   });
+
+  await notifyNewTicket(ticket);
+
+  return ticket;
 }
 
 // firstRespondedAt is a proxy for "staff first acknowledged this" (see its

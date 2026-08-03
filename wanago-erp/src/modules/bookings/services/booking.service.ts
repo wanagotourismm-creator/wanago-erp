@@ -12,6 +12,7 @@ import { createReferralBonusIfEligible } from "@/modules/referrals/services/refe
 import { scheduleReviewRequest } from "@/modules/reviews/services/reviews.service";
 import { createJourneyRunsForTrigger } from "@/modules/journeys/services/journey.service";
 import { getOrCreateOperationsBooking } from "@/modules/tour-operations/services/tour-operations.service";
+import { getOrCreateInvoiceForBooking } from "@/modules/invoices/services/invoice.service";
 
 // Approve/reject used to be a plain read-then-write with no check that the
 // booking was still in the expected status — two approvers acting on the
@@ -275,6 +276,16 @@ export async function approveBookingAsOperations(
     await getOrCreateOperationsBooking({ ...existing, status: BOOKING_STATUS.CONFIRMED } as Booking, approvedBy);
   } catch (err) {
     console.error("[booking.service] getOrCreateOperationsBooking failed:", err);
+  }
+
+  // Same reasoning as the Tour Operations auto-create above — Finance
+  // previously had to remember to manually raise an invoice for every
+  // confirmed booking. Best-effort: a failure here must never block the
+  // confirmation itself.
+  try {
+    await getOrCreateInvoiceForBooking({ ...existing, status: BOOKING_STATUS.CONFIRMED } as Booking, approvedBy);
+  } catch (err) {
+    console.error("[booking.service] getOrCreateInvoiceForBooking failed:", err);
   }
 }
 

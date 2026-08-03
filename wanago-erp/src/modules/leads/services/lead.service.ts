@@ -3,10 +3,59 @@ import { leadRepository } from "@/modules/leads/services/lead.repository";
 import { toDate, formatCurrency } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import { auth } from "@/lib/firebase/client";
+import { notifyUser } from "@/lib/notify";
+import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
+import { LEAD_STAGES } from "@/lib/constants";
 import type { Lead, LeadFormData } from "@/modules/leads/types";
 import { createCustomer, fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { fetchQuotations, createQuotation } from "@/modules/quotations/services/quotation.service";
 import type { Customer } from "@/modules/customers/types";
+
+// Least-loaded auto-assignment: previously every new lead needed a human
+// to manually pick an agent from the dropdown (or it silently stayed
+// unassigned forever) — this fires whenever a lead is created with no
+// assignedTo, so a lead is never sitting unowned by accident. Prefers
+// active Sales employees in the lead's own office; falls back to any
+// active Sales employee company-wide if that office has none, rather than
+// leaving the lead unassigned.
+async function pickLeastLoadedAgent(officeId: string): Promise<{ assignedTo: string; agentName: string; userId: string | null; email: string | null } | null> {
+  const [employees, leads] = await Promise.all([fetchEmployees(), fetchLeads()]);
+  const activeSales = employees.filter((e) => e.department === "Sales" && e.employeeStatus === "active");
+  const pool = activeSales.filter((e) => e.officeId === officeId);
+  const candidates = pool.length > 0 ? pool : activeSales;
+  if (candidates.length === 0) return null;
+
+  const openLoadByAgent = new Map<string, number>();
+  for (const lead of leads) {
+    if (!lead.assignedTo) continue;
+    if (lead.stage === LEAD_STAGES.WON || lead.stage === LEAD_STAGES.LOST) continue;
+    openLoadByAgent.set(lead.assignedTo, (openLoadByAgent.get(lead.assignedTo) ?? 0) + 1);
+  }
+
+  let best = candidates[0];
+  let bestLoad = openLoadByAgent.get(best.id) ?? 0;
+  for (const agent of candidates.slice(1)) {
+    const load = openLoadByAgent.get(agent.id) ?? 0;
+    if (load < bestLoad) { best = agent; bestLoad = load; }
+  }
+  return { assignedTo: best.id, agentName: best.fullName, userId: best.userId ?? null, email: best.email };
+}
+
+async function notifyAutoAssignedAgent(lead: Lead, userId: string | null, email: string | null): Promise<void> {
+  if (!userId) return;
+  try {
+    await notifyUser({
+      userId,
+      email,
+      title:    `New lead assigned: ${lead.name}`,
+      body:     `${lead.name} (${lead.destination}) was auto-assigned to you — least-loaded agent in ${lead.officeName}.`,
+      link:     "/leads",
+      category: "followup",
+    });
+  } catch {
+    // Best-effort — the lead is already correctly assigned either way.
+  }
+}
 
 // Note: sorted client-side (not via Firestore orderBy) so filtered
 // queries only need single-field indexes, which Firestore creates
@@ -68,7 +117,26 @@ export async function createLead(
   const refNumber = await nextRefNumber("LEAD");
   const matchedCustomer = await findMatchingCustomer(data.phone).catch(() => null);
 
-  return leadRepository.create({
+  let assignedTo = data.assignedTo || null;
+  let agentName  = data.agentName  || null;
+  let autoAssignedUserId: string | null = null;
+  let autoAssignedEmail: string | null = null;
+  if (!assignedTo) {
+    try {
+      const auto = await pickLeastLoadedAgent(data.officeId);
+      if (auto) {
+        assignedTo = auto.assignedTo;
+        agentName  = auto.agentName;
+        autoAssignedUserId = auto.userId;
+        autoAssignedEmail  = auto.email;
+      }
+    } catch {
+      // Best-effort — an unassigned lead is still fully usable; failing to
+      // auto-assign must never block lead creation.
+    }
+  }
+
+  const lead = await leadRepository.create({
     ...data,
     createdAt: options?.createdAt,
     refNumber,
@@ -78,14 +146,18 @@ export async function createLead(
     email:           data.email || null,
     alternatePhone:  data.alternatePhone || null,
     notes:           data.notes || null,
-    assignedTo:      data.assignedTo || null,
-    assignedAt:      data.assignedTo ? serverTimestamp() : null,
-    agentName:       data.agentName || null,
+    assignedTo,
+    assignedAt:      assignedTo ? serverTimestamp() : null,
+    agentName,
     tripType:        data.tripType || null,
     source:          data.source || null,
     pax:             data.pax || null,
     matchedCustomerId: matchedCustomer?.id ?? null,
   });
+
+  if (autoAssignedUserId) await notifyAutoAssignedAgent(lead, autoAssignedUserId, autoAssignedEmail);
+
+  return lead;
 }
 
 export async function updateLead(

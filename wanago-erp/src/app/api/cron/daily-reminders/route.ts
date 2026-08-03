@@ -6,7 +6,7 @@ import { fetchUsersByPermission } from "@/lib/notify-recipients";
 import { computeGoingColdCustomers, computeBookingAnomalies, getQuotationRisk } from "@/modules/dashboard/services/insights.service";
 import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
 import { isPreDepartureDueSoon, isStuckPastTravelDate, isClosureStuck, PRE_DEPARTURE_DUE_WITHIN_DAYS, CLOSURE_STUCK_DAYS } from "@/modules/tour-operations/utils";
-import { LEAD_STAGES, INVOICE_STATUS, FIRESTORE_COLLECTIONS, WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
+import { LEAD_STAGES, INVOICE_STATUS, FIRESTORE_COLLECTIONS, WHATSAPP_TEMPLATE_PURPOSES, RECRUITMENT_STAGES } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
 import type { OperationsBooking } from "@/modules/tour-operations/types";
 import type { TicketSlaPolicy } from "@/modules/tickets/services/ticket-sla-policy.service";
@@ -53,6 +53,15 @@ type TicketDoc = {
   ticketStatus: "open" | "in_progress" | "resolved" | "closed";
   assignedToId: string | null; createdAt: unknown; firstRespondedAt: unknown; resolvedAt: unknown;
 };
+type AttendanceDoc = {
+  id: string; employeeId: string; date: string; clockIn: string | null; clockOut: string | null;
+};
+type CandidateDoc = {
+  id: string; refNumber: string; fullName: string; status: string; updatedAt: unknown; createdBy: string;
+};
+type EnrollmentDoc = {
+  id: string; employeeName: string; trainingProgramTitle: string; status: string; updatedAt: unknown;
+};
 
 // Small, duplicated on purpose (matches this cron's existing convention —
 // see STALE_DAYS above) rather than importing DEFAULT_TICKET_SLA_POLICY as
@@ -82,7 +91,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Admin SDK not configured" }, { status: 500 });
   }
 
-  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap, ticketsSnap, ticketSlaPolicySnap, opsBookingsSnap] = await Promise.all([
+  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap, ticketsSnap, ticketSlaPolicySnap, opsBookingsSnap, attendanceSnap, candidatesSnap, enrollmentsSnap] = await Promise.all([
     db.collection(FIRESTORE_COLLECTIONS.LEADS).get(),
     db.collection(FIRESTORE_COLLECTIONS.CALL_LOGS).get(),
     db.collection(FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES).get(),
@@ -94,6 +103,9 @@ export async function GET(req: NextRequest) {
     db.collection(FIRESTORE_COLLECTIONS.TICKETS).where("ticketStatus", "in", ["open", "in_progress"]).get(),
     db.collection(FIRESTORE_COLLECTIONS.SETTINGS).doc("ticketSlaPolicy").get(),
     db.collection(FIRESTORE_COLLECTIONS.OPERATIONS_BOOKINGS).get(),
+    db.collection(FIRESTORE_COLLECTIONS.HRMS_CHECK_INS).get(),
+    db.collection(FIRESTORE_COLLECTIONS.CANDIDATES).get(),
+    db.collection(FIRESTORE_COLLECTIONS.TRAINING_ENROLLMENTS).get(),
   ]);
 
   const leads       = leadsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as LeadDoc);
@@ -110,6 +122,9 @@ export async function GET(req: NextRequest) {
   // OperationsBooking type matches what's actually stored, Admin SDK
   // Timestamps have the same {seconds,...} shape toDate() already handles.
   const opsBookings = opsBookingsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as OperationsBooking[];
+  const attendanceRecords = attendanceSnap.docs.map(d => ({ id: d.id, ...d.data() }) as AttendanceDoc);
+  const candidates   = candidatesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as CandidateDoc);
+  const enrollments  = enrollmentsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as EnrollmentDoc);
   const ticketSlaPolicyData = ticketSlaPolicySnap.data() as Partial<TicketSlaPolicy> | undefined;
   const ticketSlaPolicy: TicketSlaPolicy = {
     responseHours:   { ...DEFAULT_TICKET_SLA_HOURS.responseHours,   ...(ticketSlaPolicyData?.responseHours   ?? {}) },
@@ -407,6 +422,67 @@ export async function GET(req: NextRequest) {
     tourOpsRemindersNotified = preDepartureDue.length + stuckPastTravel.length + closureStuck.length;
   }
 
+  // ── Missed clock-out → notify the employee the next day ────────────
+  // The employee-facing ClockCard already surfaces this reactively (see
+  // useEss.ts's forgottenCheckout) but only if/when they happen to open the
+  // app — nothing proactively told them before now. Fires exactly once,
+  // the day after (not every day it stays open), since there's no
+  // persisted "already notified" field to gate on otherwise.
+  const yesterdayStr = new Date(now - DAY_MS).toISOString().slice(0, 10);
+  let missedClockOutsNotified = 0;
+  for (const a of attendanceRecords) {
+    if (a.date !== yesterdayStr) continue;
+    if (!a.clockIn || a.clockOut) continue;
+    const employee = employeeById.get(a.employeeId);
+    if (!employee?.userId) continue;
+    const user = userById.get(employee.userId);
+    await notifyUserServer({
+      userId:   employee.userId,
+      email:    user?.email ?? employee.email ?? null,
+      title:    "You forgot to clock out yesterday",
+      body:     `Your ${a.date} attendance is missing a clock-out. File a correction from My HR so your hours are recorded accurately.`,
+      link:     "/ess",
+      category: "followup",
+    });
+    missedClockOutsNotified++;
+  }
+
+  // ── Recruitment/training: stuck in a stage too long → notify HR ─────
+  const STAGE_STUCK_DAYS = 7;
+  const hrUsers = Array.from(userById.values()).filter(
+    u => u.systemRole === "hr" || u.systemRole === "admin" || u.systemRole === "super_admin"
+  );
+
+  const stuckCandidates = candidates.filter(c => {
+    if (c.status === RECRUITMENT_STAGES.JOINED || c.status === RECRUITMENT_STAGES.REJECTED) return false;
+    const updatedMs = toMillis(c.updatedAt);
+    return updatedMs != null && (now - updatedMs) / DAY_MS >= STAGE_STUCK_DAYS;
+  });
+  const stuckEnrollments = enrollments.filter(e => {
+    if (e.status === "completed" || e.status === "dropped") return false;
+    const updatedMs = toMillis(e.updatedAt);
+    return updatedMs != null && (now - updatedMs) / DAY_MS >= STAGE_STUCK_DAYS;
+  });
+
+  let recruitmentTrainingStuckNotified = 0;
+  if (stuckCandidates.length + stuckEnrollments.length > 0) {
+    const lines: string[] = [];
+    if (stuckCandidates.length > 0) lines.push(`${stuckCandidates.length} candidate(s) haven't moved stage in ${STAGE_STUCK_DAYS}+ days: ${stuckCandidates.map(c => c.fullName).join(", ")}.`);
+    if (stuckEnrollments.length > 0) lines.push(`${stuckEnrollments.length} training enrollment(s) haven't progressed in ${STAGE_STUCK_DAYS}+ days: ${stuckEnrollments.map(e => `${e.employeeName} (${e.trainingProgramTitle})`).join(", ")}.`);
+
+    for (const hrUser of hrUsers) {
+      await notifyUserServer({
+        userId:   hrUser.id,
+        email:    hrUser.email,
+        title:    "Recruitment/training needs a follow-up",
+        body:     lines.join(" "),
+        link:     "/recruitment",
+        category: "followup",
+      });
+    }
+    recruitmentTrainingStuckNotified = stuckCandidates.length + stuckEnrollments.length;
+  }
+
   return NextResponse.json({
     ok: true,
     leadsNotified,
@@ -420,5 +496,7 @@ export async function GET(req: NextRequest) {
     goingColdNotified,
     anomaliesNotified,
     tourOpsRemindersNotified,
+    missedClockOutsNotified,
+    recruitmentTrainingStuckNotified,
   });
 }

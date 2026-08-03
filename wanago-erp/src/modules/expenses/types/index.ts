@@ -19,6 +19,18 @@ export type Expense = FirestoreRecord & {
   // into a booking's computed profit, beyond just Package.costPrice.
   bookingId:      string | null;
   bookingRef:     string | null;
+
+  // Approval trail — set by approveExpense/rejectExpense, not by a plain
+  // status edit. null until a decision is made.
+  approvedBy:       string | null;
+  approvedAt:       unknown | null;
+  rejectedBy:       string | null;
+  rejectedAt:       unknown | null;
+  rejectionReason:  string | null;
 };
 
-export type ExpenseFormData = Omit<Expense, "id" | "createdAt" | "updatedAt" | "status" | "refNumber" | "receiptUrl">;
+export type ExpenseFormData = Omit<
+  Expense,
+  | "id" | "createdAt" | "updatedAt" | "status" | "refNumber" | "receiptUrl"
+  | "approvedBy" | "approvedAt" | "rejectedBy" | "rejectedAt" | "rejectionReason"
+>;

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   fetchExpenses, createExpense, updateExpense,
-  deleteExpense, uploadReceipt,
+  deleteExpense, uploadReceipt, approveExpense, rejectExpense,
 } from "@/modules/expenses/services/expense.service";
 import { useAuthStore } from "@/store/auth.store";
 import { logActivity } from "@/lib/activity-log";
@@ -69,11 +69,20 @@ export function useExpenses() {
     }
   }
 
+  // Approve/reject go through the dedicated service functions (approval
+  // trail + notify-the-submitter) — "paid" is just bookkeeping once
+  // already approved, so it stays a plain field update.
   async function changeStatus(
     id: string, expenseStatus: Expense["expenseStatus"]
   ): Promise<{ error: string | null }> {
     try {
-      await updateExpense(id, { expenseStatus });
+      if (expenseStatus === "approved") {
+        await approveExpense(id, user?.uid ?? "");
+      } else if (expenseStatus === "rejected") {
+        await rejectExpense(id, user?.uid ?? "");
+      } else {
+        await updateExpense(id, { expenseStatus });
+      }
       setExpenses(prev => prev.map(e => (e.id === id ? { ...e, expenseStatus } : e)));
       return { error: null };
     } catch {

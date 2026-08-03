@@ -82,6 +82,7 @@ function expense(overrides: Partial<Expense>): Expense {
     officeId: "off1", officeName: "Kozhikode",
     notes: null, refNumber: "EXP-1001", expenseStatus: "paid",
     bookingId: null, bookingRef: null,
+    approvedBy: "u1", approvedAt: new Date(), rejectedBy: null, rejectedAt: null, rejectionReason: null,
     ...overrides,
   };
 }

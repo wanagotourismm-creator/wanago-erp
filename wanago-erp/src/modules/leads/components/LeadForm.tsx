@@ -278,6 +278,11 @@ export function LeadForm({ open, lead, onClose, onSubmit }: Props) {
                       Only Admin/Sales Head can reassign once claimed
                     </p>
                   )}
+                  {!lead && !isLocked && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Leave blank to auto-assign to the least-loaded Sales agent in your office
+                    </p>
+                  )}
                 </Field>
               </div>
 
