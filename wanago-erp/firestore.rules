@@ -152,7 +152,7 @@ service cloud.firestore {
         'companyGoals', 'objectives', 'goalCheckIns',
         'referralPartners', 'referralPosters', 'referralClicks',
         'assets', 'settings', 'bookingRequests', 'quickInquiries', 'holidays',
-        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
+        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge',
         'whatsappTemplates', 'teamPulseResponses', 'digests',
         // All real writes happen server-side via the Admin SDK (the
         // review-requests cron and the public /review/{token} route) —
@@ -188,7 +188,7 @@ service cloud.firestore {
         'referralClicks', 'assets', 'assetRequests', 'holidays',
         'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
         'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
-        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
+        'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge',
         'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash',
         'npsResponses', 'tallyMappings', 'journeys', 'segments', 'sosEvents',
         'vendorRates', 'vendorAvailability'
