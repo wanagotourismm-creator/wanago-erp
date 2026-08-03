@@ -1,17 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck, Route, Loader2 } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
-import { BOOKING_STATUS_LABELS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
+import { BOOKING_STATUS_LABELS, BOOKING_STATUS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
 import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import { BookingResourcesSection } from "@/modules/resources/components/BookingResourcesSection";
 import { BookingSosHistory } from "@/modules/companion/components/BookingSosHistory";
 import { TripProfitabilitySection } from "@/modules/profitability/components/TripProfitabilitySection";
+import { getOrCreateOperationsBooking } from "@/modules/tour-operations/services/tour-operations.service";
+import { useAuthStore } from "@/store/auth.store";
 import type { Booking } from "@/modules/bookings/types";
 
 type Props = {
@@ -39,6 +42,9 @@ export function BookingDetailModal({
   onClose, onEdit, onDelete, onStatus,
 }: Props) {
   const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
+  const [openingOps, setOpeningOps] = useState(false);
+  const router = useRouter();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (!booking) return;
@@ -46,6 +52,19 @@ export function BookingDetailModal({
   }, [booking?.id]);
 
   if (!booking) return null;
+
+  const canOpenOps = booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.COMPLETED;
+
+  async function openTourOperations() {
+    if (!booking) return;
+    setOpeningOps(true);
+    try {
+      const record = await getOrCreateOperationsBooking(booking, user?.uid ?? "");
+      router.push(`/operations/${record.id}`);
+    } finally {
+      setOpeningOps(false);
+    }
+  }
 
   const hasApprovalTrail = !!booking.financeApprovedBy || !!booking.opsApprovedBy
     || !!booking.financeRejectedAt || !!booking.opsRejectedAt;
@@ -205,6 +224,16 @@ export function BookingDetailModal({
                 className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
               >
                 <Trash2 size={13} /> Delete
+              </button>
+            )}
+            {canOpenOps && (
+              <button
+                onClick={openTourOperations}
+                disabled={openingOps}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors disabled:opacity-60"
+              >
+                {openingOps ? <Loader2 size={13} className="animate-spin" /> : <Route size={13} />}
+                Open Tour Operations
               </button>
             )}
           </div>

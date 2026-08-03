@@ -525,6 +525,47 @@ describe("firestore.rules — Vendor rate & availability portal (vendorRates/ven
   });
 });
 
+describe("firestore.rules — Tour Operations dashboard (operationsBookings)", () => {
+  it("allows any authenticated staff member to read operationsBookings", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("operationsBookings").doc("doc1").set({ seeded: true });
+    });
+    await seedUser("hr1", "hr");
+    const db = testEnv.authenticatedContext("hr1").firestore();
+    await assertSucceeds(db.collection("operationsBookings").doc("doc1").get());
+  });
+
+  it("allows sales to write operationsBookings (Module 1 handover)", async () => {
+    await seedUser("sales1", "sales");
+    const db = testEnv.authenticatedContext("sales1").firestore();
+    await assertSucceeds(
+      db.collection("operationsBookings").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "sales1", status: "booking_received", bookingId: "b1",
+      })
+    );
+  });
+
+  it("allows operations to write operationsBookings", async () => {
+    await seedUser("ops1", "operations");
+    const db = testEnv.authenticatedContext("ops1").firestore();
+    await assertSucceeds(
+      db.collection("operationsBookings").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "ops1", status: "booking_received", bookingId: "b1",
+      })
+    );
+  });
+
+  it("blocks a role outside sales/operations/admin from writing operationsBookings", async () => {
+    await seedUser("hr1", "hr");
+    const db = testEnv.authenticatedContext("hr1").firestore();
+    await assertFails(
+      db.collection("operationsBookings").doc("doc1").set({
+        createdAt: new Date(), updatedAt: new Date(), createdBy: "hr1", status: "booking_received", bookingId: "b1",
+      })
+    );
+  });
+});
+
 describe("firestore.rules — HR creating a login account for a new employee", () => {
   it("lets hr create a users doc with a non-admin systemRole", async () => {
     await seedUser("hr1", "hr");

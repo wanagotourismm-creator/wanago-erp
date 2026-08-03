@@ -60,6 +60,32 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
 // effects that only run inside those guarded functions).
 export const MANUALLY_SETTABLE_BOOKING_STATUSES: BookingStatus[] = ["completed", "cancelled"];
 
+// Tour Operations dashboard — overall stage of a confirmed booking's
+// post-sale lifecycle. Always derived server-side (tour-operations.service.ts)
+// from the sub-section statuses beneath it, never set directly from a
+// dropdown — same philosophy as MANUALLY_SETTABLE_BOOKING_STATUSES above.
+export const OPERATIONS_STAGE = {
+  BOOKING_RECEIVED:             "booking_received",
+  BOOKING_VERIFICATION_COMPLETED: "booking_verification_completed",
+  BOOKINGS_COMPLETED:           "bookings_completed",
+  PRE_DEPARTURE_COMPLETED:      "pre_departure_completed",
+  TOUR_ONGOING:                 "tour_ongoing",
+  TOUR_COMPLETED:               "tour_completed",
+  PACKAGE_CLOSED:               "package_closed",
+} as const;
+
+export type OperationsStage = (typeof OPERATIONS_STAGE)[keyof typeof OPERATIONS_STAGE];
+
+export const OPERATIONS_STAGE_LABELS: Record<OperationsStage, string> = {
+  booking_received:               "Booking Received",
+  booking_verification_completed: "Verification Completed",
+  bookings_completed:             "Bookings Completed",
+  pre_departure_completed:        "Pre-Departure Completed",
+  tour_ongoing:                   "Tour Ongoing",
+  tour_completed:                 "Tour Completed",
+  package_closed:                 "Package Closed",
+};
+
 export const PAYMENT_STATUS = {
   PAID:    "paid",
   PARTIAL: "partial",
@@ -112,6 +138,7 @@ export const FIRESTORE_COLLECTIONS = {
   QUOTATIONS:        "quotations",
   PACKAGES:          "packages",
   BOOKINGS:          "bookings",
+  OPERATIONS_BOOKINGS: "operationsBookings",
   INVOICES:          "invoices",
   PAYMENTS:          "payments",
   EXPENSES:          "expenses",

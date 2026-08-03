@@ -175,7 +175,12 @@ service cloud.firestore {
         // Rate/pricing data — same operations-only write reasoning as
         // suppliers above. Vendor-submitted creates happen server-side via
         // the Admin SDK (/api/public/vendor/{token}), not through this path.
-        'vendorRates', 'vendorAvailability'
+        'vendorRates', 'vendorAvailability',
+        // Tour Operations dashboard — its own dedicated rule restricts
+        // create/update to sales/operations/admin; without this exclusion
+        // the catch-all's plain hasRequiredFields() grant would let ANY
+        // authenticated role (e.g. hr) create one.
+        'operationsBookings'
       ];
     }
 
@@ -195,7 +200,9 @@ service cloud.firestore {
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge', 'aiChatHistory',
         'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash',
         'npsResponses', 'tallyMappings', 'journeys', 'segments', 'sosEvents',
-        'vendorRates', 'vendorAvailability'
+        'vendorRates', 'vendorAvailability',
+        // Same reasoning as isCreateRestricted above.
+        'operationsBookings'
       ];
     }
 
@@ -520,6 +527,17 @@ service cloud.firestore {
     }
 
     match /itineraries/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      getUserRole() in ['super_admin','admin','operations','sales'];
+    }
+
+    // ── Tour Operations dashboard ──────────────────────────────
+    // One record per confirmed booking, tracking Sales→Ops handover
+    // through booking/pre-departure/on-tour/closure. Sales fills the
+    // handover step; Operations owns everything after — same cross-role
+    // write access as itineraries above, no per-user assignment scoping.
+    match /operationsBookings/{id} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() &&
                       getUserRole() in ['super_admin','admin','operations','sales'];
