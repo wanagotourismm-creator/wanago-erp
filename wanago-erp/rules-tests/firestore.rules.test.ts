@@ -794,14 +794,55 @@ describe("firestore.rules — hrmsCheckIns ownership", () => {
     );
   });
 
-  it("allows an employee to write their own attendance record", async () => {
+  // Stale until fixed here: this asserted assertSucceeds pre-0419e67
+  // ("fix: close client-side bypass of attendance geofence/selfie/fraud
+  // checks"), which deliberately removed the employee-owner branch from
+  // the create rule — self-reporting withinGeofence/selfie/etc straight to
+  // Firestore would skip the hardened /api/hrms/attendance/clock route's
+  // server-side re-derivation entirely. An employee's own clock-in must go
+  // through that route (Admin SDK, bypasses these rules); direct create is
+  // manager/HR-only. The commit tightened firestore.rules but never
+  // updated this test to match.
+  it("blocks an employee from creating their own attendance record directly (must go through /api/hrms/attendance/clock)", async () => {
     await seedEmployee("emp1", "u1");
     await seedUser("u1", "sales", "emp1");
     const db = testEnv.authenticatedContext("u1").firestore();
-    await assertSucceeds(
+    await assertFails(
       db.collection("hrmsCheckIns").doc("a1").set({
         employeeId: "emp1", date: "2026-07-18", clockIn: "09:00", clockOut: null,
       })
+    );
+  });
+
+  // The narrow legitimate self-write the create-rule comment refers to —
+  // break start/end (startBreak/endBreak in useEss.ts/useQuickClock.ts) —
+  // is an UPDATE to an existing record, confined to break fields by
+  // attendanceOwnerWriteIsSafe, not a create.
+  it("allows an employee to update the break fields on their own existing attendance record", async () => {
+    await seedEmployee("emp1", "u1");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("hrmsCheckIns").doc("a1").set({
+        employeeId: "emp1", date: "2026-07-18", clockIn: "09:00", clockOut: null,
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertSucceeds(
+      db.collection("hrmsCheckIns").doc("a1").update({ breakStartTime: "13:00", breakMinutes: 30 })
+    );
+  });
+
+  it("blocks an employee from self-writing clockIn/clockOut on their own existing attendance record", async () => {
+    await seedEmployee("emp1", "u1");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection("hrmsCheckIns").doc("a1").set({
+        employeeId: "emp1", date: "2026-07-18", clockIn: "09:00", clockOut: null,
+      });
+    });
+    await seedUser("u1", "sales", "emp1");
+    const db = testEnv.authenticatedContext("u1").firestore();
+    await assertFails(
+      db.collection("hrmsCheckIns").doc("a1").update({ clockOut: "18:00" })
     );
   });
 
