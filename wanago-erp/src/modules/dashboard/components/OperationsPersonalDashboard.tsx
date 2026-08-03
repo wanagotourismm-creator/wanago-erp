@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useCurrentEmployee }   from "@/modules/dashboard/hooks/useCurrentEmployee";
 import { useAttendanceSummary } from "@/modules/dashboard/hooks/useAttendanceSummary";
 import { useOperationsActionStats } from "@/modules/dashboard/hooks/useOperationsActionStats";
+import { useTourOperationsStats } from "@/modules/dashboard/hooks/useTourOperationsStats";
 import { useRelevantCompanyGoals } from "@/modules/dashboard/hooks/useRelevantCompanyGoals";
 import { GreetingBanner }    from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }          from "@/modules/dashboard/components/StatCard";
@@ -11,6 +12,7 @@ import { ProfileHeroCard }   from "@/modules/dashboard/components/ProfileHeroCar
 import { AvgHoursWeekCard }  from "@/modules/dashboard/components/AvgHoursWeekCard";
 import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSplit";
 import { OpsApprovalQueueCard } from "@/modules/dashboard/components/OpsApprovalQueueCard";
+import { TourOperationsStatusCard } from "@/modules/dashboard/components/TourOperationsStatusCard";
 import { RelevantGoalsCard } from "@/modules/dashboard/components/RelevantGoalsCard";
 import { ContinueTrainingCard } from "@/modules/dashboard/components/ContinueTrainingCard";
 import { QuickClockCard }    from "@/modules/dashboard/components/QuickClockCard";
@@ -24,6 +26,7 @@ export function OperationsPersonalDashboard() {
   const currentEmployee   = useCurrentEmployee();
   const attendanceSummary = useAttendanceSummary();
   const ops = useOperationsActionStats();
+  const tourOps = useTourOperationsStats();
   const relevantGoals = useRelevantCompanyGoals(currentEmployee.employee?.department ?? null, currentEmployee.employee?.id ?? null);
 
   return (
@@ -84,6 +87,8 @@ export function OperationsPersonalDashboard() {
           )}
 
           <OpsApprovalQueueCard items={ops.oldestPending} loading={ops.loading} />
+
+          <TourOperationsStatusCard stats={tourOps} loading={tourOps.loading} />
 
           <RelevantGoalsCard objectives={relevantGoals.objectives} loading={relevantGoals.loading} />
 

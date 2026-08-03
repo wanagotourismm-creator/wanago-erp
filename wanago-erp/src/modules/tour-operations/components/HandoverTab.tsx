@@ -57,6 +57,12 @@ export function HandoverTab({ recordId, handover, saveHandover }: {
 
       {/* Customer details */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Travel Date">
+          <input type="date" className={inputClass} value={local.travelDate ?? ""} onChange={(e) => set("travelDate", e.target.value || null)} />
+        </Field>
+        <Field label="Return Date">
+          <input type="date" className={inputClass} value={local.returnDate ?? ""} onChange={(e) => set("returnDate", e.target.value || null)} />
+        </Field>
         <Field label="Travel Date Remarks">
           <input className={inputClass} value={local.travelDateRemarks} onChange={(e) => set("travelDateRemarks", e.target.value)} />
         </Field>

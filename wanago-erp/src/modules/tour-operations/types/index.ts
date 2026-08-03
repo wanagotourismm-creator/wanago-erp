@@ -25,6 +25,12 @@ export type RoomSharing = "double" | "triple" | "quad" | "other";
 
 // ── Module 1 — Sales → Operations Handover ──────────────────────
 export type OperationsHandover = {
+  // Prefilled from the linked Booking at creation (see
+  // emptyOperationsBooking in tour-operations.service.ts) and editable here
+  // — this is what the list view, dashboard stats, and cron reminders key
+  // off to know when a trip is happening without opening the record.
+  travelDate:        string | null;
+  returnDate:        string | null;
   travelDateRemarks: string;
   place:             string;
   adultAges:         number[];

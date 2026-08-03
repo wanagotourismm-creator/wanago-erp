@@ -11,6 +11,7 @@ import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
 import { createReferralBonusIfEligible } from "@/modules/referrals/services/referral.service";
 import { scheduleReviewRequest } from "@/modules/reviews/services/reviews.service";
 import { createJourneyRunsForTrigger } from "@/modules/journeys/services/journey.service";
+import { getOrCreateOperationsBooking } from "@/modules/tour-operations/services/tour-operations.service";
 
 // Approve/reject used to be a plain read-then-write with no check that the
 // booking was still in the expected status — two approvers acting on the
@@ -261,6 +262,20 @@ export async function approveBookingAsOperations(
   );
 
   await createReferralBonusIfEligible({ ...existing, status: BOOKING_STATUS.CONFIRMED }, approvedBy);
+
+  // Confirmation is the moment Sales→Operations handover should begin —
+  // previously this only happened if someone remembered to click "Open
+  // Tour Operations" on the booking later. Auto-creating it here (and
+  // notifying Operations — see getOrCreateOperationsBooking) means the
+  // handover record and its notification always exist the instant a
+  // booking is confirmed, same as every other automated hand-off in this
+  // file. Best-effort: a failure here must never block the confirmation
+  // itself.
+  try {
+    await getOrCreateOperationsBooking({ ...existing, status: BOOKING_STATUS.CONFIRMED } as Booking, approvedBy);
+  } catch (err) {
+    console.error("[booking.service] getOrCreateOperationsBooking failed:", err);
+  }
 }
 
 // Finance rejects the booking with a reason instead of approving — editing

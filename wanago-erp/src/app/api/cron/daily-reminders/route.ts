@@ -5,8 +5,10 @@ import { sendWhatsAppSmart } from "@/lib/whatsapp/template-router";
 import { fetchUsersByPermission } from "@/lib/notify-recipients";
 import { computeGoingColdCustomers, computeBookingAnomalies, getQuotationRisk } from "@/modules/dashboard/services/insights.service";
 import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
+import { isPreDepartureDueSoon, isStuckPastTravelDate, isClosureStuck, PRE_DEPARTURE_DUE_WITHIN_DAYS, CLOSURE_STUCK_DAYS } from "@/modules/tour-operations/utils";
 import { LEAD_STAGES, INVOICE_STATUS, FIRESTORE_COLLECTIONS, WHATSAPP_TEMPLATE_PURPOSES } from "@/lib/constants";
 import type { Booking } from "@/modules/bookings/types";
+import type { OperationsBooking } from "@/modules/tour-operations/types";
 import type { TicketSlaPolicy } from "@/modules/tickets/services/ticket-sla-policy.service";
 
 export const runtime = "nodejs";
@@ -80,7 +82,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Admin SDK not configured" }, { status: 500 });
   }
 
-  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap, ticketsSnap, ticketSlaPolicySnap] = await Promise.all([
+  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap, ticketsSnap, ticketSlaPolicySnap, opsBookingsSnap] = await Promise.all([
     db.collection(FIRESTORE_COLLECTIONS.LEADS).get(),
     db.collection(FIRESTORE_COLLECTIONS.CALL_LOGS).get(),
     db.collection(FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES).get(),
@@ -91,6 +93,7 @@ export async function GET(req: NextRequest) {
     db.collection(FIRESTORE_COLLECTIONS.CUSTOMERS).get(),
     db.collection(FIRESTORE_COLLECTIONS.TICKETS).where("ticketStatus", "in", ["open", "in_progress"]).get(),
     db.collection(FIRESTORE_COLLECTIONS.SETTINGS).doc("ticketSlaPolicy").get(),
+    db.collection(FIRESTORE_COLLECTIONS.OPERATIONS_BOOKINGS).get(),
   ]);
 
   const leads       = leadsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as LeadDoc);
@@ -102,6 +105,11 @@ export async function GET(req: NextRequest) {
   const bookings     = bookingsSnap.docs.map(d => d.data()) as unknown as Booking[];
   const customerById = new Map(customersSnap.docs.map(d => [d.id, ({ id: d.id, ...d.data() }) as CustomerDoc]));
   const openTickets  = ticketsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as TicketDoc);
+  // Same reuse-the-pure-function convention as getQuotationRisk/
+  // computeBookingAnomalies/getTicketSlaStatus above — the client
+  // OperationsBooking type matches what's actually stored, Admin SDK
+  // Timestamps have the same {seconds,...} shape toDate() already handles.
+  const opsBookings = opsBookingsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as OperationsBooking[];
   const ticketSlaPolicyData = ticketSlaPolicySnap.data() as Partial<TicketSlaPolicy> | undefined;
   const ticketSlaPolicy: TicketSlaPolicy = {
     responseHours:   { ...DEFAULT_TICKET_SLA_HOURS.responseHours,   ...(ticketSlaPolicyData?.responseHours   ?? {}) },
@@ -365,6 +373,40 @@ export async function GET(req: NextRequest) {
     anomaliesNotified = anomalies.length;
   }
 
+  // ── Tour Operations: pre-departure due, stuck past travel date, closure
+  // stuck ──────────────────────────────────────────────────────────────
+  // isPreDepartureDueSoon/isStuckPastTravelDate/isClosureStuck (shared
+  // with the Operations dashboard's stat tiles — see useTourOperationsStats.ts)
+  // are the same functions, so what this notifies and what the dashboard
+  // shows can't drift apart. This whole module had zero automation until
+  // now — nothing else here notifies Operations about any of these.
+  let tourOpsRemindersNotified = 0;
+  const opsRoleUsers = Array.from(userById.values()).filter(
+    u => u.systemRole === "admin" || u.systemRole === "super_admin" || u.systemRole === "operations"
+  );
+  const preDepartureDue = opsBookings.filter(r => isPreDepartureDueSoon(r, PRE_DEPARTURE_DUE_WITHIN_DAYS));
+  const stuckPastTravel = opsBookings.filter(isStuckPastTravelDate);
+  const closureStuck    = opsBookings.filter(r => isClosureStuck(r, CLOSURE_STUCK_DAYS));
+
+  if (preDepartureDue.length + stuckPastTravel.length + closureStuck.length > 0) {
+    const lines: string[] = [];
+    if (preDepartureDue.length > 0) lines.push(`${preDepartureDue.length} trip(s) traveling within ${PRE_DEPARTURE_DUE_WITHIN_DAYS} days still have an incomplete pre-departure checklist: ${preDepartureDue.map(r => r.refNumber).join(", ")}.`);
+    if (stuckPastTravel.length > 0) lines.push(`${stuckPastTravel.length} trip(s) have a travel date in the past but were never marked as started: ${stuckPastTravel.map(r => r.refNumber).join(", ")}.`);
+    if (closureStuck.length > 0) lines.push(`${closureStuck.length} completed trip(s) have been stuck in closure for ${CLOSURE_STUCK_DAYS}+ days without finishing: ${closureStuck.map(r => r.refNumber).join(", ")}.`);
+
+    for (const opsUser of opsRoleUsers) {
+      await notifyUserServer({
+        userId:   opsUser.id,
+        email:    opsUser.email,
+        title:    "Tour Operations needs attention",
+        body:     lines.join(" "),
+        link:     "/operations",
+        category: "followup",
+      });
+    }
+    tourOpsRemindersNotified = preDepartureDue.length + stuckPastTravel.length + closureStuck.length;
+  }
+
   return NextResponse.json({
     ok: true,
     leadsNotified,
@@ -377,5 +419,6 @@ export async function GET(req: NextRequest) {
     ticketSlaBreachesNotified,
     goingColdNotified,
     anomaliesNotified,
+    tourOpsRemindersNotified,
   });
 }

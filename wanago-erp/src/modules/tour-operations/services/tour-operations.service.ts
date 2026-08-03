@@ -3,6 +3,8 @@ import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS, OPERATIONS_STAGE } from "@/lib/constants";
 import { toDate } from "@/lib/utils/helpers";
 import { tourOperationsRepository } from "@/modules/tour-operations/services/tour-operations.repository";
+import { notifyUser } from "@/lib/notify";
+import { fetchUsersByPermission } from "@/lib/notify-recipients";
 import type { Booking } from "@/modules/bookings/types";
 import type {
   OperationsBooking, OperationsHandover, OperationsVerification, HotelBooking, MealsBooking,
@@ -17,6 +19,8 @@ const emptyPayment = (): PaymentBreakdown => ({ totalCost: 0, bookingPayment: 0,
 
 function emptyHandover(booking: Booking): OperationsHandover {
   return {
+    travelDate:        booking.travelDate ?? null,
+    returnDate:        booking.returnDate ?? null,
     travelDateRemarks: "",
     place: "",
     adultAges: [],
@@ -153,7 +157,38 @@ export async function fetchOperationsBookingByBookingId(bookingId: string): Prom
 export async function getOrCreateOperationsBooking(booking: Booking, createdBy: string): Promise<OperationsBooking> {
   const existing = await fetchOperationsBookingByBookingId(booking.id);
   if (existing) return existing;
-  return tourOperationsRepository.create(emptyOperationsBooking(booking, createdBy));
+  const created = await tourOperationsRepository.create(emptyOperationsBooking(booking, createdBy));
+  // Only fires on the branch that actually creates the record — whether
+  // this was called from the "Open Tour Operations" button or
+  // auto-triggered by approveBookingAsOperations, Operations gets told
+  // exactly once that a new handover is ready, never on every re-open.
+  await notifyOpsHandoverReady(created);
+  return created;
+}
+
+// Reuses "bookings:ops_approve" rather than a dedicated permission — no
+// tour-operations-specific permission exists (its RBAC is a plain role
+// check in firestore.rules, see the itineraries/vendorRates convention),
+// and this is exactly the audience — Operations/Admin — that permission
+// already resolves to.
+async function notifyOpsHandoverReady(record: OperationsBooking): Promise<void> {
+  try {
+    const approvers = await fetchUsersByPermission("bookings:ops_approve");
+    await Promise.all(
+      approvers.map((u) =>
+        notifyUser({
+          userId:   u.id,
+          email:    u.email,
+          title:    `New Tour Operations handover: ${record.refNumber}`,
+          body:     `${record.customerName} — ${record.destination}. Confirmed booking is ready for Operations handover.`,
+          link:     `/operations/${record.id}`,
+          category: "approval",
+        })
+      )
+    );
+  } catch {
+    // Notification failures must not block the handover record's creation.
+  }
 }
 
 // ── Section updates (each tab saves its own section in full) ────
