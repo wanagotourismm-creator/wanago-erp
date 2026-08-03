@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, Check, Bot, Power } from "lucide-react";
+import { Loader2, Save, Check, Bot, Power, GitPullRequest, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import type { AiSettings } from "@/modules/ai-core/types";
 
@@ -68,6 +68,36 @@ export function AiEmployeePanel({ settings, saving, onSave }: Props) {
             ? "The AI Assistant chat is available to every signed-in employee. Turning this off removes it app-wide immediately — no redeploy needed."
             : "The AI Assistant is disabled. The chat button won't appear for anyone, and the API will refuse requests, until this is turned back on."}
         </p>
+      </div>
+
+      <div className="rounded-2xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/10 p-6 shadow-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <GitPullRequest size={14} className="text-amber-600" />
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400">Auto-Fix PRs (Software Tickets)</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-input"
+            checked={form.aiAutoFixEnabled}
+            onChange={(e) => set("aiAutoFixEnabled", e.target.checked)}
+          />
+          Enable AI auto-diagnosis for &ldquo;Software&rdquo; category support tickets
+        </label>
+        <p className="text-xs text-muted-foreground">
+          When a staff member reports a Software-category bug, the AI tries to find the cause in the codebase and
+          open a <strong>draft</strong> pull request on GitHub for a developer to review — it never merges anything
+          itself. Also requires a GitHub token configured under Admin &gt; Integrations.
+        </p>
+        <div className="flex items-start gap-2 rounded-xl border border-amber-300/40 bg-amber-100/50 dark:bg-amber-900/20 px-3 py-2">
+          <ShieldAlert size={13} className="mt-0.5 flex-shrink-0 text-amber-700 dark:text-amber-400" />
+          <ul className="space-y-1 text-[11px] text-amber-800 dark:text-amber-300 list-disc pl-3">
+            <li>Only ever changes one file, and only source code files (never config, secrets, security rules, or its own code)</li>
+            <li>Only triggers on internally-reported tickets, never customer-facing (NPS) ones</li>
+            <li>Capped at 5 draft PRs per day (see DAILY_AI_PR_CAP in ai-bugfix.service.ts)</li>
+            <li>Says &ldquo;needs manual triage&rdquo; instead of guessing when it isn&apos;t confident</li>
+          </ul>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">

@@ -16,16 +16,22 @@
 # reimplementing all of that business logic here (see the plan's research:
 # these are TS-service-only, not enforced by firestore.rules).
 import re
+import time
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from pydantic import BaseModel
 
+from . import lead_score
 from . import schemas as s
 from .firestore_client import get_db
 from .gemini_client import generate_text
 
 MAX_LIST_RESULTS = 15
+OPEN_LEAD_STAGES = {"new", "contacted", "follow_up", "quoted", "negotiation"}
+FINAL_LEAD_STAGES = {"won", "lost"}
+STUCK_DEAL_DAYS_THRESHOLD = 7
 
 
 def _ms(value: Any) -> float:
@@ -97,6 +103,43 @@ def search_help_articles(args: s.SearchHelpArticlesArgs) -> Dict[str, Any]:
             scored.append((score, {"title": data.get("title"), "content": data.get("content")}))
     scored.sort(key=lambda x: x[0], reverse=True)
     return {"articles": [a for _, a in scored[:3]]}
+
+
+# ── searchResolvedIssues ────────────────────────────────────────
+# Same keyword-scoring shape as search_help_articles, against the
+# resolvedTicketKnowledge collection populated by
+# /api/tickets/[id]/summarize-resolution whenever a ticket is resolved with
+# notes (src/modules/tickets/services/ticket.service.ts's
+# resolveTicketWithNotes). This is the "learns automatically" loop: the more
+# tickets get resolved, the more this tool has to find — no model training,
+# just a growing searchable history of real fixes.
+def search_resolved_issues(args: s.SearchHelpArticlesArgs) -> Dict[str, Any]:
+    db = get_db()
+    if not db:
+        return {"issues": []}
+    query_tokens = _tokenize(args.query)
+    scored = []
+    for d in db.collection("resolvedTicketKnowledge").stream():
+        data = d.to_dict() or {}
+        title_tokens = _tokenize(str(data.get("title", "")))
+        keyword_tokens: set = set()
+        for k in data.get("keywords", []) or []:
+            keyword_tokens |= _tokenize(str(k))
+        category_tokens = _tokenize(str(data.get("category", "")))
+        content_tokens = _tokenize(str(data.get("content", "")))
+        score = 0
+        for tok in query_tokens:
+            if tok in title_tokens: score += 3
+            if tok in keyword_tokens: score += 3
+            if tok in category_tokens: score += 2
+            if tok in content_tokens: score += 1
+        if score > 0:
+            scored.append((score, {
+                "title": data.get("title"), "summary": data.get("content"),
+                "sourceTicketRef": data.get("sourceTicketRef"),
+            }))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return {"issues": [a for _, a in scored[:3]]}
 
 
 MAX_POLICY_CONTEXT_CHARS = 30_000
@@ -244,6 +287,130 @@ def list_campaigns(args: s.ListCampaignsArgs) -> Dict[str, Any]:
     ]}
 
 
+# ── Sales engine ─────────────────────────────────────────────────
+# getLeadPriorityRanking bulk-fetches leads/callLogs/quotations ONCE each
+# (same shape as every other list tool here) rather than doing a per-lead
+# call-log query — command-center.service.ts's own comment on
+# computeLeadClosability explicitly flags a per-lead fetch loop as an N+1
+# query explosion across the whole leads collection, so this follows its
+# bulk-fetch-then-group-in-memory pattern instead.
+def get_lead_priority_ranking(args: s.GetLeadPriorityRankingArgs) -> Dict[str, Any]:
+    wheres = [("assignedTo", "==", args.assignedTo)] if args.assignedTo else []
+    leads = [l for l in query_collection("leads", wheres) if l.get("stage") in OPEN_LEAD_STAGES]
+
+    logs_by_lead: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for log in query_collection("callLogs", []):
+        lid = log.get("leadId")
+        if lid:
+            logs_by_lead[lid].append(log)
+
+    quote_by_lead: Dict[str, Dict[str, Any]] = {}
+    for q in query_collection("quotations", []):
+        lid = q.get("leadId")
+        if not lid:
+            continue
+        existing = quote_by_lead.get(lid)
+        if not existing or _ms(q.get("createdAt")) > _ms(existing.get("createdAt")):
+            quote_by_lead[lid] = q
+
+    scored = []
+    for lead in leads:
+        closability = lead_score.compute_lead_closability(
+            stage=lead.get("stage", "new"), priority=lead.get("priority") or "",
+            call_logs=logs_by_lead.get(lead["id"], []), quotation=quote_by_lead.get(lead["id"]),
+            created_at=lead.get("createdAt"),
+        )
+        scored.append({
+            "refNumber": lead.get("refNumber"), "name": lead.get("name"), "phone": lead.get("phone"),
+            "stage": lead.get("stage"), "assignedTo": lead.get("assignedTo"),
+            "score": closability["score"], "band": closability["band"], "reasons": closability["reasons"],
+        })
+    scored.sort(key=lambda item: item["score"], reverse=True)
+    return {"leads": scored[:MAX_LIST_RESULTS]}
+
+
+def get_package_pricing(args: s.GetPackagePricingArgs) -> Dict[str, Any]:
+    wheres: List[tuple] = [("packageStatus", "==", "active")]
+    if args.destination:
+        wheres.append(("destination", "==", args.destination))
+    docs = query_collection("packages", wheres)[:MAX_LIST_RESULTS]
+    return {"packages": [
+        {"refNumber": p.get("refNumber"), "title": p.get("title"), "destination": p.get("destination"),
+         "durationDays": p.get("durationDays"), "durationNights": p.get("durationNights"),
+         "basePrice": p.get("basePrice"), "inclusions": p.get("inclusions")} for p in docs
+    ]}
+
+
+def draft_follow_up_message(args: s.DraftFollowUpMessageArgs) -> Dict[str, Any]:
+    lead = find_by_ref_or_id("leads", args.refNumberOrId)
+    if not lead:
+        return {"draftText": None, "error": "Lead not found"}
+    prompt = (
+        f"Write a short, friendly WhatsApp follow-up message to {lead.get('name')}, who inquired about a trip to "
+        f"{lead.get('destination')}. Current pipeline stage: {lead.get('stage')}. "
+        + (f"Tone: {args.tone}. " if args.tone else "")
+        + "Keep it under 300 characters, plain text only, no links. This is a DRAFT for the sales rep to review "
+          "and send manually — never claim it has been sent."
+    )
+    result = generate_text(feature="ai-employee-followup-draft", prompt=prompt, created_by="system")
+    return {"leadName": lead.get("name"), "draftText": result["text"]}
+
+
+# Deterministic (no ML) win-rate/stuck-deal aggregation — same "honesty
+# first, report the sample size" stance as insights.service.ts and
+# forecast.py's own thresholds, rather than a confident-looking percentage
+# built on 2 leads.
+def get_pipeline_analytics(args: s.GetPipelineAnalyticsArgs) -> Dict[str, Any]:
+    wheres = [("officeId", "==", args.officeId)] if args.officeId else []
+    leads = query_collection("leads", wheres)
+
+    def win_rate_table(key_fn: Callable[[Dict[str, Any]], Any]) -> List[Dict[str, Any]]:
+        counts: Dict[str, Dict[str, int]] = defaultdict(lambda: {"won": 0, "lost": 0})
+        for lead in leads:
+            stage = lead.get("stage")
+            if stage in FINAL_LEAD_STAGES:
+                counts[key_fn(lead) or "Unknown"][stage] += 1
+        rows = []
+        for key, c in counts.items():
+            total = c["won"] + c["lost"]
+            if total == 0:
+                continue
+            rows.append({"key": key, "won": c["won"], "lost": c["lost"], "winRate": round(c["won"] / total, 2), "sampleSize": total})
+        rows.sort(key=lambda r: r["sampleSize"], reverse=True)
+        return rows[:10]
+
+    logs_by_lead: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for log in query_collection("callLogs", []):
+        lid = log.get("leadId")
+        if lid:
+            logs_by_lead[lid].append(log)
+
+    stuck = []
+    for lead in leads:
+        if lead.get("stage") not in OPEN_LEAD_STAGES:
+            continue
+        lead_logs = sorted(logs_by_lead.get(lead["id"], []), key=lambda l: _ms(l.get("createdAt")), reverse=True)
+        last_contact = lead_logs[0].get("createdAt") if lead_logs else lead.get("createdAt")
+        last_contact_ms = _ms(last_contact)
+        if not last_contact_ms:
+            continue
+        days_since = (time.time() - last_contact_ms) / 86400
+        if days_since >= STUCK_DEAL_DAYS_THRESHOLD:
+            stuck.append({"refNumber": lead.get("refNumber"), "name": lead.get("name"),
+                          "stage": lead.get("stage"), "daysSinceContact": int(days_since)})
+    stuck.sort(key=lambda item: item["daysSinceContact"], reverse=True)
+
+    return {
+        "winRateBySource": win_rate_table(lambda l: l.get("source")),
+        "winRateByDestination": win_rate_table(lambda l: l.get("destination")),
+        "winRateByAgent": win_rate_table(lambda l: l.get("agentName") or l.get("assignedTo")),
+        "stuckDeals": stuck[:15],
+        "note": "Win rates only include leads already marked won/lost; small sampleSize values are noisy, say so "
+                "rather than stating a confident percentage. Stuck deals = open-stage leads with no contact in "
+                f"{STUCK_DEAL_DAYS_THRESHOLD}+ days.",
+    }
+
+
 # ── draftCampaignMessage ────────────────────────────────────────
 # Content generation, not a database read or write — modeled as a "read"
 # tool (no Firestore proposal/confirm needed) since there's nothing to
@@ -280,6 +447,9 @@ AI_TOOLS: List[AiTool] = [
     AiTool("searchHelpArticles", "read",
            "Search the ERP's internal help documentation for how-to-use-the-app questions. Args: { query: string }.",
            s.SearchHelpArticlesArgs, run=search_help_articles),
+    AiTool("searchResolvedIssues", "read",
+           "Search the history of previously-resolved IT/software support tickets for a fix matching this problem — always check this before assuming something is new. Args: { query: string }.",
+           s.SearchHelpArticlesArgs, run=search_resolved_issues),
     AiTool("getHrPolicyContext", "read",
            "Fetch the full text of all active company HR policy documents (leave policy, attendance, conduct, etc). No args.",
            s.EmptyArgs, run=get_hr_policy_context),
@@ -325,6 +495,18 @@ AI_TOOLS: List[AiTool] = [
     AiTool("listCampaigns", "read",
            "List marketing campaigns, optionally filtered by campaignStatus. Args: { campaignStatus?: string }.",
            s.ListCampaignsArgs, run=list_campaigns, allowed_roles=["super_admin", "admin", "marketing"]),
+    AiTool("getLeadPriorityRanking", "read",
+           "Rank open leads hot-to-cold using the exact same closability score shown on the Lead Detail page (not a separate/competing score). Args: { assignedTo?: string (uid, scope to one rep) }.",
+           s.GetLeadPriorityRankingArgs, run=get_lead_priority_ranking, allowed_roles=["super_admin", "admin", "sales", "sales_head"]),
+    AiTool("getPackagePricing", "read",
+           "Look up real package pricing (base price, duration, inclusions) before proposing quotation line items — never invent prices. Args: { destination?: string }.",
+           s.GetPackagePricingArgs, run=get_package_pricing, allowed_roles=["super_admin", "admin", "sales", "sales_head"]),
+    AiTool("draftFollowUpMessage", "read",
+           "Draft a short WhatsApp follow-up message for one lead, for the sales rep to review and send manually — this NEVER sends anything. Args: { refNumberOrId: string, tone?: string }.",
+           s.DraftFollowUpMessageArgs, run=draft_follow_up_message, allowed_roles=["super_admin", "admin", "sales", "sales_head"]),
+    AiTool("getPipelineAnalytics", "read",
+           "Win-rate by source/destination/agent and stuck-deal (no-contact) detection across the sales pipeline. Always reports sample sizes — treat any winRate on a small sampleSize as noisy, not a confident trend. Args: { officeId?: string }.",
+           s.GetPipelineAnalyticsArgs, run=get_pipeline_analytics, allowed_roles=["super_admin", "admin", "sales", "sales_head"]),
     AiTool("draftCampaignMessage", "read",
            "Draft short WhatsApp campaign message copy for a human marketer to review and send manually — this NEVER sends anything, it only returns text. Args: { campaignTopic: string, audienceDescription?: string, tone?: string }.",
            s.DraftCampaignMessageArgs, run=draft_campaign_message, allowed_roles=["super_admin", "admin", "marketing"]),

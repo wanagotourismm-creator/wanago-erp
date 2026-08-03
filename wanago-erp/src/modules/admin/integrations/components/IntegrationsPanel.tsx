@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, KeyRound, Loader2, Mail, MessageCircle, Phone, Send, Volume2 } from "lucide-react";
+import { Check, KeyRound, Loader2, Mail, MessageCircle, Phone, Send, Volume2, Github } from "lucide-react";
 import { fetchIntegrationStatus, saveIntegrationSecrets, sendTestEmail } from "@/modules/admin/integrations/services/integrations.service";
 import { cn } from "@/lib/utils/helpers";
 
@@ -64,6 +64,14 @@ const SECTIONS: Section[] = [
       { key: "callingApiToken", label: "API Token", placeholder: "from Settings > API Settings" },
       { key: "callingCallerId", label: "Caller ID (ExoPhone)", placeholder: "e.g. 08041234567", secret: false },
       { key: "callingWebhookToken", label: "Webhook Verify Token", placeholder: "choose any random string" },
+    ],
+  },
+  {
+    title: "AI Auto-Fix (GitHub)", icon: Github,
+    description: "Lets the AI Employee open a draft pull request for a human to review when it can confidently diagnose a \"Software\" category support ticket — it never merges anything itself (see Admin > AI Employee for the on/off switch and safety rails). Create a fine-grained personal access token at github.com/settings/tokens with Contents (read/write) and Pull requests (read/write) permissions, scoped to this one repository only.",
+    fields: [
+      { key: "githubToken", label: "GitHub Access Token", placeholder: "github_pat_..." },
+      { key: "githubRepo", label: "Repository", placeholder: "your-org/your-repo", secret: false },
     ],
   },
 ];

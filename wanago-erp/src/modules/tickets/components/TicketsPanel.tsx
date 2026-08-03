@@ -5,6 +5,7 @@ import { Ticket as TicketIcon, RefreshCw, Clock, CheckCircle2, AlertCircle, Uplo
 import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { TicketsTable } from "@/modules/tickets/components/TicketsTable";
 import { TicketDetailModal } from "@/modules/tickets/components/TicketDetailModal";
+import { ResolveTicketModal } from "@/modules/tickets/components/ResolveTicketModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils/helpers";
@@ -48,11 +49,12 @@ function resolveEmployeeRef(value: string | undefined, employees: Employee[]): {
 }
 
 export function TicketsPanel() {
-  const { tickets, loading, stats, load, setStatus, assignToMe, removeTicket } = useTickets();
+  const { tickets, loading, stats, load, setStatus, resolveTicket, assignToMe, removeTicket } = useTickets();
   const { user } = useAuthStore();
   const canDelete = user?.systemRole === "admin" || user?.systemRole === "super_admin";
   const [statusFilter, setStatusFilter] = useState("All");
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
+  const [resolvingTicket, setResolvingTicket] = useState<Ticket | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
@@ -63,6 +65,16 @@ export function TicketsPanel() {
     fetchOffices().then(setOffices);
     fetchTicketSlaPolicy().then(setSlaPolicy).catch(() => {});
   }, []);
+
+  // Resolving is intercepted here rather than applied immediately — see
+  // ResolveTicketModal — every other status change passes straight through.
+  function handleSetStatus(t: Ticket, status: Ticket["ticketStatus"]) {
+    if (status === "resolved" && t.ticketStatus !== "resolved") {
+      setResolvingTicket(t);
+      return;
+    }
+    setStatus(t.id, status);
+  }
 
   function handleDelete(t: Ticket) {
     if (!confirm(`Delete ticket "${t.title}"?`)) return;
@@ -195,7 +207,7 @@ export function TicketsPanel() {
         canDelete={canDelete}
         slaPolicy={slaPolicy}
         onView={setViewingTicket}
-        onSetStatus={(t, status) => setStatus(t.id, status)}
+        onSetStatus={handleSetStatus}
         onAssignToMe={(t) => assignToMe(t.id)}
         onDelete={handleDelete}
       />
@@ -205,9 +217,20 @@ export function TicketsPanel() {
         canDelete={canDelete}
         slaPolicy={slaPolicy}
         onClose={() => setViewingTicket(null)}
-        onSetStatus={(t, status) => setStatus(t.id, status)}
+        onSetStatus={handleSetStatus}
         onAssignToMe={(t) => assignToMe(t.id)}
         onDelete={handleDelete}
+      />
+
+      <ResolveTicketModal
+        ticket={resolvingTicket}
+        onClose={() => setResolvingTicket(null)}
+        onConfirm={async (notes) => {
+          if (!resolvingTicket) return { error: "No ticket selected" };
+          const result = await resolveTicket(resolvingTicket.id, notes);
+          if (!result.error) setResolvingTicket(null);
+          return result;
+        }}
       />
 
       <BulkImportModal<TicketSchema>

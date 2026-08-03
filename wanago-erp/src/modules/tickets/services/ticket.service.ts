@@ -53,6 +53,18 @@ export async function updateTicketStatus(id: string, ticketStatus: TicketStatus,
   return repo.update(id, patch);
 }
 
+// Distinct from updateTicketStatus — resolving specifically (not just
+// closing) now requires capturing how it was actually fixed, so the
+// resolution can feed the AI's searchable knowledge base (see
+// /api/tickets/[id]/summarize-resolution, called right after this by the
+// caller). resolutionNotes existed on the Ticket type since the module was
+// built but nothing ever wrote a real value to it until now.
+export async function resolveTicketWithNotes(id: string, resolutionNotes: string, currentFirstRespondedAt?: Ticket["firstRespondedAt"]): Promise<void> {
+  const patch: Partial<Ticket> = { ticketStatus: "resolved", resolutionNotes, resolvedAt: serverTimestamp() };
+  if (!currentFirstRespondedAt) patch.firstRespondedAt = serverTimestamp();
+  return repo.update(id, patch);
+}
+
 export async function assignTicket(id: string, assignedToId: string, assignedToName: string, currentFirstRespondedAt?: Ticket["firstRespondedAt"]): Promise<void> {
   const patch: Partial<Ticket> = { assignedToId, assignedToName, ticketStatus: "in_progress" };
   if (!currentFirstRespondedAt) patch.firstRespondedAt = serverTimestamp();

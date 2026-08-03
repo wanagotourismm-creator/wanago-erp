@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Trash2, UserCheck, Ticket as TicketIcon, User, Timer } from "lucide-react";
+import { X, Trash2, UserCheck, Ticket as TicketIcon, User, Timer, Bot, GitPullRequest } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { TicketPriorityBadge, TicketStatusBadge, TicketSlaBadge, TICKET_STATUS_LABELS } from "@/modules/tickets/components/TicketBadges";
 import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
@@ -94,6 +94,37 @@ export function TicketDetailModal({ ticket, canDelete, slaPolicy, onClose, onSet
               <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground whitespace-pre-wrap">
                 {ticket.description}
               </p>
+            </div>
+          )}
+
+          {ticket.resolutionNotes && (
+            <div>
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-primary">Resolution</p>
+              <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground whitespace-pre-wrap">
+                {ticket.resolutionNotes}
+              </p>
+            </div>
+          )}
+
+          {ticket.aiDiagnosis && (
+            <div>
+              <div className="mb-1.5 flex items-center gap-2">
+                <Bot size={13} className="text-primary" />
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">AI Diagnosis</p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-2">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{ticket.aiDiagnosis}</p>
+                {ticket.aiPrUrl ? (
+                  <a
+                    href={ticket.aiPrUrl} target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <GitPullRequest size={12} /> View draft PR — needs human review before merge
+                  </a>
+                ) : (
+                  <p className="text-xs font-medium text-muted-foreground">Needs manual triage — the AI wasn&apos;t confident enough to propose a fix.</p>
+                )}
+              </div>
             </div>
           )}
 

@@ -31,6 +31,12 @@ export type AiSettings = {
   // set from Admin > AI Employee. When false, /api/ai-assistant refuses all
   // requests and the chat FAB doesn't render at all, app-wide.
   aiEmployeeEnabled: boolean;
+  // Separate, narrower switch — controls only the auto-fix PR pipeline
+  // (src/modules/tickets/services/ai-bugfix.service.ts), which has a
+  // materially different blast radius (GitHub write access) than the chat
+  // assistant above. Off by default: this needs a GitHub token configured
+  // under Admin > Integrations AND this switch on before it does anything.
+  aiAutoFixEnabled: boolean;
 };
 
 // One entry per AI-initiated write the user confirmed (or that failed after

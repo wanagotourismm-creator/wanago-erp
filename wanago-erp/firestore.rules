@@ -907,6 +907,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── Resolved ticket knowledge base (AI Employee "learning" loop) ──
+    // Written only by /api/tickets/[id]/summarize-resolution via the Admin
+    // SDK, right after a ticket is genuinely resolved with notes — never
+    // client-written. Readable by any staff (same as helpArticles) since
+    // it's just searchable how-we-fixed-it text, nothing sensitive.
+    match /resolvedTicketKnowledge/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if false;
+    }
+
     // ── AI ML predictions (revenue forecast, lead conversion model) ──
     // Written only by /api/cron/weekly-ml-predictions via the Admin SDK,
     // after validating api/ml/forecast.py's (Python) response — same

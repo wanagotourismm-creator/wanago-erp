@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { fetchTickets, updateTicketStatus, assignTicket, deleteTicket } from "@/modules/tickets/services/ticket.service";
+import { auth } from "@/lib/firebase/client";
+import { fetchTickets, updateTicketStatus, resolveTicketWithNotes, assignTicket, deleteTicket } from "@/modules/tickets/services/ticket.service";
 import { useAuthStore } from "@/store/auth.store";
 import type { Ticket, TicketStatus } from "@/modules/tickets/types";
 
@@ -25,6 +26,26 @@ export function useTickets() {
       setTickets((p) => p.map((t) => (t.id === id ? { ...t, ticketStatus: status } : t)));
       return { error: null };
     } catch { return { error: "Failed to update ticket" }; }
+  }
+
+  // Resolving (unlike other status changes) requires notes describing the
+  // actual fix — those notes get summarized into the searchable knowledge
+  // base right after (fire-and-forget, best-effort, never blocks this).
+  async function resolveTicket(id: string, resolutionNotes: string) {
+    try {
+      const existing = tickets.find((t) => t.id === id);
+      await resolveTicketWithNotes(id, resolutionNotes, existing?.firstRespondedAt);
+      setTickets((p) => p.map((t) => (t.id === id ? { ...t, ticketStatus: "resolved", resolutionNotes } : t)));
+
+      const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+      if (idToken) {
+        fetch(`/api/tickets/${id}/summarize-resolution`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${idToken}` },
+        }).catch(() => {});
+      }
+      return { error: null };
+    } catch { return { error: "Failed to resolve ticket" }; }
   }
 
   async function assignToMe(id: string) {
@@ -52,5 +73,5 @@ export function useTickets() {
     resolved: tickets.filter((t) => t.ticketStatus === "resolved" || t.ticketStatus === "closed").length,
   };
 
-  return { tickets, loading, stats, load, setStatus, assignToMe, removeTicket };
+  return { tickets, loading, stats, load, setStatus, resolveTicket, assignToMe, removeTicket };
 }

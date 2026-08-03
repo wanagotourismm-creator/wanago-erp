@@ -13,6 +13,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   temperature: 0.2,
   maxOutputTokens: 500,
   aiEmployeeEnabled: true,
+  aiAutoFixEnabled: false,
 };
 
 export async function fetchAiSettings(): Promise<AiSettings> {

@@ -31,3 +31,8 @@ export async function isAiEmployeeEnabled(): Promise<boolean> {
   const settings = await getAiSettingsServer();
   return settings.aiEmployeeEnabled !== false;
 }
+
+export async function isAiAutoFixEnabled(): Promise<boolean> {
+  const settings = await getAiSettingsServer();
+  return settings.aiAutoFixEnabled === true;
+}

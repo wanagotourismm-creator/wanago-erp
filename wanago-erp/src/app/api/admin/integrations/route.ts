@@ -13,11 +13,12 @@ const SECRET_FIELDS = [
   "gmailAppPassword", "googleTtsApiKey",
   "metaWhatsappAccessToken", "metaWhatsappAppSecret", "metaWhatsappVerifyToken",
   "callingApiKey", "callingApiToken", "callingWebhookToken",
+  "githubToken",
 ] as const;
 // Plain identifiers, not secrets (an email "from" address / a phone number
 // ID) — safe to send back so the admin can actually see and edit what's
 // configured instead of it always looking blank.
-const PLAIN_FIELDS = ["resendFromEmail", "gmailUser", "metaWhatsappPhoneNumberId", "callingAccountSid", "callingCallerId"] as const;
+const PLAIN_FIELDS = ["resendFromEmail", "gmailUser", "metaWhatsappPhoneNumberId", "callingAccountSid", "callingCallerId", "githubRepo"] as const;
 // Real on/off switches, independent of whether a value is "configured" —
 // unlike every other field here, a boolean has no write-only reason to be
 // withheld, so GET always returns its real current state (see the `values`

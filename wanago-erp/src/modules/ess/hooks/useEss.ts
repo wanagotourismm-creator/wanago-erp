@@ -473,6 +473,16 @@ export function useEss() {
         officeId:       employee.officeId,
       }, user.uid);
       setMyTickets((p) => [t, ...p]);
+
+      // Fire-and-forget — the route itself re-checks category/toggle/cap,
+      // this is just the trigger. Never blocks or affects the success
+      // response the reporter sees.
+      if (t.category === "Software") {
+        auth.currentUser?.getIdToken().then((idToken) => {
+          fetch(`/api/tickets/${t.id}/ai-diagnose`, { method: "POST", headers: { authorization: `Bearer ${idToken}` } }).catch(() => {});
+        }).catch(() => {});
+      }
+
       return { error: null };
     } catch {
       return { error: "Failed to report issue" };

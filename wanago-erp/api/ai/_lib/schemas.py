@@ -86,6 +86,23 @@ class DraftCampaignMessageArgs(BaseModel):
     tone: Optional[str] = None
 
 
+class GetLeadPriorityRankingArgs(BaseModel):
+    assignedTo: Optional[str] = None  # uid — scope to one rep's own leads
+
+
+class GetPackagePricingArgs(BaseModel):
+    destination: Optional[str] = None
+
+
+class DraftFollowUpMessageArgs(BaseModel):
+    refNumberOrId: str  # a lead's refNumber or document id
+    tone: Optional[str] = None
+
+
+class GetPipelineAnalyticsArgs(BaseModel):
+    officeId: Optional[str] = None
+
+
 # ---- write-tool args (proposal-only — see module docstring above) ----
 
 class LeadArgs(BaseModel):

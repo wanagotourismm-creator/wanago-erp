@@ -37,6 +37,16 @@ export type Ticket = FirestoreRecord & {
   // reads back as "manual"/null (see TicketsTable/TicketDetailModal).
   sourceType?:      TicketSourceType;
   linkedBookingId?: string | null;
+
+  // Set by /api/tickets/[id]/ai-diagnose (src/modules/tickets/services/
+  // ai-bugfix.service.ts) after attempting to auto-diagnose a "Software"
+  // category ticket — aiPrUrl is only ever set when the AI was confident
+  // enough to open a draft PR; aiDiagnosis holds either its explanation
+  // (PR opened) or its reason for declining (needs manual triage).
+  // Undefined on every pre-existing ticket, same convention as sourceType.
+  aiDiagnosis?:   string | null;
+  aiPrUrl?:       string | null;
+  aiDiagnosedAt?: Timestamp | Date | string | FieldValue | null;
 };
 
 export const TICKET_CATEGORIES = ["Software", "Hardware", "Network", "Access", "Service Recovery", "Other"];
