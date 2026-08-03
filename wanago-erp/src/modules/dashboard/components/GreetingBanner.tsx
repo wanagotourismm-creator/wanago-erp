@@ -28,57 +28,28 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
   const clock    = useClock();
   const name     = user?.displayName ?? "there";
   const quote    = QUOTES[new Date().getDay() % QUOTES.length];
-  const hasNudges = newLeads > 0 || followUpCount > 0;
 
   return (
-    <>
-      {/* Mobile — identity already lives in MobileTopBar's avatar, so this
-          drops the decorative hero entirely and shows only the actionable
-          nudge chips as a slim inline strip. Renders nothing if there's
-          nothing actionable. */}
-      {hasNudges && (
-        <div className="flex flex-wrap gap-2 lg:hidden">
-          {newLeads > 0 && (
-            <Link
-              href="/leads"
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors active:scale-95"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              {newLeads} active lead{newLeads > 1 ? "s" : ""}
-            </Link>
-          )}
-          {followUpCount > 0 && (
-            <Link
-              href="/leads?stage=follow_up"
-              className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors active:scale-95 dark:bg-amber-900/30 dark:text-amber-400"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              {followUpCount} follow-up pending
-            </Link>
-          )}
-        </div>
-      )}
-
-    <div className="relative hidden overflow-hidden rounded-2xl bg-primary px-7 py-6 text-white shadow-md lg:block">
+    <div className="relative overflow-hidden rounded-2xl bg-primary px-4 py-4 text-white shadow-md sm:px-7 sm:py-6">
       {/* Background decorations */}
       <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/5" />
       <div className="absolute right-32 -bottom-8 h-32 w-32 rounded-full bg-white/5" />
       <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-white/5" />
 
-      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
 
         {/* Left — greeting */}
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight">
+        <div className="space-y-1.5 sm:space-y-2">
+          <h2 className="text-lg font-bold tracking-tight sm:text-2xl">
             {getGreeting()}, {name}! 👋
           </h2>
-          <p className="text-sm text-white/70">&ldquo;{quote}&rdquo;</p>
+          <p className="text-xs text-white/70 sm:text-sm">&ldquo;{quote}&rdquo;</p>
           {(newLeads > 0 || followUpCount > 0) && (
             <div className="flex flex-wrap gap-2 pt-1">
               {newLeads > 0 && (
                 <Link
                   href="/leads"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-white/30 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white transition-colors active:scale-95 sm:hover:bg-white/30"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-green-300" />
                   {newLeads} active lead{newLeads > 1 ? "s" : ""}
@@ -87,10 +58,10 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
               {followUpCount > 0 && (
                 <Link
                   href="/leads?stage=follow_up"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/40 px-3 py-1 text-xs font-medium text-amber-100 hover:bg-amber-500/60 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/40 px-3 py-1 text-xs font-medium text-amber-100 transition-colors active:scale-95 sm:hover:bg-amber-500/60"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                  {followUpCount} follow-up pending — tap to work these now
+                  {followUpCount} follow-up pending
                 </Link>
               )}
             </div>
@@ -98,12 +69,12 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
         </div>
 
         {/* Right — clock + actions */}
-        <div className="flex flex-shrink-0 flex-col items-end gap-3">
-          <div className="text-right">
-            <p className="font-mono text-4xl font-bold tracking-tight tabular-nums text-white">
+        <div className="flex flex-shrink-0 flex-row items-center justify-between gap-3 sm:flex-col sm:items-end">
+          <div className="sm:text-right">
+            <p className="font-mono text-2xl font-bold tracking-tight tabular-nums text-white sm:text-4xl">
               {clock}
             </p>
-            <p className="mt-0.5 text-sm text-white/60">
+            <p className="mt-0.5 text-xs text-white/60 sm:text-sm">
               {new Date().toLocaleDateString("en-IN", {
                 weekday: "short", day: "numeric",
                 month: "short", year: "numeric",
@@ -113,7 +84,7 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/leads?new=1")}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-primary hover:bg-white/90 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-primary transition-colors active:scale-95 sm:hover:bg-white/90"
             >
               <Plus size={13} />
               Add Lead
@@ -123,6 +94,5 @@ export function GreetingBanner({ newLeads, followUpCount }: Props) {
 
       </div>
     </div>
-    </>
   );
 }
