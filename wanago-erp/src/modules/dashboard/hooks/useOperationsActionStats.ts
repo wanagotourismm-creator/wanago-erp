@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchBookings } from "@/modules/bookings/services/booking.service";
+import { fetchQuotations } from "@/modules/quotations/services/quotation.service";
 import { fetchPackages } from "@/modules/packages/services/package.service";
 import { fetchSuppliers } from "@/modules/suppliers/services/supplier.service";
 import { toDate } from "@/lib/utils/helpers";
@@ -12,6 +13,9 @@ import type { Timestamp } from "@/types/global";
 export type PendingBookingApproval = { id: string; customerName: string; destination: string; daysOld: number };
 
 export type OperationsActionStats = {
+  // Bookings with status OPS_PENDING + quotations awaiting Operations
+  // approval (moved here from Finance — see quotation.service.ts's
+  // notifyOpsApprovers/approveQuotationOperations).
   pendingOpsApprovals: number;
   confirmedThisMonth: number;
   activePackages: number;
@@ -35,8 +39,8 @@ export function useOperationsActionStats() {
 
     async function load() {
       try {
-        const [bookings, packages, suppliers] = await Promise.all([
-          fetchBookings(), fetchPackages(), fetchSuppliers(),
+        const [bookings, quotations, packages, suppliers] = await Promise.all([
+          fetchBookings(), fetchQuotations(), fetchPackages(), fetchSuppliers(),
         ]);
         if (cancelled) return;
 
@@ -45,6 +49,12 @@ export function useOperationsActionStats() {
         const ageInDays = (d: Date) => Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
 
         const pending = bookings.filter((b) => b.status === BOOKING_STATUS.OPS_PENDING);
+        // Quotation approval moved from Finance to Operations — same
+        // "not yet decided" filter useApprovals.ts's opsQueue uses, so this
+        // stat tile stays in sync with what actually shows up there.
+        const pendingQuotations = quotations.filter(
+          (q) => q.financeApprovalStatus !== "approved" && q.financeApprovalStatus !== "rejected"
+        );
         const confirmedThisMonth = bookings.filter((b: Booking) => {
           if (b.status !== BOOKING_STATUS.CONFIRMED && b.status !== BOOKING_STATUS.COMPLETED) return false;
           const approvedAt = toDate(b.opsApprovedAt as Timestamp | Date | string | null | undefined);
@@ -62,7 +72,7 @@ export function useOperationsActionStats() {
           .slice(0, 5);
 
         setStats({
-          pendingOpsApprovals: pending.length,
+          pendingOpsApprovals: pending.length + pendingQuotations.length,
           confirmedThisMonth,
           activePackages: packages.filter((p) => p.packageStatus === "active").length,
           activeSuppliers: suppliers.filter((s) => s.supplierStatus === "active").length,

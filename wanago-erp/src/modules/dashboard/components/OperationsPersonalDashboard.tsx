@@ -40,7 +40,7 @@ export function OperationsPersonalDashboard() {
         <StatCard
           label="Awaiting Confirmation"
           value={ops.pendingOpsApprovals}
-          sub="Bookings needing Ops approval"
+          sub="Bookings & quotations needing Ops approval"
           href="/operations-approvals"
           featured
         />
