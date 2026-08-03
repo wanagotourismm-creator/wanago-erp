@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, MapPin, Calendar, Users as UsersIcon, Luggage, Copy, Check, UserPlus, Users, Award, Crown, ShieldAlert } from "lucide-react";
+import { Loader2, MapPin, Calendar, Users as UsersIcon, Luggage, Copy, Check, UserPlus, Users, Award, Crown, ShieldAlert, Plane } from "lucide-react";
 import { PortalShell } from "@/modules/portal/components/PortalShell";
 import { TripCountdown } from "@/modules/portal/components/TripCountdown";
 import { BookingProgressTimeline } from "@/modules/portal/components/BookingProgressTimeline";
@@ -92,6 +92,19 @@ function CustomerDashboard() {
       </div>
 
       <TripCountdown bookings={me.bookings} />
+
+      <Link
+        href="/portal/customer/trip"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-card p-4 transition-colors hover:border-primary/40"
+      >
+        <div className="flex items-center gap-2">
+          <Plane size={16} className="text-primary" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">My Trip</p>
+            <p className="text-xs text-muted-foreground">Trip status, upload ID documents, share feedback</p>
+          </div>
+        </div>
+      </Link>
 
       <Link
         href="/portal/customer/companion"
