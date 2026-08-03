@@ -151,7 +151,7 @@ service cloud.firestore {
         'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
         'companyGoals', 'objectives', 'goalCheckIns',
         'referralPartners', 'referralPosters', 'referralClicks',
-        'assets', 'settings', 'bookingRequests', 'quickInquiries', 'holidays',
+        'assets', 'settings', 'bookingRequests', 'quickInquiries', 'holidays', 'offers',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge',
         'whatsappTemplates', 'teamPulseResponses', 'digests',
         // All real writes happen server-side via the Admin SDK (the
@@ -185,7 +185,7 @@ service cloud.firestore {
         'onboardingTasks', 'onboardingTrainingModules', 'onboardingTrainingSteps',
         'onboardingTrainingProgress', 'trainingCertificates', 'trainingPracticeSubmissions',
         'notifications', 'settings', 'referralBonuses', 'referralPartners', 'referralPosters',
-        'referralClicks', 'assets', 'assetRequests', 'holidays',
+        'referralClicks', 'assets', 'assetRequests', 'holidays', 'offers',
         'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
         'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge',
@@ -915,6 +915,12 @@ service cloud.firestore {
     match /resolvedTicketKnowledge/{id} {
       allow read:  if isAuthenticated();
       allow write: if false;
+    }
+
+    // ── Offers (real discounts the AI is allowed to mention) ──
+    match /offers/{id} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // ── AI ML predictions (revenue forecast, lead conversion model) ──

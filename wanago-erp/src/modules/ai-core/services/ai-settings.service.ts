@@ -14,6 +14,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   maxOutputTokens: 500,
   aiEmployeeEnabled: true,
   aiAutoFixEnabled: false,
+  aiWhatsAppReplyEnabled: false,
 };
 
 export async function fetchAiSettings(): Promise<AiSettings> {

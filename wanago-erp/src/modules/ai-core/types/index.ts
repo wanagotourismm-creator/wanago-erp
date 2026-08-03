@@ -37,6 +37,11 @@ export type AiSettings = {
   // assistant above. Off by default: this needs a GitHub token configured
   // under Admin > Integrations AND this switch on before it does anything.
   aiAutoFixEnabled: boolean;
+  // Separate switch again — controls the customer-facing WhatsApp "digital
+  // front desk" (src/modules/whatsapp-inbox/services/whatsapp-ai-reply.service.ts),
+  // which replies to real customers, not staff. Off by default: distinct
+  // trust boundary from both switches above.
+  aiWhatsAppReplyEnabled: boolean;
 };
 
 // One entry per AI-initiated write the user confirmed (or that failed after

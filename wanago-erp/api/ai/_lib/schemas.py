@@ -103,6 +103,11 @@ class GetPipelineAnalyticsArgs(BaseModel):
     officeId: Optional[str] = None
 
 
+class DraftReferralMessageArgs(BaseModel):
+    refNumberOrId: str  # a customer's refNumber or document id
+    tone: Optional[str] = None
+
+
 # ---- write-tool args (proposal-only — see module docstring above) ----
 
 class LeadArgs(BaseModel):

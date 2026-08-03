@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import crypto from "crypto";
 import { FieldValue, type Firestore, type DocumentReference } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
@@ -6,8 +6,13 @@ import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { phoneMatchKey } from "@/lib/utils/helpers";
 import { classifyInboundMessage } from "@/modules/whatsapp-inbox/services/whatsapp-classify.service";
+import { generateAndSendAiReply } from "@/modules/whatsapp-inbox/services/whatsapp-ai-reply.service";
 
 export const runtime = "nodejs";
+// Gives the after() callback below (AI reply generation + send, which runs
+// AFTER Meta's 200 is already sent) enough headroom to finish — Meta itself
+// only needs a fast ack, not for this background work to complete first.
+export const maxDuration = 30;
 
 type MetaWebhookPayload = {
   entry?: { changes?: { value?: MetaChangeValue }[] }[];
@@ -188,6 +193,19 @@ export async function POST(req: NextRequest) {
             intent:    classification.intent,
           });
         }
+
+        // Runs after Meta's 200 is sent (see maxDuration above) rather than
+        // being awaited here — an AI reply + WhatsApp send can take a few
+        // seconds, and Meta only needs a fast ack, not for this to finish
+        // first. generateAndSendAiReply is itself gated on the
+        // aiWhatsAppReplyEnabled toggle and never throws.
+        const conversationName = convoDoc.data()?.customerName ?? profileName;
+        after(() =>
+          generateAndSendAiReply({
+            db, conversationId: convoDoc.id, conversationRef: convoDoc.ref,
+            phoneNumber, inboundBody: body, customerName: conversationName,
+          }).catch((err) => console.error("[whatsapp webhook] AI reply failed", err))
+        );
       }
 
       for (const st of value.statuses ?? []) {

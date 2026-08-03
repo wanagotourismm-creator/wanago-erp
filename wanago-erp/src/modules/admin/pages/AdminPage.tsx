@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Plus, RefreshCw, Users as UsersIcon, Building2, History, Settings2, ShieldCheck,
   Download, Megaphone, CalendarDays, Activity, Trash2, Database, LayoutGrid, Laptop, Ticket, Target, KeyRound, BookOpen,
-  MessageCircle, Lock, Timer, Bot,
+  MessageCircle, Lock, Timer, Bot, Tag,
 } from "lucide-react";
 import { useAdminUsers } from "@/modules/admin/users/hooks/useAdminUsers";
 import { useOffices } from "@/modules/admin/offices/hooks/useOffices";
@@ -37,6 +37,7 @@ import { GoalsPanel } from "@/modules/goals/components/GoalsPanel";
 import { IntegrationsPanel } from "@/modules/admin/integrations/components/IntegrationsPanel";
 import { AiEmployeePanel } from "@/modules/admin/ai-employee/components/AiEmployeePanel";
 import { useAiEmployeeSettings } from "@/modules/admin/ai-employee/hooks/useAiEmployeeSettings";
+import { OffersPanel } from "@/modules/admin/offers/components/OffersPanel";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
 import { UsagePanel } from "@/modules/admin/usage/components/UsagePanel";
 import { TrashPanel } from "@/modules/admin/trash/components/TrashPanel";
@@ -165,6 +166,7 @@ export function AdminPage() {
       label: "Configuration",
       items: [
         canManageSettings && { key: "settings",     label: "Company Settings",    icon: Settings2 },
+        canManageSettings && { key: "offers",       label: "Offers",              icon: Tag },
         isSuperAdmin       && { key: "permissions",  label: "Roles & Permissions", icon: ShieldCheck },
         isSuperAdmin       && { key: "security",     label: "Security",           icon: Lock },
         isSuperAdmin       && { key: "integrations", label: "Integrations",       icon: KeyRound },
@@ -285,6 +287,8 @@ export function AdminPage() {
         {tab === "settings" && canManageSettings && !settingsLoading && (
           <CompanySettingsForm settings={settings} saving={settingsSaving} isSuperAdmin={isSuperAdmin} onSave={saveSettings} />
         )}
+
+        {tab === "offers" && canManageSettings && <OffersPanel />}
 
         {tab === "permissions" && isSuperAdmin && !permissionsLoading && permissionMap && (
           <RolePermissionsEditor map={permissionMap} saving={permissionsSaving} onSave={savePermissions} />

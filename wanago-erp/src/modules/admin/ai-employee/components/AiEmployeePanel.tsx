@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, Check, Bot, Power, GitPullRequest, ShieldAlert } from "lucide-react";
+import { Loader2, Save, Check, Bot, Power, GitPullRequest, ShieldAlert, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import type { AiSettings } from "@/modules/ai-core/types";
 
@@ -98,6 +98,29 @@ export function AiEmployeePanel({ settings, saving, onSave }: Props) {
             <li>Says &ldquo;needs manual triage&rdquo; instead of guessing when it isn&apos;t confident</li>
           </ul>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <MessageCircle size={14} className="text-primary" />
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">Customer WhatsApp Auto-Reply</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-input"
+            checked={form.aiWhatsAppReplyEnabled}
+            onChange={(e) => set("aiWhatsAppReplyEnabled", e.target.checked)}
+          />
+          Enable AI auto-replies to inbound customer WhatsApp messages
+        </label>
+        <p className="text-xs text-muted-foreground">
+          A separate AI from the staff assistant above — this one talks directly to customers. It only ever states
+          prices/packages from your real Packages catalog (never invents one), turns new inquiries into tracked
+          Leads automatically, and hands off to a human — pausing itself on that conversation — the moment a
+          customer wants a callback, is ready to pay, or asks something it isn&apos;t confident about. Requires
+          WhatsApp (Meta Cloud API) to already be configured under Admin &gt; Integrations. Off by default.
+        </p>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">

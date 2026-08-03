@@ -178,6 +178,7 @@ export const FIRESTORE_COLLECTIONS = {
   TALLY_MAPPINGS:         "tallyMappings",
   TALLY_EXPORTS:          "tallyExports",
   RESOLVED_TICKET_KNOWLEDGE: "resolvedTicketKnowledge",
+  OFFERS: "offers",
   JOURNEYS:               "journeys",
   JOURNEY_RUNS:           "journeyRuns",
   SEGMENTS:               "segments",

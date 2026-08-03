@@ -36,3 +36,8 @@ export async function isAiAutoFixEnabled(): Promise<boolean> {
   const settings = await getAiSettingsServer();
   return settings.aiAutoFixEnabled === true;
 }
+
+export async function isAiWhatsAppReplyEnabled(): Promise<boolean> {
+  const settings = await getAiSettingsServer();
+  return settings.aiWhatsAppReplyEnabled === true;
+}

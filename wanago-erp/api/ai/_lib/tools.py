@@ -416,13 +416,60 @@ def get_pipeline_analytics(args: s.GetPipelineAnalyticsArgs) -> Dict[str, Any]:
 # tool (no Firestore proposal/confirm needed) since there's nothing to
 # persist: it returns copy text for a human marketer to review and send
 # manually through the existing WhatsApp send flow.
+#
+# Grounded on real offers (src/modules/admin/offers/, Admin > Offers) the
+# same way the customer-facing WhatsApp agent is
+# (whatsapp-ai-reply.service.ts) — this tool must never invent a discount
+# any more than that one may.
+def _active_offers_text() -> str:
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
+    db = get_db()
+    if not db:
+        return "(no active offers on file — do not mention any discount or promotion)"
+    offers = []
+    for d in db.collection("offers").where("isActive", "==", True).stream():
+        data = d.to_dict() or {}
+        if str(data.get("validFrom", "")) <= today <= str(data.get("validTo", "")):
+            dest = data.get("destination") or "all destinations"
+            offers.append(f"- {data.get('title')} ({dest}): {data.get('description')}")
+    return "\n".join(offers) if offers else "(no active offers on file — do not mention any discount or promotion)"
+
+
+# ── draftReferralMessage ─────────────────────────────────────────
+# Same "AI drafts, human sends" contract as draftCampaignMessage — Meta
+# doesn't allow no-click bulk WhatsApp sends, and the existing referral
+# flow (ShareKitModal.tsx) is already a human clicking a wa.me link with a
+# prefilled message; this just makes that prefilled message AI-written
+# instead of hand-typed, using the customer's real referralCode (never
+# invented — the tool fails honestly if the customer has none on file).
+def draft_referral_message(args: s.DraftReferralMessageArgs) -> Dict[str, Any]:
+    customer = find_by_ref_or_id("customers", args.refNumberOrId)
+    if not customer:
+        return {"draftText": None, "error": "Customer not found"}
+    referral_code = customer.get("referralCode")
+    if not referral_code:
+        return {"draftText": None, "error": "This customer has no referral code on file"}
+    prompt = (
+        f"Write a short, warm WhatsApp message to {customer.get('fullName')} asking them to refer a friend or "
+        f"family member, mentioning their personal referral code '{referral_code}'. "
+        + (f"Tone: {args.tone}. " if args.tone else "")
+        + "Keep it under 300 characters, plain text only, no links. This is a DRAFT for the sales rep to review "
+          "and send manually via WhatsApp — never claim it has been sent."
+    )
+    result = generate_text(feature="ai-employee-referral-draft", prompt=prompt, created_by="system")
+    return {"customerName": customer.get("fullName"), "referralCode": referral_code, "draftText": result["text"]}
+
+
 def draft_campaign_message(args: s.DraftCampaignMessageArgs) -> Dict[str, Any]:
     prompt = (
         f"Write a short, warm WhatsApp marketing message about: {args.campaignTopic}. "
         + (f"Audience: {args.audienceDescription}. " if args.audienceDescription else "")
         + (f"Tone: {args.tone}. " if args.tone else "")
         + "Keep it under 300 characters, plain text only (no markdown, no links unless one was given). "
-          "This is a DRAFT for a human marketer to review before sending — never claim it has been sent."
+          "Only mention a discount/offer if one is listed below — never invent one. "
+          "This is a DRAFT for a human marketer to review before sending — never claim it has been sent.\n\n"
+          f"Active offers/discounts:\n{_active_offers_text()}"
     )
     result = generate_text(feature="ai-employee-campaign-draft", prompt=prompt, created_by="system")
     return {"draftText": result["text"]}
@@ -507,6 +554,9 @@ AI_TOOLS: List[AiTool] = [
     AiTool("getPipelineAnalytics", "read",
            "Win-rate by source/destination/agent and stuck-deal (no-contact) detection across the sales pipeline. Always reports sample sizes — treat any winRate on a small sampleSize as noisy, not a confident trend. Args: { officeId?: string }.",
            s.GetPipelineAnalyticsArgs, run=get_pipeline_analytics, allowed_roles=["super_admin", "admin", "sales", "sales_head"]),
+    AiTool("draftReferralMessage", "read",
+           "Draft a WhatsApp message asking a specific customer to refer a friend, using their real referral code — for the sales rep to review and send manually (never sends anything itself). Args: { refNumberOrId: string (customer), tone?: string }.",
+           s.DraftReferralMessageArgs, run=draft_referral_message, allowed_roles=["super_admin", "admin", "sales", "sales_head"]),
     AiTool("draftCampaignMessage", "read",
            "Draft short WhatsApp campaign message copy for a human marketer to review and send manually — this NEVER sends anything, it only returns text. Args: { campaignTopic: string, audienceDescription?: string, tone?: string }.",
            s.DraftCampaignMessageArgs, run=draft_campaign_message, allowed_roles=["super_admin", "admin", "marketing"]),
