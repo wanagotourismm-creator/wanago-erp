@@ -5,6 +5,7 @@ import { collection, getDocs, query, where, orderBy, limit } from "firebase/fire
 import { db } from "@/lib/firebase/client";
 import { FIRESTORE_COLLECTIONS, BOOKING_STATUS } from "@/lib/constants";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { CoverCard, CoverCardRow } from "@/components/ui/CoverCard";
 import { formatDate } from "@/lib/utils/helpers";
 import { Plane } from "lucide-react";
 
@@ -87,20 +88,37 @@ export function DepartingSoon() {
           <p className="text-sm text-muted-foreground font-medium">No upcoming departures</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {departures.map((d) => (
-            <div key={d.id} className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">{d.customerName}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{d.destination}</p>
+        <>
+          {/* Cover cards on phones — a horizontal scroller reads better
+              here than a cramped two-line row; desktop keeps the list. */}
+          <div className="lg:hidden">
+            <CoverCardRow>
+              {departures.map((d, i) => (
+                <CoverCard
+                  key={d.id}
+                  destination={d.destination}
+                  title={d.customerName}
+                  meta={`${formatDate(d.travelDate as never)} · ${d.pax ?? 1} pax`}
+                  bandIndex={i}
+                />
+              ))}
+            </CoverCardRow>
+          </div>
+          <div className="hidden lg:block space-y-2">
+            {departures.map((d) => (
+              <div key={d.id} className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{d.customerName}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{d.destination}</p>
+                </div>
+                <div className="text-right flex-shrink-0 ml-3">
+                  <p className="text-xs font-medium text-foreground">{formatDate(d.travelDate as never)}</p>
+                  <p className="text-[10px] text-muted-foreground">{d.pax ?? 1} pax</p>
+                </div>
               </div>
-              <div className="text-right flex-shrink-0 ml-3">
-                <p className="text-xs font-medium text-foreground">{formatDate(d.travelDate as never)}</p>
-                <p className="text-[10px] text-muted-foreground">{d.pax ?? 1} pax</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </Card>
   );

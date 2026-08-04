@@ -18,53 +18,41 @@ export function MobileBottomNav() {
   const shortcuts = useMobileQuickAccessItems();
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-card shadow-nav-bottom lg:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    <div
+      className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 lg:hidden"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.625rem)" }}
     >
-      {shortcuts.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-        const Icon = NAV_ICONS[item.icon] ?? LayoutDashboard;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground transition-colors active:scale-95"
-          >
-            <span className="relative flex flex-col items-center gap-0.5">
-              {isActive && (
-                <span className="absolute -top-2.5 h-[3px] w-5 rounded-full bg-primary" />
+      <nav className="flex w-full max-w-md items-stretch gap-0.5 rounded-[26px] border border-border bg-card p-1.5 shadow-nav-bottom">
+        {shortcuts.map((item) => {
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const Icon = NAV_ICONS[item.icon] ?? LayoutDashboard;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-[10px] font-medium transition-colors active:scale-95",
+                isActive ? "bg-primary/10" : ""
               )}
-              <span className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
-                isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
-              )}>
-                <Icon size={19} />
+            >
+              <Icon size={18} className={isActive ? "text-primary" : "text-muted-foreground"} />
+              <span className={cn("truncate max-w-[60px]", isActive ? "text-primary font-bold" : "text-muted-foreground")}>
+                {item.label}
               </span>
-            </span>
-            <span className={cn("truncate max-w-[64px]", isActive ? "text-primary font-semibold" : "text-muted-foreground")}>
-              {item.label}
-            </span>
-          </Link>
-        );
-      })}
-      <button
-        onClick={toggleMobileSidebar}
-        className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground transition-colors active:scale-95"
-      >
-        <span className="relative flex flex-col items-center gap-0.5">
-          {mobileSidebarOpen && (
-            <span className="absolute -top-2.5 h-[3px] w-5 rounded-full bg-primary" />
+            </Link>
+          );
+        })}
+        <button
+          onClick={toggleMobileSidebar}
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-[10px] font-medium transition-colors active:scale-95",
+            mobileSidebarOpen ? "bg-primary/10" : ""
           )}
-          <span className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
-            mobileSidebarOpen ? "bg-primary/10 text-primary" : "text-muted-foreground"
-          )}>
-            <MenuIcon size={19} />
-          </span>
-        </span>
-        <span className={cn(mobileSidebarOpen ? "text-primary font-semibold" : "text-muted-foreground")}>Menu</span>
-      </button>
-    </nav>
+        >
+          <MenuIcon size={18} className={mobileSidebarOpen ? "text-primary" : "text-muted-foreground"} />
+          <span className={cn(mobileSidebarOpen ? "text-primary font-bold" : "text-muted-foreground")}>Menu</span>
+        </button>
+      </nav>
+    </div>
   );
 }

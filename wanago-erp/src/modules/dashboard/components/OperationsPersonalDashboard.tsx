@@ -8,6 +8,7 @@ import { useTourOperationsStats } from "@/modules/dashboard/hooks/useTourOperati
 import { useRelevantCompanyGoals } from "@/modules/dashboard/hooks/useRelevantCompanyGoals";
 import { GreetingBanner }    from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }          from "@/modules/dashboard/components/StatCard";
+import { BentoGrid }         from "@/components/ui/BentoGrid";
 import { ProfileHeroCard }   from "@/modules/dashboard/components/ProfileHeroCard";
 import { AvgHoursWeekCard }  from "@/modules/dashboard/components/AvgHoursWeekCard";
 import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSplit";
@@ -39,7 +40,34 @@ export function OperationsPersonalDashboard() {
 
       <QuickClockCard />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Bento arrangement on phones (below lg) — one featured tile plus two
+          compact side tiles reads better on a narrow screen than a 2x2 grid
+          of full-size cards; desktop keeps the original 4-across grid. */}
+      <div className="lg:hidden space-y-3">
+        <BentoGrid
+          main={
+            <StatCard
+              label="Awaiting Confirmation"
+              value={ops.pendingOpsApprovals}
+              sub="Bookings & quotations needing Ops approval"
+              href="/operations-approvals"
+              featured
+            />
+          }
+          side={[
+            <StatCard key="confirmed" label="Confirmed This Month" value={ops.confirmedThisMonth} href="/bookings" compact />,
+            <StatCard key="packages" label="Active Packages" value={ops.activePackages} href="/packages" compact />,
+          ]}
+        />
+        <StatCard
+          label="Active Suppliers"
+          value={ops.activeSuppliers}
+          sub="On file"
+          href="/suppliers"
+        />
+      </div>
+
+      <div className="hidden lg:grid grid-cols-4 gap-4">
         <StatCard
           label="Awaiting Confirmation"
           value={ops.pendingOpsApprovals}
