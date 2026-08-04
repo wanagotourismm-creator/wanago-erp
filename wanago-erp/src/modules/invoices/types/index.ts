@@ -34,10 +34,12 @@ export type Invoice = Omit<FirestoreRecord, "status"> & {
   notes:        string | null;
   refNumber:    string;
 
-  // Mandatory Finance approval gate — every invoice starts "pending" and
-  // must be approved before it can be marked sent. Editing a rejected
-  // invoice automatically resets this to "pending" on save (see
-  // updateInvoice) — that's the entire resubmit mechanism.
+  // Deprecated — invoices no longer have a separate Finance-approval gate;
+  // status is driven purely by amountPaid vs totalAmount (see
+  // invoice.service.ts's computeStatus). createInvoice now always writes
+  // "approved" here so older code/reports that still read this field (e.g.
+  // tally-export.service.ts) keep working unchanged. Fields kept in the
+  // schema rather than removed, to avoid migrating existing documents.
   financeApprovalStatus:  InvoiceFinanceApprovalStatus;
   financeApprovedBy:      string | null;
   financeApprovedAt:      Timestamp | Date | string | FieldValue | null;

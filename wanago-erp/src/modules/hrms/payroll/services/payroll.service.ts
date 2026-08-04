@@ -1,8 +1,12 @@
 import { orderBy, where, serverTimestamp, getDocs, query } from "firebase/firestore";
 import { collection } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { db, auth } from "@/lib/firebase/client";
 import { BaseRepository } from "@/lib/firebase/repository";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
+import { uploadFile } from "@/lib/storage/upload";
+import { notifyUser } from "@/lib/notify";
+import { generatePayslipBlob } from "@/modules/hrms/payroll/services/payslip.service";
+import { fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
 import type { PayrollRecord } from "@/modules/hrms/shared/types";
 import type { PayrollRecordSchema } from "@/modules/hrms/payroll/schemas";
 
@@ -85,7 +89,45 @@ export async function markPayrollProcessed(id: string): Promise<void> {
 }
 
 export async function markPayrollPaid(id: string): Promise<void> {
-  return repo.update(id, { payrollStatus: "paid", paidAt: serverTimestamp() });
+  await repo.update(id, { payrollStatus: "paid", paidAt: serverTimestamp() });
+
+  // Best-effort — previously the payslip only ever got generated when
+  // someone remembered to open the record and click "Download", so most
+  // employees never actually got one. A failure here must never undo the
+  // "paid" status, which is already correctly recorded either way.
+  try {
+    const record = await repo.findById(id);
+    if (!record) return;
+
+    const { blob, monthLabel, employeeEmail } = await generatePayslipBlob(record);
+    const pdfUrl = await uploadFile(`payslips/${record.employeeId}-${record.year}-${record.month}.pdf`, blob);
+
+    if (employeeEmail) {
+      const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+      await fetch("/api/hrms/send-payslip-email", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+        body: JSON.stringify({
+          to: employeeEmail, employeeName: record.employeeName, monthLabel,
+          netSalary: record.netSalary, pdfUrl,
+        }),
+      }).catch(() => {});
+    }
+
+    // Employee.userId (not employeeId) is the notification target — same
+    // resolution leave.service.ts's notifyLeaveApplicant uses.
+    const employee = await fetchEmployeeById(record.employeeId);
+    if (employee?.userId) {
+      await notifyUser({
+        userId: employee.userId, email: employeeEmail,
+        title: `Payslip ready — ${monthLabel}`,
+        body: `Your ${monthLabel} salary (₹${record.netSalary}) has been paid. Your payslip is available in My HR.`,
+        link: "/ess", category: "system",
+      });
+    }
+  } catch (err) {
+    console.error("[payroll.service] payslip auto-send failed:", err);
+  }
 }
 
 export async function deletePayrollRecord(id: string): Promise<void> {

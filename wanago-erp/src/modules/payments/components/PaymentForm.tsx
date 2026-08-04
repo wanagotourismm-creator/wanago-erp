@@ -15,9 +15,15 @@ import type { Customer } from "@/modules/customers/types";
 import type { Invoice } from "@/modules/invoices/types";
 
 type Props = {
-  open:     boolean;
-  onClose:  () => void;
-  onSubmit: (data: PaymentSchema) => Promise<void>;
+  open:          boolean;
+  // Set when opened from an Invoice's "Record Payment" shortcut — pre-fills
+  // and locks the invoice/customer fields to that one invoice instead of
+  // making the user find it again in the dropdown (the whole point of the
+  // shortcut). Undefined/null means the normal standalone flow from the
+  // Payments page, where any invoice (or none) can be picked.
+  lockedInvoice?: Invoice | null;
+  onClose:       () => void;
+  onSubmit:      (data: PaymentSchema) => Promise<void>;
 };
 
 function Field({ label, error, required, children }: {
@@ -45,7 +51,7 @@ const inputClass = cn(
 
 const today = new Date().toISOString().slice(0, 10);
 
-export function PaymentForm({ open, onClose, onSubmit }: Props) {
+export function PaymentForm({ open, lockedInvoice, onClose, onSubmit }: Props) {
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoices,  setInvoices]  = useState<Invoice[]>([]);
@@ -68,11 +74,18 @@ export function PaymentForm({ open, onClose, onSubmit }: Props) {
     fetchCustomers().then(setCustomers).catch(() => {});
     fetchInvoices().then(inv => setInvoices(inv.filter(i => i.balanceDue > 0))).catch(() => {});
     reset({
-      amount: 0, paymentDate: today,
-      officeId:   user?.officeId   ?? "main",
-      officeName: user?.officeName ?? "Head Office",
+      amount:      lockedInvoice ? lockedInvoice.balanceDue : 0,
+      paymentDate: today,
+      officeId:    user?.officeId   ?? "main",
+      officeName:  user?.officeName ?? "Head Office",
+      ...(lockedInvoice ? {
+        invoiceId:    lockedInvoice.id,
+        invoiceRef:   lockedInvoice.refNumber,
+        customerId:   lockedInvoice.customerId,
+        customerName: lockedInvoice.customerName,
+      } : {}),
     });
-  }, [open, reset, user]);
+  }, [open, reset, user, lockedInvoice]);
 
   const selectedCustomerId = watch("customerId");
   const selectedInvoiceId  = watch("invoiceId");
@@ -121,18 +134,24 @@ export function PaymentForm({ open, onClose, onSubmit }: Props) {
         <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
 
           <Field label="Linked Invoice" error={errors.invoiceId?.message}>
-            <select
-              className={inputClass}
-              value={selectedInvoiceId ?? ""}
-              onChange={(e) => handleInvoiceChange(e.target.value)}
-            >
-              <option value="">No invoice (standalone)</option>
-              {invoices.map(inv => (
-                <option key={inv.id} value={inv.id}>
-                  {inv.refNumber} — {inv.customerName} (Due: {formatCurrency(inv.balanceDue)})
-                </option>
-              ))}
-            </select>
+            {lockedInvoice ? (
+              <div className={cn(inputClass, "bg-muted/40 text-foreground")}>
+                {lockedInvoice.refNumber} — {lockedInvoice.customerName} (Due: {formatCurrency(lockedInvoice.balanceDue)})
+              </div>
+            ) : (
+              <select
+                className={inputClass}
+                value={selectedInvoiceId ?? ""}
+                onChange={(e) => handleInvoiceChange(e.target.value)}
+              >
+                <option value="">No invoice (standalone)</option>
+                {invoices.map(inv => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.refNumber} — {inv.customerName} (Due: {formatCurrency(inv.balanceDue)})
+                  </option>
+                ))}
+              </select>
+            )}
           </Field>
 
           <Field label="Customer" required error={errors.customerId?.message}>
@@ -140,12 +159,15 @@ export function PaymentForm({ open, onClose, onSubmit }: Props) {
               className={inputClass}
               value={selectedCustomerId ?? ""}
               onChange={(e) => handleCustomerChange(e.target.value)}
-              disabled={!!selectedInvoiceId}
+              disabled={!!selectedInvoiceId || !!lockedInvoice}
             >
               <option value="">Select customer</option>
               {customers.map(c => (
                 <option key={c.id} value={c.id}>{c.fullName} — {c.phone}</option>
               ))}
+              {lockedInvoice && !customers.some(c => c.id === lockedInvoice.customerId) && (
+                <option value={lockedInvoice.customerId}>{lockedInvoice.customerName}</option>
+              )}
             </select>
           </Field>
 

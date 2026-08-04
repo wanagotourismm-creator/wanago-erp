@@ -6,7 +6,6 @@ import { useApprovals } from "@/modules/approvals/hooks/useApprovals";
 import { RejectReasonModal } from "@/modules/approvals/components/RejectReasonModal";
 import { FinanceApprovalModal } from "@/modules/bookings/components/FinanceApprovalModal";
 import { BookingDetailModal } from "@/modules/bookings/components/BookingDetailModal";
-import { InvoiceDetailModal } from "@/modules/invoices/components/InvoiceDetailModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
@@ -16,17 +15,16 @@ import { hasPermission } from "@/lib/rbac";
 import { formatCurrency } from "@/lib/utils/helpers";
 import type { ApprovalItem } from "@/modules/approvals/types";
 import type { Booking } from "@/modules/bookings/types";
-import type { Invoice } from "@/modules/invoices/types";
 
 const KIND_META: Record<ApprovalItem["kind"], { label: string; variant: "info" | "warning" | "success" }> = {
   "booking-finance": { label: "Booking",   variant: "info"    },
   "booking-ops":     { label: "Booking",   variant: "info"    },
   "quotation":       { label: "Quotation", variant: "warning" },
-  "invoice":         { label: "Invoice",   variant: "success" },
 };
 
-// Finance-only Approvals Inbox — Bookings pending Finance sign-off,
-// Invoices pending Finance approval. Quotation approval moved to
+// Finance-only Approvals Inbox — Bookings pending Finance sign-off.
+// Invoices no longer have a Finance-approval gate (status is now driven
+// purely by payment — see invoice.service.ts). Quotation approval moved to
 // Operations (see OperationsApprovalsPage) — the two pages are kept apart
 // rather than sharing one, since they're two different departments
 // reviewing two different sets of requests.
@@ -34,18 +32,11 @@ export function ApprovalsPage() {
   const { user } = useAuthStore();
   const { financeQueue, loading, approveItem, rejectItem, reload } = useApprovals();
 
-  const canSeeFinance = !!user && (
-    hasPermission(user.systemRole, "bookings:finance_approve") ||
-    hasPermission(user.systemRole, "invoices:finance_approve")
-  );
+  const canSeeFinance = !!user && hasPermission(user.systemRole, "bookings:finance_approve");
 
   const [financeApprovingItem, setFinanceApprovingItem] = useState<ApprovalItem & { kind: "booking-finance" } | null>(null);
   const [rejectingItem,        setRejectingItem]        = useState<ApprovalItem | null>(null);
   const [viewingItem,          setViewingItem]          = useState<ApprovalItem | null>(null);
-
-  async function handleApproveInline(item: ApprovalItem & { kind: "invoice" }) {
-    await approveItem(item, user?.uid ?? "");
-  }
 
   function renderRow(item: ApprovalItem) {
     const meta = KIND_META[item.kind];
@@ -74,7 +65,6 @@ export function ApprovalsPage() {
             variant="primary"
             onClick={() => {
               if (item.kind === "booking-finance") setFinanceApprovingItem(item);
-              else handleApproveInline(item as ApprovalItem & { kind: "invoice" });
             }}
           >
             Approve
@@ -93,7 +83,7 @@ export function ApprovalsPage() {
       <PageHeader
         title="Finance Approvals"
         tourId="tour-financeapprovals-header"
-        description="Review pending bookings and invoices awaiting Finance sign-off"
+        description="Review pending bookings awaiting Finance sign-off"
         actions={
           <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={() => reload()} data-tour-id="tour-financeapprovals-refresh">
             Refresh
@@ -109,7 +99,7 @@ export function ApprovalsPage() {
             <span className="text-xs text-muted-foreground">({financeQueue.length})</span>
           </div>
           {!loading && financeQueue.length === 0 ? (
-            <EmptyState icon={<Inbox size={22} />} title="No pending Finance approvals" description="Bookings and invoices awaiting Finance sign-off will appear here." />
+            <EmptyState icon={<Inbox size={22} />} title="No pending Finance approvals" description="Bookings awaiting Finance sign-off will appear here." />
           ) : (
             <div className="space-y-2">
               {financeQueue.map(renderRow)}
@@ -150,15 +140,6 @@ export function ApprovalsPage() {
         onEdit={() => {}}
         onDelete={() => {}}
         onStatus={() => {}}
-      />
-
-      <InvoiceDetailModal
-        invoice={viewingItem?.kind === "invoice" ? (viewingItem.data as Invoice) : null}
-        canManage={false}
-        onClose={() => setViewingItem(null)}
-        onEdit={() => {}}
-        onDelete={() => {}}
-        onSend={async () => ({ error: null })}
       />
 
     </div>

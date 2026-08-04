@@ -21,8 +21,17 @@ export async function notifyUser(params: {
   if (params.userId) {
     tasks.push(createNotification(params.userId, params.title, params.body, params.link ?? null, params.category));
   }
-  if (params.email || params.phone) {
+  if (params.userId || params.email || params.phone) {
     const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+    if (params.userId) {
+      tasks.push(
+        fetch("/api/notify/push", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+          body: JSON.stringify({ userId: params.userId, title: params.title, body: params.body, link: params.link }),
+        }).catch(() => {})
+      );
+    }
     if (params.email) {
       tasks.push(
         fetch("/api/notify/email", {

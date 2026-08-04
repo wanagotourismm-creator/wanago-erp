@@ -46,9 +46,9 @@ export function FinancePersonalDashboard() {
           featured
         />
         <StatCard
-          label="Pending Invoice Approvals"
+          label="Invoices Awaiting Payment"
           value={finance.pendingInvoiceApprovals}
-          sub="Awaiting Finance sign-off"
+          sub="Payment not yet received"
           href="/invoices"
         />
         <StatCard

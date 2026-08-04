@@ -11,8 +11,6 @@ import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
 import { createReferralBonusIfEligible } from "@/modules/referrals/services/referral.service";
 import { scheduleReviewRequest } from "@/modules/reviews/services/reviews.service";
 import { createJourneyRunsForTrigger } from "@/modules/journeys/services/journey.service";
-import { getOrCreateOperationsBooking } from "@/modules/tour-operations/services/tour-operations.service";
-import { getOrCreateInvoiceForBooking } from "@/modules/invoices/services/invoice.service";
 
 // Approve/reject used to be a plain read-then-write with no check that the
 // booking was still in the expected status — two approvers acting on the
@@ -264,29 +262,13 @@ export async function approveBookingAsOperations(
 
   await createReferralBonusIfEligible({ ...existing, status: BOOKING_STATUS.CONFIRMED }, approvedBy);
 
-  // Confirmation is the moment Sales→Operations handover should begin —
-  // previously this only happened if someone remembered to click "Open
-  // Tour Operations" on the booking later. Auto-creating it here (and
-  // notifying Operations — see getOrCreateOperationsBooking) means the
-  // handover record and its notification always exist the instant a
-  // booking is confirmed, same as every other automated hand-off in this
-  // file. Best-effort: a failure here must never block the confirmation
-  // itself.
-  try {
-    await getOrCreateOperationsBooking({ ...existing, status: BOOKING_STATUS.CONFIRMED } as Booking, approvedBy);
-  } catch (err) {
-    console.error("[booking.service] getOrCreateOperationsBooking failed:", err);
-  }
-
-  // Same reasoning as the Tour Operations auto-create above — Finance
-  // previously had to remember to manually raise an invoice for every
-  // confirmed booking. Best-effort: a failure here must never block the
-  // confirmation itself.
-  try {
-    await getOrCreateInvoiceForBooking({ ...existing, status: BOOKING_STATUS.CONFIRMED } as Booking, approvedBy);
-  } catch (err) {
-    console.error("[booking.service] getOrCreateInvoiceForBooking failed:", err);
-  }
+  // Invoice creation and the Operations handover no longer auto-fire from
+  // internal booking approval — they're now payment-driven: Sales creates
+  // the invoice explicitly from the Booking page (getOrCreateInvoiceForBooking,
+  // called from BookingDetailModal), and the handover to Operations is a
+  // separate explicit Sales action gated on the invoice being fully paid
+  // AND this internal approval (getOrCreateOperationsBooking, also called
+  // from BookingDetailModal).
 }
 
 // Finance rejects the booking with a reason instead of approving — editing

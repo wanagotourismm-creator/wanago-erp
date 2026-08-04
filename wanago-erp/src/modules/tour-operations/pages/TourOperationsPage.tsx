@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw, Search, Route as RouteIcon, AlertTriangle } from "lucide-react";
+import { RefreshCw, Search, Route as RouteIcon, AlertTriangle, Trash2 } from "lucide-react";
 import { useTourOperations } from "@/modules/tour-operations/hooks/useTourOperations";
 import { OperationsStatusBadge } from "@/modules/tour-operations/components/OperationsStatusBadge";
 import { Badge } from "@/components/ui/Badge";
@@ -10,6 +10,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { useAuthStore } from "@/store/auth.store";
+import { isAdminRole } from "@/lib/rbac";
 import { OPERATIONS_STAGE_LABELS, type OperationsStage } from "@/lib/constants";
 import { formatCurrency, formatDate } from "@/lib/utils/helpers";
 import { totalBalanceDue, openIssueCount, daysUntil, isStuckPastTravelDate } from "@/modules/tour-operations/utils";
@@ -50,8 +52,10 @@ function GuideCell({ record }: { record: OperationsBooking }) {
 }
 
 export function TourOperationsPage() {
-  const { records, loading, load } = useTourOperations();
+  const { records, loading, load, removeRecord } = useTourOperations();
   const router = useRouter();
+  const { user } = useAuthStore();
+  const canDelete = !!user && isAdminRole(user.systemRole);
   const [statusFilter, setStatusFilter] = useState<OperationsStage | "">("");
   const [search, setSearch] = useState("");
 
@@ -63,6 +67,11 @@ export function TourOperationsPage() {
       return matchStatus && matchSearch;
     });
   }, [records, statusFilter, search]);
+
+  async function handleDelete(record: OperationsBooking) {
+    if (!confirm(`Delete Tour Operations record "${record.refNumber}" (${record.customerName})? This cannot be undone.`)) return;
+    await removeRecord(record.id);
+  }
 
   return (
     <div className="space-y-5">
@@ -124,6 +133,7 @@ export function TourOperationsPage() {
                 <th className="px-4 py-3">Guide</th>
                 <th className="px-4 py-3">Balance Due</th>
                 <th className="px-4 py-3">Open Issues</th>
+                {canDelete && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody>
@@ -154,6 +164,17 @@ export function TourOperationsPage() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
+                    {canDelete && (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(r); }}
+                          title="Delete"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

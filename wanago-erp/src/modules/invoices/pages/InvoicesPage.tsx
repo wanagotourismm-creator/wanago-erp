@@ -6,6 +6,9 @@ import { useInvoices } from "@/modules/invoices/hooks/useInvoices";
 import { InvoicesTable } from "@/modules/invoices/components/InvoicesTable";
 import { InvoiceDetailModal } from "@/modules/invoices/components/InvoiceDetailModal";
 import { InvoiceForm } from "@/modules/invoices/components/InvoiceForm";
+import { PaymentForm } from "@/modules/payments/components/PaymentForm";
+import { createPayment } from "@/modules/payments/services/payment.service";
+import type { PaymentSchema } from "@/modules/payments/schemas";
 import { formatAmount } from "@/modules/invoices/components/InvoiceBadges";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -43,7 +46,7 @@ const STATUS_FILTERS = [
 ];
 
 export function InvoicesPage() {
-  const { invoices, loading, addInvoice, editInvoice, sendInvoice, removeInvoice, load } = useInvoices();
+  const { invoices, loading, addInvoice, editInvoice, sendInvoice, removeInvoice, refreshInvoice, load } = useInvoices();
   const { user } = useAuthStore();
   const canCreate = !!user && hasPermission(user.systemRole, "finance:create");
   const canManage = !!user && hasPermission(user.systemRole, "finance:edit");
@@ -51,6 +54,7 @@ export function InvoicesPage() {
   const [formOpen,        setFormOpen]        = useState(false);
   const [editingInvoice,  setEditingInvoice]  = useState<Invoice | null>(null);
   const [viewingInvoice,  setViewingInvoice]  = useState<Invoice | null>(null);
+  const [payingInvoice,   setPayingInvoice]   = useState<Invoice | null>(null);
   const [statusFilter,    setStatusFilter]    = useState("");
   const [search,          setSearch]          = useState("");
 
@@ -181,6 +185,30 @@ export function InvoicesPage() {
     await removeInvoice(invoice.id);
   }
 
+  function handleOpenRecordPayment(invoice: Invoice) {
+    setViewingInvoice(null);
+    setPayingInvoice(invoice);
+  }
+
+  // applyPaymentToInvoice (fired inside createPayment) already recomputes
+  // amountPaid/balanceDue/status server-side and, once fully paid, notifies
+  // Sales + flips the linked Lead to won — this handler only needs to pull
+  // that fresh invoice back into local state, same as sendInvoice does.
+  async function handleRecordPayment(data: PaymentSchema) {
+    if (!payingInvoice) return;
+    const payload = {
+      ...data,
+      invoiceId:       data.invoiceId       || null,
+      invoiceRef:      data.invoiceRef      || null,
+      referenceNumber: data.referenceNumber || null,
+      notes:           data.notes           || null,
+      createdBy:       user?.uid ?? "",
+    };
+    await createPayment(payload, user?.uid ?? "");
+    await refreshInvoice(payingInvoice.id);
+    setPayingInvoice(null);
+  }
+
   return (
     <div className="space-y-5">
 
@@ -270,19 +298,31 @@ export function InvoicesPage() {
         invoices={filtered}
         loading={loading}
         canManage={canManage}
+        canRecordPayment={canCreate}
         onView={setViewingInvoice}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onRecordPayment={handleOpenRecordPayment}
       />
 
       {/* Detail popup */}
       <InvoiceDetailModal
         invoice={viewingInvoice ? filtered.find(i => i.id === viewingInvoice.id) ?? viewingInvoice : null}
         canManage={canManage}
+        canRecordPayment={canCreate}
         onClose={() => setViewingInvoice(null)}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onSend={(invoice) => sendInvoice(invoice.id)}
+        onSend={sendInvoice}
+        onRecordPayment={handleOpenRecordPayment}
+      />
+
+      {/* Record Payment (scoped to one invoice) */}
+      <PaymentForm
+        open={!!payingInvoice}
+        lockedInvoice={payingInvoice}
+        onClose={() => setPayingInvoice(null)}
+        onSubmit={handleRecordPayment}
       />
 
       {/* Form drawer */}

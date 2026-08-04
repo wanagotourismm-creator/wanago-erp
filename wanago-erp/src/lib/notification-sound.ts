@@ -16,31 +16,40 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
-// Synthesized two-tone chime — no audio file/asset needed. Best-effort:
-// browsers may keep AudioContext suspended until the user has interacted
-// with the page at all, which is normal well before a notification lands.
+// Synthesized three-note ascending chime — no audio file/asset needed.
+// Deliberately loud (gain peaks near unity) and repeated across three notes
+// so it cuts through a noisy office / low laptop volume instead of the
+// single soft 0.2-gain tone this used to be, which staff reported they
+// genuinely couldn't hear. Best-effort: browsers may keep AudioContext
+// suspended until the user has interacted with the page at all, which is
+// normal well before a notification lands.
 // Debounced module-wide: both NotificationBell and PendingNotificationsModal
 // run their own useNotifications() subscription, so a single new item can
 // trigger this from two places at once — without this guard it'd double-beep.
 export function playNotificationSound() {
   const now = Date.now();
-  if (now - lastNotificationAt < 1000) return;
+  if (now - lastNotificationAt < 1200) return;
   lastNotificationAt = now;
   const ctx = getAudioContext();
   if (!ctx) return;
   try {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.4);
+    // Bright ascending triad (A5 -> C#6 -> E6) — reads as an urgent "alert"
+    // rather than a gentle chime.
+    const notes = [880, 1108.73, 1318.51];
+    notes.forEach((freq, i) => {
+      const startAt = ctx.currentTime + i * 0.15;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(freq, startAt);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.85, startAt + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startAt);
+      osc.stop(startAt + 0.4);
+    });
   } catch {
     // Never let a playback failure break the UI.
   }

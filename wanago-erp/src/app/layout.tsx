@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeColorProvider } from "@/components/providers/ThemeColorProvider";
 import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegister";
+import { FcmTokenRegister } from "@/components/providers/FcmTokenRegister";
 import { getCompanySettingsServer } from "@/modules/admin/settings/services/company-settings.server";
 import "@/styles/globals.css";
 import "leaflet/dist/leaflet.css";
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </ThemeColorProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
+        <FcmTokenRegister />
       </body>
     </html>
   );

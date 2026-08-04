@@ -55,7 +55,7 @@ export type Permission =
   // Quotations
   | "quotations:ops_approve"
   // Invoices
-  | "invoices:finance_approve"
+  | "invoices:create"
   // Finance
   | "finance:view"
   | "finance:create"

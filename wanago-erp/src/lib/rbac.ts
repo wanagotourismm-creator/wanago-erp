@@ -23,7 +23,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "customers:view_all", "customers:view_own", "customers:create", "customers:edit", "customers:delete",
     "bookings:view_all", "bookings:view_own", "bookings:create", "bookings:edit", "bookings:delete", "bookings:approve",
     "bookings:finance_approve", "bookings:ops_approve",
-    "quotations:ops_approve", "invoices:finance_approve",
+    "quotations:ops_approve", "invoices:create",
     "finance:view", "finance:create", "finance:edit", "finance:export",
     "hrms:view_all", "hrms:view_own", "hrms:manage",
     "reports:view", "reports:export",
@@ -35,16 +35,17 @@ export const PERMISSION_MAP: PermissionMap = {
     "leads:view_all",
     "customers:view_all",
     "bookings:view_all", "bookings:edit", "bookings:approve", "bookings:ops_approve",
-    "quotations:ops_approve",
+    "quotations:ops_approve", "invoices:create",
     "reports:view",
     "whatsapp:view_all",
   ],
 
   // Quotation approval moved to Operations (quotations:ops_approve above) —
-  // Finance still approves bookings/invoices, just no longer quotations.
+  // Finance still approves bookings; invoices no longer have a separate
+  // approval gate (status is driven purely by payment).
   finance: [
     "bookings:view_all", "bookings:finance_approve",
-    "invoices:finance_approve",
+    "invoices:create",
     "finance:view", "finance:create", "finance:edit", "finance:export",
     "reports:view", "reports:export",
   ],
@@ -67,6 +68,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "leads:view_own", "leads:create", "leads:edit",
     "customers:view_own", "customers:create",
     "bookings:view_own", "bookings:create",
+    "invoices:create",
   ],
 
   // Sees every sales rep's leads/customers/bookings plus the team
@@ -75,6 +77,7 @@ export const PERMISSION_MAP: PermissionMap = {
     "leads:view_all", "leads:create", "leads:edit",
     "customers:view_all", "customers:create",
     "bookings:view_all", "bookings:create",
+    "invoices:create",
     "reports:view",
     "whatsapp:view_all",
   ],

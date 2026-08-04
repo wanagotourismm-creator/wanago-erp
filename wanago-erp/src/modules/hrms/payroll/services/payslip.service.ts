@@ -6,8 +6,10 @@ import type { PayrollRecord } from "@/modules/hrms/shared/types";
 
 // jsPDF/autotable are dynamically imported so they're only downloaded
 // when a payslip is actually generated, instead of bloating the
-// Payroll page's initial bundle.
-export async function downloadPayslip(record: PayrollRecord): Promise<void> {
+// Payroll page's initial bundle. Shared by downloadPayslip (browser save)
+// and generatePayslipBlob (markPayrollPaid's auto-email) so both render
+// byte-identical payslips — same pattern as quotation-pdf.ts/invoice-pdf.ts.
+async function buildPayslipDoc(record: PayrollRecord) {
   const [employee, company, { default: jsPDF }, { default: autoTable }] = await Promise.all([
     fetchEmployeeById(record.employeeId),
     fetchCompanySettings(),
@@ -73,5 +75,15 @@ export async function downloadPayslip(record: PayrollRecord): Promise<void> {
   doc.setTextColor(120);
   doc.text("This is a computer-generated payslip and does not require a signature.", 14, finalY);
 
+  return { doc, monthLabel, employee };
+}
+
+export async function downloadPayslip(record: PayrollRecord): Promise<void> {
+  const { doc, monthLabel } = await buildPayslipDoc(record);
   doc.save(`Payslip-${record.employeeName.replace(/\s+/g, "_")}-${monthLabel.replace(/\s+/g, "_")}.pdf`);
+}
+
+export async function generatePayslipBlob(record: PayrollRecord): Promise<{ blob: Blob; monthLabel: string; employeeEmail: string | null }> {
+  const { doc, monthLabel, employee } = await buildPayslipDoc(record);
+  return { blob: doc.output("blob"), monthLabel, employeeEmail: employee?.email ?? null };
 }

@@ -16,6 +16,17 @@ export const runtime = "nodejs";
 const STALE_DAYS = 5; // matches the convention already used in MySalesProgress.tsx
 const FINANCE_APPROVAL_STUCK_DAYS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const WHATSAPP_UNANSWERED_HOURS = 4;
+const VENDOR_RATE_EXPIRY_WARNING_DAYS = 7;
+const REFERRAL_PAYOUT_STUCK_DAYS = 7;
+const EXPENSE_STUCK_DAYS = 3;
+const LEAVE_STUCK_DAYS = 3;
+// Payroll is normally generated once a month for everyone at once — rather
+// than tracking "generated" per employee (which would false-positive for
+// anyone who joined mid-month), this just checks "does *any* payroll record
+// exist yet for the current month" once the month is mostly over.
+const PAYROLL_REMINDER_FROM_DAY = 25;
 
 type AdminTimestamp = { toMillis: () => number };
 function toMillis(value: unknown): number | null {
@@ -59,6 +70,23 @@ type AttendanceDoc = {
 type CandidateDoc = {
   id: string; refNumber: string; fullName: string; status: string; updatedAt: unknown; createdBy: string;
 };
+type WhatsAppConversationDoc = {
+  id: string; phoneNumber: string; customerName: string | null; assignedTo: string | null;
+  lastMessageAt: unknown; lastMessageDirection: "inbound" | "outbound" | null;
+};
+type VendorRateDoc = {
+  id: string; supplierName: string; serviceName: string; validTo: string | null;
+};
+type ReferralBonusDoc = {
+  id: string; referrerName: string; bonusAmount: number; bonusStatus: "pending" | "paid"; createdAt: unknown;
+};
+type ExpenseDoc = {
+  id: string; refNumber: string; category: string; amount: number; expenseStatus: string; createdAt: unknown;
+};
+type LeaveRequestDoc = {
+  id: string; employeeName: string; leaveType: string; status: string; createdAt: unknown;
+};
+type PayrollDoc = { id: string; month: number; year: number };
 type EnrollmentDoc = {
   id: string; employeeName: string; trainingProgramTitle: string; status: string; updatedAt: unknown;
 };
@@ -91,7 +119,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Admin SDK not configured" }, { status: 500 });
   }
 
-  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap, ticketsSnap, ticketSlaPolicySnap, opsBookingsSnap, attendanceSnap, candidatesSnap, enrollmentsSnap] = await Promise.all([
+  const [leadsSnap, callLogsSnap, employeesSnap, usersSnap, quotationsSnap, invoicesSnap, bookingsSnap, customersSnap, ticketsSnap, ticketSlaPolicySnap, opsBookingsSnap, attendanceSnap, candidatesSnap, enrollmentsSnap, whatsappConversationsSnap, vendorRatesSnap, referralBonusesSnap, expensesSnap, leavesSnap, payrollSnap] = await Promise.all([
     db.collection(FIRESTORE_COLLECTIONS.LEADS).get(),
     db.collection(FIRESTORE_COLLECTIONS.CALL_LOGS).get(),
     db.collection(FIRESTORE_COLLECTIONS.HRMS_EMPLOYEES).get(),
@@ -106,6 +134,12 @@ export async function GET(req: NextRequest) {
     db.collection(FIRESTORE_COLLECTIONS.HRMS_CHECK_INS).get(),
     db.collection(FIRESTORE_COLLECTIONS.CANDIDATES).get(),
     db.collection(FIRESTORE_COLLECTIONS.TRAINING_ENROLLMENTS).get(),
+    db.collection(FIRESTORE_COLLECTIONS.WHATSAPP_CONVERSATIONS).get(),
+    db.collection(FIRESTORE_COLLECTIONS.VENDOR_RATES).get(),
+    db.collection(FIRESTORE_COLLECTIONS.REFERRAL_BONUSES).where("bonusStatus", "==", "pending").get(),
+    db.collection(FIRESTORE_COLLECTIONS.EXPENSES).where("expenseStatus", "==", "pending").get(),
+    db.collection(FIRESTORE_COLLECTIONS.HRMS_LEAVES).where("status", "==", "pending").get(),
+    db.collection(FIRESTORE_COLLECTIONS.HRMS_PAYROLL).get(),
   ]);
 
   const leads       = leadsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as LeadDoc);
@@ -125,6 +159,12 @@ export async function GET(req: NextRequest) {
   const attendanceRecords = attendanceSnap.docs.map(d => ({ id: d.id, ...d.data() }) as AttendanceDoc);
   const candidates   = candidatesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as CandidateDoc);
   const enrollments  = enrollmentsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as EnrollmentDoc);
+  const whatsappConversations = whatsappConversationsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as WhatsAppConversationDoc);
+  const vendorRates  = vendorRatesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as VendorRateDoc);
+  const pendingReferralBonuses = referralBonusesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as ReferralBonusDoc);
+  const pendingExpenses = expensesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as ExpenseDoc);
+  const pendingLeaves   = leavesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as LeaveRequestDoc);
+  const payrollRecords  = payrollSnap.docs.map(d => ({ id: d.id, ...d.data() }) as PayrollDoc);
   const ticketSlaPolicyData = ticketSlaPolicySnap.data() as Partial<TicketSlaPolicy> | undefined;
   const ticketSlaPolicy: TicketSlaPolicy = {
     responseHours:   { ...DEFAULT_TICKET_SLA_HOURS.responseHours,   ...(ticketSlaPolicyData?.responseHours   ?? {}) },
@@ -232,6 +272,11 @@ export async function GET(req: NextRequest) {
         link:     "/quotations",
         category: "followup",
       });
+      // getQuotationRisk previously only drove badges/notifications —
+      // status stayed "sent" forever, silently inflating "active pipeline"
+      // counts and leaving a stale quote convertible past its own validity
+      // date. Flip it for real once it's actually expired.
+      if (isExpired) await db.collection(FIRESTORE_COLLECTIONS.QUOTATIONS).doc(q.id).update({ status: "expired" });
       quotationsExpiringNotified++;
     }
   }
@@ -483,6 +528,139 @@ export async function GET(req: NextRequest) {
     recruitmentTrainingStuckNotified = stuckCandidates.length + stuckEnrollments.length;
   }
 
+  // ── WhatsApp: unanswered thread past SLA → notify the assignee ──────
+  // Same "notify every day it's still breached" convention as the overdue-
+  // invoice block above — no persisted "already notified" field, so a
+  // still-unanswered thread nudges its owner daily until someone replies.
+  // Mirrors ticket-sla.service.ts's shape without importing it directly —
+  // WhatsApp threads have no priority/policy config, just one flat
+  // threshold, so a dedicated status enum would be overkill here.
+  let whatsappSlaBreachesNotified = 0;
+  for (const convo of whatsappConversations) {
+    if (convo.lastMessageDirection !== "inbound") continue;
+    const lastMs = toMillis(convo.lastMessageAt);
+    if (lastMs == null) continue;
+    if ((now - lastMs) / HOUR_MS < WHATSAPP_UNANSWERED_HOURS) continue;
+
+    const title = `Unanswered WhatsApp: ${convo.customerName ?? convo.phoneNumber}`;
+    const body  = `${convo.customerName ?? convo.phoneNumber} messaged ${Math.floor((now - lastMs) / HOUR_MS)}h ago with no reply yet.`;
+    const assigneeEmployee = convo.assignedTo ? employeeById.get(convo.assignedTo) : null;
+
+    if (assigneeEmployee?.userId) {
+      const user = userById.get(assigneeEmployee.userId);
+      await notifyUserServer({
+        userId: assigneeEmployee.userId, email: user?.email ?? assigneeEmployee.email ?? null,
+        title, body, link: "/whatsapp-inbox", category: "followup",
+      });
+    } else {
+      const adminUsers = Array.from(userById.values()).filter(u => u.systemRole === "admin" || u.systemRole === "super_admin");
+      for (const admin of adminUsers) {
+        await notifyUserServer({ userId: admin.id, email: admin.email, title, body, link: "/whatsapp-inbox", category: "followup" });
+      }
+    }
+    whatsappSlaBreachesNotified++;
+  }
+
+  // ── Vendor rates expiring soon → notify Ops/Admin ───────────────────
+  let vendorRatesExpiringNotified = 0;
+  const expiringRates = vendorRates.filter(r => {
+    if (!r.validTo) return false;
+    const validToMs = toMillis(r.validTo);
+    if (validToMs == null) return false;
+    const daysLeft = (validToMs - now) / DAY_MS;
+    return daysLeft >= 0 && daysLeft <= VENDOR_RATE_EXPIRY_WARNING_DAYS;
+  });
+  if (expiringRates.length > 0) {
+    const supplierStaff = Array.from(userById.values()).filter(
+      u => u.systemRole === "admin" || u.systemRole === "super_admin" || u.systemRole === "operations"
+    );
+    const body = expiringRates.map(r => `${r.supplierName} — ${r.serviceName} (expires ${r.validTo})`).join("; ");
+    for (const staff of supplierStaff) {
+      await notifyUserServer({
+        userId: staff.id, email: staff.email,
+        title: `${expiringRates.length} vendor rate(s) expiring within ${VENDOR_RATE_EXPIRY_WARNING_DAYS} days`,
+        body, link: "/vendor-rates", category: "followup",
+      });
+    }
+    vendorRatesExpiringNotified = expiringRates.length;
+  }
+
+  // ── Referral bonuses pending payout too long → notify Finance ───────
+  let referralPayoutsStuckNotified = 0;
+  const stuckReferralBonuses = pendingReferralBonuses.filter(b => {
+    const createdMs = toMillis(b.createdAt);
+    return createdMs != null && (now - createdMs) / DAY_MS >= REFERRAL_PAYOUT_STUCK_DAYS;
+  });
+  if (stuckReferralBonuses.length > 0) {
+    const financeUsers = await fetchUsersByPermission("finance:edit");
+    const totalAmount = stuckReferralBonuses.reduce((sum, b) => sum + b.bonusAmount, 0);
+    for (const staff of financeUsers) {
+      await notifyUserServer({
+        userId: staff.id, email: staff.email,
+        title: `${stuckReferralBonuses.length} referral bonus(es) awaiting payout`,
+        body: `₹${totalAmount} across ${stuckReferralBonuses.length} bonus(es) pending ${REFERRAL_PAYOUT_STUCK_DAYS}+ days: ${stuckReferralBonuses.map(b => b.referrerName).join(", ")}.`,
+        link: "/referral-program", category: "followup",
+      });
+    }
+    referralPayoutsStuckNotified = stuckReferralBonuses.length;
+  }
+
+  // ── Expenses/Leaves stuck pending too long, payroll not generated ───
+  // Same "stuck approval" shape as the quotation-Ops-approval block above.
+  let expensesStuckNotified = 0;
+  const stuckExpenses = pendingExpenses.filter(e => {
+    const createdMs = toMillis(e.createdAt);
+    return createdMs != null && (now - createdMs) / DAY_MS >= EXPENSE_STUCK_DAYS;
+  });
+  if (stuckExpenses.length > 0) {
+    const financeUsers = await fetchUsersByPermission("finance:edit");
+    for (const staff of financeUsers) {
+      await notifyUserServer({
+        userId: staff.id, email: staff.email,
+        title: `${stuckExpenses.length} expense(s) awaiting approval`,
+        body: `${stuckExpenses.map(e => `${e.refNumber} (${e.category}, ₹${e.amount})`).join(", ")} — pending ${EXPENSE_STUCK_DAYS}+ days.`,
+        link: "/expenses", category: "approval",
+      });
+    }
+    expensesStuckNotified = stuckExpenses.length;
+  }
+
+  let leavesStuckNotified = 0;
+  const stuckLeaves = pendingLeaves.filter(l => {
+    const createdMs = toMillis(l.createdAt);
+    return createdMs != null && (now - createdMs) / DAY_MS >= LEAVE_STUCK_DAYS;
+  });
+  if (stuckLeaves.length > 0) {
+    for (const hrUser of hrUsers) {
+      await notifyUserServer({
+        userId: hrUser.id, email: hrUser.email,
+        title: `${stuckLeaves.length} leave request(s) awaiting a decision`,
+        body: `${stuckLeaves.map(l => `${l.employeeName} (${l.leaveType})`).join(", ")} — pending ${LEAVE_STUCK_DAYS}+ days.`,
+        link: "/hrms/leaves", category: "approval",
+      });
+    }
+    leavesStuckNotified = stuckLeaves.length;
+  }
+
+  let payrollReminderNotified = 0;
+  const todayDate = new Date(now);
+  if (todayDate.getDate() >= PAYROLL_REMINDER_FROM_DAY) {
+    const currentMonth = todayDate.getMonth() + 1;
+    const currentYear = todayDate.getFullYear();
+    const hasPayrollThisMonth = payrollRecords.some(p => p.month === currentMonth && p.year === currentYear);
+    if (!hasPayrollThisMonth) {
+      for (const hrUser of hrUsers) {
+        await notifyUserServer({
+          userId: hrUser.id, email: hrUser.email,
+          title: `Payroll not generated yet for ${currentMonth}/${currentYear}`,
+          body: `It's the ${todayDate.getDate()}th and no payroll records exist for this month yet — generate it from HRMS Payroll.`,
+          link: "/hrms/payroll", category: "followup",
+        });
+      }
+      payrollReminderNotified = 1;
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     leadsNotified,
@@ -498,5 +676,11 @@ export async function GET(req: NextRequest) {
     tourOpsRemindersNotified,
     missedClockOutsNotified,
     recruitmentTrainingStuckNotified,
+    whatsappSlaBreachesNotified,
+    vendorRatesExpiringNotified,
+    referralPayoutsStuckNotified,
+    expensesStuckNotified,
+    leavesStuckNotified,
+    payrollReminderNotified,
   });
 }

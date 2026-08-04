@@ -188,6 +188,24 @@ export async function updateLeadStage(
   return leadRepository.update(id, { stage } as Partial<Lead>);
 }
 
+// Server-side counterpart to useLeads.ts's changeStage("won") — fired from
+// invoice.service.ts the moment an invoice tied to this lead's booking is
+// fully paid, running the exact same "won" side-effect chain (customer
+// conversion + draft quotation seed) as the manual Kanban drag, so a
+// payment-driven win looks identical to a human-driven one. No-ops if the
+// lead is already won (e.g. someone already dragged it manually) — both
+// convertLeadToCustomer and createDraftQuotationFromWonLead are also
+// independently dedup-safe, so this is defense in depth, not the only guard.
+export async function markLeadWonFromPayment(leadId: string): Promise<void> {
+  const lead = await fetchLeadById(leadId);
+  if (!lead || lead.stage === LEAD_STAGES.WON) return;
+
+  await updateLeadStage(leadId, LEAD_STAGES.WON);
+  const wonLead = { ...lead, stage: LEAD_STAGES.WON };
+  const customer = await convertLeadToCustomer(wonLead, lead.createdBy);
+  await createDraftQuotationFromWonLead(wonLead, customer, lead.createdBy);
+}
+
 export async function deleteLead(id: string): Promise<void> {
   return leadRepository.delete(id);
 }

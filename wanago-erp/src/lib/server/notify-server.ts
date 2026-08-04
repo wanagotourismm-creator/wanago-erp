@@ -1,6 +1,6 @@
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb, getAdminMessaging } from "@/lib/firebase/admin";
 import { getIntegrationSecret } from "@/lib/get-integration-secret";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { getAppUrl } from "@/lib/app-url";
@@ -445,6 +445,187 @@ export async function sendQuotationEmail(params: {
   });
 }
 
+function renderInvoiceEmailHtml(customerName: string, refNumber: string, balanceDue: number, businessName: string) {
+  const amountLine = balanceDue > 0
+    ? `The balance due is <strong>₹${Math.round(balanceDue).toLocaleString("en-IN")}</strong> — pay any time via the UPI QR/link on the invoice.`
+    : `This invoice is fully paid — no balance due. Keep this for your records.`;
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">Your Invoice</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${customerName}! ✈️</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
+            Your invoice <strong>${refNumber}</strong> is attached to this email as a PDF. ${amountLine}
+          </p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent when Finance clicks "Send to Customer" on an invoice — see
+// invoice.service.ts's sendInvoiceToCustomer. Best-effort, same convention
+// as sendQuotationEmail: a failed send never blocks the invoice's status
+// flip to "sent".
+export async function sendInvoiceEmail(params: {
+  to: string; customerName: string; refNumber: string; balanceDue: number; pdfUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
+  return sendRawEmail({
+    to: params.to,
+    subject: `Your Invoice ${params.refNumber} — ${company.businessName} ✈️`,
+    html: renderInvoiceEmailHtml(params.customerName, params.refNumber, params.balanceDue, company.businessName),
+    businessName: company.businessName,
+    attachments: [{ filename: `Invoice-${params.refNumber}.pdf`, url: params.pdfUrl }],
+  });
+}
+
+function renderOperationsChecklistEmailHtml(customerName: string, destination: string, businessName: string) {
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">Your Trip Checklist</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${customerName}! ✈️</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
+            Everything's confirmed for your trip to <strong>${destination}</strong> — your hotel, transport and itinerary checklist is attached to this email as a PDF for quick reference.
+          </p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Have a wonderful trip!<br/><strong>Team ${businessName}</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent automatically the moment Operations completes the pre-departure
+// checklist — see tour-operations.service.ts's generateAndShareChecklistPdf.
+// Best-effort, same as sendQuotationEmail: a failed send never blocks the
+// checklist section save itself.
+export async function sendOperationsChecklistEmail(params: {
+  to: string; customerName: string; destination: string; refNumber: string; pdfUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
+  return sendRawEmail({
+    to: params.to,
+    subject: `Your Trip Checklist — ${params.destination} (${company.businessName}) ✈️`,
+    html: renderOperationsChecklistEmailHtml(params.customerName, params.destination, company.businessName),
+    businessName: company.businessName,
+    attachments: [{ filename: `Trip-Checklist-${params.refNumber}.pdf`, url: params.pdfUrl }],
+  });
+}
+
+function renderTallyExportEmailHtml(periodLabel: string, invoiceCount: number, paymentCount: number, expenseCount: number, businessName: string) {
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">Monthly Tally Export</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">${periodLabel} books are ready</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
+            ${invoiceCount} invoice(s), ${paymentCount} payment(s), and ${expenseCount} expense(s) for ${periodLabel} are attached as Tally-importable XML and a CSV reconciliation copy — no need to open the app and click Export.
+          </p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent by the monthly-tally-export cron — see
+// app/api/cron/monthly-tally-export/route.ts. Best-effort, same convention
+// as every other cron-fired email in this file.
+export async function sendTallyExportEmail(params: {
+  to: string; periodLabel: string; invoiceCount: number; paymentCount: number; expenseCount: number;
+  xmlUrl: string; csvUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
+  return sendRawEmail({
+    to: params.to,
+    subject: `Tally export ready — ${params.periodLabel} (${company.businessName})`,
+    html: renderTallyExportEmailHtml(params.periodLabel, params.invoiceCount, params.paymentCount, params.expenseCount, company.businessName),
+    businessName: company.businessName,
+    attachments: [
+      { filename: `Tally-${params.periodLabel}.xml`, url: params.xmlUrl },
+      { filename: `Reconciliation-${params.periodLabel}.csv`, url: params.csvUrl },
+    ],
+  });
+}
+
+function renderPayslipEmailHtml(employeeName: string, monthLabel: string, netSalary: number, businessName: string) {
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:40px 24px;text-align:center;">
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;margin:0;opacity:0.95;">Payslip</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;background:#ffffff;">
+          <h1 style="font-size:22px;margin:0 0 16px;color:#111;">Hi ${employeeName}!</h1>
+          <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;">
+            Your payslip for <strong>${monthLabel}</strong> is attached — net salary <strong>₹${Math.round(netSalary).toLocaleString("en-IN")}</strong> has been marked as paid.
+          </p>
+          <p style="font-size:14px;color:#333;line-height:1.6;margin:0;">Thanks,<br/><strong>Team ${businessName}</strong></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#166534;padding:18px 32px;text-align:center;">
+          <p style="font-size:11px;color:#dcfce7;margin:0;">Team ${businessName}</p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// Sent the moment a payroll record is marked paid — see
+// payroll.service.ts's markPayrollPaid. Best-effort, same convention as
+// every other cron/action-fired email in this file.
+export async function sendPayslipEmail(params: {
+  to: string; employeeName: string; monthLabel: string; netSalary: number; pdfUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const company = await getCompanySettingsServer();
+  return sendRawEmail({
+    to: params.to,
+    subject: `Your Payslip — ${params.monthLabel} (${company.businessName})`,
+    html: renderPayslipEmailHtml(params.employeeName, params.monthLabel, params.netSalary, company.businessName),
+    businessName: company.businessName,
+    attachments: [{ filename: `Payslip-${params.monthLabel.replace(/\s+/g, "_")}.pdf`, url: params.pdfUrl }],
+  });
+}
+
 function renderReviewRequestEmailHtml(customerName: string, link: string, businessName: string) {
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;width:100%;background:#ffffff;">
@@ -546,6 +727,34 @@ export async function sendInvoicePaymentReminderEmail(params: {
   });
 }
 
+// Server-side push send — mirrors app/api/notify/push/route.ts's logic, but
+// called directly (no HTTP round trip needed; this already runs with Admin
+// SDK context from a cron/server route). Same dead-token pruning.
+async function sendPushToUser(
+  db: Firestore, userId: string, title: string, body: string, link?: string
+): Promise<void> {
+  const messaging = getAdminMessaging();
+  if (!messaging) return;
+
+  const userRef = db.collection(FIRESTORE_COLLECTIONS.USERS).doc(userId);
+  const userSnap = await userRef.get();
+  const tokens: string[] = userSnap.data()?.fcmTokens ?? [];
+  if (tokens.length === 0) return;
+
+  const result = await messaging.sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    webpush: link ? { fcmOptions: { link } } : undefined,
+  });
+
+  const deadTokens = result.responses
+    .map((r, i) => (!r.success && r.error?.code === "messaging/registration-token-not-registered" ? tokens[i] : null))
+    .filter((t): t is string => t !== null);
+  if (deadTokens.length > 0) {
+    await userRef.update({ fcmTokens: tokens.filter((t) => !deadTokens.includes(t)) });
+  }
+}
+
 // Server-side equivalent of src/lib/notify.ts's notifyUser() — that one is
 // client-oriented (relative fetch to /api/notify/email, client Firestore
 // SDK for the in-app write) and doesn't work from a cron route with no
@@ -582,6 +791,9 @@ export async function notifyUserServer(params: {
         updatedAt:   FieldValue.serverTimestamp(),
       }).catch(() => {})
     );
+  }
+  if (db && params.userId) {
+    tasks.push(sendPushToUser(db, params.userId, params.title, params.body, params.link).catch(() => {}));
   }
   if (params.email) {
     tasks.push(sendEmail({ to: params.email, subject: params.title, body: params.body, link: params.link, category: params.category }).catch(() => {}));

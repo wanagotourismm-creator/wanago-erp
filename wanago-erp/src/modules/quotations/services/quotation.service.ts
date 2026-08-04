@@ -266,6 +266,18 @@ export async function sendQuotation(quotation: Quotation): Promise<void> {
 
 export async function markQuotationAccepted(id: string): Promise<void> {
   await quotationRepository.update(id, { status: "accepted" } as Partial<Quotation>);
+
+  // Auto-convert to a Booking the moment both conditions are met: accepted
+  // by the customer + already Ops-approved. If Ops approval hasn't landed
+  // yet, approveQuotationOperations below covers the reverse ordering.
+  const fresh = await quotationRepository.findById(id);
+  if (fresh && fresh.financeApprovalStatus === "approved" && !fresh.convertedBookingId) {
+    try {
+      await convertQuotationToBooking(fresh, fresh.createdBy);
+    } catch (err) {
+      console.error("[quotation.service] auto convertQuotationToBooking failed:", err);
+    }
+  }
 }
 
 export async function rejectQuotation(id: string): Promise<void> {
@@ -292,6 +304,17 @@ export async function approveQuotationOperations(id: string, approvedBy: string)
       `Quotation ${existing.refNumber} approved`,
       `${existing.customerName}'s quotation has been approved by Operations and can now be converted to a booking.`
     );
+
+    // Reverse ordering of the auto-convert in markQuotationAccepted — Ops
+    // approval landed after the customer had already accepted.
+    if (existing.status === "accepted" && !existing.convertedBookingId) {
+      try {
+        const fresh = await quotationRepository.findById(id);
+        if (fresh) await convertQuotationToBooking(fresh, fresh.createdBy);
+      } catch (err) {
+        console.error("[quotation.service] auto convertQuotationToBooking failed:", err);
+      }
+    }
   }
 }
 
@@ -325,6 +348,12 @@ export async function convertQuotationToBooking(
   if (!fresh || fresh.financeApprovalStatus !== "approved") {
     throw new Error("Quotation must be approved by Operations before it can be converted to a booking.");
   }
+  // Idempotency guard — convertQuotationToBooking can now also fire
+  // automatically from markQuotationAccepted/approveQuotationOperations
+  // (whichever of "accepted"/Ops-approved completes second), so a quotation
+  // already converted must be a silent no-op rather than creating a
+  // duplicate booking.
+  if (fresh.convertedBookingId) return;
 
   const booking = await createBooking({
     customerId:    quotation.customerId,
@@ -343,6 +372,7 @@ export async function convertQuotationToBooking(
     agentName:     null,
     officeId:      quotation.officeId,
     officeName:    quotation.officeName,
+    leadId:        quotation.leadId ?? null,
     notes:         `Converted from quotation ${quotation.refNumber}`,
     createdBy,
   }, createdBy);

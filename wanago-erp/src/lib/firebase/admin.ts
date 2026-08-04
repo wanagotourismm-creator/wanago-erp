@@ -2,6 +2,7 @@ import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
+import { getMessaging, type Messaging } from "firebase-admin/messaging";
 
 let app: App | null = null;
 
@@ -28,6 +29,14 @@ export function getAdminDb(): Firestore | null {
 export function getAdminAuth(): Auth | null {
   const a = getAdminApp();
   return a ? getAuth(a) : null;
+}
+
+// Server-side FCM send (sendEachForMulticast) — used by
+// app/api/notify/push/route.ts and notifyUserServer() to push to every
+// device token stored on a user's profile.
+export function getAdminMessaging(): Messaging | null {
+  const a = getAdminApp();
+  return a ? getMessaging(a) : null;
 }
 
 // Server-side Storage access (bypasses Storage security rules entirely,

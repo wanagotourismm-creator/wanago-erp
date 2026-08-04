@@ -5,19 +5,14 @@ import { useBookings } from "@/modules/bookings/hooks/useBookings";
 import {
   fetchQuotations, approveQuotationOperations, rejectQuotationOperations,
 } from "@/modules/quotations/services/quotation.service";
-import {
-  fetchInvoices, approveInvoiceFinance, rejectInvoiceFinance,
-} from "@/modules/invoices/services/invoice.service";
 import { BOOKING_STATUS } from "@/lib/constants";
 import type { Quotation } from "@/modules/quotations/types";
-import type { Invoice } from "@/modules/invoices/types";
 import type { ApprovalItem } from "@/modules/approvals/types";
 
-// Legacy/pre-feature quotations and invoices may not have
-// `financeApprovalStatus` set at all — those should still surface in the
-// queue for a first approval rather than silently disappearing, so the
-// filter only excludes records explicitly marked approved/rejected. Shared
-// by invoices (Finance queue) and quotations (Operations queue) below.
+// Legacy/pre-feature quotations may not have `financeApprovalStatus` set at
+// all — those should still surface in the queue for a first approval rather
+// than silently disappearing, so the filter only excludes records
+// explicitly marked approved/rejected.
 function needsApproval(status: string | undefined): boolean {
   return status !== "approved" && status !== "rejected";
 }
@@ -34,45 +29,36 @@ export function useApprovals() {
   } = useBookings();
 
   const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [invoices,   setInvoices]   = useState<Invoice[]>([]);
-  const [loadingQI,  setLoadingQI]  = useState(true);
+  const [loadingQ,   setLoadingQ]   = useState(true);
 
-  const loadQuotationsAndInvoices = useCallback(async () => {
-    setLoadingQI(true);
+  const loadQuotations = useCallback(async () => {
+    setLoadingQ(true);
     try {
-      const [q, i] = await Promise.all([fetchQuotations(), fetchInvoices()]);
-      setQuotations(q);
-      setInvoices(i);
+      setQuotations(await fetchQuotations());
     } finally {
-      setLoadingQI(false);
+      setLoadingQ(false);
     }
   }, []);
 
-  useEffect(() => { loadQuotationsAndInvoices(); }, [loadQuotationsAndInvoices]);
+  useEffect(() => { loadQuotations(); }, [loadQuotations]);
 
-  const loading = bookingsLoading || loadingQI;
+  const loading = bookingsLoading || loadingQ;
 
   const reload = useCallback(async () => {
-    await Promise.all([loadBookings(), loadQuotationsAndInvoices()]);
-  }, [loadBookings, loadQuotationsAndInvoices]);
+    await Promise.all([loadBookings(), loadQuotations()]);
+  }, [loadBookings, loadQuotations]);
 
+  // Invoices no longer have a Finance-approval gate (see invoice.service.ts
+  // — status is now driven purely by payment), so the Finance queue is
+  // booking-finance only.
   const financeQueue: ApprovalItem[] = useMemo(() => {
-    const bookingItems: ApprovalItem[] = bookings
+    return bookings
       .filter(b => b.status === BOOKING_STATUS.PENDING_FINANCE)
-      .map(b => ({
+      .map((b): ApprovalItem => ({
         kind: "booking-finance", id: b.id, refNumber: b.refNumber,
         customerName: b.customerName, agentName: b.agentName, amount: b.totalAmount, data: b,
       }));
-
-    const invoiceItems: ApprovalItem[] = invoices
-      .filter(inv => needsApproval(inv.financeApprovalStatus))
-      .map(inv => ({
-        kind: "invoice", id: inv.id, refNumber: inv.refNumber,
-        customerName: inv.customerName, agentName: null, amount: inv.totalAmount, data: inv,
-      }));
-
-    return [...bookingItems, ...invoiceItems];
-  }, [bookings, invoices]);
+  }, [bookings]);
 
   const opsQueue: ApprovalItem[] = useMemo(() => {
     const bookingItems: ApprovalItem[] = bookings
@@ -107,7 +93,7 @@ export function useApprovals() {
     profitAmount: number
   ): Promise<{ error: string | null }>;
   async function approveItem(
-    item: ApprovalItem & { kind: "quotation" | "invoice" },
+    item: ApprovalItem & { kind: "quotation" },
     approvedBy: string
   ): Promise<{ error: string | null }>;
   async function approveItem(
@@ -122,18 +108,10 @@ export function useApprovals() {
       case "quotation":
         try {
           await approveQuotationOperations(item.id, extra as string);
-          await loadQuotationsAndInvoices();
+          await loadQuotations();
           return { error: null };
         } catch {
           return { error: "Failed to approve quotation" };
-        }
-      case "invoice":
-        try {
-          await approveInvoiceFinance(item.id, extra as string);
-          await loadQuotationsAndInvoices();
-          return { error: null };
-        } catch {
-          return { error: "Failed to approve invoice" };
         }
     }
   }
@@ -149,18 +127,10 @@ export function useApprovals() {
       case "quotation":
         try {
           await rejectQuotationOperations(item.id, rejectedBy, reason);
-          await loadQuotationsAndInvoices();
+          await loadQuotations();
           return { error: null };
         } catch {
           return { error: "Failed to reject quotation" };
-        }
-      case "invoice":
-        try {
-          await rejectInvoiceFinance(item.id, rejectedBy, reason);
-          await loadQuotationsAndInvoices();
-          return { error: null };
-        } catch {
-          return { error: "Failed to reject invoice" };
         }
     }
   }

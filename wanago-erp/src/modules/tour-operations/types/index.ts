@@ -189,4 +189,12 @@ export type OperationsBooking = Omit<FirestoreRecord, "status"> & {
 
   status:         OperationsStage;
   overallRemarks: string;
+
+  // Customer-facing trip checklist PDF — auto-generated and shared the
+  // first time computeStage() reaches PRE_DEPARTURE_COMPLETED (see
+  // generateAndShareChecklistPdf in tour-operations.service.ts).
+  // checklistPdfSentAt is the guard against re-sending on every later
+  // section edit that re-saves the same "completed" state.
+  checklistPdfUrl?:     string | null;
+  checklistPdfSentAt?:  unknown | null;
 };

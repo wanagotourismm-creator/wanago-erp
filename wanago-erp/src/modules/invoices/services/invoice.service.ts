@@ -1,36 +1,20 @@
 import { where, type QueryConstraint } from "firebase/firestore";
 import { serverTimestamp, doc, runTransaction } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { db, auth } from "@/lib/firebase/client";
 import { invoiceRepository } from "@/modules/invoices/services/invoice.repository";
 import { FIRESTORE_COLLECTIONS, INVOICE_STATUS, type InvoiceStatus } from "@/lib/constants";
-import { toDate } from "@/lib/utils/helpers";
+import { toDate, formatDate, joinAddressCity } from "@/lib/utils/helpers";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import type { Invoice, InvoiceFormData } from "@/modules/invoices/types";
 import type { Booking } from "@/modules/bookings/types";
 import { notifyUser } from "@/lib/notify";
-import { fetchUsersByPermission, fetchUserById } from "@/lib/notify-recipients";
-
-// Notifications are best-effort — a failure here must never break the
-// invoice creation/approval flow itself.
-async function notifyFinanceApprovers(invoice: Invoice): Promise<void> {
-  try {
-    const approvers = await fetchUsersByPermission("invoices:finance_approve");
-    await Promise.all(
-      approvers.map((u) =>
-        notifyUser({
-          userId:   u.id,
-          email:    u.email,
-          title:    `New invoice ${invoice.refNumber} needs Finance approval`,
-          body:     `${invoice.customerName} — ${invoice.totalAmount}`,
-          link:     "/approvals",
-          category: "approval",
-        })
-      )
-    );
-  } catch {
-    // ignore — notifications must not block invoice creation/update
-  }
-}
+import { fetchUserById } from "@/lib/notify-recipients";
+import { fetchBookingById } from "@/modules/bookings/services/booking.service";
+import { markLeadWonFromPayment } from "@/modules/leads/services/lead.service";
+import { fetchCustomerById } from "@/modules/customers/services/customer.service";
+import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
+import { uploadFile } from "@/lib/storage/upload";
+import { generateInvoicePdfBlob, loadCompanyLogoDataUrlForInvoice } from "@/lib/pdf/invoice-pdf";
 
 function computeStatus(
   prevStatus: InvoiceStatus | undefined,
@@ -91,15 +75,16 @@ export async function createInvoice(
     notes:      data.notes      || null,
     taxRate:    data.taxRate   ?? null,
     taxAmount:  data.taxAmount ?? null,
-    financeApprovalStatus:   "pending",
+    // financeApprovalStatus/etc. are deprecated — invoice status is now
+    // driven purely by amountPaid vs totalAmount (see computeStatus).
+    // Fields are left in the schema/type to avoid migrating old documents.
+    financeApprovalStatus:   "approved",
     financeApprovedBy:       null,
     financeApprovedAt:       null,
     financeRejectedBy:       null,
     financeRejectedAt:       null,
     financeRejectionReason:  null,
   });
-
-  await notifyFinanceApprovers(invoice);
 
   return invoice;
 }
@@ -148,90 +133,94 @@ export async function updateInvoice(
       patch.status      = computeStatus(existing.status, totalAmount, amountPaid, dueDate);
       patch.dueDate      = dueDate;
     }
-    // Editing a Finance-rejected invoice automatically resubmits it — no
-    // separate "resubmit" button. Rejection history (by/at/reason) is left
-    // intact until overwritten by a future rejection.
-    if (existing.financeApprovalStatus === "rejected") {
-      patch.financeApprovalStatus = "pending";
-    }
   }
 
   await invoiceRepository.update(id, patch);
-
-  if (existing?.financeApprovalStatus === "rejected") {
-    const updated = await invoiceRepository.findById(id);
-    if (updated) await notifyFinanceApprovers(updated);
-  }
-}
-
-// Finance must approve an invoice before it can be marked sent.
-export async function approveInvoiceFinance(id: string, approvedBy: string): Promise<void> {
-  const existing = await invoiceRepository.findById(id);
-
-  await invoiceRepository.update(id, {
-    financeApprovalStatus: "approved",
-    financeApprovedBy:     approvedBy,
-    financeApprovedAt:     serverTimestamp(),
-  } as Partial<Invoice>);
-
-  if (existing) {
-    try {
-      const creator = await fetchUserById(existing.createdBy);
-      if (creator) {
-        await notifyUser({
-          userId:   creator.id,
-          email:    creator.email,
-          title:    `Invoice ${existing.refNumber} approved by Finance`,
-          body:     `${existing.customerName} — ${existing.totalAmount} — this invoice can now be marked sent.`,
-          link:     "/invoices",
-          category: "approval",
-        });
-      }
-    } catch {
-      // ignore — notifications must not block the approval flow
-    }
-  }
-}
-
-// Finance rejects the invoice with a reason instead of approving — editing
-// the invoice later (see updateInvoice) automatically resubmits it.
-export async function rejectInvoiceFinance(id: string, rejectedBy: string, reason: string): Promise<void> {
-  const existing = await invoiceRepository.findById(id);
-
-  await invoiceRepository.update(id, {
-    financeApprovalStatus:  "rejected",
-    financeRejectedBy:      rejectedBy,
-    financeRejectedAt:      serverTimestamp(),
-    financeRejectionReason: reason,
-  } as Partial<Invoice>);
-
-  if (existing) {
-    try {
-      const creator = await fetchUserById(existing.createdBy);
-      if (creator) {
-        await notifyUser({
-          userId:   creator.id,
-          email:    creator.email,
-          title:    `Invoice ${existing.refNumber} rejected by Finance`,
-          body:     `${existing.customerName} — ${existing.totalAmount} — reason: ${reason}. Edit and resubmit to send it back for approval.`,
-          link:     "/invoices",
-          category: "approval",
-        });
-      }
-    } catch {
-      // ignore — notifications must not block the rejection flow
-    }
-  }
 }
 
 export async function markInvoiceSent(id: string): Promise<void> {
   const invoice = await invoiceRepository.findById(id);
   if (!invoice) return;
-  if (invoice.financeApprovalStatus !== "approved") {
-    throw new Error("Invoice must be approved by Finance before it can be sent.");
-  }
+  if (invoice.status !== INVOICE_STATUS.DRAFT) return;
   const status = computeStatus(INVOICE_STATUS.SENT, invoice.totalAmount, invoice.amountPaid, invoice.dueDate);
   return invoiceRepository.update(id, { status });
+}
+
+// Actually dispatches the invoice PDF to the customer (email attachment +
+// WhatsApp link) — markInvoiceSent above only ever flipped the status field
+// with nothing sent, which meant "Mark Sent" was silently a no-op from the
+// customer's point of view. Mirrors quotation.service.ts's
+// sendQuotationPdfToCustomer/notify pattern. The status flip always happens
+// (same as markInvoiceSent), even if the actual send fails below — the
+// invoice's own state shouldn't get stuck just because e.g. the customer has
+// no email on file.
+export async function sendInvoiceToCustomer(invoice: Invoice): Promise<void> {
+  if (invoice.status === INVOICE_STATUS.DRAFT) {
+    const status = computeStatus(INVOICE_STATUS.SENT, invoice.totalAmount, invoice.amountPaid, invoice.dueDate);
+    await invoiceRepository.update(invoice.id, { status });
+  }
+
+  try {
+    const customer = await fetchCustomerById(invoice.customerId);
+    const company = await fetchCompanySettings();
+    const logoDataUrl = await loadCompanyLogoDataUrlForInvoice(company.logoUrl);
+    const description = invoice.bookingRef ? `Booking ${invoice.bookingRef}` : "Services rendered";
+
+    const blob = await generateInvoicePdfBlob({
+      refNumber: invoice.refNumber,
+      date: formatDate(invoice.issueDate, "dd/MM/yyyy"),
+      dueDate: invoice.dueDate ? formatDate(invoice.dueDate, "dd/MM/yyyy") : null,
+      company: {
+        businessName: company.businessName,
+        addressLine: joinAddressCity(company.address, company.city),
+        phone: company.phone || undefined,
+        gstNumber: company.gstEnabled ? company.gstNumber || undefined : undefined,
+      },
+      customer: { name: invoice.customerName, phone: invoice.customerPhone },
+      lineItems: [{ description, pax: null, price: invoice.totalAmount, total: invoice.totalAmount }],
+      subtotal: invoice.totalAmount - (invoice.taxAmount ?? 0),
+      grandTotal: invoice.totalAmount,
+      amountPaid: invoice.amountPaid,
+      balanceDue: invoice.balanceDue,
+      bank: {
+        accountName:   company.bankAccountName || company.businessName,
+        accountNumber: company.bankAccountNumber,
+        ifsc:          company.bankIfscCode,
+        bankName:      company.bankName,
+        qrDataUrl:     company.paymentQrUrl || null,
+      },
+      logoDataUrl: logoDataUrl ?? "",
+      websiteUrl: company.websiteUrl,
+      socialHandle: company.socialHandle,
+    });
+
+    const pdfUrl = await uploadFile(`invoices/${invoice.refNumber}.pdf`, blob);
+
+    const customerEmail = customer?.email;
+    if (customerEmail) {
+      const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+      await fetch("/api/invoices/send-email", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(idToken ? { authorization: `Bearer ${idToken}` } : {}) },
+        body: JSON.stringify({
+          to: customerEmail, customerName: invoice.customerName, refNumber: invoice.refNumber,
+          balanceDue: invoice.balanceDue, pdfUrl,
+        }),
+      }).catch(() => {});
+    }
+
+    const customerPhone = customer?.phone || invoice.customerPhone;
+    if (customerPhone) {
+      await notifyUser({
+        phone:    customerPhone,
+        title:    "Your invoice is ready",
+        body:     `Hi ${invoice.customerName}, here's your invoice ${invoice.refNumber}: ${pdfUrl}`,
+        category: "system",
+      });
+    }
+  } catch (err) {
+    console.error("[invoice.service] sendInvoiceToCustomer failed to send:", err);
+  }
 }
 
 export async function deleteInvoice(id: string): Promise<void> {
@@ -254,13 +243,51 @@ export async function deleteInvoice(id: string): Promise<void> {
 // amountPaid negative.
 export async function applyPaymentToInvoice(invoiceId: string, amountDelta: number): Promise<void> {
   const ref = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
-  await runTransaction(db, async (tx) => {
+  const { prevStatus, updated } = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists()) return;
+    if (!snap.exists()) return { prevStatus: null, updated: null };
     const invoice = snap.data() as Invoice;
     const amountPaid = Math.max(0, (invoice.amountPaid ?? 0) + amountDelta);
     const balanceDue = invoice.totalAmount - amountPaid;
     const status = computeStatus(invoice.status, invoice.totalAmount, amountPaid, invoice.dueDate);
     tx.update(ref, { amountPaid, balanceDue, status, updatedAt: serverTimestamp() });
+    return { prevStatus: invoice.status, updated: { ...invoice, id: invoiceId, amountPaid, balanceDue, status } as Invoice };
   });
+
+  if (updated && prevStatus !== INVOICE_STATUS.PAID && updated.status === INVOICE_STATUS.PAID) {
+    try {
+      await onInvoiceFullyPaid(updated);
+    } catch (err) {
+      console.error("[invoice.service] onInvoiceFullyPaid failed:", err);
+    }
+  }
+}
+
+// Best-effort — fired the moment an invoice first becomes fully paid.
+// Notifies the currently-assigned Sales agent that it's time to hand the
+// file over to Operations, and flips the originating Lead to "won" (same
+// side-effect chain as the manual Kanban drag — see markLeadWonFromPayment).
+async function onInvoiceFullyPaid(invoice: Invoice): Promise<void> {
+  if (!invoice.bookingId) return;
+  const booking = await fetchBookingById(invoice.bookingId);
+  if (!booking) return;
+
+  const targetUserId = booking.assignedTo || booking.createdBy;
+  if (targetUserId) {
+    const recipient = await fetchUserById(targetUserId);
+    if (recipient) {
+      await notifyUser({
+        userId:   recipient.id,
+        email:    recipient.email,
+        title:    "Payment received — hand over to Operations",
+        body:     `${booking.customerName}'s invoice ${invoice.refNumber} is fully paid.`,
+        link:     "/bookings",
+        category: "approval",
+      });
+    }
+  }
+
+  if (booking.leadId) {
+    await markLeadWonFromPayment(booking.leadId);
+  }
 }

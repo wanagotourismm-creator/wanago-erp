@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { fetchOperationsBookings } from "@/modules/tour-operations/services/tour-operations.service";
+import { fetchOperationsBookings, deleteOperationsBooking } from "@/modules/tour-operations/services/tour-operations.service";
 import type { OperationsBooking } from "@/modules/tour-operations/types";
 
 export function useTourOperations() {
@@ -23,5 +23,15 @@ export function useTourOperations() {
 
   useEffect(() => { load(); }, [load]);
 
-  return { records, loading, error, load };
+  async function removeRecord(id: string): Promise<{ error: string | null }> {
+    try {
+      await deleteOperationsBooking(id);
+      setRecords(prev => prev.filter(r => r.id !== id));
+      return { error: null };
+    } catch {
+      return { error: "Failed to delete record" };
+    }
+  }
+
+  return { records, loading, error, load, removeRecord };
 }

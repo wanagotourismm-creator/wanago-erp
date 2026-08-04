@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Wallet } from "lucide-react";
 import { InvoiceStatusBadge, formatAmount } from "@/modules/invoices/components/InvoiceBadges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
@@ -9,15 +9,17 @@ import { formatDate, initials } from "@/lib/utils/helpers";
 import type { Invoice } from "@/modules/invoices/types";
 
 type Props = {
-  invoices:  Invoice[];
-  loading:   boolean;
-  canManage: boolean;
-  onView:    (invoice: Invoice) => void;
-  onEdit:    (invoice: Invoice) => void;
-  onDelete:  (invoice: Invoice) => void;
+  invoices:         Invoice[];
+  loading:          boolean;
+  canManage:        boolean;
+  canRecordPayment: boolean;
+  onView:           (invoice: Invoice) => void;
+  onEdit:           (invoice: Invoice) => void;
+  onDelete:         (invoice: Invoice) => void;
+  onRecordPayment:  (invoice: Invoice) => void;
 };
 
-export function InvoicesTable({ invoices, loading, canManage, onView, onEdit, onDelete }: Props) {
+export function InvoicesTable({ invoices, loading, canManage, canRecordPayment, onView, onEdit, onDelete, onRecordPayment }: Props) {
   if (loading) return <SkeletonTable rows={6} />;
 
   if (invoices.length === 0) {
@@ -96,24 +98,35 @@ export function InvoicesTable({ invoices, loading, canManage, onView, onEdit, on
 
                 {/* Actions — inline, same line, revealed on row hover */}
                 <td className="px-4 py-3">
-                  {canManage && (
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    {canRecordPayment && inv.balanceDue > 0 && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); onEdit(inv); }}
-                        title="Edit"
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        onClick={(e) => { e.stopPropagation(); onRecordPayment(inv); }}
+                        title="Record Payment"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
                       >
-                        <Edit2 size={13} />
+                        <Wallet size={13} />
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(inv); }}
-                        title="Delete"
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  )}
+                    )}
+                    {canManage && (
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onEdit(inv); }}
+                          title="Edit"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(inv); }}
+                          title="Delete"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
 
               </tr>
@@ -125,10 +138,15 @@ export function InvoicesTable({ invoices, loading, canManage, onView, onEdit, on
 
     <div className="lg:hidden space-y-2.5">
       {invoices.map((inv) => {
-        const actions: SwipeAction[] = canManage ? [
-          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(inv), className: "bg-blue-600" },
-          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(inv), className: "bg-red-600" },
-        ] : [];
+        const actions: SwipeAction[] = [
+          ...(canRecordPayment && inv.balanceDue > 0
+            ? [{ key: "pay", icon: <Wallet size={16} />, label: "Pay", onClick: () => onRecordPayment(inv), className: "bg-primary" }]
+            : []),
+          ...(canManage ? [
+            { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(inv), className: "bg-blue-600" },
+            { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(inv), className: "bg-red-600" },
+          ] : []),
+        ];
         return (
           <SwipeableRow key={inv.id} actions={actions} onTap={() => onView(inv)} className="rounded-xl border border-border">
             <div className="card-compact">

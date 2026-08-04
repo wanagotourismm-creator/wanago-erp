@@ -5,8 +5,24 @@ import { fetchLeavePolicy } from "@/modules/leavepolicy/services/leave-policy.se
 import { fetchEmployeeById } from "@/modules/hrms/employees/services/employee.service";
 import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service";
 import { todayIST } from "@/lib/utils/helpers";
+import { notifyUser } from "@/lib/notify";
 import type { LeaveRequest } from "@/modules/hrms/shared/types";
 import type { LeaveRequestSchema, LeaveDecisionSchema } from "@/modules/hrms/leaves/schemas";
+
+// Notifications are best-effort — a failure here must never break the
+// approve/reject flow itself. Mirrors expense.service.ts's
+// notifyExpenseSubmitter, adapted for LeaveRequest — the applicant is
+// identified by employeeId (an Employee doc), not a userId directly, so
+// this resolves through Employee.userId (the linked login account) first.
+async function notifyLeaveApplicant(request: LeaveRequest, title: string, body: string): Promise<void> {
+  try {
+    const employee = await fetchEmployeeById(request.employeeId);
+    if (!employee?.userId) return;
+    await notifyUser({ userId: employee.userId, email: employee.email, title, body, link: "/ess", category: "leave" });
+  } catch {
+    // ignore — notifications must not block the approval/rejection flow
+  }
+}
 
 class LeaveRepository extends BaseRepository<LeaveRequest> {
   constructor() { super(FIRESTORE_COLLECTIONS.HRMS_LEAVES); }
@@ -171,23 +187,38 @@ export async function approveLeaveRequest(id: string, approvedBy: string, decisi
     }
   }
 
-  return repo.update(id, {
+  await repo.update(id, {
     status:     "approved",
     approvedBy,
     approvedAt: serverTimestamp(),
     rejectedBy: null,
     comments:   decision?.comments || null,
   });
+
+  await notifyLeaveApplicant(
+    request,
+    `Leave request approved`,
+    `Your ${request.leaveType.replace("_", " ")} leave (${request.fromDate} to ${request.toDate}) was approved.${decision?.comments ? ` Comments: ${decision.comments}` : ""}`
+  );
 }
 
 export async function rejectLeaveRequest(id: string, rejectedBy: string, decision?: LeaveDecisionSchema): Promise<void> {
-  return repo.update(id, {
+  const request = await repo.findById(id);
+  if (!request) throw new Error("Leave request not found.");
+
+  await repo.update(id, {
     status:     "rejected",
     rejectedBy,
     approvedBy: null,
     approvedAt: null,
     comments:   decision?.comments || null,
   });
+
+  await notifyLeaveApplicant(
+    request,
+    `Leave request rejected`,
+    `Your ${request.leaveType.replace("_", " ")} leave (${request.fromDate} to ${request.toDate}) was rejected.${decision?.comments ? ` Reason: ${decision.comments}` : ""}`
+  );
 }
 
 export async function cancelLeaveRequest(id: string): Promise<void> {

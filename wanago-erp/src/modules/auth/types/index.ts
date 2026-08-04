@@ -22,6 +22,11 @@ export type UserProfile = {
   // role. Can only ever narrow access within the role, never grant a page
   // the role itself doesn't already have.
   customPageAccess?: string[] | null;
+  // Web Push registration tokens (one per browser/device that granted
+  // notification permission) — see FcmTokenRegister and
+  // app/api/notify/push/route.ts. Absent/empty means this account hasn't
+  // enabled push on any device.
+  fcmTokens?: string[] | null;
   officeId: string;
   officeName: string;
   department: string;

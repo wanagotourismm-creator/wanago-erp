@@ -44,7 +44,7 @@ export function useFinanceActionStats() {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const ageInDays = (d: Date) => Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
 
-        const pendingInvoices = invoices.filter((i) => i.financeApprovalStatus === "pending");
+        const pendingInvoices = invoices.filter((i) => i.status === INVOICE_STATUS.UNPAID || i.status === INVOICE_STATUS.PARTIAL);
         const overdue = invoices.filter((i) => i.status === INVOICE_STATUS.OVERDUE);
         const pendingExpenses = expenses.filter((e) => e.expenseStatus === "pending");
 

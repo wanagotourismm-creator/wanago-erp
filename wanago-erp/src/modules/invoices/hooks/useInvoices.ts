@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   fetchInvoices, fetchInvoiceById, createInvoice, updateInvoice,
-  markInvoiceSent, deleteInvoice,
+  sendInvoiceToCustomer, deleteInvoice,
 } from "@/modules/invoices/services/invoice.service";
 import { useAuthStore } from "@/store/auth.store";
 import { logActivity } from "@/lib/activity-log";
@@ -62,18 +62,27 @@ export function useInvoices() {
     }
   }
 
-  async function sendInvoice(id: string): Promise<{ error: string | null }> {
+  async function sendInvoice(invoice: Invoice): Promise<{ error: string | null }> {
     try {
-      await markInvoiceSent(id);
+      await sendInvoiceToCustomer(invoice);
       // Single-document refresh instead of a full-collection refetch —
-      // markInvoiceSent recomputes status server-side, so we still want
-      // fresh truth for this one invoice, just not the whole collection.
-      const updated = await fetchInvoiceById(id);
-      if (updated) setInvoices(prev => prev.map(inv => inv.id === id ? updated : inv));
+      // sendInvoiceToCustomer recomputes status server-side, so we still
+      // want fresh truth for this one invoice, just not the whole collection.
+      const updated = await fetchInvoiceById(invoice.id);
+      if (updated) setInvoices(prev => prev.map(inv => inv.id === invoice.id ? updated : inv));
       return { error: null };
     } catch (e) {
-      return { error: e instanceof Error ? e.message : "Failed to mark invoice sent" };
+      return { error: e instanceof Error ? e.message : "Failed to send invoice" };
     }
+  }
+
+  // Called after a payment is recorded from the Invoices page (Record
+  // Payment shortcut) — applyPaymentToInvoice already wrote the fresh
+  // amountPaid/status server-side, this just pulls that single document
+  // back into local state instead of a full-collection refetch.
+  async function refreshInvoice(id: string): Promise<void> {
+    const updated = await fetchInvoiceById(id);
+    if (updated) setInvoices(prev => prev.map(inv => inv.id === id ? updated : inv));
   }
 
   async function removeInvoice(id: string): Promise<{ error: string | null }> {
@@ -94,5 +103,5 @@ export function useInvoices() {
     }
   }
 
-  return { invoices, loading, error, load, addInvoice, editInvoice, sendInvoice, removeInvoice };
+  return { invoices, loading, error, load, addInvoice, editInvoice, sendInvoice, removeInvoice, refreshInvoice };
 }

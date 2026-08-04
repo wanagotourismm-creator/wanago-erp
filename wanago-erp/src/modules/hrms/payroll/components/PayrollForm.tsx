@@ -6,10 +6,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, Wallet } from "lucide-react";
 import { payrollRecordSchema, type PayrollRecordSchema } from "@/modules/hrms/payroll/schemas";
 import { fetchEmployees } from "@/modules/hrms/employees/services/employee.service";
+import { fetchBookings } from "@/modules/bookings/services/booking.service";
+import { fetchLeads } from "@/modules/leads/services/lead.service";
+import { fetchIncentiveSettings } from "@/modules/incentives/settings/services/incentive-settings.service";
+import { fetchLeavesByEmployee } from "@/modules/hrms/leaves/services/leave.service";
+import { computeAgentIncentiveSummaries } from "@/modules/incentives/lib/calculateIncentives";
 import { MONTH_LABELS } from "@/modules/hrms/payroll/components/PayrollBadges";
 import { useAuthStore } from "@/store/auth.store";
 import { Modal } from "@/components/ui/Modal";
 import type { Employee, PayrollRecord } from "@/modules/hrms/shared/types";
+import type { AgentIncentiveSummary } from "@/modules/incentives/types";
 
 type Props = { open: boolean; record?: PayrollRecord | null; onClose: () => void; onSubmit: (d: PayrollRecordSchema) => Promise<void>; error?: string | null; };
 
@@ -30,10 +36,26 @@ const now = new Date();
 export function PayrollForm({ open, record, onClose, onSubmit, error }: Props) {
   const { user } = useAuthStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [incentiveSummaries, setIncentiveSummaries] = useState<AgentIncentiveSummary[]>([]);
 
   useEffect(() => {
     if (!open) return;
     fetchEmployees().then(setEmployees).catch(() => {});
+    // Same computeAgentIncentiveSummaries the Incentives page uses (see
+    // useIncentives.ts) — previously HR had to keep that page open in
+    // another tab and retype the number here, with real risk of
+    // transcription drift between the two. Best-effort: a failure here just
+    // means the Incentives field starts blank/manual, same as before.
+    Promise.all([
+      fetchBookings({ status: "confirmed" }),
+      fetchLeads(),
+      fetchEmployees(),
+      fetchIncentiveSettings(),
+    ]).then(([bookings, leads, allEmployees, settings]) => {
+      const leadsById     = new Map(leads.map((l) => [l.id, l]));
+      const employeesById = new Map(allEmployees.map((e) => [e.id, e]));
+      setIncentiveSummaries(computeAgentIncentiveSummaries(bookings, leadsById, employeesById, settings));
+    }).catch(() => {});
   }, [open]);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<PayrollRecordSchema>({
@@ -65,6 +87,8 @@ export function PayrollForm({ open, record, onClose, onSubmit, error }: Props) {
   }, [open, record, reset, user]);
 
   const selectedEmployeeId = watch("employeeId");
+  const selectedMonth = watch("month");
+  const selectedYear  = watch("year");
 
   function handleEmployeeChange(id: string) {
     const emp = employees.find(e => e.id === id);
@@ -75,6 +99,61 @@ export function PayrollForm({ open, record, onClose, onSubmit, error }: Props) {
     setValue("allowances", emp?.allowances ?? 0);
     setValue("officeId", emp?.officeId ?? user?.officeId ?? "main");
   }
+
+  // Auto-fills Incentives from the same computation the Incentives page
+  // shows, whenever employee/month/year are all picked — only on create
+  // (an existing record's incentives were presumably already reviewed/
+  // adjusted, so editing shouldn't silently overwrite them). Re-runs on
+  // every change to any of the three, same as the employee-change handler
+  // above overwriting basicSalary/hra/allowances on every reselect.
+  useEffect(() => {
+    if (record) return;
+    if (!selectedEmployeeId || !selectedMonth || !selectedYear) return;
+    // watch() reflects the <select>'s raw string value until zod's
+    // coercion runs at submit time, not a number — compare as numbers
+    // explicitly rather than relying on RHF to have coerced it already.
+    const monthNum = Number(selectedMonth);
+    const yearNum  = Number(selectedYear);
+    // PayrollRecord.month is 1-indexed (MONTH_LABELS[1..12]); computeAgentIncentiveSummaries
+    // groups by JS Date.getMonth() (0-indexed) — off-by-one here would
+    // silently match the wrong month every time.
+    const match = incentiveSummaries.find(
+      s => s.agentId === selectedEmployeeId && s.month === monthNum - 1 && s.year === yearNum
+    );
+    setValue("incentives", match?.incentiveAmount ?? 0);
+  }, [record, selectedEmployeeId, selectedMonth, selectedYear, incentiveSummaries, setValue]);
+
+  // Auto-fills Deductions from approved Loss-of-Pay leave days that fall in
+  // the selected month — previously HR had to cross-reference the Leaves
+  // page and hand-calculate this every time. A leave request is attributed
+  // to the month it *starts* in (not clipped day-by-day across a month
+  // boundary) — a deliberate simplification, flagged here rather than
+  // silently guessing at a more precise split. Daily rate is basicSalary /
+  // calendar days in the month, the standard convention this app already
+  // uses nowhere else, so it's spelled out below rather than imported.
+  useEffect(() => {
+    if (record) return;
+    if (!selectedEmployeeId || !selectedMonth || !selectedYear) return;
+    const emp = employees.find(e => e.id === selectedEmployeeId);
+    if (!emp) return;
+    const monthNum = Number(selectedMonth);
+    const yearNum  = Number(selectedYear);
+
+    fetchLeavesByEmployee(selectedEmployeeId).then((leaves) => {
+      const lopDays = leaves
+        .filter(l => l.leaveType === "loss_of_pay" && l.status === "approved")
+        .filter(l => {
+          const [y, m] = l.fromDate.split("-").map(Number);
+          return y === yearNum && m === monthNum;
+        })
+        .reduce((sum, l) => sum + l.days, 0);
+
+      if (lopDays === 0) return;
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+      const dailyRate = emp.basicSalary ? emp.basicSalary / daysInMonth : 0;
+      setValue("deductions", Math.round(dailyRate * lopDays));
+    }).catch(() => {});
+  }, [record, selectedEmployeeId, selectedMonth, selectedYear, employees, setValue]);
 
   if (!open) return null;
 

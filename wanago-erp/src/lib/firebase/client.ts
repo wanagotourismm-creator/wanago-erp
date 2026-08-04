@@ -2,6 +2,7 @@ import { getApps, initializeApp, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore,  type Firestore  } from "firebase/firestore";
 import { getAuth,       type Auth        } from "firebase/auth";
 import { getStorage,    type FirebaseStorage } from "firebase/storage";
+import { getMessaging, isSupported, type Messaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -33,3 +34,18 @@ function getSecondaryFirebaseApp(): FirebaseApp {
 }
 
 export const secondaryAuth: Auth = getAuth(getSecondaryFirebaseApp());
+
+// getMessaging() throws outside a browser (SSR) and in browsers without
+// push support (Safari < 16, most in-app webviews) — isSupported() is the
+// documented guard. Lazy + memoized so every caller doesn't re-run the
+// support check.
+let messagingPromise: Promise<Messaging | null> | null = null;
+export function getFcmMessaging(): Promise<Messaging | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  if (!messagingPromise) {
+    messagingPromise = isSupported()
+      .then((supported) => (supported ? getMessaging(firebaseApp) : null))
+      .catch(() => null);
+  }
+  return messagingPromise;
+}

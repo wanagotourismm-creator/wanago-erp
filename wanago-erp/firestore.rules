@@ -481,12 +481,13 @@ service cloud.firestore {
     // ── Finance (invoices, payments, expenses) ───────────────
     match /invoices/{id} {
       allow read: if isAuthenticated();
-      // create additionally allows Operations — approveBookingAsOperations
-      // (booking.service.ts) auto-creates the invoice for a confirmed
-      // booking, and Operations (not Finance) is who calls that. Editing/
-      // deleting an existing invoice stays Finance/Admin-only, unchanged.
+      // create additionally allows Operations and Sales — invoice creation
+      // is now an explicit action from the Booking page (see
+      // getOrCreateInvoiceForBooking, called from BookingDetailModal),
+      // available to whoever created the booking. Editing/deleting an
+      // existing invoice stays Finance/Admin-only, unchanged.
       allow create: if isAuthenticated() &&
-                       getUserRole() in ['super_admin','admin','finance','operations'];
+                       getUserRole() in ['super_admin','admin','finance','operations','sales','sales_head'];
       allow update, delete: if isAuthenticated() &&
                        getUserRole() in ['super_admin','admin','finance'];
     }
