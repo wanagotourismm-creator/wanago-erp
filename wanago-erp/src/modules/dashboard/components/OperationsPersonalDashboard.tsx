@@ -38,8 +38,6 @@ export function OperationsPersonalDashboard() {
         followUpCount={ops.pendingOpsApprovals}
       />
 
-      <QuickClockCard />
-
       {/* Bento arrangement on phones (below lg) — one featured tile plus two
           compact side tiles reads better on a narrow screen than a 2x2 grid
           of full-size cards; desktop keeps the original 4-across grid. */}
@@ -66,6 +64,8 @@ export function OperationsPersonalDashboard() {
           href="/suppliers"
         />
       </div>
+
+      <QuickClockCard />
 
       <div className="hidden lg:grid grid-cols-4 gap-4">
         <StatCard

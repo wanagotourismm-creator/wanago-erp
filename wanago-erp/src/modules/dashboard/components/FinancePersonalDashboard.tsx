@@ -36,11 +36,11 @@ export function FinancePersonalDashboard() {
         followUpCount={finance.pendingExpenseApprovals}
       />
 
-      <QuickClockCard />
-
-      {/* Bento arrangement on phones (below lg) — one featured tile plus two
-          compact side tiles reads better on a narrow screen than a 2x2 grid
-          of full-size cards; desktop keeps the original 4-across grid. */}
+      {/* Bento arrangement on phones (below lg), placed right after the
+          greeting so it's visible without scrolling past attendance first —
+          one featured tile plus two compact side tiles reads better on a
+          narrow screen than a 2x2 grid of full-size cards; desktop keeps
+          the original 4-across grid further down, unchanged. */}
       <div className="lg:hidden space-y-3">
         <BentoGrid
           main={
@@ -64,6 +64,8 @@ export function FinancePersonalDashboard() {
           href="/expenses"
         />
       </div>
+
+      <QuickClockCard />
 
       <div className="hidden lg:grid grid-cols-4 gap-4">
         <StatCard

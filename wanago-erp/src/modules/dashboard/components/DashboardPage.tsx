@@ -139,12 +139,10 @@ function CompanyWideDashboard() {
         <CockpitFilters filters={cockpitFilters} onChange={setCockpitFilters} />
       </div>
 
-      <QuickClockCard />
-
-      <FounderBriefingCard />
-
-      {/* Stat cards — bento arrangement on phones, original 4-across grid
-          on desktop (kept verbatim below, unchanged). */}
+      {/* Stat cards — bento arrangement on phones, placed right after the
+          greeting so the numbers that matter are visible without scrolling
+          past attendance/briefing first. Original 4-across grid on desktop
+          (kept verbatim further down, unchanged, in its original position). */}
       <div className="lg:hidden space-y-3">
         <BentoGrid
           main={
@@ -190,6 +188,10 @@ function CompanyWideDashboard() {
           href="/invoices"
         />
       </div>
+
+      <QuickClockCard />
+
+      <FounderBriefingCard />
 
       <div className="hidden lg:grid grid-cols-4 gap-4">
         <StatCard
