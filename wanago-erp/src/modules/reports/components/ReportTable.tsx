@@ -79,7 +79,8 @@ export function ReportTable({
       ) : filtered.length === 0 ? (
         <EmptyState title="No data found" description="Try a different report type or filter" icon={<span className="text-2xl">📊</span>} />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <>
+        <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -106,6 +107,30 @@ export function ReportTable({
             </p>
           )}
         </div>
+
+        <div className="lg:hidden space-y-2.5">
+          {filtered.slice(0, 200).map((row, i) => (
+            <div key={i} className="card-compact rounded-xl border border-border bg-card">
+              <p className="truncate text-sm font-medium text-foreground">{row[columns[0]] ?? "—"}</p>
+              {columns.length > 1 && (
+                <div className="mt-2.5 space-y-1 border-t border-border pt-2.5">
+                  {columns.slice(1).map(c => (
+                    <div key={c} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="flex-shrink-0 text-muted-foreground">{c}</span>
+                      <span className="truncate text-right text-foreground">{row[c] ?? "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {filtered.length > 200 && (
+            <p className="px-1 py-2 text-[11px] text-muted-foreground">
+              Showing first 200 of {filtered.length} rows — export to see all
+            </p>
+          )}
+        </div>
+        </>
       )}
     </>
   );

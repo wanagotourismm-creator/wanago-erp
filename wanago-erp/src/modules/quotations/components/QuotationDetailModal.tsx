@@ -5,6 +5,7 @@ import { X, Edit2, Trash2, Download, Receipt, MapPin, ArrowRightLeft, Loader2, S
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
 import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { Modal } from "@/components/ui/Modal";
+import { useIsMobile } from "@/lib/utils/breakpoint";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
 import { downloadQuotationPdf, loadCompanyLogoDataUrl } from "@/lib/pdf/quotation-pdf";
@@ -59,11 +60,16 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
   const [downloading, setDownloading] = useState(false);
   const [converting,  setConverting]  = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const isMobile = useIsMobile();
 
   if (!quotation) return null;
   const q = quotation;
 
-  const canConvert   = q.status === "accepted" && q.financeApprovalStatus === "approved";
+  // Conversion now also fires automatically (see markQuotationAccepted /
+  // approveQuotationOperations) the moment both conditions are true — this
+  // button is just a manual safety net for the rare case that failed, so
+  // it disappears once convertedBookingId is actually set.
+  const canConvert   = q.status === "accepted" && q.financeApprovalStatus === "approved" && !q.convertedBookingId;
   // Draft/sent are the only "open" states — accepted/rejected/expired/
   // converted are all terminal (or, for accepted, moves on to conversion).
   const canSend      = canEdit && q.status === "draft";
@@ -149,7 +155,7 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
   }
 
   return (
-    <Modal onClose={onClose} size="md">
+    <Modal onClose={onClose} size={isMobile ? "full" : "md"}>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -291,6 +297,11 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
               >
                 {converting ? <Loader2 size={13} className="animate-spin" /> : <ArrowRightLeft size={13} />} Convert to Booking
               </button>
+            )}
+            {q.convertedBookingId && (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-green-50 px-3 py-2 text-sm font-medium text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                <CheckCircle2 size={13} /> Booking created
+              </span>
             )}
           </div>
         </div>

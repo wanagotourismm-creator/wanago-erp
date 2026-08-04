@@ -3,6 +3,7 @@
 import { Edit2, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { formatDate } from "@/lib/utils/helpers";
 import type { HelpArticle } from "@/modules/helpcenter/types";
 
@@ -28,7 +29,8 @@ export function HelpArticlesTable({ articles, loading, onView, onEdit, onDelete 
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -98,5 +100,38 @@ export function HelpArticlesTable({ articles, loading, onView, onEdit, onDelete 
         </table>
       </div>
     </div>
+
+    <div className="lg:hidden space-y-2.5">
+      {articles.map((article) => {
+        const actions: SwipeAction[] = [
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(article), className: "bg-blue-600" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(article), className: "bg-red-600" },
+        ];
+        return (
+          <SwipeableRow key={article.id} actions={actions} onTap={() => onView(article)} className="rounded-xl border border-border">
+            <div className="card-compact">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 truncate font-medium text-foreground">{article.title}</p>
+                <span className="flex-shrink-0 inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {article.category}
+                </span>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-border pt-2.5">
+                {article.keywords.slice(0, 4).map((k) => (
+                  <span key={k} className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">{k}</span>
+                ))}
+                {article.keywords.length > 4 && (
+                  <span className="text-[11px] text-muted-foreground">+{article.keywords.length - 4}</span>
+                )}
+              </div>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Updated {formatDate(article.lastUpdated)}
+              </p>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

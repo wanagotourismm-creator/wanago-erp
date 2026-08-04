@@ -6,6 +6,7 @@ import { useResources } from "@/modules/resources/hooks/useResources";
 import { useAuthStore } from "@/store/auth.store";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { cn } from "@/lib/utils/helpers";
 import type { Resource, ResourceFormData, ResourceType } from "@/modules/resources/types";
 
@@ -138,7 +139,8 @@ export function ResourcesTable() {
       {loading ? <SkeletonTable rows={4} /> : resources.length === 0 ? (
         <EmptyState title="No resources yet" description="Add a vehicle, driver, guide, or room block" icon={<Truck size={28} className="text-muted-foreground" />} />
       ) : (
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
+        <>
+        <div className="hidden lg:block rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
           {resources.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
@@ -161,6 +163,29 @@ export function ResourcesTable() {
             </div>
           ))}
         </div>
+
+        <div className="lg:hidden space-y-2.5">
+          {resources.map((r) => {
+            const actions: SwipeAction[] = [
+              { key: "edit", icon: <Pencil size={16} />, label: "Edit", onClick: () => startEdit(r), className: "bg-blue-600" },
+              { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => handleDelete(r), className: "bg-red-600" },
+            ];
+            return (
+              <SwipeableRow key={r.id} actions={actions} className="rounded-xl border border-border">
+                <div className="card-compact">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 truncate font-medium text-foreground">{r.name}</p>
+                    {!r.isActive && <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">inactive</span>}
+                  </div>
+                  <div className="mt-2.5 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                    {TYPE_LABELS[r.type]} · Capacity {r.capacity} · {r.officeName}
+                  </div>
+                </div>
+              </SwipeableRow>
+            );
+          })}
+        </div>
+        </>
       )}
     </div>
   );

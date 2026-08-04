@@ -2,20 +2,26 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck, Route, Loader2 } from "lucide-react";
+import { X, MapPin, Edit2, Trash2, Wallet, User, ShieldCheck, Route, Loader2, Receipt } from "lucide-react";
 import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/BookingBadges";
+import { InvoiceStatusBadge } from "@/modules/invoices/components/InvoiceBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { Modal } from "@/components/ui/Modal";
+import { useIsMobile } from "@/lib/utils/breakpoint";
 import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
-import { BOOKING_STATUS_LABELS, BOOKING_STATUS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
+import { BOOKING_STATUS_LABELS, BOOKING_STATUS, INVOICE_STATUS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
 import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import { BookingResourcesSection } from "@/modules/resources/components/BookingResourcesSection";
 import { BookingSosHistory } from "@/modules/companion/components/BookingSosHistory";
 import { TripProfitabilitySection } from "@/modules/profitability/components/TripProfitabilitySection";
-import { getOrCreateOperationsBooking } from "@/modules/tour-operations/services/tour-operations.service";
+import { getOrCreateOperationsBooking, fetchOperationsBookingByBookingId } from "@/modules/tour-operations/services/tour-operations.service";
+import { getOrCreateInvoiceForBooking, fetchInvoiceByBookingId } from "@/modules/invoices/services/invoice.service";
 import { useAuthStore } from "@/store/auth.store";
+import { hasPermission } from "@/lib/rbac";
 import type { Booking } from "@/modules/bookings/types";
+import type { Invoice } from "@/modules/invoices/types";
+import type { OperationsBooking } from "@/modules/tour-operations/types";
 
 type Props = {
   booking:           Booking | null;
@@ -43,23 +49,52 @@ export function BookingDetailModal({
 }: Props) {
   const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
   const [openingOps, setOpeningOps] = useState(false);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [operationsBooking, setOperationsBooking] = useState<OperationsBooking | null>(null);
   const router = useRouter();
   const { user } = useAuthStore();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!booking) return;
     fetchCompanySettings().then(setCompanySettings).catch(() => {});
+    fetchInvoiceByBookingId(booking.id).then(setInvoice).catch(() => {});
+    fetchOperationsBookingByBookingId(booking.id).then(setOperationsBooking).catch(() => {});
   }, [booking?.id]);
 
   if (!booking) return null;
 
-  const canOpenOps = booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.COMPLETED;
+  const canCreateInvoice = !!user && hasPermission(user.systemRole, "invoices:create");
+
+  // Handover to Operations requires both the invoice being fully paid and
+  // this booking having already cleared internal Finance/Ops approval —
+  // payment alone isn't enough if Operations/Finance haven't signed off on
+  // the booking itself yet.
+  const canHandoverToOps = booking.status === BOOKING_STATUS.CONFIRMED && invoice?.status === INVOICE_STATUS.PAID;
+  const canOpenOps = !!operationsBooking || canHandoverToOps;
+  const opsDisabledReason =
+    !operationsBooking && !canHandoverToOps
+      ? (invoice?.status !== INVOICE_STATUS.PAID ? "Awaiting full payment" : "Awaiting internal booking approval")
+      : null;
+
+  async function handleCreateInvoice() {
+    if (!booking) return;
+    setCreatingInvoice(true);
+    try {
+      const created = await getOrCreateInvoiceForBooking(booking, user?.uid ?? "");
+      setInvoice(created);
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
 
   async function openTourOperations() {
     if (!booking) return;
     setOpeningOps(true);
     try {
       const record = await getOrCreateOperationsBooking(booking, user?.uid ?? "");
+      setOperationsBooking(record);
       router.push(`/operations/${record.id}`);
     } finally {
       setOpeningOps(false);
@@ -70,7 +105,7 @@ export function BookingDetailModal({
     || !!booking.financeRejectedAt || !!booking.opsRejectedAt;
 
   return (
-    <Modal onClose={onClose} size="md">
+    <Modal onClose={onClose} size={isMobile ? "full" : "md"}>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -96,6 +131,7 @@ export function BookingDetailModal({
 
           <div className="flex flex-wrap items-center gap-2">
             <BookingStatusBadge status={booking.status} />
+            {invoice && <InvoiceStatusBadge status={invoice.status} />}
           </div>
 
           <div>
@@ -226,6 +262,16 @@ export function BookingDetailModal({
                 <Trash2 size={13} /> Delete
               </button>
             )}
+            {canCreateInvoice && !invoice && (
+              <button
+                onClick={handleCreateInvoice}
+                disabled={creatingInvoice}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors disabled:opacity-60"
+              >
+                {creatingInvoice ? <Loader2 size={13} className="animate-spin" /> : <Receipt size={13} />}
+                Create Invoice
+              </button>
+            )}
             {canOpenOps && (
               <button
                 onClick={openTourOperations}
@@ -233,8 +279,11 @@ export function BookingDetailModal({
                 className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors disabled:opacity-60"
               >
                 {openingOps ? <Loader2 size={13} className="animate-spin" /> : <Route size={13} />}
-                Open Tour Operations
+                {operationsBooking ? "View Handover" : "Handover to Operations"}
               </button>
+            )}
+            {!canOpenOps && opsDisabledReason && (
+              <span className="text-xs text-muted-foreground italic">{opsDisabledReason}</span>
             )}
           </div>
           {canApprove && (

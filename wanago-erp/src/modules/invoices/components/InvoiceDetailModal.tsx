@@ -1,22 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Edit2, Trash2, Send, Receipt, Building2, Download, Loader2 } from "lucide-react";
+import { X, Edit2, Trash2, Send, Receipt, Building2, Download, Loader2, Wallet } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { useIsMobile } from "@/lib/utils/breakpoint";
 import { InvoiceStatusBadge, formatAmount } from "@/modules/invoices/components/InvoiceBadges";
-import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
+import { formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { fetchCompanySettings, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { downloadInvoicePdf, loadCompanyLogoDataUrlForInvoice } from "@/lib/pdf/invoice-pdf";
 import { UpiPaymentPanel } from "@/components/shared/UpiPaymentPanel";
 import type { Invoice } from "@/modules/invoices/types";
 
 type Props = {
-  invoice:   Invoice | null;
-  canManage: boolean;
-  onClose:   () => void;
-  onEdit:    (invoice: Invoice) => void;
-  onDelete:  (invoice: Invoice) => void;
-  onSend:    (invoice: Invoice) => Promise<{ error: string | null }>;
+  invoice:            Invoice | null;
+  canManage:          boolean;
+  canRecordPayment:   boolean;
+  onClose:            () => void;
+  onEdit:             (invoice: Invoice) => void;
+  onDelete:           (invoice: Invoice) => void;
+  onSend:             (invoice: Invoice) => Promise<{ error: string | null }>;
+  onRecordPayment:    (invoice: Invoice) => void;
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -28,34 +31,12 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-const FINANCE_APPROVAL_STYLES: Record<Invoice["financeApprovalStatus"], string> = {
-  pending:  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  approved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-};
-
-const FINANCE_APPROVAL_LABELS: Record<Invoice["financeApprovalStatus"], string> = {
-  pending:  "Pending Finance Approval",
-  approved: "Finance Approved",
-  rejected: "Finance Rejected",
-};
-
-function FinanceApprovalBadge({ status }: { status: Invoice["financeApprovalStatus"] }) {
-  return (
-    <span className={cn(
-      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-      FINANCE_APPROVAL_STYLES[status]
-    )}>
-      {FINANCE_APPROVAL_LABELS[status]}
-    </span>
-  );
-}
-
-export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDelete, onSend }: Props) {
+export function InvoiceDetailModal({ invoice, canManage, canRecordPayment, onClose, onEdit, onDelete, onSend, onRecordPayment }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!invoice) return;
@@ -64,7 +45,7 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
 
   if (!invoice) return null;
 
-  const canMarkSent = invoice.status === "draft" && invoice.financeApprovalStatus === "approved";
+  const canMarkSent = invoice.status === "draft";
 
   async function handleSend() {
     if (!invoice) return;
@@ -118,7 +99,7 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
   }
 
   return (
-    <Modal onClose={onClose} size="md">
+    <Modal onClose={onClose} size={isMobile ? "full" : "md"}>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
@@ -148,13 +129,7 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
 
           <div className="flex flex-wrap items-center gap-2">
             <InvoiceStatusBadge status={invoice.status} />
-            <FinanceApprovalBadge status={invoice.financeApprovalStatus} />
           </div>
-          {invoice.financeApprovalStatus === "rejected" && invoice.financeRejectionReason && (
-            <p className="text-xs text-muted-foreground">
-              Rejection reason: {invoice.financeRejectionReason}
-            </p>
-          )}
 
           <div>
             <div className="mb-1 flex items-center gap-2">
@@ -235,6 +210,14 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
             >
               {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Download PDF
             </button>
+            {canRecordPayment && invoice.balanceDue > 0 && (
+              <button
+                onClick={() => onRecordPayment(invoice)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
+              >
+                <Wallet size={13} /> Record Payment
+              </button>
+            )}
           </div>
           {canManage && canMarkSent && (
             <button
@@ -242,7 +225,7 @@ export function InvoiceDetailModal({ invoice, canManage, onClose, onEdit, onDele
               disabled={sending}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-sm"
             >
-              {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Mark Sent
+              {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Send to Customer
             </button>
           )}
         </div>

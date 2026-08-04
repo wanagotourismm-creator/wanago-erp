@@ -2,6 +2,7 @@
 
 import { Send, Edit2, Trash2, Copy, Check, BarChart3 } from "lucide-react";
 import { useState } from "react";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { cn } from "@/lib/utils/helpers";
 import type { ReferralPartner } from "@/modules/referrals/types";
 
@@ -46,7 +47,8 @@ export function ReferralPartnersTable({
   const allSelected = partners.length > 0 && partners.every(p => selected.has(p.id));
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -93,5 +95,50 @@ export function ReferralPartnersTable({
         </table>
       </div>
     </div>
+
+    <div className="lg:hidden space-y-2.5">
+      {partners.map((p) => {
+        const actions: SwipeAction[] = [
+          { key: "stats", icon: <BarChart3 size={16} />, label: "Stats", onClick: () => onViewDetails(p), className: "bg-muted-foreground" },
+          { key: "share", icon: <Send size={16} />, label: "Share", onClick: () => onShare(p), className: "bg-primary" },
+          { key: "edit", icon: <Edit2 size={16} />, label: "Edit", onClick: () => onEdit(p), className: "bg-blue-600" },
+          { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => onDelete(p), className: "bg-red-600" },
+        ];
+        return (
+          <SwipeableRow key={p.id} actions={actions} onTap={() => onViewDetails(p)} className="rounded-xl border border-border">
+            <div className={cn("card-compact", selected.has(p.id) && "bg-primary/5")}>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selected.has(p.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => onToggleSelect(p.id)}
+                  className="mt-1 h-4 w-4 flex-shrink-0 rounded border-input"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate font-medium text-foreground">{p.fullName}</p>
+                    <span className={cn(
+                      "flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                      p.partnerStatus === "active" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground"
+                    )}>
+                      {p.partnerStatus === "active" ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{p.phone}</p>
+                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <CopyCodeButton code={p.referralCode} />
+                    </span>
+                    <span className="text-[11px] text-muted-foreground uppercase">{p.payoutMethod}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

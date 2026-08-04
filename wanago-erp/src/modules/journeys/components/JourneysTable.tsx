@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Pencil, Workflow } from "lucide-react";
+import { Plus, Trash2, Pencil, Workflow, Play, Pause } from "lucide-react";
 import { useJourneys } from "@/modules/journeys/hooks/useJourneys";
 import { JourneyForm } from "@/modules/journeys/components/JourneyForm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { cn } from "@/lib/utils/helpers";
 import type { Journey } from "@/modules/journeys/types";
 
@@ -65,7 +66,8 @@ export function JourneysTable() {
       {loading ? <SkeletonTable rows={4} /> : journeys.length === 0 ? (
         <EmptyState title="No journeys yet" description="Create one to start automating follow-ups" icon={<Workflow size={28} className="text-muted-foreground" />} />
       ) : (
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
+        <>
+        <div className="hidden lg:block rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
           {journeys.map((j) => (
             <div key={j.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
@@ -99,6 +101,41 @@ export function JourneysTable() {
             </div>
           ))}
         </div>
+
+        <div className="lg:hidden space-y-2.5">
+          {journeys.map((j) => {
+            const actions: SwipeAction[] = [
+              {
+                key: "toggle",
+                icon: j.isActive ? <Pause size={16} /> : <Play size={16} />,
+                label: j.isActive ? "Pause" : "Activate",
+                onClick: () => toggleActive(j),
+                className: j.isActive ? "bg-amber-600" : "bg-green-600",
+              },
+              { key: "edit", icon: <Pencil size={16} />, label: "Edit", onClick: () => { setEditing(j); setFormOpen(true); }, className: "bg-blue-600" },
+              { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => handleDelete(j), className: "bg-red-600" },
+            ];
+            return (
+              <SwipeableRow key={j.id} actions={actions} className="rounded-xl border border-border">
+                <div className="card-compact">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm font-medium text-foreground">{j.name}</p>
+                    <span className={cn(
+                      "flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      j.isActive ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground"
+                    )}>
+                      {j.isActive ? "active" : "paused"}
+                    </span>
+                  </div>
+                  <p className="mt-2.5 truncate border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                    {TRIGGER_LABELS[j.trigger.type]} · {j.steps.length} step{j.steps.length !== 1 ? "s" : ""} · {j.enteredCount} entered
+                  </p>
+                </div>
+              </SwipeableRow>
+            );
+          })}
+        </div>
+        </>
       )}
     </div>
   );

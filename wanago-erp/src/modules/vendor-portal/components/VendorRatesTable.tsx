@@ -6,6 +6,7 @@ import { useVendorRates } from "@/modules/vendor-portal/hooks/useVendorRates";
 import { useSuppliers } from "@/modules/suppliers/hooks/useSuppliers";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { cn } from "@/lib/utils/helpers";
 import type { VendorRate, VendorRateFormData } from "@/modules/vendor-portal/types";
 
@@ -160,7 +161,8 @@ export function VendorRatesTable({ supplierIdFilter, onSupplierIdFilterChange }:
       {loading ? <SkeletonTable rows={4} /> : filtered.length === 0 ? (
         <EmptyState title="No rates yet" description="Add a vendor rate, or share the vendor's link so they can submit their own" icon={<Tag size={28} className="text-muted-foreground" />} />
       ) : (
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
+        <>
+        <div className="hidden lg:block rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
           {filtered.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
@@ -186,6 +188,32 @@ export function VendorRatesTable({ supplierIdFilter, onSupplierIdFilterChange }:
             </div>
           ))}
         </div>
+
+        <div className="lg:hidden space-y-2.5">
+          {filtered.map((r) => {
+            const actions: SwipeAction[] = [
+              { key: "edit", icon: <Pencil size={16} />, label: "Edit", onClick: () => startEdit(r), className: "bg-blue-600" },
+              { key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => handleDelete(r), className: "bg-red-600" },
+            ];
+            return (
+              <SwipeableRow key={r.id} actions={actions} className="rounded-xl border border-border">
+                <div className="card-compact">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 truncate font-medium text-foreground">{r.serviceName}</p>
+                    <span className={cn("inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium", r.submittedByVendor ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                      {r.submittedByVendor ? "Vendor Submitted" : "Staff Entered"}
+                    </span>
+                  </div>
+                  <div className="mt-2.5 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                    {r.supplierName} · {formatINR(r.rateAmount)} {r.unit}
+                    {(r.validFrom || r.validTo) && ` · Valid ${r.validFrom ?? "—"} to ${r.validTo ?? "—"}`}
+                  </div>
+                </div>
+              </SwipeableRow>
+            );
+          })}
+        </div>
+        </>
       )}
     </div>
   );

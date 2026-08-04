@@ -39,7 +39,8 @@ export function ActivityLogTable({ activity, loading }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="divide-y divide-border">
         {activity.map((entry) => {
           const Icon = ACTION_ICONS[entry.action] ?? Pencil;
@@ -64,5 +65,32 @@ export function ActivityLogTable({ activity, loading }: Props) {
         })}
       </div>
     </div>
+
+    <div className="lg:hidden space-y-2.5">
+      {activity.map((entry) => {
+        const Icon = ACTION_ICONS[entry.action] ?? Pencil;
+        return (
+          <div key={entry.id} className="card-compact rounded-xl border border-border bg-card">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className={cn("flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl", ACTION_STYLES[entry.action])}>
+                  <Icon size={13} />
+                </div>
+                <p className="min-w-0 truncate text-sm text-foreground">
+                  <span className="font-semibold">{entry.entityType}</span>: {entry.detail}
+                </p>
+              </div>
+              <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary" title={entry.actorName}>
+                {initials(entry.actorName)}
+              </div>
+            </div>
+            <p className="mt-2.5 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+              by {entry.actorName} · {formatDate(entry.createdAt)}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+    </>
   );
 }

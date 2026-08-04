@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Trash2, Upload, FileCheck, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, initials, cn } from "@/lib/utils/helpers";
 import type { TrainingEnrollment } from "@/modules/training/enrollments/types";
@@ -44,7 +45,8 @@ export function EnrollmentsTable({ enrollments, loading, canManage, onView, onDe
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <>
+    <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -119,5 +121,62 @@ export function EnrollmentsTable({ enrollments, loading, canManage, onView, onDe
         </table>
       </div>
     </div>
+
+    <div className="lg:hidden space-y-2.5">
+      {enrollments.map((e) => {
+        const actions: SwipeAction[] = canManage
+          ? [{ key: "remove", icon: <Trash2 size={16} />, label: "Remove", onClick: () => onDelete(e), className: "bg-red-600" }]
+          : [];
+        return (
+          <SwipeableRow key={e.id} actions={actions} onTap={() => onView(e)} className="rounded-xl border border-border">
+            <div className="card-compact">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {initials(e.employeeName)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{e.employeeName}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{e.trainingProgramTitle}</p>
+                  </div>
+                </div>
+                {canManage ? (
+                  <select
+                    value={e.status}
+                    onChange={(ev) => onStatus(e, ev.target.value as TrainingEnrollment["status"])}
+                    onClick={(ev) => ev.stopPropagation()}
+                    className={cn("flex-shrink-0 rounded-lg border-0 bg-transparent p-0 text-xs font-medium focus:ring-0 cursor-pointer", STATUS_STYLES[e.status])}
+                  >
+                    {Object.entries(ENROLLMENT_STATUS_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={cn("flex-shrink-0 text-xs font-medium", STATUS_STYLES[e.status])}>{ENROLLMENT_STATUS_LABELS[e.status]}</span>
+                )}
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                <span className="text-[11px] text-muted-foreground">
+                  Enrolled {formatDate(e.enrollmentDate)}{e.completionDate ? ` · Completed ${formatDate(e.completionDate)}` : ""}
+                </span>
+                {e.certificateUrl ? (
+                  <a href={e.certificateUrl} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()} className="flex flex-shrink-0 items-center gap-1 text-xs text-primary hover:underline">
+                    <FileCheck size={12} /> View
+                  </a>
+                ) : canManage ? (
+                  <label onClick={(ev) => ev.stopPropagation()} className="inline-flex flex-shrink-0 cursor-pointer items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    {uploadingFor === e.id ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                    Upload
+                    <input type="file" className="hidden" disabled={uploadingFor === e.id}
+                      onChange={(ev) => { const f = ev.target.files?.[0]; if (f) handleUpload(e, f); }} />
+                  </label>
+                ) : null}
+              </div>
+            </div>
+          </SwipeableRow>
+        );
+      })}
+    </div>
+    </>
   );
 }

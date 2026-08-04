@@ -10,7 +10,10 @@ export type NavItem = {
   // Priority (lower = earlier) for the phone bottom-nav's 4 shortcut slots —
   // see useMobileQuickAccessItems(). Independent of this list's declaration
   // order, which is grouped by department, not usage frequency.
-  mobileQuickAccess?: number;
+  // A single number applies to every role alike; a per-role map lets a
+  // role see a different (or no) priority for this item — e.g. field-facing
+  // roles prioritizing My HR/check-in over Leads/Bookings.
+  mobileQuickAccess?: number | Partial<Record<SystemRole, number>>;
 };
 
 export type NavGroup = {
@@ -32,6 +35,10 @@ export const NAV_CONFIG: NavGroup[] = [
         label: "My HR",
         href:  "/ess",
         icon:  "user-circle",
+        // Operations is where field-facing roles (drivers/guides) sit —
+        // surface check-in/leave/tickets as a guaranteed top-4 slot for them
+        // instead of leaving it to fall in only via quick-access padding.
+        mobileQuickAccess: { operations: 2 },
       },
       {
         label: "My Training",

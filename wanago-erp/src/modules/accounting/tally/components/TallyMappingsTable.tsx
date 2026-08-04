@@ -5,6 +5,7 @@ import { Plus, Trash2, Pencil, Landmark, Loader2, Check, X } from "lucide-react"
 import { useTallyMappings } from "@/modules/accounting/tally/hooks/useTallyMappings";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import { SwipeableRow, type SwipeAction } from "@/components/shared/SwipeableRow";
 import { cn } from "@/lib/utils/helpers";
 import type { TallyMapping, TallyMappingFormData } from "@/modules/accounting/tally/types";
 
@@ -143,7 +144,8 @@ export function TallyMappingsTable() {
       {loading ? <SkeletonTable rows={4} /> : mappings.length === 0 ? (
         <EmptyState title="No mappings yet" description="Add a mapping for each expense category" icon={<Landmark size={28} className="text-muted-foreground" />} />
       ) : (
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
+        <>
+        <div className="hidden lg:block rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
           {mappings.map(m => (
             <div key={m.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
@@ -170,6 +172,33 @@ export function TallyMappingsTable() {
             </div>
           ))}
         </div>
+
+        <div className="lg:hidden space-y-2.5">
+          {mappings.map(m => {
+            const actions: SwipeAction[] = [
+              { key: "edit", icon: <Pencil size={16} />, label: "Edit", onClick: () => startEdit(m), className: "bg-blue-600" },
+              ...(m.sourceType !== "system"
+                ? [{ key: "delete", icon: <Trash2 size={16} />, label: "Delete", onClick: () => handleDelete(m), className: "bg-red-600" }]
+                : []),
+            ];
+            return (
+              <SwipeableRow key={m.id} actions={actions} className="rounded-xl border border-border">
+                <div className="card-compact">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm font-medium text-foreground">{m.sourceKey}</p>
+                    {m.sourceType === "system" && (
+                      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">system</span>
+                    )}
+                  </div>
+                  <p className="mt-2.5 truncate border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                    {m.tallyLedgerName} · under {m.tallyParentGroup}
+                  </p>
+                </div>
+              </SwipeableRow>
+            );
+          })}
+        </div>
+        </>
       )}
     </div>
   );

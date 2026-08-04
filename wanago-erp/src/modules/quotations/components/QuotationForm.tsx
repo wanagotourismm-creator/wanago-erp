@@ -309,7 +309,10 @@ export function QuotationForm({ open, quotation, prefill, onClose, onSubmit }: P
             ) : (
               <div className="space-y-3">
                 {fields.map((field, index) => (
-                  <div key={field.id} className="flex items-start gap-2">
+                  // Stacked on phones (a fixed w-32 price field otherwise squeezes
+                  // the description input to under 200px) — back to the original
+                  // single-row layout once there's room, at sm: and up.
+                  <div key={field.id} className="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <div className="flex-1">
                       <Field label="Description" error={errors.lineItems?.[index]?.description?.message}>
                         <input
@@ -319,25 +322,27 @@ export function QuotationForm({ open, quotation, prefill, onClose, onSubmit }: P
                         />
                       </Field>
                     </div>
-                    <div className="w-32">
-                      <Field label="Price per Pax (₹)" error={errors.lineItems?.[index]?.amount?.message}>
-                        <input
-                          className={inputClass}
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          {...register(`lineItems.${index}.amount`)}
-                        />
-                      </Field>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 sm:w-32 sm:flex-none">
+                        <Field label="Price per Pax (₹)" error={errors.lineItems?.[index]?.amount?.message}>
+                          <input
+                            className={inputClass}
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            {...register(`lineItems.${index}.amount`)}
+                          />
+                        </Field>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(index)}
+                        title="Remove item"
+                        className="mt-6 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem(index)}
-                      title="Remove item"
-                      className="mt-6 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    >
-                      <Trash2 size={13} />
-                    </button>
                   </div>
                 ))}
               </div>
