@@ -7,6 +7,7 @@ import { BookingStatusBadge, formatAmount } from "@/modules/bookings/components/
 import { InvoiceStatusBadge } from "@/modules/invoices/components/InvoiceBadges";
 import { PhoneLink } from "@/components/shared/PhoneLink";
 import { Modal } from "@/components/ui/Modal";
+import { CoverHero } from "@/components/ui/CoverHero";
 import { useIsMobile } from "@/lib/utils/breakpoint";
 import { formatDate, formatDateTime, initials } from "@/lib/utils/helpers";
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS, INVOICE_STATUS, MANUALLY_SETTABLE_BOOKING_STATUSES } from "@/lib/constants";
@@ -107,24 +108,36 @@ export function BookingDetailModal({
   return (
     <Modal onClose={onClose} size={isMobile ? "full" : "md"}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-              {initials(booking.customerName)}
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-base font-semibold text-foreground">{booking.customerName}</h2>
-              <p className="text-xs text-muted-foreground">{booking.refNumber} · Added {formatDate(booking.createdAt)}</p>
-            </div>
+        {/* Header — cover hero on phones, plain row on desktop */}
+        {isMobile ? (
+          <div className="p-3 pb-0">
+            <CoverHero
+              title={booking.customerName}
+              subtitle={`${booking.refNumber} · Added ${formatDate(booking.createdAt)}`}
+              destination={booking.destination}
+              detail={booking.packageName ?? undefined}
+              onClose={onClose}
+            />
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-          >
-            <X size={15} />
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {initials(booking.customerName)}
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold text-foreground">{booking.customerName}</h2>
+                <p className="text-xs text-muted-foreground">{booking.refNumber} · Added {formatDate(booking.createdAt)}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
