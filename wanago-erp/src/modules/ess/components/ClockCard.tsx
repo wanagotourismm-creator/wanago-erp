@@ -1,9 +1,10 @@
 "use client";
 
-import { Clock, LogIn, LogOut, Loader2, Coffee, Play, MapPinOff, AlertTriangle } from "lucide-react";
+import { LogIn, LogOut, Loader2, Coffee, Play, MapPinOff, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { formatDate, formatTime12h } from "@/lib/utils/helpers";
 import { cn } from "@/lib/utils/helpers";
+import { ProgressRing } from "@/components/ui/ProgressRing";
 import { CheckInLocationModal } from "@/modules/ess/components/CheckInLocationModal";
 import { isLateArrival, DEFAULT_ATTENDANCE_POLICY, type AttendancePolicy } from "@/modules/attendancepolicy/services/attendance-policy.service";
 import type { AttendanceRecord } from "@/modules/hrms/shared/types";
@@ -97,13 +98,20 @@ export function ClockCard({
 
   return (
     <div className="fluid-card rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-          <Clock size={16} className="text-primary" />
-        </div>
+      <div className="flex items-center gap-3 mb-4">
+        <ProgressRing
+          value={isClockedOut ? 100 : isClockedIn ? 100 : 0}
+          size={48}
+          label={isClockedOut ? "Done" : isClockedIn ? "Out" : "In"}
+          caption={todayRecord?.clockIn ? formatTime12h(todayRecord.clockIn) : "Not yet"}
+        />
         <div>
-          <p className="text-sm font-semibold text-foreground">My Attendance</p>
-          <p className="text-xs text-muted-foreground">{formatDate(new Date(), "dd MMM yyyy")}</p>
+          <p className="text-sm font-semibold text-foreground">
+            {isClockedOut ? "Done for today" : isClockedIn ? "Clocked in today" : "My Attendance"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {isClockedOut ? formatDate(new Date(), "dd MMM yyyy") : isClockedIn ? "Tap Check Out when your shift ends." : formatDate(new Date(), "dd MMM yyyy")}
+          </p>
         </div>
       </div>
 
