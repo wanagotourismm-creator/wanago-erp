@@ -9,32 +9,16 @@ type Props = {
   featured?:  boolean;
   href?:      string;
   tourId?:    string;
-  // Smaller footprint for tight spots (e.g. a BentoGrid side slot) — value
-  // + label only, no arrow affordance or sub caption.
-  compact?:   boolean;
 };
 
-export function StatCard({ label, value, sub, featured = false, href, tourId, compact = false }: Props) {
+export function StatCard({ label, value, sub, featured = false, href, tourId }: Props) {
   const className = cn(
-    "relative block rounded-2xl transition-all duration-200",
-    compact ? "p-3" : "p-4 lg:p-5",
+    "relative block rounded-2xl p-4 transition-all duration-200 lg:p-5",
     href && "hover:-translate-y-0.5 hover:shadow-lg cursor-pointer",
     featured
       ? "bg-primary text-white shadow-md"
       : "bg-card border border-border text-foreground shadow-sm"
   );
-
-  if (compact) {
-    const compactContent = (
-      <>
-        <p className={cn("stat-figure text-lg", featured ? "text-white" : "text-foreground")}>{value}</p>
-        <p className={cn("mt-0.5 text-[11px] font-semibold", featured ? "text-white/70" : "text-muted-foreground")}>{label}</p>
-      </>
-    );
-    return href
-      ? <Link href={href} className={className} data-tour-id={tourId}>{compactContent}</Link>
-      : <div className={className} data-tour-id={tourId}>{compactContent}</div>;
-  }
 
   const content = (
     <>

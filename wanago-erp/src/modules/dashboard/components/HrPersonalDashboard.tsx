@@ -7,7 +7,6 @@ import { useHrActionStats }     from "@/modules/dashboard/hooks/useHrActionStats
 import { useRelevantCompanyGoals } from "@/modules/dashboard/hooks/useRelevantCompanyGoals";
 import { GreetingBanner }    from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }          from "@/modules/dashboard/components/StatCard";
-import { BentoGrid }         from "@/components/ui/BentoGrid";
 import { ProfileHeroCard }   from "@/modules/dashboard/components/ProfileHeroCard";
 import { AvgHoursWeekCard }  from "@/modules/dashboard/components/AvgHoursWeekCard";
 import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSplit";
@@ -35,36 +34,9 @@ export function HrPersonalDashboard() {
         followUpCount={hr.pendingLeaves + hr.pendingRegularizations}
       />
 
-      {/* Bento arrangement on phones (below lg) — one featured tile plus two
-          compact side tiles reads better on a narrow screen than a 2x2 grid
-          of full-size cards; desktop keeps the original 4-across grid. */}
-      <div className="lg:hidden space-y-3">
-        <BentoGrid
-          main={
-            <StatCard
-              label="Pending Approvals"
-              value={hr.pendingLeaves + hr.pendingRegularizations}
-              sub={`${hr.pendingLeaves} leave · ${hr.pendingRegularizations} correction`}
-              href="/hrms/leaves"
-              featured
-            />
-          }
-          side={[
-            <StatCard key="open" label="Open Positions" value={hr.openJobOpenings} href="/recruitment" compact />,
-            <StatCard key="pipe" label="Candidates in Pipeline" value={hr.candidatesInPipeline} href="/recruitment" compact />,
-          ]}
-        />
-        <StatCard
-          label="Hires This Month"
-          value={hr.hiresThisMonth}
-          sub="Candidates marked joined"
-          href="/recruitment"
-        />
-      </div>
-
       <QuickClockCard />
 
-      <div className="hidden lg:grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Pending Approvals"
           value={hr.pendingLeaves + hr.pendingRegularizations}

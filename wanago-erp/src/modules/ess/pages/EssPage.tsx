@@ -168,29 +168,7 @@ export function EssPage() {
       >
         {section === "overview" && (
           <div className="space-y-5">
-            {/* Quick actions — 2-column icon tiles on phones (each with a
-                one-line hint below the label), the original horizontal
-                scroll strip on desktop where there's room to see all 5
-                without wrapping. */}
-            <div className="grid grid-cols-2 gap-2.5 lg:hidden" data-tour-id="tour-ess-quick-actions-mobile">
-              {[
-                { label: "Apply Leave", hint: `${personalStats.leaveBalanceRemaining} days left`, icon: CalendarPlus, onClick: () => setApplyOpen(true) },
-                { label: "My Requests", hint: `${personalStats.myPendingRequests} pending`, icon: Inbox, onClick: () => setSection("requests") },
-                { label: "Request Correction", hint: "Fix a check-in", icon: PencilLine, onClick: () => { setCorrectionDate(todayStr()); setCorrectionOpen(true); } },
-                { label: "Report Issue", hint: "Raise a ticket", icon: LifeBuoy, onClick: () => setReportIssueOpen(true) },
-              ].map((a) => (
-                <button key={a.label} onClick={a.onClick}
-                  className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-card p-3.5 text-left shadow-sm active:scale-[0.98] transition-transform">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <a.icon size={15} />
-                  </span>
-                  <span className="text-[13px] font-semibold text-foreground">{a.label}</span>
-                  <span className="text-[11px] text-muted-foreground">{a.hint}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="hidden lg:flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
               {[
                 { label: "Apply Leave", icon: CalendarPlus, onClick: () => setApplyOpen(true) },
                 { label: "Request Correction", icon: PencilLine, onClick: () => { setCorrectionDate(todayStr()); setCorrectionOpen(true); } },

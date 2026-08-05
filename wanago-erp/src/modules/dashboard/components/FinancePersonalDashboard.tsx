@@ -7,7 +7,6 @@ import { useFinanceActionStats } from "@/modules/dashboard/hooks/useFinanceActio
 import { useRelevantCompanyGoals } from "@/modules/dashboard/hooks/useRelevantCompanyGoals";
 import { GreetingBanner }    from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }          from "@/modules/dashboard/components/StatCard";
-import { BentoGrid }         from "@/components/ui/BentoGrid";
 import { ProfileHeroCard }   from "@/modules/dashboard/components/ProfileHeroCard";
 import { AvgHoursWeekCard }  from "@/modules/dashboard/components/AvgHoursWeekCard";
 import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSplit";
@@ -36,38 +35,9 @@ export function FinancePersonalDashboard() {
         followUpCount={finance.pendingExpenseApprovals}
       />
 
-      {/* Bento arrangement on phones (below lg), placed right after the
-          greeting so it's visible without scrolling past attendance first —
-          one featured tile plus two compact side tiles reads better on a
-          narrow screen than a 2x2 grid of full-size cards; desktop keeps
-          the original 4-across grid further down, unchanged. */}
-      <div className="lg:hidden space-y-3">
-        <BentoGrid
-          main={
-            <StatCard
-              label="Collected This Month"
-              value={formatCurrency(finance.collectedThisMonth)}
-              sub="Payments recorded"
-              href="/payments"
-              featured
-            />
-          }
-          side={[
-            <StatCard key="inv" label="Awaiting Payment" value={finance.pendingInvoiceApprovals} href="/invoices" compact />,
-            <StatCard key="ovr" label="Overdue" value={finance.overdueInvoices} href="/invoices" compact />,
-          ]}
-        />
-        <StatCard
-          label="Pending Expense Approvals"
-          value={finance.pendingExpenseApprovals}
-          sub="Awaiting review"
-          href="/expenses"
-        />
-      </div>
-
       <QuickClockCard />
 
-      <div className="hidden lg:grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Collected This Month"
           value={formatCurrency(finance.collectedThisMonth)}

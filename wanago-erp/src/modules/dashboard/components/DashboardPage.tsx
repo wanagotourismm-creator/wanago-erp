@@ -11,7 +11,6 @@ import { usePayoutSummary }     from "@/modules/dashboard/hooks/usePayoutSummary
 import { useAuthStore }         from "@/store/auth.store";
 import { GreetingBanner }       from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }             from "@/modules/dashboard/components/StatCard";
-import { BentoGrid }            from "@/components/ui/BentoGrid";
 import { ProfileHeroCard }      from "@/modules/dashboard/components/ProfileHeroCard";
 import { AvgHoursWeekCard }     from "@/modules/dashboard/components/AvgHoursWeekCard";
 import { OnsiteRemoteSplit }    from "@/modules/dashboard/components/OnsiteRemoteSplit";
@@ -139,61 +138,12 @@ function CompanyWideDashboard() {
         <CockpitFilters filters={cockpitFilters} onChange={setCockpitFilters} />
       </div>
 
-      {/* Stat cards — bento arrangement on phones, placed right after the
-          greeting so the numbers that matter are visible without scrolling
-          past attendance/briefing first. Original 4-across grid on desktop
-          (kept verbatim further down, unchanged, in its original position). */}
-      <div className="lg:hidden space-y-3">
-        <BentoGrid
-          main={
-            <StatCard
-              label="Total Revenue"
-              value={formatCurrency(stats?.totalRevenue ?? 0)}
-              sub="From completed bookings"
-              href="/payments"
-              featured
-              tourId="tour-dashboard-revenue"
-            />
-          }
-          side={[
-            <StatCard key="leads" label="Active Leads" value={stats?.activeLeads ?? 0} href="/leads" compact />,
-            <StatCard key="bookings" label="Confirmed Bookings" value={stats?.confirmedBookings ?? 0} href="/bookings" compact />,
-          ]}
-        />
-        <StatCard
-          label="Pending Dues"
-          value={formatCurrency(stats?.pendingDues ?? 0)}
-          sub={`${stats?.overdueInvoices ?? 0} overdue invoice${(stats?.overdueInvoices ?? 0) !== 1 ? "s" : ""}`}
-          href="/invoices"
-        />
-        <BentoGrid
-          main={
-            <StatCard
-              label="Cash Position"
-              value={formatCurrency(stats?.cashPosition ?? 0)}
-              sub="Payments in − paid expenses, in range"
-              href="/payments"
-              featured
-            />
-          }
-          side={[
-            <StatCard key="margin" label="Gross Margin" value={stats?.grossMarginPct != null ? `${stats.grossMarginPct.toFixed(1)}%` : "—"} href="/bookings" compact />,
-            <StatCard key="pipeline" label="Open Pipeline" value={formatCurrency(stats?.pipelineValue ?? 0)} href="/leads" compact />,
-          ]}
-        />
-        <StatCard
-          label="AR Overdue"
-          value={formatCurrency(stats?.arOverdueAmount ?? 0)}
-          sub="Overdue invoice balance"
-          href="/invoices"
-        />
-      </div>
-
       <QuickClockCard />
 
       <FounderBriefingCard />
 
-      <div className="hidden lg:grid grid-cols-4 gap-4">
+      {/* Stat cards — first one is featured (dark green) */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Total Revenue"
           value={formatCurrency(stats?.totalRevenue ?? 0)}
@@ -226,7 +176,7 @@ function CompanyWideDashboard() {
 
       {/* Executive cockpit tiles — cash/margin/pipeline read straight off
           existing module data (no GL/BI engine yet, see dashboard/types) */}
-      <div className="hidden lg:grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Cash Position"
           value={formatCurrency(stats?.cashPosition ?? 0)}

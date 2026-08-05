@@ -11,7 +11,6 @@ import { fetchQuotations } from "@/modules/quotations/services/quotation.service
 import { fetchCallLogs } from "@/modules/call-logs/services/call-log.service";
 import { GreetingBanner }    from "@/modules/dashboard/components/GreetingBanner";
 import { StatCard }          from "@/modules/dashboard/components/StatCard";
-import { BentoGrid }         from "@/components/ui/BentoGrid";
 import { ProfileHeroCard }   from "@/modules/dashboard/components/ProfileHeroCard";
 import { AvgHoursWeekCard }  from "@/modules/dashboard/components/AvgHoursWeekCard";
 import { OnsiteRemoteSplit } from "@/modules/dashboard/components/OnsiteRemoteSplit";
@@ -66,36 +65,9 @@ export function SalesPersonalDashboard() {
         followUpCount={pipeline.followUpPending}
       />
 
-      {/* Bento arrangement on phones (below lg) — one featured tile plus two
-          compact side tiles reads better on a narrow screen than a 2x2 grid
-          of full-size cards; desktop keeps the original 4-across grid. */}
-      <div className="lg:hidden space-y-3">
-        <BentoGrid
-          main={
-            <StatCard
-              label="My Active Leads"
-              value={pipeline.activeLeads}
-              sub={`${pipeline.followUpPending} awaiting follow-up`}
-              href="/leads"
-              featured
-            />
-          }
-          side={[
-            <StatCard key="bookings" label="My Bookings This Month" value={pipeline.bookingsThisMonth} href="/bookings" compact />,
-            <StatCard key="revenue" label="My Revenue This Month" value={formatCurrency(pipeline.revenueThisMonth)} href="/bookings" compact />,
-          ]}
-        />
-        <StatCard
-          label="My Profit This Month"
-          value={formatCurrency(pipeline.profitThisMonth)}
-          sub="Drives your incentive"
-          href="/incentives"
-        />
-      </div>
-
       <QuickClockCard />
 
-      <div className="hidden lg:grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="My Active Leads"
           value={pipeline.activeLeads}

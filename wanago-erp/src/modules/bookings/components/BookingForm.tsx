@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, User, MapPin, Wallet, StickyNote, Lock, Minus, Plus } from "lucide-react";
+import { X, Loader2, User, MapPin, Wallet, StickyNote, Lock } from "lucide-react";
 import { bookingSchema, type BookingSchema } from "@/modules/bookings/schemas";
 import { fetchCustomers } from "@/modules/customers/services/customer.service";
 import { fetchPackages } from "@/modules/packages/services/package.service";
@@ -109,7 +109,6 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
     setValue("agentName", c?.agentName ?? "");
   }
 
-  const pax = watch("pax") || 1;
   const selectedPackageId = watch("packageId");
 
   function handlePackageChange(id: string) {
@@ -212,23 +211,7 @@ export function BookingForm({ open, booking, onClose, onSubmit }: Props) {
                 <input className={inputClass} type="date" {...register("returnDate")} />
               </Field>
               <Field label="No. of Pax" required error={errors.pax?.message}>
-                <div className="flex items-center justify-between rounded-xl border border-input bg-background px-3 py-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setValue("pax", Math.max(1, pax - 1))}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="text-base font-bold text-foreground">{pax}</span>
-                  <button
-                    type="button"
-                    onClick={() => setValue("pax", pax + 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-foreground hover:border-primary/40 hover:bg-muted transition-colors"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
+                <input className={inputClass} type="number" min={1} placeholder="2" {...register("pax")} />
               </Field>
               <Field label="Assigned Agent" error={errors.assignedTo?.message}>
                 {isLocked ? (

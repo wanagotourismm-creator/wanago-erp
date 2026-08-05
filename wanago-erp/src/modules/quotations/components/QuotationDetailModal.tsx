@@ -5,7 +5,6 @@ import { X, Edit2, Trash2, Download, Receipt, MapPin, ArrowRightLeft, Loader2, S
 import { QuotationStatusBadge, formatAmount } from "@/modules/quotations/components/QuotationBadges";
 import { cn, formatDate, initials, joinAddressCity } from "@/lib/utils/helpers";
 import { Modal } from "@/components/ui/Modal";
-import { CoverHero } from "@/components/ui/CoverHero";
 import { useIsMobile } from "@/lib/utils/breakpoint";
 import { fetchCompanySettings } from "@/modules/admin/settings/services/company-settings.service";
 import { fetchCustomerById } from "@/modules/customers/services/customer.service";
@@ -158,37 +157,24 @@ export function QuotationDetailModal({ quotation, canEdit, canDelete, onClose, o
   return (
     <Modal onClose={onClose} size={isMobile ? "full" : "md"}>
 
-        {/* Header — cover hero on phones, plain row on desktop */}
-        {isMobile ? (
-          <div className="p-3 pb-0">
-            <CoverHero
-              title={q.customerName}
-              subtitle={`${q.refNumber} · Created ${formatDate(q.createdAt)}`}
-              destination={q.destination}
-              detail={q.packageName ?? undefined}
-              onClose={onClose}
-              bandIndex={1}
-            />
-          </div>
-        ) : (
-          <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                {initials(q.customerName)}
-              </div>
-              <div className="min-w-0">
-                <h2 className="truncate text-base font-semibold text-foreground">{q.customerName}</h2>
-                <p className="text-xs text-muted-foreground">{q.refNumber} · Created {formatDate(q.createdAt)}</p>
-              </div>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+              {initials(q.customerName)}
             </div>
-            <button
-              onClick={onClose}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-            >
-              <X size={15} />
-            </button>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold text-foreground">{q.customerName}</h2>
+              <p className="text-xs text-muted-foreground">{q.refNumber} · Created {formatDate(q.createdAt)}</p>
+            </div>
           </div>
-        )}
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+          >
+            <X size={15} />
+          </button>
+        </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
