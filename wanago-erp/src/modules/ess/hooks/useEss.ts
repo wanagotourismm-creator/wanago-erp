@@ -499,8 +499,14 @@ export function useEss() {
       }
 
       return { error: null };
-    } catch {
-      return { error: "Failed to report issue" };
+    } catch (err) {
+      // Surface the real cause (e.g. a Firestore permission-denied or a
+      // missing-field write error) instead of a generic message — this is
+      // the only signal available on mobile, where there's no easy way to
+      // open DevTools and see the actual thrown error.
+      console.error("[reportIssue] failed to create ticket:", err);
+      const detail = err instanceof Error ? err.message : String(err);
+      return { error: `Failed to report issue: ${detail}` };
     }
   }
 
