@@ -3,6 +3,7 @@ import { requireAuth, getAdminDb } from "@/lib/firebase/admin";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { isAiAutoFixEnabled } from "@/modules/ai-core/services/ai-settings.server";
 import { diagnoseFix } from "@/modules/tickets/services/ai-bugfix.service";
+import { AI_DIAGNOSABLE_CATEGORIES } from "@/modules/tickets/types";
 import type { Ticket } from "@/modules/tickets/types";
 
 export const runtime = "nodejs";
@@ -34,8 +35,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!snap.exists) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   const ticket = { id: snap.id, ...snap.data() } as Ticket;
 
-  if (ticket.category !== "Software") {
-    return NextResponse.json({ status: "skipped", reason: "Only Software-category tickets are eligible." });
+  if (!(AI_DIAGNOSABLE_CATEGORIES as string[]).includes(ticket.category)) {
+    return NextResponse.json({ status: "skipped", reason: "Only Software / Feature Request category tickets are eligible." });
   }
   // Customer-facing (NPS-detractor-sourced) tickets are free text from
   // outside the organization — a materially higher prompt-injection surface

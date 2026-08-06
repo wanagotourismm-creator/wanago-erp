@@ -144,7 +144,7 @@ export function AiEmployeeDashboard() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{t.title}</p>
                   <p className="truncate text-[11px] text-muted-foreground">
-                    {t.refNumber} · <code className="rounded bg-muted px-1 py-0.5">{t.aiProposedFix?.targetFile ?? "—"}</code>
+                    {t.refNumber} · <code className="rounded bg-muted px-1 py-0.5">{t.aiProposedFix?.files.map((f) => f.targetFile).join(", ") || "—"}</code>
                   </p>
                 </div>
                 <span className="flex-shrink-0 text-[11px] text-muted-foreground">{timeAgo(diagnosedAt(t))}</span>

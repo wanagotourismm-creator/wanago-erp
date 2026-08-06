@@ -144,11 +144,19 @@ export function TicketDetailModal({
                 <p className="text-sm text-foreground whitespace-pre-wrap">{ticket.aiDiagnosis}</p>
 
                 {ticket.aiFixReviewStatus === "pending_review" && ticket.aiProposedFix && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-xs font-semibold text-foreground">
-                      Proposed change to <code className="rounded bg-muted px-1 py-0.5">{ticket.aiProposedFix.targetFile}</code> — nothing has been pushed to GitHub yet.
+                      Proposed change to {ticket.aiProposedFix.files.length} file{ticket.aiProposedFix.files.length === 1 ? "" : "s"} — nothing has been pushed to GitHub yet.
                     </p>
-                    <CodeDiffView oldContent={ticket.aiProposedFix.oldFileContent} newContent={ticket.aiProposedFix.newFileContent} />
+                    {ticket.aiProposedFix.files.map((f) => (
+                      <div key={f.targetFile} className="space-y-1.5">
+                        <p className="text-xs font-medium text-foreground">
+                          <code className="rounded bg-muted px-1 py-0.5">{f.targetFile}</code>
+                          {f.isNewFile && <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary">New file</span>}
+                        </p>
+                        <CodeDiffView oldContent={f.oldFileContent} newContent={f.newFileContent} />
+                      </div>
+                    ))}
                     {canManageAiFix ? (
                       <div className="flex items-center gap-2 pt-1">
                         <button

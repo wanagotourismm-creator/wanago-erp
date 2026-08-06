@@ -63,23 +63,36 @@ export type Ticket = FirestoreRecord & {
   attachments?: TicketAttachment[] | null;
 
   // Set by /api/tickets/[id]/ai-diagnose (src/modules/tickets/services/
-  // ai-bugfix.service.ts) after attempting to auto-diagnose a "Software"
-  // category ticket. aiDiagnosis holds the AI's explanation (once
-  // confident) or its reason for declining (needs manual triage) — it never
-  // touches GitHub itself. When confident, aiProposedFix holds the exact
-  // single-file change it wants to make and aiFixReviewStatus becomes
-  // "pending_review"; a human must approve it (/api/tickets/[id]/ai-review-fix)
-  // before anything is committed/pushed — see ai-bugfix.service.ts's
-  // diagnoseFix vs applyApprovedFix split. aiPrUrl is only ever set once
-  // that approval has actually opened a draft PR. Undefined on every
-  // pre-existing ticket, same convention as sourceType.
+  // ai-bugfix.service.ts) after attempting to auto-diagnose a "Software" or
+  // "Feature Request" category ticket. aiDiagnosis holds the AI's
+  // explanation (once confident) or its reason for declining (needs manual
+  // triage) — it never touches GitHub itself. When confident, aiProposedFix
+  // holds the exact multi-file change it wants to make (up to
+  // MAX_FILES_PER_FIX files — see ai-bugfix.service.ts; `isNewFile` marks a
+  // file the AI is creating rather than editing) and aiFixReviewStatus
+  // becomes "pending_review"; a human must approve it
+  // (/api/tickets/[id]/ai-review-fix) before anything is committed/pushed —
+  // see ai-bugfix.service.ts's diagnoseFix vs applyApprovedFix split.
+  // aiPrUrl is only ever set once that approval has actually opened a draft
+  // PR. Undefined on every pre-existing ticket, same convention as sourceType.
   aiDiagnosis?:        string | null;
   aiFixReviewStatus?:  AiFixReviewStatus | null;
-  aiProposedFix?:      { targetFile: string; oldFileContent: string; newFileContent: string } | null;
+  aiProposedFix?: {
+    summary: string;
+    files: { targetFile: string; isNewFile: boolean; oldFileContent: string; newFileContent: string }[];
+  } | null;
   aiPrUrl?:            string | null;
   aiDiagnosedAt?:      Timestamp | Date | string | FieldValue | null;
   aiReviewedAt?:       Timestamp | Date | string | FieldValue | null;
   aiReviewedBy?:       string | null;
 };
 
-export const TICKET_CATEGORIES = ["Software", "Hardware", "Network", "Access", "Service Recovery", "Other"];
+// "Feature Request" tickets go through the same AI diagnose/propose/approve
+// pipeline as "Software" bug reports (see ai-bugfix.service.ts) — the AI
+// tries to build the small enhancement described rather than fix a bug.
+export const TICKET_CATEGORIES = ["Software", "Feature Request", "Hardware", "Network", "Access", "Service Recovery", "Other"];
+
+// Single source of truth for which categories trigger the AI code-change
+// pipeline — shared by the ESS report-issue trigger and the ai-diagnose
+// route's own re-check, so the two can never silently drift apart.
+export const AI_DIAGNOSABLE_CATEGORIES = ["Software", "Feature Request"];

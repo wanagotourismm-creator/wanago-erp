@@ -11,6 +11,7 @@ import { fetchPayrollByEmployee } from "@/modules/hrms/payroll/services/payroll.
 import { fetchAssetsByEmployee } from "@/modules/assets/services/asset.service";
 import { fetchAssetRequests, fetchAssetRequestsByEmployee, createAssetRequest, approveAssetRequest, rejectAssetRequest } from "@/modules/assets/services/asset-request.service";
 import { fetchTicketsByReporter, createTicket, uploadTicketAttachments, attachTicketFiles } from "@/modules/tickets/services/ticket.service";
+import { AI_DIAGNOSABLE_CATEGORIES } from "@/modules/tickets/types";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { getCurrentPosition, reverseGeocode, distanceMeters, type GeoPosition } from "@/lib/geo";
 import { notifyUser } from "@/lib/notify";
@@ -491,7 +492,7 @@ export function useEss() {
       // Fire-and-forget — the route itself re-checks category/toggle/cap,
       // this is just the trigger. Never blocks or affects the success
       // response the reporter sees.
-      if (t.category === "Software") {
+      if ((AI_DIAGNOSABLE_CATEGORIES as string[]).includes(t.category)) {
         auth.currentUser?.getIdToken().then((idToken) => {
           fetch(`/api/tickets/${t.id}/ai-diagnose`, { method: "POST", headers: { authorization: `Bearer ${idToken}` } }).catch(() => {});
         }).catch(() => {});

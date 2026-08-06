@@ -115,7 +115,7 @@ export function ReportIssueForm({ open, onClose, onSubmit }: Props) {
                 className="w-full text-sm text-muted-foreground file:mr-3 file:rounded-xl file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20 disabled:opacity-50"
               />
               <p className="text-[11px] text-muted-foreground">
-                For a &ldquo;Software&rdquo; issue, a screenshot or short screen recording of the bug helps the AI Employee pinpoint the exact cause.
+                For a &ldquo;Software&rdquo; or &ldquo;Feature Request&rdquo; issue, a screenshot or short screen recording helps the AI Employee pinpoint the exact cause (or understand what you&apos;re asking for).
               </p>
               {files.length > 0 && (
                 <ul className="space-y-1.5">
