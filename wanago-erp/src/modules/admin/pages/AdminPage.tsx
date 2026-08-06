@@ -36,6 +36,7 @@ import { TicketSlaPolicyForm } from "@/modules/tickets/components/TicketSlaPolic
 import { GoalsPanel } from "@/modules/goals/components/GoalsPanel";
 import { IntegrationsPanel } from "@/modules/admin/integrations/components/IntegrationsPanel";
 import { AiEmployeePanel } from "@/modules/admin/ai-employee/components/AiEmployeePanel";
+import { AiEmployeeDashboard } from "@/modules/admin/ai-employee/components/AiEmployeeDashboard";
 import { useAiEmployeeSettings } from "@/modules/admin/ai-employee/hooks/useAiEmployeeSettings";
 import { OffersPanel } from "@/modules/admin/offers/components/OffersPanel";
 import { SystemHealthPanel } from "@/modules/admin/health/components/SystemHealthPanel";
@@ -300,8 +301,13 @@ export function AdminPage() {
 
         {tab === "integrations" && isSuperAdmin && <IntegrationsPanel />}
 
-        {tab === "ai-employee" && isSuperAdmin && !aiSettingsLoading && (
-          <AiEmployeePanel settings={aiSettings} saving={aiSettingsSaving} onSave={saveAiSettings} />
+        {tab === "ai-employee" && isSuperAdmin && (
+          <div className="space-y-8">
+            <AiEmployeeDashboard />
+            {!aiSettingsLoading && (
+              <AiEmployeePanel settings={aiSettings} saving={aiSettingsSaving} onSave={saveAiSettings} />
+            )}
+          </div>
         )}
 
         {tab === "export" && <DataExportPanel />}

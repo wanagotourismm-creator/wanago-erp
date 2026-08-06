@@ -10,6 +10,7 @@ export function useTickets() {
   const { user } = useAuthStore();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aiReviewBusy, setAiReviewBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,6 +67,32 @@ export function useTickets() {
     } catch { return { error: "Failed to delete ticket" }; }
   }
 
+  // Approve/reject an AI-proposed fix (see ai-bugfix.service.ts). Goes
+  // through the server (not a direct Firestore write) because approving is
+  // what actually triggers the GitHub commit/draft-PR — reload() after,
+  // rather than optimistic local state, since the server is the only place
+  // that knows whether the PR actually opened successfully.
+  async function reviewAiFix(id: string, decision: "approve" | "reject") {
+    setAiReviewBusy(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) return { error: "Not signed in" };
+      const res = await fetch(`/api/tickets/${id}/ai-review-fix`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ decision }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || result.error) return { error: result.error ?? "Review action failed" };
+      await load();
+      return { error: null };
+    } catch {
+      return { error: "Review action failed" };
+    } finally {
+      setAiReviewBusy(false);
+    }
+  }
+
   const stats = {
     total: tickets.length,
     open: tickets.filter((t) => t.ticketStatus === "open").length,
@@ -73,5 +100,10 @@ export function useTickets() {
     resolved: tickets.filter((t) => t.ticketStatus === "resolved" || t.ticketStatus === "closed").length,
   };
 
-  return { tickets, loading, stats, load, setStatus, resolveTicket, assignToMe, removeTicket };
+  return {
+    tickets, loading, stats, load, setStatus, resolveTicket, assignToMe, removeTicket,
+    aiReviewBusy,
+    approveAiFix: (id: string) => reviewAiFix(id, "approve"),
+    rejectAiFix:  (id: string) => reviewAiFix(id, "reject"),
+  };
 }
