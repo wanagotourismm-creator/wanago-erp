@@ -1,0 +1,24 @@
+name: Attendance Reminders
+
+# Vercel's free Hobby plan only allows daily cron jobs, but check-in/break/
+# check-out reminders and late/overrun escalations need to fire close to
+# when they actually happen — so this workflow, not Vercel Cron, is what
+# triggers /api/cron/attendance-reminders every 5 minutes. See that route's
+# comments for the full design (dedup log, thresholds).
+#
+# Requires a repo secret named CRON_SECRET with the same value as the
+# CRON_SECRET already set in the Vercel project's environment variables
+# (Settings -> Secrets and variables -> Actions to add it here).
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab, for testing
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call attendance-reminders cron endpoint
+        run: |
+          curl -sf -X GET "https://wanago-erp.vercel.app/api/cron/attendance-reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

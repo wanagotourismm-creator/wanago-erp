@@ -9,6 +9,10 @@ export type AttendancePolicy = {
   halfDayHours:       number; // hoursWorked below this counts as a half day
   fullDayHours:       number; // hoursWorked at/above this counts as a full day
   breakAllowanceMinutes: number; // total break time (e.g. lunch + tea) shown/tracked per day
+  // Scheduled break time — distinct from AttendanceRecord.breakStartTime
+  // (the time an employee actually started today's break); this is when
+  // the break reminder fires, not a record of anything that happened.
+  breakTime:             string; // "HH:mm"
   lateReasonRequired:    boolean; // prompt for a written reason when checking in past the grace period
 };
 
@@ -25,6 +29,7 @@ export const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
   halfDayHours:       4,
   fullDayHours:       8,
   breakAllowanceMinutes: 65,
+  breakTime:             "13:00",
   lateReasonRequired:    true,
 };
 
