@@ -10,6 +10,7 @@ import type { AppNotification, NotificationCategory } from "@/modules/notificati
 const CATEGORY_ICON: Record<NotificationCategory, React.ElementType> = {
   leave: Palmtree, regularization: Clock, asset: Laptop, ticket: Ticket,
   system: PartyPopper, followup: Bell, approval: FileCheck2, location: MapPin, marketing: Megaphone,
+  attendance: Clock,
 };
 
 // Shown once per browser session — the small bell badge is easy to miss

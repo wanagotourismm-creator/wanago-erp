@@ -24,6 +24,15 @@ export function todayIST(): string {
   return dateIST(new Date());
 }
 
+// Same reasoning as dateIST/todayIST, for the clock instead of the
+// calendar date — a server process (e.g. a cron route, always UTC on
+// Vercel) must never compare against its own local time. Matches the
+// "HH:mm" format attendance clockIn/clockOut are already stored in (see
+// serverDateAndTime() in /api/hrms/attendance/clock/route.ts).
+export function nowTimeIST(): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
+}
+
 // Attendance clockIn/clockOut are stored server-side as a plain 24hr
 // "HH:mm" string (see /api/hrms/attendance/clock's serverDateAndTime) — that
 // storage/comparison format never changes, this is purely a display

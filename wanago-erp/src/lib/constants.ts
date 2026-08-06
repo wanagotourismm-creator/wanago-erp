@@ -182,6 +182,11 @@ export const FIRESTORE_COLLECTIONS = {
   ONBOARDING_TASKS: "onboardingTasks",
   CALL_LOGS:       "callLogs",
   HRMS_SUSPICIOUS_ATTENDANCE: "hrmsSuspiciousAttendance",
+  // One doc per {employeeId}_{date}_{type} — dedup marker for the
+  // attendance-reminders cron so a threshold crossed once doesn't
+  // re-notify on every 5-minute tick. Admin-SDK-only, never read/written
+  // by clients (see firestore.rules).
+  ATTENDANCE_NOTIFICATION_LOG: "attendanceNotificationLog",
   ITINERARY_BROCHURES: "itineraryBrochures",
   AI_USAGE_LOGS:   "aiUsageLogs",
   AI_ACTION_LOGS:  "aiActionLogs",

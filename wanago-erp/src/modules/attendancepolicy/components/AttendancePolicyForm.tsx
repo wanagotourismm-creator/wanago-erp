@@ -106,9 +106,16 @@ export function AttendancePolicyForm() {
         <p className="text-sm font-semibold text-foreground mb-1">Breaks</p>
         <p className="text-xs text-muted-foreground mb-4">
           Total minutes an employee can log via Start Break/End Break per day (e.g. Lunch 45m + Tea 20m = 65m) — shown as a running
-          countdown on their ESS attendance card.
+          countdown on their ESS attendance card. Break Time is when the break reminder notification fires (10 minutes before).
         </p>
-        <div className="max-w-xs">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Break Time">
+            <input
+              type="time" value={draft.breakTime}
+              onChange={(e) => setDraft((p) => ({ ...p, breakTime: e.target.value }))}
+              className={inputClass}
+            />
+          </Field>
           <Field label="Break Allowance (minutes)">
             <input
               type="number" min={0} value={draft.breakAllowanceMinutes}

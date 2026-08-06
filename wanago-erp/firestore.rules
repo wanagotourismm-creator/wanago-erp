@@ -128,7 +128,7 @@ service cloud.firestore {
     function isReadRestricted(collectionName) {
       return collectionName in [
         'activities', 'systemUsage', 'teamPulseResponses', 'referralPartners',
-        'aiUsageLogs', 'aiActionLogs', 'aiPredictions',
+        'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'attendanceNotificationLog',
         'hrmsPayroll', 'hrmsSuspiciousAttendance',
         'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
         // Each has its own dedicated, stricter read rule above
@@ -157,7 +157,7 @@ service cloud.firestore {
         'referralPartners', 'referralPosters', 'referralClicks',
         'assets', 'settings', 'bookingRequests', 'quickInquiries', 'holidays', 'offers',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge', 'aiChatHistory',
-        'whatsappTemplates', 'teamPulseResponses', 'digests',
+        'whatsappTemplates', 'teamPulseResponses', 'digests', 'attendanceNotificationLog',
         // All real writes happen server-side via the Admin SDK (the
         // review-requests cron and the public /review/{token} route) —
         // no legitimate client create path exists, same reasoning as
@@ -198,7 +198,7 @@ service cloud.firestore {
         'performanceReviews', 'performanceGoals', 'candidates', 'jobOpenings',
         'companyGoals', 'objectives', 'goalCheckIns', 'helpArticles', 'hrPolicyDocuments',
         'systemUsage', 'aiUsageLogs', 'aiActionLogs', 'aiPredictions', 'resolvedTicketKnowledge', 'aiChatHistory',
-        'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash',
+        'whatsappTemplates', 'teamPulseResponses', 'digests', 'activities', 'trash', 'attendanceNotificationLog',
         'npsResponses', 'tallyMappings', 'journeys', 'segments', 'sosEvents',
         'vendorRates', 'vendorAvailability',
         // Same reasoning as isCreateRestricted above.
@@ -937,6 +937,15 @@ service cloud.firestore {
     match /aiActionLogs/{id} {
       allow read:  if isAdmin();
       allow write: if false;
+    }
+
+    // ── Attendance reminder dedup log ──
+    // One doc per {employeeId}_{date}_{type}, written only by the
+    // attendance-reminders cron (Admin SDK) to avoid re-notifying on every
+    // 5-minute tick. Not a business record anyone needs to read — locked
+    // down entirely, same `write: if false` precedent as aiUsageLogs above.
+    match /attendanceNotificationLog/{id} {
+      allow read, write: if false;
     }
 
     // ── Resolved ticket knowledge base (AI Employee "learning" loop) ──
