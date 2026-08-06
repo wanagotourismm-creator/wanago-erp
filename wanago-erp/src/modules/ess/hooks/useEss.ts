@@ -10,7 +10,7 @@ import { fetchHolidays } from "@/modules/admin/holidays/services/holiday.service
 import { fetchPayrollByEmployee } from "@/modules/hrms/payroll/services/payroll.service";
 import { fetchAssetsByEmployee } from "@/modules/assets/services/asset.service";
 import { fetchAssetRequests, fetchAssetRequestsByEmployee, createAssetRequest, approveAssetRequest, rejectAssetRequest } from "@/modules/assets/services/asset-request.service";
-import { fetchTicketsByReporter, createTicket } from "@/modules/tickets/services/ticket.service";
+import { fetchTicketsByReporter, createTicket, uploadTicketAttachments, attachTicketFiles } from "@/modules/tickets/services/ticket.service";
 import { fetchOffices } from "@/modules/admin/offices/services/office.service";
 import { getCurrentPosition, reverseGeocode, distanceMeters, type GeoPosition } from "@/lib/geo";
 import { notifyUser } from "@/lib/notify";
@@ -463,7 +463,7 @@ export function useEss() {
     }
   }
 
-  async function reportIssue(data: EssTicketReportSchema) {
+  async function reportIssue(data: EssTicketReportSchema, files: File[] = []) {
     if (!employee || !user) return { error: "No employee profile is linked to your account yet. Contact HR." };
     try {
       const t = await createTicket({
@@ -473,6 +473,20 @@ export function useEss() {
         officeId:       employee.officeId,
       }, user.uid);
       setMyTickets((p) => [t, ...p]);
+
+      // Best-effort — attachment upload/frame-extraction failing shouldn't
+      // block the ticket the reporter just successfully created. The AI
+      // diagnosis trigger below still fires either way; it just won't have
+      // visual evidence to analyze if this didn't succeed.
+      if (files.length > 0) {
+        try {
+          const attachments = await uploadTicketAttachments(t.id, files);
+          await attachTicketFiles(t.id, attachments);
+          setMyTickets((p) => p.map((x) => (x.id === t.id ? { ...x, attachments } : x)));
+        } catch {
+          // ignore
+        }
+      }
 
       // Fire-and-forget — the route itself re-checks category/toggle/cap,
       // this is just the trigger. Never blocks or affects the success

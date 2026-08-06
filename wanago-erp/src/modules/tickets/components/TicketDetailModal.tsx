@@ -1,21 +1,26 @@
 "use client";
 
-import { X, Trash2, UserCheck, Ticket as TicketIcon, User, Timer, Bot, GitPullRequest } from "lucide-react";
+import { X, Trash2, UserCheck, Ticket as TicketIcon, User, Timer, Bot, GitPullRequest, Check, XCircle, Film, Image as ImageIcon, Paperclip } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { TicketPriorityBadge, TicketStatusBadge, TicketSlaBadge, TICKET_STATUS_LABELS } from "@/modules/tickets/components/TicketBadges";
+import { CodeDiffView } from "@/modules/tickets/components/CodeDiffView";
 import { getTicketSlaStatus } from "@/modules/tickets/services/ticket-sla.service";
 import { formatDate } from "@/lib/utils/helpers";
 import type { TicketSlaPolicy } from "@/modules/tickets/services/ticket-sla-policy.service";
 import type { Ticket, TicketStatus } from "@/modules/tickets/types";
 
 type Props = {
-  ticket:       Ticket | null;
-  canDelete:    boolean;
-  slaPolicy:    TicketSlaPolicy;
-  onClose:      () => void;
-  onSetStatus:  (t: Ticket, status: TicketStatus) => void;
-  onAssignToMe: (t: Ticket) => void;
-  onDelete:     (t: Ticket) => void;
+  ticket:          Ticket | null;
+  canDelete:       boolean;
+  canManageAiFix:  boolean;
+  slaPolicy:       TicketSlaPolicy;
+  aiReviewBusy:    boolean;
+  onClose:         () => void;
+  onSetStatus:     (t: Ticket, status: TicketStatus) => void;
+  onAssignToMe:    (t: Ticket) => void;
+  onDelete:        (t: Ticket) => void;
+  onApproveAiFix:  (t: Ticket) => void;
+  onRejectAiFix:   (t: Ticket) => void;
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -27,7 +32,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function TicketDetailModal({ ticket, canDelete, slaPolicy, onClose, onSetStatus, onAssignToMe, onDelete }: Props) {
+export function TicketDetailModal({
+  ticket, canDelete, canManageAiFix, slaPolicy, aiReviewBusy,
+  onClose, onSetStatus, onAssignToMe, onDelete, onApproveAiFix, onRejectAiFix,
+}: Props) {
   if (!ticket) return null;
   const sla = getTicketSlaStatus(ticket, slaPolicy);
 
@@ -97,6 +105,26 @@ export function TicketDetailModal({ ticket, canDelete, slaPolicy, onClose, onSet
             </div>
           )}
 
+          {ticket.attachments && ticket.attachments.length > 0 && (
+            <div>
+              <div className="mb-1.5 flex items-center gap-2">
+                <Paperclip size={13} className="text-primary" />
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Attachments</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {ticket.attachments.filter((a) => a.type !== "video-frame").map((a, i) => (
+                  <a
+                    key={`${a.url}-${i}`} href={a.url} target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 transition-colors"
+                  >
+                    {a.type === "video" ? <Film size={12} className="text-primary" /> : <ImageIcon size={12} className="text-primary" />}
+                    <span className="max-w-[10rem] truncate">{a.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {ticket.resolutionNotes && (
             <div>
               <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-primary">Resolution</p>
@@ -112,16 +140,52 @@ export function TicketDetailModal({ ticket, canDelete, slaPolicy, onClose, onSet
                 <Bot size={13} className="text-primary" />
                 <p className="text-xs font-bold uppercase tracking-widest text-primary">AI Diagnosis</p>
               </div>
-              <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-2">
+              <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-3">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{ticket.aiDiagnosis}</p>
-                {ticket.aiPrUrl ? (
+
+                {ticket.aiFixReviewStatus === "pending_review" && ticket.aiProposedFix && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-foreground">
+                      Proposed change to <code className="rounded bg-muted px-1 py-0.5">{ticket.aiProposedFix.targetFile}</code> — nothing has been pushed to GitHub yet.
+                    </p>
+                    <CodeDiffView oldContent={ticket.aiProposedFix.oldFileContent} newContent={ticket.aiProposedFix.newFileContent} />
+                    {canManageAiFix ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => onApproveAiFix(ticket)}
+                          disabled={aiReviewBusy}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60 transition-colors"
+                        >
+                          <Check size={12} /> Approve — open draft PR
+                        </button>
+                        <button
+                          onClick={() => onRejectAiFix(ticket)}
+                          disabled={aiReviewBusy}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60 transition-colors"
+                        >
+                          <XCircle size={12} /> Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-medium text-muted-foreground">Waiting on an admin to review and approve this before anything is pushed to GitHub.</p>
+                    )}
+                  </div>
+                )}
+
+                {ticket.aiFixReviewStatus === "approved" && ticket.aiPrUrl && (
                   <a
                     href={ticket.aiPrUrl} target="_blank" rel="noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
                   >
-                    <GitPullRequest size={12} /> View draft PR — needs human review before merge
+                    <GitPullRequest size={12} /> View draft PR — still needs a human to merge on GitHub
                   </a>
-                ) : (
+                )}
+
+                {ticket.aiFixReviewStatus === "rejected" && (
+                  <p className="text-xs font-medium text-muted-foreground">Rejected by an admin — nothing was pushed to GitHub.</p>
+                )}
+
+                {!ticket.aiFixReviewStatus && (
                   <p className="text-xs font-medium text-muted-foreground">Needs manual triage — the AI wasn&apos;t confident enough to propose a fix.</p>
                 )}
               </div>

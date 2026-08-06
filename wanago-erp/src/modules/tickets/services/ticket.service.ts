@@ -4,7 +4,9 @@ import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { nextRefNumber } from "@/lib/firebase/ref-counter";
 import { notifyUser } from "@/lib/notify";
 import { fetchUsersByPermission } from "@/lib/notify-recipients";
-import type { Ticket, TicketStatus } from "@/modules/tickets/types";
+import { uploadFile } from "@/lib/storage/upload";
+import { extractVideoFrames } from "@/lib/media/extractVideoFrames";
+import type { Ticket, TicketStatus, TicketAttachment } from "@/modules/tickets/types";
 import type { TicketSchema } from "@/modules/tickets/schemas";
 
 // New tickets start unassigned (assignToMe is a self-claim action, and
@@ -106,4 +108,41 @@ export async function assignTicket(id: string, assignedToId: string, assignedToN
 
 export async function deleteTicket(id: string): Promise<void> {
   return repo.delete(id);
+}
+
+// Uploads a reporter's screenshot/screen-recording picks and returns the
+// attachment records to save on the ticket. Runs after the ticket already
+// has an id (mirrors expense.service.ts's receipt-upload pattern) since the
+// storage path is keyed off ticketId. A video also gets a handful of frames
+// sampled from it (extractVideoFrames) and uploaded as separate "video-frame"
+// image attachments — the AI diagnosis pipeline can only run vision analysis
+// on still images, never the raw video itself.
+export async function uploadTicketAttachments(ticketId: string, files: File[]): Promise<TicketAttachment[]> {
+  const attachments: TicketAttachment[] = [];
+
+  for (const file of files) {
+    const isVideo = file.type.startsWith("video/");
+    const url = await uploadFile(`tickets/${ticketId}/${Date.now()}-${file.name}`, file);
+    attachments.push({ url, type: isVideo ? "video" : "image", mimeType: file.type, name: file.name });
+
+    if (isVideo) {
+      try {
+        const frames = await extractVideoFrames(file);
+        for (let i = 0; i < frames.length; i++) {
+          const frameName = `frame-${i + 1}.jpg`;
+          const frameUrl = await uploadFile(`tickets/${ticketId}/frames/${Date.now()}-${frameName}`, frames[i]);
+          attachments.push({ url: frameUrl, type: "video-frame", mimeType: "image/jpeg", name: frameName });
+        }
+      } catch {
+        // Best-effort — if frame extraction fails, the raw video attachment
+        // above is still saved for a human to watch, just not AI-analyzed.
+      }
+    }
+  }
+
+  return attachments;
+}
+
+export async function attachTicketFiles(ticketId: string, attachments: TicketAttachment[]): Promise<void> {
+  return repo.update(ticketId, { attachments } as Partial<Ticket>);
 }

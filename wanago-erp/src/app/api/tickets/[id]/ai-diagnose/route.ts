@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getAdminDb } from "@/lib/firebase/admin";
 import { FIRESTORE_COLLECTIONS } from "@/lib/constants";
 import { isAiAutoFixEnabled } from "@/modules/ai-core/services/ai-settings.server";
-import { diagnoseAndDraftFix, countTodaysAiPrs, DAILY_AI_PR_CAP } from "@/modules/tickets/services/ai-bugfix.service";
+import { diagnoseFix } from "@/modules/tickets/services/ai-bugfix.service";
 import type { Ticket } from "@/modules/tickets/types";
 
 export const runtime = "nodejs";
@@ -45,13 +45,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ status: "skipped", reason: "Customer-sourced tickets are never auto-diagnosed." });
   }
 
-  const todaysCount = await countTodaysAiPrs();
-  if (todaysCount >= DAILY_AI_PR_CAP) {
-    return NextResponse.json({ status: "skipped", reason: `Daily AI auto-fix limit (${DAILY_AI_PR_CAP}) reached — try again tomorrow, or fix this one manually.` });
-  }
-
   try {
-    const result = await diagnoseAndDraftFix(ticket);
+    const result = await diagnoseFix(ticket);
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ status: "needs_human", reason: err instanceof Error ? err.message : "Diagnosis failed unexpectedly." });

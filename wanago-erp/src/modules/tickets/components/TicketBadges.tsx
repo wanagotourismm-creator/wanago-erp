@@ -49,3 +49,25 @@ export function TicketSlaBadge({ clock }: { clock: SlaClock }) {
     </span>
   );
 }
+
+const AI_FIX_STATUS_STYLES: Record<string, string> = {
+  pending_review: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  approved:       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  rejected:       "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  needs_human:    "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+};
+
+const AI_FIX_STATUS_LABELS: Record<string, string> = {
+  pending_review: "Pending Review", approved: "PR Opened", rejected: "Rejected", needs_human: "Needs Human",
+};
+
+// "needs_human" isn't a real aiFixReviewStatus value (that field is null in
+// that case) — this badge takes the resolved display key so both call sites
+// (dashboard queue vs. history table) share one styling source.
+export function AiFixStatusBadge({ status }: { status: "pending_review" | "approved" | "rejected" | "needs_human" }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap", AI_FIX_STATUS_STYLES[status])}>
+      {AI_FIX_STATUS_LABELS[status]}
+    </span>
+  );
+}

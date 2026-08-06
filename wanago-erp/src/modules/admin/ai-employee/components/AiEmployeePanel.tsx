@@ -85,16 +85,22 @@ export function AiEmployeePanel({ settings, saving, onSave }: Props) {
           Enable AI auto-diagnosis for &ldquo;Software&rdquo; category support tickets
         </label>
         <p className="text-xs text-muted-foreground">
-          When a staff member reports a Software-category bug, the AI tries to find the cause in the codebase and
-          open a <strong>draft</strong> pull request on GitHub for a developer to review — it never merges anything
-          itself. Also requires a GitHub token configured under Admin &gt; Integrations.
+          When a staff member reports a Software-category bug (optionally with a screenshot or screen recording
+          attached), the AI tries to find the cause in the codebase and proposes a single-file fix — shown right in
+          the ticket, as a diff, for an admin to review. <strong>Nothing is committed or pushed to GitHub until an
+          admin clicks Approve.</strong> Approving opens a <strong>draft</strong> pull request; it still never merges
+          anything itself — a developer still has to merge on GitHub. Also requires a GitHub token configured under
+          Admin &gt; Integrations.
         </p>
         <div className="flex items-start gap-2 rounded-xl border border-amber-300/40 bg-amber-100/50 dark:bg-amber-900/20 px-3 py-2">
           <ShieldAlert size={13} className="mt-0.5 flex-shrink-0 text-amber-700 dark:text-amber-400" />
           <ul className="space-y-1 text-[11px] text-amber-800 dark:text-amber-300 list-disc pl-3">
+            <li>Diagnosis only proposes a fix — no GitHub branch/commit/PR exists until an admin approves it in the ticket</li>
             <li>Only ever changes one file, and only source code files (never config, secrets, security rules, or its own code)</li>
+            <li>Attached screenshots are analyzed for visible error text/UI state; a screen recording has several frames sampled from it in-browser and those are analyzed the same way, feeding the diagnosis</li>
             <li>Only triggers on internally-reported tickets, never customer-facing (NPS) ones</li>
-            <li>Capped at 5 draft PRs per day (see DAILY_AI_PR_CAP in ai-bugfix.service.ts)</li>
+            <li>Capped at 5 draft PRs per day, checked at approval time (see DAILY_AI_PR_CAP in ai-bugfix.service.ts)</li>
+            <li>Re-checks the target file hasn&apos;t changed on GitHub since diagnosis before committing, in case it drifted while waiting for review</li>
             <li>Says &ldquo;needs manual triage&rdquo; instead of guessing when it isn&apos;t confident</li>
           </ul>
         </div>
